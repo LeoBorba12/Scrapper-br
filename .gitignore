@@ -1,0 +1,16 @@
+# Vídeos e arquivos pesados de renderização
+*.mp4
+*.7z
+*.zip
+
+# Ambientes Python e caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+
+# Logs do sistema
+*.log
