@@ -14,3 +14,9 @@ env/
 
 # Logs do sistema
 *.log
+
+# Frontend & Node
+node_modules/
+frontend/node_modules/
+.vite/
+frontend/.vite/
