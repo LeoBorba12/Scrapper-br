@@ -14,15 +14,14 @@ Mantemos o banco de **Futebol** totalmente desacoplado do banco de **Meteorologi
 ┌─────────────────────────────────┐        ┌─────────────────────────────────┐
 │        data/futebol.db          │        │         data/clima.db           │
 ├─────────────────────────────────┤        ├─────────────────────────────────┤
-│ • partidas (8.785 jogos)        │  JOIN  │ • clima_diario (43.836 dias)    │
-│   - data, horario, estádio      │◄──────►│   - data, cidade, estado        │
-│   - mandante, visitante, placar │ (data  │   - temp_max, temp_min, média   │
-│   - árbitro, bandeirinhas, VAR  │   +    │   - precipitação (chuva em mm)  │
-│   - técnicos, público           │ estado)│   - umidade e velocidade vento  │
-│ • gols (9.861 gols detalhados)  │        │   - condição textual            │
-│ • cartões (20.953 advertências) │        └─────────────────────────────────┘
-│ • escalações (35.547 atletas)   │
-└─────────────────────────────────┘
+│ • partidas (20.620 jogos)       │  JOIN  │ • clima_diario (43.836 dias)    │
+│   - 11.835 jogos (1971-2002)    │◄──────►│   - 2015 a 2024 (10 anos)       │
+│   - 8.785 jogos (2003-2024)     │ (data  │   - 12 principais capitais      │
+│   - placar, técnicos, árbitros  │   +    │   - temp_max, temp_min, média   │
+│ • gols (31.323 gols detalhados) │ estado)│   - precipitação (chuva em mm)  │
+│ • cartões (20.953 advertências) │        │   - umidade e velocidade vento  │
+│ • escalações (35.547 atletas)   │        │   - condição textual            │
+└─────────────────────────────────┘        └─────────────────────────────────┘
 ```
 
 ---
