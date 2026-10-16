@@ -4,6 +4,11 @@ import webbrowser
 import threading
 import time
 
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 # Adiciona o diretório atual ao sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -11,8 +16,11 @@ from backend.app import app
 
 def abrir_navegador(url):
     time.sleep(1.2)
-    print(f"\n🚀 Abrindo a dashboard no navegador: {url}")
-    webbrowser.open(url)
+    print(f"\n[OK] Abrindo a dashboard no navegador: {url}")
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"Navegador: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
