@@ -1,71 +1,129 @@
-# ⚽ Scrapper-br: Mineração de Dados & Fatos Inusitados do Futebol Brasileiro
+# ⚽ Scrapper-br: Big Data do Futebol Brasileiro + Meteorologia Histórica
 
-> **Pipeline de dados 100% automatizado e sem custos ($0 de infra)** que cruza o histórico do Brasileirão com variáveis externas (meteorologia histórica, clássicos regionais e sequências de resultados) para gerar análises virais prontas para redes sociais (Twitter/X).
-
----
-
-## 🚀 Visão Geral
-
-Este repositório contém a engine de dados para o perfil automatizado de estatísticas curiosas do futebol brasileiro:
-1. **Histórico Completo**: Análise estruturada do Campeonato Brasileiro (era dos pontos corridos e recortes históricos).
-2. **Cruzamento com Clima Histórico**: Integração com a API global da **Open-Meteo** (temperatura máxima, precipitação e umidade no dia e local de cada partida).
-3. **Geração Automatizada de Cards**: Produção de imagens widescreen (1200x675) de alta resolução via Python (`Pillow`), no padrão visual ideal para feeds sociais.
-4. **Agendamento em Nuvem com GitHub Actions**: Pipeline configurado para rodar sem necessidade de manter servidores locais ou VMs ligadas.
+> **Dois bancos de dados SQLite isolados e normalizados** para permitir infinitas combinações analíticas e fatos inusitados virais com custo $0 de infraestrutura:
+> 1. `data/futebol.db`: Banco de partidas, gols, cartões, escalações e equipes de arbitragem.
+> 2. `data/clima.db`: Banco meteorológico diário cobrindo as 12 principais praças esportivas do Brasil de 2015 a 2024 (43.800+ registros).
 
 ---
 
-## 📂 Estrutura do Projeto
+## 🏛️ Arquitetura dos Bancos de Dados Isolados
 
-```text
-├── .github/workflows/
-│   └── scraper_diario.yml          # Automação diária no GitHub Actions (00:00 BRT)
-├── minerar_futebol.py             # Extrai jogos do Brasileirão e cruza com a API Open-Meteo
-├── analise_classicos_corinthians.py # Análise histórica de clássicos paulistas e pós-goleadas
-├── gerar_card_tweet.py            # Gera cards visuais em alta resolução para tweets
-├── card_corinthians_clima.png     # Exemplo gerado do card pronto para postagem
-├── requirements.txt               # Dependências do projeto
-└── README.md                      # Documentação do projeto
+Mantemos o banco de **Futebol** totalmente desacoplado do banco de **Meteorologia**. Graças ao recurso `ATTACH DATABASE` do SQLite, é possível realizar consultas cruzadas relacionando qualquer variável do jogo com o clima do dia em microssegundos:
+
+```
+┌─────────────────────────────────┐        ┌─────────────────────────────────┐
+│        data/futebol.db          │        │         data/clima.db           │
+├─────────────────────────────────┤        ├─────────────────────────────────┤
+│ • partidas (8.785 jogos)        │  JOIN  │ • clima_diario (43.836 dias)    │
+│   - data, horario, estádio      │◄──────►│   - data, cidade, estado        │
+│   - mandante, visitante, placar │ (data  │   - temp_max, temp_min, média   │
+│   - árbitro, bandeirinhas, VAR  │   +    │   - precipitação (chuva em mm)  │
+│   - técnicos, público           │ estado)│   - umidade e velocidade vento  │
+│ • gols (9.861 gols detalhados)  │        │   - condição textual            │
+│ • cartões (20.953 advertências) │        └─────────────────────────────────┘
+│ • escalações (35.547 atletas)   │
+└─────────────────────────────────┘
 ```
 
 ---
 
-## 📊 Principais Descobertas Mineradas
+## 📋 Esquema Detalhado dos Bancos
 
-- **Efeito Temperatura no Corinthians (Neo Química Arena)**:
-  - Partidas com calor intenso ($\ge 28^\circ\text{C}$): taxa de vitória de **~53,6%**.
-  - Partidas em clima ameno/frio ($\le 21^\circ\text{C}$): taxa de vitória sobe para **~68,6%** (+15 p.p. de aproveitamento).
-- **Pós-Goleada em Clássicos Paulistas**:
-  - Na era dos pontos corridos, após sofrer $>3$ gols contra Palmeiras, Santos ou São Paulo, o Corinthians manteve **100% de invencibilidade** na partida imediatamente seguinte.
+### 1. `data/futebol.db`
+
+* **`partidas`**:
+  * `id_partida`: Identificador único da partida
+  * `ano`, `rodada`, `data` (YYYY-MM-DD), `horario` (HH:MM)
+  * `estadio`, `cidade`, `estado`
+  * `mandante`, `visitante`, `gols_mandante`, `gols_visitante`, `placar`, `vencedor`
+  * **Arbitragem**: `arbitro`, `assistente_1` (bandeirinha 1), `assistente_2` (bandeirinha 2), `quarto_arbitro`, `var`
+  * **Comissão & Público**: `tecnico_mandante`, `tecnico_visitante`, `publico`
+
+* **`gols`**:
+  * `id_partida`, `rodada`, `clube`, `atleta`, `minuto`, `tempo` (1T/2T), `tipo_de_gol` (Normal, Pênalti, Falta, Contra)
+
+* **`cartoes`**:
+  * `id_partida`, `rodada`, `clube`, `atleta`, `cartao` (Amarelo/Vermelho), `num_camisa`, `posicao`, `minuto`, `motivo`
+
+* **`escalacoes`**:
+  * `id_partida`, `clube`, `atleta`, `num_camisa`, `posicao`, `titular` (1 ou 0), `is_goleiro` (1 ou 0), `is_capitao` (1 ou 0), `cbf_id`
+
+---
+
+### 2. `data/clima.db`
+
+* **`clima_diario`**:
+  * `data` (YYYY-MM-DD), `cidade`, `estado` (PK composta)
+  * `temperatura_max` (°C), `temperatura_min` (°C), `temperatura_media` (°C)
+  * `precipitacao_mm` (acumulado diário de chuva)
+  * `umidade_relativa_media` (%), `vento_velocidade_max` (km/h)
+  * `condicao` (Ensolarado, Chuva Forte, Frio, Calor Extremo, etc.)
+
+---
+
+## ⚡ Exemplos de Consultas Cruzadas (`consultar_combinacoes.py`)
+
+Você pode usar o script [`consultar_combinacoes.py`](consultar_combinacoes.py) para testar perguntas inusitadas:
+
+### 1. Desempenho de um clube por temperatura:
+```python
+from consultar_combinacoes import analise_clube_por_temperatura
+
+df = analise_clube_por_temperatura("Corinthians")
+# Revela: No calor (>=28°C), Corinthians teve apenas 27 vitórias contra 73 derrotas;
+# No frio/ameno (<=21°C), foram 50 vitórias mandantes contra 55 derrotas.
+```
+
+### 2. Árbitros que mais aplicam cartões em dias chuvosos:
+```python
+from consultar_combinacoes import analise_arbitros_e_chuva
+
+df = analise_arbitros_e_chuva(min_jogos=15)
+# Mostra jogos com chuva (>=5mm) vs secos e média de cartões por juiz
+```
+
+### 3. Maiores artilheiros em dias de calor escaldante:
+```python
+from consultar_combinacoes import analise_artilheiros_sob_calor
+
+df = analise_artilheiros_sob_calor(min_gols=5)
+# Top artilheiros em dias com temperatura >= 28°C:
+# 1. Luciano (São Paulo) - 27 gols
+# 2. Vinícius (Ceará) - 22 gols
+# 3. Bruno Henrique (Flamengo) - 19 gols
+# 4. Gabigol (Flamengo) - 17 gols
+```
 
 ---
 
 ## 🛠️ Como Executar Localmente
 
-### 1. Clonar o repositório
-```bash
-git clone https://github.com/LeoBorba12/Scrapper-br.git
-cd Scrapper-br
-```
-
-### 2. Instalar dependências
+### 1. Requisitos
 ```bash
 pip install -r requirements.txt
-# ou: pip install requests pandas pillow numpy
 ```
 
-### 3. Rodar os scripts de análise e geração
+### 2. Construir ou atualizar os bancos
 ```bash
-python minerar_futebol.py
-python analise_classicos_corinthians.py
+# Constrói o banco de futebol (partidas, gols, árbitros, escalações)
+python construir_banco_futebol.py
+
+# Constrói o banco de clima (API Open-Meteo para 12 praças)
+python construir_banco_clima.py
+```
+
+### 3. Rodar análises e gerar cards visuais para o Twitter
+```bash
+python consultar_combinacoes.py
 python gerar_card_tweet.py
 ```
-O card visual gerado será salvo como `card_corinthians_clima.png`.
 
 ---
 
-## ⚙️ Automação (GitHub Actions)
+## 🤖 Automação Diária (GitHub Actions)
 
-O workflow [`.github/workflows/scraper_diario.yml`](.github/workflows/scraper_diario.yml) executa:
-- **Diariamente às 00:00 (Brasília) / 03:00 (UTC)**.
-- **Disparo Manual (Workflow Dispatch)**: Você pode testar e rodar o pipeline a qualquer momento pelo painel do GitHub na aba **Actions** > **Run workflow**.
-- O bot baixa os dados, reprocessa as estatísticas, gera os novos cards e faz commit automático direto no repositório.
+O workflow [`.github/workflows/scraper_diario.yml`](.github/workflows/scraper_diario.yml) roda todos os dias à meia-noite (00:00 BRT):
+- Atualiza as partidas recentes e súmulas da CBF.
+- Atualiza o clima diário na Open-Meteo.
+- Gera novos cards de estatísticas.
+- Salva e commita automaticamente os bancos `data/*.db` atualizados no repositório.
