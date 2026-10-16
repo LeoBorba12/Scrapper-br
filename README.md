@@ -1,7 +1,7 @@
 # ⚽ Scrapper-br: Big Data do Futebol Brasileiro e Sul-Americano (1950–2024) + Meteorologia Histórica
 
 > **Dois bancos de dados SQLite isolados e normalizados** para permitir infinitas combinações analíticas e fatos inusitados virais com custo $0 de infraestrutura:
-> 1. `data/futebol.db`: Banco unificado de **35.928 partidas oficiais** e **42.133 gols detalhados**, cobrindo o futebol brasileiro de 1950 a 2024 em torneios nacionais, regionais (Rio-SP, Nordeste, Sul-Minas) e todas as grandes competições continentais e mundiais.
+> 1. `data/futebol.db`: Banco unificado de **43.985 partidas oficiais** e **42.133 gols detalhados**, cobrindo o futebol brasileiro de 1950 a 2024 em torneios nacionais (Brasileirão, Copa do Brasil), estaduais (Paulista, Carioca, Mineiro, Gaúcho, Paranaense), regionais (Rio-SP, Nordeste, Sul-Minas) e internacionais (Libertadores, Sul-Americana, Mundiais FIFA).
 > 2. `data/clima.db`: Banco meteorológico diário cobrindo as 12 principais praças esportivas do Brasil de 2015 a 2024 (43.800+ registros).
 
 ---
@@ -14,13 +14,19 @@ Mantemos o banco de **Futebol** totalmente desacoplado do banco de **Meteorologi
 ┌──────────────────────────────────────────────┐        ┌─────────────────────────────────┐
 │               data/futebol.db                │        │         data/clima.db           │
 ├──────────────────────────────────────────────┤        ├─────────────────────────────────┤
-│ • partidas (35.928 jogos de 1950 a 2024)     │  JOIN  │ • clima_diario (43.836 dias)    │
+│ • partidas (43.985 jogos de 1950 a 2024)     │  JOIN  │ • clima_diario (43.836 dias)    │
 │   - Brasileirão (1959-2024): 21.643 jogos    │◄──────►│   - 2015 a 2024 (10 anos)       │
 │   - Copa do Brasil (1989-2024): 3.314 jogos  │ (data  │   - 12 principais capitais      │
-│   - Torneios Regionais: 1.658 jogos          │   +    │   - temp_max, temp_min, média   │
-│     * Torneio Rio-São Paulo: 958 jogos       │ estado)│   - precipitação (chuva em mm)  │
-│     * Copa do Nordeste: 491 jogos            │        │   - umidade e velocidade vento  │
-│     * Copa Sul-Minas: 209 jogos              │        │   - condição textual            │
+│   - Campeonatos Estaduais: 8.178 jogos       │   +    │   - temp_max, temp_min, média   │
+│     * Paulista: 1.269 jogos                  │ estado)│   - precipitação (chuva em mm)  │
+│     * Carioca: 1.798 jogos                   │        │   - umidade e velocidade vento  │
+│     * Gaúcho: 2.008 jogos                    │        │   - condição textual            │
+│     * Mineiro: 1.255 jogos                   │        │                                 │
+│     * Paranaense: 1.727 jogos                │        │                                 │
+│   - Torneios Regionais: 1.658 jogos          │        │                                 │
+│     * Torneio Rio-São Paulo: 958 jogos       │        │                                 │
+│     * Copa do Nordeste: 491 jogos            │        │                                 │
+│     * Copa Sul-Minas: 209 jogos              │        │                                 │
 │   - Copa Libertadores (1960-2024): 6.441 jgs │        │                                 │
 │   - Copa Sul-Americana (2002-2024): 2.054 jgs│        │                                 │
 │   - Mundiais FIFA / Toyota: 46 jogos         │        │                                 │
@@ -44,6 +50,11 @@ Mantemos o banco de **Futebol** totalmente desacoplado do banco de **Meteorologi
 | **Brasileirão (Mata-Mata)** | 1971–2002 | 32 | 11.865 | 28.436 | 2,40 | 48,1% | 28,7% | 23,2% |
 | **Brasileirão (Pontos Corridos)** | 2003–2024 | 22 | 8.785 | 22.515 | 2,56 | 49,6% | 26,4% | 23,9% |
 | **Copa do Brasil** | 1989–2024 | 36 | 3.314 | 8.953 | 2,70 | 45,6% | 25,8% | 28,6% |
+| **Campeonato Paulista** | 2001–2024 | 15 | 1.269 | 3.702 | 2,92 | 45,2% | 24,9% | 29,9% |
+| **Campeonato Carioca** | 2002–2023 | 19 | 1.798 | 5.182 | 2,88 | 47,2% | 23,9% | 29,0% |
+| **Campeonato Gaúcho** | 2002–2022 | 16 | 2.008 | 5.458 | 2,72 | 48,7% | 25,4% | 25,9% |
+| **Campeonato Mineiro** | 2002–2024 | 19 | 1.255 | 3.458 | 2,76 | 48,4% | 23,3% | 28,3% |
+| **Campeonato Paranaense** | 2003–2022 | 16 | 1.727 | 4.874 | 2,82 | 49,3% | 26,0% | 24,7% |
 | **Copa do Nordeste** | 1997–2003 | 7 | 491 | 1.461 | 2,98 | 50,7% | 23,4% | 25,9% |
 | **Copa Sul-Minas** | 2000–2002 | 3 | 209 | 671 | 3,21 | 45,5% | 24,9% | 29,7% |
 | **Copa Libertadores da América** | 1960–2024 | 65 | 6.441 | 17.059 | 2,65 | 48,9% | 24,3% | 26,8% |
@@ -54,7 +65,7 @@ Mantemos o banco de **Futebol** totalmente desacoplado do banco de **Meteorologi
 | **Copa CONMEBOL** | 1992–1999 | 8 | 240 | 660 | 2,75 | 34,6% | 26,7% | 38,8% |
 | **Supercopa Libertadores** | 1988–1997 | 10 | 216 | 515 | 2,38 | 35,6% | 27,8% | 36,6% |
 | **Recopa Sul-Americana** | 1988–2024 | 21 | 38 | 85 | 2,24 | 60,5% | 21,1% | 18,4% |
-| **TOTAL GERAL CATALOGADO** | **1950–2024** | **270+** | **35.928** | **93.435** | **2,60** | **48,2%** | **26,3%** | **25,5%** |
+| **TOTAL GERAL CATALOGADO** | **1950–2024** | **350+** | **43.985** | **116.589** | **2,65** | **48,2%** | **26,0%** | **25,8%** |
 
 ---
 
