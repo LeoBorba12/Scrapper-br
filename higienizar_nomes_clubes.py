@@ -137,7 +137,7 @@ def higienizar():
     conn.commit()
 
     # Confirmação
-    cur.execute("SELECT COUNT(DISTINCT mandante) FROM partidas WHERE mandante LIKE '%%';")
+    cur.execute("SELECT COUNT(DISTINCT mandante) FROM partidas WHERE mandante LIKE '%Ã%' OR mandante LIKE '%\ufffd%';")
     restantes = cur.fetchone()[0]
     print(f"  • Clubes com encoding corrompido restantes: {restantes}")
 
