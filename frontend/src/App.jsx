@@ -3,12 +3,13 @@ import {
   Trophy, CloudRain, Swords, Search, Copy, Check, Sparkles, 
   Sun, Moon, Flame, ShieldAlert, Calendar, MapPin, BarChart3, 
   ArrowRight, RefreshCw, Share2, User, Users, Award, AlertCircle, 
-  X, ChevronRight, Filter
+  X, ChevronRight, Filter, Bot, Brain, Code, Terminal, Settings, 
+  Key, Lightbulb, Zap
 } from 'lucide-react';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'playground', 'clima', 'tweets'
+  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'oraculo', 'playground', 'clima', 'tweets'
 
   // Overview
   const [overview, setOverview] = useState(null);
@@ -31,7 +32,18 @@ export default function App() {
   const [destaquesLoading, setDestaquesLoading] = useState(false);
   const [playerClubeFiltro, setPlayerClubeFiltro] = useState('');
 
-  // Tab 3: Playground state
+  // Tab 3: Oráculo & IA Analista state
+  const [oraculoPrompt, setOraculoPrompt] = useState('');
+  const [oraculoModel, setOraculoModel] = useState('gemini'); // 'gemini' | 'deepseek'
+  const [oraculoLoading, setOraculoLoading] = useState(false);
+  const [oraculoResult, setOraculoResult] = useState(null);
+  const [oraculoError, setOraculoError] = useState(null);
+  const [showSql, setShowSql] = useState(false);
+  const [apiKeyGemini, setApiKeyGemini] = useState(() => localStorage.getItem('gemini_api_key') || '');
+  const [apiKeyDeepseek, setApiKeyDeepseek] = useState(() => localStorage.getItem('deepseek_api_key') || '');
+  const [showKeyConfig, setShowKeyConfig] = useState(false);
+
+  // Tab 4: Playground state
   const [campeonatosList, setCampeonatosList] = useState([]);
   const [pgClube, setPgClube] = useState('');
   const [pgCamp, setPgCamp] = useState('');
@@ -41,7 +53,7 @@ export default function App() {
   const [partidasData, setPartidasData] = useState(null);
   const [partidasLoading, setPartidasLoading] = useState(false);
 
-  // Tab 4: Clima state
+  // Tab 5: Clima state
   const [climaData, setClimaData] = useState(null);
   const [climaLoading, setClimaLoading] = useState(false);
 
@@ -74,6 +86,14 @@ export default function App() {
       .then(d => setCampeonatosList(d))
       .catch(() => {});
   }, []);
+
+  // Salvar chaves no localStorage
+  const salvarChaves = (gemini, deepseek) => {
+    setApiKeyGemini(gemini);
+    setApiKeyDeepseek(deepseek);
+    localStorage.setItem('gemini_api_key', gemini);
+    localStorage.setItem('deepseek_api_key', deepseek);
+  };
 
   // Buscar H2H
   const carregarH2H = () => {
@@ -148,6 +168,48 @@ export default function App() {
       .catch(() => setProfileLoading(false));
   };
 
+  // Enviar pergunta ao Oráculo
+  const enviarPerguntaOraculo = (perguntaTexto) => {
+    const texto = (perguntaTexto || oraculoPrompt).trim();
+    if (!texto) return;
+
+    setOraculoLoading(true);
+    setOraculoError(null);
+    if (perguntaTexto) {
+      setOraculoPrompt(perguntaTexto);
+    }
+
+    const key = oraculoModel === 'deepseek' ? apiKeyDeepseek : apiKeyGemini;
+
+    fetch('/api/ia/perguntar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pergunta: texto,
+        modelo: oraculoModel,
+        api_key: key
+      })
+    })
+      .then(async r => {
+        const data = await r.json();
+        if (!r.ok) {
+          throw new Error(data.error || 'Erro na comunicação com a IA.');
+        }
+        return data;
+      })
+      .then(d => {
+        if (d.requer_api_key) {
+          setShowKeyConfig(true);
+        }
+        setOraculoResult(d);
+        setOraculoLoading(false);
+      })
+      .catch(err => {
+        setOraculoError(err.message || 'Erro ao consultar o Oráculo.');
+        setOraculoLoading(false);
+      });
+  };
+
   // Buscar Partidas no Playground
   const carregarPartidas = (p = 1) => {
     setPartidasLoading(true);
@@ -199,6 +261,16 @@ export default function App() {
   const jogadoresPopulares = [
     'Zico', 'Roberto Dinamite', 'Reinaldo', 'Careca', 'Dario', 
     'Thiago Heleno', 'Fagner', 'Gabriel Barbosa', 'Felipe Melo', 'Romário'
+  ];
+
+  // Perguntas sugeridas para o Oráculo
+  const perguntasSugeridas = [
+    { label: "🗓️ Dias Pares vs Ímpares", pergunta: "Qual o aproveitamento de vitórias do Corinthians jogando em dias pares vs dias ímpares?" },
+    { label: "⏱️ Gols nos Acréscimos (45+)", pergunta: "Quais clubes mais marcaram gols nos acréscimos (minuto 45+ ou 90+) na história catalogada?" },
+    { label: "🏆 Maiores Artilheiros da Série B", pergunta: "Quais são os 5 maiores artilheiros da história da Série B do Brasileirão?" },
+    { label: "🌧️ Flamengo Sob Chuva Forte", pergunta: "Qual o aproveitamento do Flamengo jogando com chuva torrencial acima de 15mm?" },
+    { label: "⚽ Gols de Falta na História", pergunta: "Quem são os jogadores com mais gols de falta catalogados no futebol brasileiro?" },
+    { label: "🟨 Clássicos com Mais Cartões", pergunta: "Quais os clássicos com a maior média de cartões vermelhos por partida?" }
   ];
 
   return (
@@ -261,6 +333,13 @@ export default function App() {
           onClick={() => setActiveTab('jogadores')}
         >
           <User size={18} /> Jogadores & Estatísticas
+        </button>
+
+        <button 
+          className={activeTab === 'oraculo' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => setActiveTab('oraculo')}
+        >
+          <Brain size={18} /> Oráculo & IA Analista
         </button>
 
         <button 
@@ -342,7 +421,7 @@ export default function App() {
           {h2hData && (
             <div>
               {/* PLACAR GERAL RESUMO */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Vitórias de {h2hData.clube1}</div>
                   <div className="font-mono" style={{ fontSize: '2.5rem', fontWeight: '700', color: '#0369A1' }}>
@@ -481,7 +560,7 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 2: JOGADORES & ESTATÍSTICAS (NOVA ABA) */}
+      {/* ABA 2: JOGADORES & ESTATÍSTICAS */}
       {activeTab === 'jogadores' && (
         <section>
           {/* BARRA DE PESQUISA DE JOGADORES */}
@@ -1061,7 +1140,275 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 3: EXPLORADOR DE JOGOS & GOLS (PLAYGROUND) */}
+      {/* ABA 3: ORÁCULO & IA ANALISTA (NOVA ABA) */}
+      {activeTab === 'oraculo' && (
+        <section>
+          {/* BANNER PRINCIPAL DO ORÁCULO */}
+          <div className="soft-card" style={{ padding: '24px', marginBottom: '24px', background: 'linear-gradient(135deg, var(--surface) 0%, var(--surface-hover) 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Brain size={28} color="#87CEEB" />
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: '700' }}>
+                    Oráculo Estatístico & IA Analista
+                  </h2>
+                  <span className="badge badge-blue">Code Interpreter Real</span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px', maxWidth: '780px' }}>
+                  Pergunte qualquer curiosidade inusitada, mito ou correlação histórica. O modelo gera e executa queries SQL no banco de <strong>55.395 jogos</strong> e <strong>42.138 gols</strong> para trazer a verdade estatística.
+                </p>
+              </div>
+
+              {/* SELETOR DE MODELOS & CONFIGURAÇÃO */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setOraculoModel('gemini')}
+                  className={oraculoModel === 'gemini' ? 'btn-primary' : 'btn-secondary'}
+                  style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+                  title="Respostas instantâneas em 1 segundo via Google AI Studio"
+                >
+                  <Zap size={16} /> Gemini 2.0 Flash (Rápido)
+                </button>
+
+                <button
+                  onClick={() => setOraculoModel('deepseek')}
+                  className={oraculoModel === 'deepseek' ? 'btn-primary' : 'btn-secondary'}
+                  style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+                  title="Raciocínio lógico e correlações inusitadas via DeepSeek"
+                >
+                  <Bot size={16} /> DeepSeek (Raciocínio)
+                </button>
+
+                <button
+                  onClick={() => setShowKeyConfig(!showKeyConfig)}
+                  className="btn-secondary"
+                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
+                  title="Configurar chaves de API gratuitas"
+                >
+                  <Key size={16} /> Chaves
+                </button>
+              </div>
+            </div>
+
+            {/* PAINEL DE CONFIGURAÇÃO DE CHAVES (EXPANSÍVEL) */}
+            {showKeyConfig && (
+              <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <strong style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Key size={16} color="#87CEEB" /> Configurar Chaves de API Gratuitas
+                  </strong>
+                  <button onClick={() => setShowKeyConfig(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                  Suas chaves são salvas apenas no seu navegador (<span className="font-mono">localStorage</span>). Para perguntas livres e ilimitadas com IA:
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Chave Google Gemini API (<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: '#0369A1' }}>obter grátis no Google AI Studio</a>)
+                    </label>
+                    <input 
+                      type="password"
+                      className="soft-input font-mono"
+                      value={apiKeyGemini}
+                      onChange={e => salvarChaves(e.target.value, apiKeyDeepseek)}
+                      placeholder="AIzaSy..."
+                      style={{ fontSize: '0.85rem', padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                      Chave DeepSeek API ou OpenRouter (<a href="https://platform.deepseek.com/" target="_blank" rel="noreferrer" style={{ color: '#0369A1' }}>deepseek.com</a> ou <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" style={{ color: '#0369A1' }}>openrouter.ai</a>)
+                    </label>
+                    <input 
+                      type="password"
+                      className="soft-input font-mono"
+                      value={apiKeyDeepseek}
+                      onChange={e => salvarChaves(apiKeyGemini, e.target.value)}
+                      placeholder="sk-..."
+                      style={{ fontSize: '0.85rem', padding: '8px 12px' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CAMPO DE ENTRADA DA PERGUNTA */}
+            <div style={{ marginTop: '20px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input 
+                  type="text" 
+                  className="soft-input"
+                  value={oraculoPrompt}
+                  onChange={e => setOraculoPrompt(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') enviarPerguntaOraculo(); }}
+                  placeholder="Ex: Qual o aproveitamento do Corinthians em dias pares? Quem mais fez gols nos acréscimos?"
+                  style={{ fontSize: '1rem', height: '48px', paddingLeft: '16px' }}
+                />
+                <button 
+                  className="btn-primary" 
+                  style={{ padding: '0 24px', whiteSpace: 'nowrap', minWidth: '150px' }}
+                  onClick={() => enviarPerguntaOraculo()}
+                  disabled={oraculoLoading || !oraculoPrompt.trim()}
+                >
+                  {oraculoLoading ? <RefreshCw size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                  {oraculoLoading ? 'Consultando...' : 'Consultar'}
+                </button>
+              </div>
+
+              {/* SUGESTÕES RÁPIDAS DE PERGUNTAS INUSITADAS */}
+              <div style={{ marginTop: '14px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Lightbulb size={14} color="#F59E0B" /> Teste uma curiosidade:
+                </span>
+                {perguntasSugeridas.map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => enviarPerguntaOraculo(item.pergunta)}
+                    className="btn-secondary"
+                    style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '14px' }}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* MENSAGEM DE ERRO OU PEDIDO DE CHAVE */}
+          {oraculoError && (
+            <div className="soft-card" style={{ padding: '16px 20px', marginBottom: '20px', borderLeft: '4px solid #EF4444', color: '#DC2626' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={20} />
+                <strong>Erro ao consultar o Oráculo:</strong> {oraculoError}
+              </div>
+            </div>
+          )}
+
+          {/* LOADING DA CONSULTA */}
+          {oraculoLoading && (
+            <div className="soft-card" style={{ padding: '48px 20px', textAlign: 'center', marginBottom: '24px' }}>
+              <RefreshCw size={36} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>O Oráculo está pesquisando no banco...</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
+                Traduzindo sua pergunta para SQL, consultando 55.395 partidas e gerando o insight.
+              </p>
+            </div>
+          )}
+
+          {/* RESULTADO DA CONSULTA DA IA */}
+          {!oraculoLoading && oraculoResult && (
+            <div>
+              {/* CARD PRINCIPAL DO INSIGHT */}
+              <div className="soft-card" style={{ padding: '24px', marginBottom: '24px', borderLeft: '5px solid #10B981' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <span className="badge badge-green" style={{ marginBottom: '6px' }}>
+                      {oraculoResult.modelo_usado || 'IA Analista'}
+                    </span>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>
+                      "{oraculoResult.pergunta}"
+                    </h3>
+                  </div>
+
+                  <button 
+                    className="btn-secondary" 
+                    style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+                    onClick={() => setShowSql(!showSql)}
+                  >
+                    <Code size={15} /> {showSql ? 'Ocultar SQL' : 'Ver Consulta SQL'}
+                  </button>
+                </div>
+
+                {/* TEXTO DO INSIGHT */}
+                <div style={{ fontSize: '1.02rem', lineHeight: '1.7', color: 'var(--text-main)', marginBottom: '16px' }}>
+                  {oraculoResult.insight}
+                </div>
+
+                {/* BLOCO SQL EXPANSÍVEL */}
+                {showSql && oraculoResult.sql_executado && (
+                  <div style={{ marginBottom: '16px', backgroundColor: 'var(--bg)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Terminal size={14} /> SQL Executado em modo somente-leitura no SQLite:
+                    </div>
+                    <pre className="font-mono" style={{ fontSize: '0.82rem', overflowX: 'auto', color: 'var(--text-main)', margin: 0 }}>
+                      {oraculoResult.sql_executado}
+                    </pre>
+                  </div>
+                )}
+
+                {/* CARD DE TWEET PRONTO PARA POSTAR */}
+                {oraculoResult.tweet && (
+                  <div style={{ padding: '16px', backgroundColor: 'var(--surface-hover)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ flex: 1, minWidth: '280px' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Sparkles size={14} color="#FFB6C1" /> Sugestão de Post para o Twitter/X:
+                      </div>
+                      <div className="font-mono" style={{ fontSize: '0.88rem', color: 'var(--text-main)', whiteSpace: 'pre-line' }}>
+                        {oraculoResult.tweet}
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-primary" 
+                      style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                      onClick={() => copiarTweet(oraculoResult.tweet, 'tweet-oraculo')}
+                    >
+                      {copiedKey === 'tweet-oraculo' ? <Check size={16} /> : <Copy size={16} />}
+                      {copiedKey === 'tweet-oraculo' ? 'Copiado!' : 'Copiar Tweet'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* TABELA DE DADOS EXTRAÍDOS PELA QUERY */}
+              {oraculoResult.dados?.length > 0 && (
+                <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <BarChart3 size={18} color="#87CEEB" /> Dados Encontrados ({oraculoResult.total_registros} registros)
+                    </h4>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          {oraculoResult.colunas?.map((col, idx) => (
+                            <th key={idx} style={{ padding: '10px 8px' }}>
+                              {col.replace(/_/g, ' ').toUpperCase()}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {oraculoResult.dados.map((row, rowIdx) => (
+                          <tr key={rowIdx} style={{ borderBottom: '1px solid var(--border)' }}>
+                            {oraculoResult.colunas?.map((col, colIdx) => (
+                              <td key={colIdx} className="font-mono" style={{ padding: '10px 8px' }}>
+                                {typeof row[col] === 'number' ? (
+                                  <strong style={{ color: '#0369A1' }}>{row[col]}</strong>
+                                ) : (
+                                  row[col] ?? '-'
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ABA 4: EXPLORADOR DE JOGOS & GOLS (PLAYGROUND) */}
       {activeTab === 'playground' && (
         <section>
           {/* FILTROS DO PLAYGROUND */}
@@ -1238,7 +1585,7 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 4: FUTEBOL X CLIMA */}
+      {/* ABA 5: FUTEBOL X CLIMA */}
       {activeTab === 'clima' && (
         <section>
           <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
@@ -1334,7 +1681,7 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 5: GERADOR DE TWEETS & POSTS */}
+      {/* ABA 6: GERADOR DE TWEETS & POSTS */}
       {activeTab === 'tweets' && (
         <section>
           <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>

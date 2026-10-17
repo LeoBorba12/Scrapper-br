@@ -684,6 +684,29 @@ def get_jogador_perfil():
         "partidas": partidas_ordenadas[:100]
     })
 
+@app.route('/api/ia/perguntar', methods=['POST'])
+def perguntar_ia():
+    try:
+        from backend.ia_analista import processar_pergunta_oraculo
+    except ImportError:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from ia_analista import processar_pergunta_oraculo
+
+    dados = request.get_json(force=True, silent=True) or {}
+    pergunta = dados.get('pergunta', '').strip()
+    modelo = dados.get('modelo', 'gemini').strip()
+    api_key = dados.get('api_key', '').strip()
+
+    if not pergunta:
+        return jsonify({"error": "Por favor, digite sua pergunta."}), 400
+
+    try:
+        resultado = processar_pergunta_oraculo(pergunta, modelo_escolhido=modelo, api_key_usuario=api_key)
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({"error": f"Erro ao processar consulta: {str(e)}"}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Iniciando API de Futebol & Clima em http://localhost:{port}")
