@@ -311,10 +311,27 @@ export default function App() {
       })
     })
       .then(async r => {
-        const data = await r.json();
-        if (!r.ok) {
-          throw new Error(data.error || 'Erro na comunicação com a IA.');
+        const contentType = r.headers.get("content-type") || "";
+        let data = null;
+
+        if (contentType.includes("application/json")) {
+          data = await r.json();
+        } else {
+          const rawText = await r.text();
+          if (r.status === 504 || rawText.includes("TIMEOUT")) {
+            throw new Error("A consulta demorou mais tempo que o limite de 10s da Vercel. Dica: use o Gemini 2.0 Flash que responde de forma ultrarrápida!");
+          }
+          throw new Error(`Falha no servidor (${r.status}): ${rawText.slice(0, 150)}`);
         }
+
+        if (!r.ok) {
+          throw new Error(data?.error || data?.mensagem || 'Erro na comunicação com a IA.');
+        }
+
+        if (data.requer_api_key) {
+          throw new Error(data.mensagem || 'Chave de API não configurada no servidor Vercel.');
+        }
+
         return data;
       })
       .then(d => {
@@ -382,6 +399,7 @@ export default function App() {
 
   // Perguntas sugeridas para o Oráculo
   const perguntasSugeridas = [
+    { label: "📺 Palmeiras Pós-Novela das 9", pergunta: "Qual é o retrospecto do Palmeiras em jogos logo após o último capítulo de uma novela das 9 da Globo?" },
     { label: "🗓️ Dias Pares vs Ímpares", pergunta: "Qual o aproveitamento de vitórias do Corinthians jogando em dias pares vs dias ímpares?" },
     { label: "⏱️ Gols nos Acréscimos (45+)", pergunta: "Quais clubes mais marcaram gols nos acréscimos (minuto 45+ ou 90+) na história catalogada?" },
     { label: "🏆 Maiores Artilheiros da Série B", pergunta: "Quais são os 5 maiores artilheiros da história da Série B do Brasileirão?" },
