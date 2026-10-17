@@ -5,7 +5,6 @@ import hashlib
 import base64
 import json
 import time
-from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -14,7 +13,38 @@ DB_FUTEBOL = os.path.join(ROOT_DIR, 'data', 'futebol.db')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'futstats-secret-key-2026-super-segura-lb-jwt')
 INVITE_CODE = os.environ.get('INVITE_CODE', 'FUTSTATS-2026')
 
+def hash_senha(senha, salt=None):
+    if not salt:
+        salt = os.urandom(16).hex()
+    dk = hashlib.pbkdf2_hmac('sha256', senha.encode('utf-8'), salt.encode('utf-8'), 100000)
+    return f"pbkdf2:sha256:{salt}:{dk.hex()}"
+
+def verificar_senha(senha, hash_armazenado):
+    if not hash_armazenado:
+        return False
+    if hash_armazenado.startswith("pbkdf2:sha256:"):
+        try:
+            parts = hash_armazenado.split(':')
+            if len(parts) == 4:
+                _, _, salt, expected = parts
+                dk = hashlib.pbkdf2_hmac('sha256', senha.encode('utf-8'), salt.encode('utf-8'), 100000)
+                return hmac.compare_digest(dk.hex(), expected)
+        except Exception:
+            pass
+    try:
+        from werkzeug.security import check_password_hash
+        return check_password_hash(hash_armazenado, senha)
+    except Exception:
+        return False
+
 def get_db():
+    if os.path.exists(DB_FUTEBOL):
+        try:
+            conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception:
+            pass
     conn = sqlite3.connect(DB_FUTEBOL)
     conn.row_factory = sqlite3.Row
     return conn
@@ -53,20 +83,20 @@ def validar_token(token):
         payload = json.loads(base64.urlsafe_b64decode(p_b64).decode())
         
         if payload.get("exp", 0) < int(time.time()):
-            return None # Token expirado
+            return None
             
         return payload
     except Exception:
         return None
 
 def login_usuario(username, password):
-    username = username.strip()
-    password = password.strip()
+    username = (username or "").strip()
+    password = (password or "").strip()
     
     if not username or not password:
         return None, "Informe usuário e senha."
 
-    # Validação master do Admin LB
+    # Validação master do Admin LB (independente de banco)
     if username == "LB" and password == "46475595":
         user_info = {
             "username": "LB",
@@ -76,7 +106,7 @@ def login_usuario(username, password):
         token = gerar_token(user_info)
         return {"user": user_info, "token": token}, None
 
-    # Consulta no SQLite
+    # Consulta no SQLite para outros moderadores cadastrados
     try:
         conn = get_db()
         c = conn.cursor()
@@ -84,7 +114,7 @@ def login_usuario(username, password):
         row = c.fetchone()
         conn.close()
         
-        if row and check_password_hash(row["senha_hash"], password):
+        if row and verificar_senha(password, row["senha_hash"]):
             user_info = {
                 "username": row["username"],
                 "nome": row["nome"],
@@ -92,16 +122,16 @@ def login_usuario(username, password):
             }
             token = gerar_token(user_info)
             return {"user": user_info, "token": token}, None
-    except Exception as e:
+    except Exception:
         pass
 
     return None, "Usuário ou senha incorretos."
 
 def cadastrar_com_convite(nome, username, password, codigo_convite):
-    nome = nome.strip()
-    username = username.strip()
-    password = password.strip()
-    codigo = codigo_convite.strip().upper()
+    nome = (nome or "").strip()
+    username = (username or "").strip()
+    password = (password or "").strip()
+    codigo = (codigo_convite or "").strip().upper()
     
     if not nome or len(nome) < 2:
         return None, "Informe seu nome completo ou apelido."
@@ -112,21 +142,21 @@ def cadastrar_com_convite(nome, username, password, codigo_convite):
     if codigo != INVITE_CODE.upper():
         return None, "Código de convite inválido ou expirado. Peça o código oficial ao administrador."
 
-    # Tenta salvar no banco de dados
+    # Tenta salvar no banco de dados se for gravável
     try:
-        conn = get_db()
+        conn = sqlite3.connect(DB_FUTEBOL)
         c = conn.cursor()
-        senha_hash = generate_password_hash(password)
+        senha_h = hash_senha(password)
         c.execute("""
             INSERT INTO usuarios (username, nome, senha_hash, role)
             VALUES (?, ?, ?, 'moderador');
-        """, (username, nome, senha_hash))
+        """, (username, nome, senha_h))
         conn.commit()
         conn.close()
     except sqlite3.IntegrityError:
         return None, "Este nome de usuário já está em uso. Escolha outro."
-    except Exception as e:
-        # Se o filesystem for somente-leitura (como serverless), o token assinado ainda é emitido!
+    except Exception:
+        # Se o filesystem for somente-leitura (como Vercel lambda), o token assinado ainda é emitido!
         pass
 
     user_info = {
@@ -136,3 +166,4 @@ def cadastrar_com_convite(nome, username, password, codigo_convite):
     }
     token = gerar_token(user_info)
     return {"user": user_info, "token": token}, None
+
