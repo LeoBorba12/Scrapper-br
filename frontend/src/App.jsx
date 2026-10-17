@@ -39,9 +39,6 @@ export default function App() {
   const [oraculoResult, setOraculoResult] = useState(null);
   const [oraculoError, setOraculoError] = useState(null);
   const [showSql, setShowSql] = useState(false);
-  const [apiKeyGemini, setApiKeyGemini] = useState(() => localStorage.getItem('gemini_api_key') || '');
-  const [apiKeyDeepseek, setApiKeyDeepseek] = useState(() => localStorage.getItem('deepseek_api_key') || '');
-  const [showKeyConfig, setShowKeyConfig] = useState(false);
 
   // Tab 4: Playground state
   const [campeonatosList, setCampeonatosList] = useState([]);
@@ -86,14 +83,6 @@ export default function App() {
       .then(d => setCampeonatosList(d))
       .catch(() => {});
   }, []);
-
-  // Salvar chaves no localStorage
-  const salvarChaves = (gemini, deepseek) => {
-    setApiKeyGemini(gemini);
-    setApiKeyDeepseek(deepseek);
-    localStorage.setItem('gemini_api_key', gemini);
-    localStorage.setItem('deepseek_api_key', deepseek);
-  };
 
   // Buscar H2H
   const carregarH2H = () => {
@@ -179,15 +168,12 @@ export default function App() {
       setOraculoPrompt(perguntaTexto);
     }
 
-    const key = oraculoModel === 'deepseek' ? apiKeyDeepseek : apiKeyGemini;
-
     fetch('/api/ia/perguntar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         pergunta: texto,
-        modelo: oraculoModel,
-        api_key: key
+        modelo: oraculoModel
       })
     })
       .then(async r => {
@@ -198,9 +184,6 @@ export default function App() {
         return data;
       })
       .then(d => {
-        if (d.requer_api_key) {
-          setShowKeyConfig(true);
-        }
         setOraculoResult(d);
         setOraculoLoading(false);
       })
@@ -1179,63 +1162,11 @@ export default function App() {
                   <Bot size={16} /> DeepSeek (Raciocínio)
                 </button>
 
-                <button
-                  onClick={() => setShowKeyConfig(!showKeyConfig)}
-                  className="btn-secondary"
-                  style={{ padding: '8px 12px', fontSize: '0.85rem' }}
-                  title="Configurar chaves de API gratuitas"
-                >
-                  <Key size={16} /> Chaves
-                </button>
+                <span className="badge badge-green" style={{ padding: '6px 10px', fontSize: '0.78rem' }}>
+                  🔒 Chaves Seguras no Servidor
+                </span>
               </div>
             </div>
-
-            {/* PAINEL DE CONFIGURAÇÃO DE CHAVES (EXPANSÍVEL) */}
-            {showKeyConfig && (
-              <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <strong style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Key size={16} color="#87CEEB" /> Configurar Chaves de API Gratuitas
-                  </strong>
-                  <button onClick={() => setShowKeyConfig(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                    <X size={16} />
-                  </button>
-                </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                  Suas chaves são salvas apenas no seu navegador (<span className="font-mono">localStorage</span>). Para perguntas livres e ilimitadas com IA:
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Chave Google Gemini API (<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: '#0369A1' }}>obter grátis no Google AI Studio</a>)
-                    </label>
-                    <input 
-                      type="password"
-                      className="soft-input font-mono"
-                      value={apiKeyGemini}
-                      onChange={e => salvarChaves(e.target.value, apiKeyDeepseek)}
-                      placeholder="AIzaSy..."
-                      style={{ fontSize: '0.85rem', padding: '8px 12px' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Chave DeepSeek API ou OpenRouter (<a href="https://platform.deepseek.com/" target="_blank" rel="noreferrer" style={{ color: '#0369A1' }}>deepseek.com</a> ou <a href="https://openrouter.ai/" target="_blank" rel="noreferrer" style={{ color: '#0369A1' }}>openrouter.ai</a>)
-                    </label>
-                    <input 
-                      type="password"
-                      className="soft-input font-mono"
-                      value={apiKeyDeepseek}
-                      onChange={e => salvarChaves(apiKeyGemini, e.target.value)}
-                      placeholder="sk-..."
-                      style={{ fontSize: '0.85rem', padding: '8px 12px' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* CAMPO DE ENTRADA DA PERGUNTA */}
             <div style={{ marginTop: '20px' }}>
