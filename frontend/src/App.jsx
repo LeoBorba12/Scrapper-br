@@ -4,12 +4,26 @@ import {
   Sun, Moon, Flame, ShieldAlert, Calendar, MapPin, BarChart3, 
   ArrowRight, RefreshCw, Share2, User, Users, Award, AlertCircle, 
   X, ChevronRight, Filter, Bot, Brain, Code, Terminal, Settings, 
-  Key, Lightbulb, Zap
+  Key, Lightbulb, Zap, Lock, LogOut, UserPlus, ShieldCheck
 } from 'lucide-react';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'oraculo', 'playground', 'clima', 'tweets'
+
+  // ==================== AUTH STATE ====================
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'registro'
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState(null);
+  const [loginUsername, setLoginUsername] = useState('LB');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [regNome, setRegNome] = useState('');
+  const [regUsername, setRegUsername] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regCodigoConvite, setRegCodigoConvite] = useState('');
+  const [conviteCopiado, setConviteCopiado] = useState(false);
 
   // Overview
   const [overview, setOverview] = useState(null);
@@ -66,8 +80,121 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Carregar dados iniciais (overview, clubes, campeonatos)
+  // Verificar sessão ativa ao iniciar
   useEffect(() => {
+    const token = localStorage.getItem('futstats_auth_token');
+    
+    // Auto-preencher convite se vier na URL (?convite=...)
+    const params = new URLSearchParams(window.location.search);
+    const conviteParam = params.get('convite');
+    if (conviteParam) {
+      setRegCodigoConvite(conviteParam);
+      setAuthMode('registro');
+    }
+
+    if (!token) {
+      setAuthChecking(false);
+      return;
+    }
+
+    fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.user) {
+          setCurrentUser(d.user);
+        } else {
+          localStorage.removeItem('futstats_auth_token');
+        }
+        setAuthChecking(false);
+      })
+      .catch(() => {
+        setAuthChecking(false);
+      });
+  }, []);
+
+  // Login handler
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loginUsername,
+        password: loginPassword
+      })
+    })
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Erro ao realizar login.');
+        return d;
+      })
+      .then(d => {
+        localStorage.setItem('futstats_auth_token', d.token);
+        setCurrentUser(d.user);
+        setAuthLoading(false);
+      })
+      .catch(err => {
+        setAuthError(err.message);
+        setAuthLoading(false);
+      });
+  };
+
+  // Registro com convite handler
+  const handleRegistro = (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+
+    fetch('/api/auth/registro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome: regNome,
+        username: regUsername,
+        password: regPassword,
+        codigo_convite: regCodigoConvite
+      })
+    })
+      .then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Erro ao criar conta.');
+        return d;
+      })
+      .then(d => {
+        localStorage.setItem('futstats_auth_token', d.token);
+        setCurrentUser(d.user);
+        setAuthLoading(false);
+      })
+      .catch(err => {
+        setAuthError(err.message);
+        setAuthLoading(false);
+      });
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem('futstats_auth_token');
+    setCurrentUser(null);
+    setLoginPassword('');
+  };
+
+  // Copiar código de convite para a equipe
+  const copiarConviteEquipe = () => {
+    const inviteText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: FUTSTATS-2026\nLink Direto: ${window.location.origin}/?convite=FUTSTATS-2026`;
+    navigator.clipboard.writeText(inviteText);
+    setConviteCopiado(true);
+    setTimeout(() => setConviteCopiado(false), 3000);
+  };
+
+  // Carregar dados iniciais (overview, clubes, campeonatos) quando logado
+  useEffect(() => {
+    if (!currentUser) return;
+
     fetch('/api/overview')
       .then(r => r.json())
       .then(d => setOverview(d))
@@ -82,7 +209,7 @@ export default function App() {
       .then(r => r.json())
       .then(d => setCampeonatosList(d))
       .catch(() => {});
-  }, []);
+  }, [currentUser]);
 
   // Buscar H2H
   const carregarH2H = () => {
@@ -98,12 +225,14 @@ export default function App() {
   };
 
   useEffect(() => {
-    carregarH2H();
-  }, []);
+    if (currentUser) {
+      carregarH2H();
+    }
+  }, [currentUser]);
 
   // Carregar destaques de jogadores quando abrir a aba de jogadores
   useEffect(() => {
-    if (activeTab === 'jogadores' && !destaques) {
+    if (activeTab === 'jogadores' && !destaques && currentUser) {
       setDestaquesLoading(true);
       fetch('/api/jogadores/destaques')
         .then(r => r.json())
@@ -113,7 +242,7 @@ export default function App() {
         })
         .catch(() => setDestaquesLoading(false));
     }
-  }, [activeTab, destaques]);
+  }, [activeTab, destaques, currentUser]);
 
   // Busca de jogadores com autocomplete
   useEffect(() => {
@@ -168,9 +297,14 @@ export default function App() {
       setOraculoPrompt(perguntaTexto);
     }
 
+    const token = localStorage.getItem('futstats_auth_token') || '';
+
     fetch('/api/ia/perguntar', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({
         pergunta: texto,
         modelo: oraculoModel
@@ -214,14 +348,14 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (activeTab === 'playground' && !partidasData) {
+    if (activeTab === 'playground' && !partidasData && currentUser) {
       carregarPartidas(1);
     }
-  }, [activeTab]);
+  }, [activeTab, currentUser]);
 
   // Carregar dados do clima
   useEffect(() => {
-    if (activeTab === 'clima' && !climaData) {
+    if (activeTab === 'clima' && !climaData && currentUser) {
       setClimaLoading(true);
       fetch('/api/clima-futebol')
         .then(r => r.json())
@@ -231,7 +365,7 @@ export default function App() {
         })
         .catch(() => setClimaLoading(false));
     }
-  }, [activeTab]);
+  }, [activeTab, currentUser]);
 
   // Função auxiliar para copiar texto do tweet
   const copiarTweet = (texto, key) => {
@@ -256,6 +390,209 @@ export default function App() {
     { label: "🟨 Clássicos com Mais Cartões", pergunta: "Quais os clássicos com a maior média de cartões vermelhos por partida?" }
   ];
 
+  // Se estiver verificando sessão inicial
+  if (authChecking) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)' }}>
+        <RefreshCw size={36} className="animate-spin" color="#87CEEB" />
+      </div>
+    );
+  }
+
+  // ==================== TELA DE LOGIN / CADASTRO ====================
+  if (!currentUser) {
+    return (
+      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backgroundColor: 'var(--bg)' }}>
+        <div className="soft-card" style={{ maxWidth: '440px', width: '100%', padding: '36px 30px', boxShadow: 'var(--shadow-lift)' }}>
+          {/* LOGO & CABEÇALHO */}
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(135, 206, 235, 0.2)', marginBottom: '14px' }}>
+              <Lock size={26} color="#0369A1" />
+            </div>
+            <h1 style={{ fontSize: '1.65rem', fontWeight: '700', letterSpacing: '-0.02em', marginBottom: '6px' }}>
+              FutStats & Clima
+            </h1>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+              <span className="badge badge-blue">Acesso Restrito</span>
+              <span className="badge badge-green">55.395 Jogos</span>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '8px' }}>
+              Central de inteligência e moderação para o Twitter/X
+            </p>
+          </div>
+
+          {/* TABS LOGIN / REGISTRO COM CONVITE */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', backgroundColor: 'var(--surface-hover)', padding: '4px', borderRadius: '12px', marginBottom: '22px' }}>
+            <button
+              onClick={() => { setAuthMode('login'); setAuthError(null); }}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                background: authMode === 'login' ? 'var(--surface)' : 'transparent',
+                color: 'var(--text-main)',
+                fontWeight: authMode === 'login' ? '600' : '500',
+                boxShadow: authMode === 'login' ? 'var(--shadow-soft)' : 'none',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                transition: 'all 150ms'
+              }}
+            >
+              Entrar na Conta
+            </button>
+
+            <button
+              onClick={() => { setAuthMode('registro'); setAuthError(null); }}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                background: authMode === 'registro' ? 'var(--surface)' : 'transparent',
+                color: 'var(--text-main)',
+                fontWeight: authMode === 'registro' ? '600' : '500',
+                boxShadow: authMode === 'registro' ? 'var(--shadow-soft)' : 'none',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                transition: 'all 150ms'
+              }}
+            >
+              Tenho um Convite
+            </button>
+          </div>
+
+          {/* ERRO BANNER */}
+          {authError && (
+            <div style={{ padding: '10px 14px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#DC2626', fontSize: '0.82rem', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          {/* FORMULÁRIO DE LOGIN */}
+          {authMode === 'login' && (
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Usuário
+                </label>
+                <input 
+                  type="text" 
+                  className="soft-input font-mono"
+                  value={loginUsername}
+                  onChange={e => setLoginUsername(e.target.value)}
+                  placeholder="Ex: LB"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Senha
+                </label>
+                <input 
+                  type="password" 
+                  className="soft-input font-mono"
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                style={{ width: '100%', height: '44px', marginTop: '6px' }}
+                disabled={authLoading}
+              >
+                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : <Lock size={18} />}
+                {authLoading ? 'Verificando...' : 'Acessar Central'}
+              </button>
+            </form>
+          )}
+
+          {/* FORMULÁRIO DE CADASTRO COM CONVITE */}
+          {authMode === 'registro' && (
+            <form onSubmit={handleRegistro} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Código de Convite da Equipe
+                </label>
+                <input 
+                  type="text" 
+                  className="soft-input font-mono"
+                  value={regCodigoConvite}
+                  onChange={e => setRegCodigoConvite(e.target.value)}
+                  placeholder="Ex: FUTSTATS-2026"
+                  required
+                  style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Seu Nome ou Apelido
+                </label>
+                <input 
+                  type="text" 
+                  className="soft-input"
+                  value={regNome}
+                  onChange={e => setRegNome(e.target.value)}
+                  placeholder="Ex: Carlos Silva"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Criar Nome de Usuário (Login)
+                </label>
+                <input 
+                  type="text" 
+                  className="soft-input font-mono"
+                  value={regUsername}
+                  onChange={e => setRegUsername(e.target.value)}
+                  placeholder="Ex: carlos_mod"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                  Criar uma Senha
+                </label>
+                <input 
+                  type="password" 
+                  className="soft-input font-mono"
+                  value={regPassword}
+                  onChange={e => setRegPassword(e.target.value)}
+                  placeholder="Mínimo 4 caracteres"
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                style={{ width: '100%', height: '44px', marginTop: '6px' }}
+                disabled={authLoading}
+              >
+                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : <UserPlus size={18} />}
+                {authLoading ? 'Criando Conta...' : 'Validar Convite e Entrar'}
+              </button>
+            </form>
+          )}
+
+          {/* DICA DE SUPORTE */}
+          <div style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Apenas moderadores e analistas autorizados.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== DASHBOARD AUTENTICADA ====================
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px' }}>
       
@@ -276,28 +613,48 @@ export default function App() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {overview && (
-            <div className="soft-card" style={{ padding: '8px 14px', display: 'flex', gap: '16px', alignItems: 'center', fontSize: '0.82rem' }}>
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>Período: </span>
-                <strong className="font-mono">{overview.ano_min} - {overview.ano_max}</strong>
-              </div>
-              <div style={{ height: '14px', width: '1px', backgroundColor: 'var(--border)' }} />
-              <div>
-                <span style={{ color: 'var(--text-muted)' }}>Gols Catalogados: </span>
-                <strong className="font-mono">{overview.total_gols?.toLocaleString('pt-BR')}</strong>
-              </div>
-            </div>
+        {/* CONTROLES DO USUÁRIO & HEADER */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* BADGE DO USUÁRIO ATUAL */}
+          <div className="soft-card" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+            <span>Olá, <strong>{currentUser.nome}</strong></span>
+            <span className={currentUser.role === 'admin' ? 'badge badge-pink' : 'badge badge-blue'} style={{ fontSize: '0.7rem' }}>
+              {currentUser.role === 'admin' ? 'Admin' : 'Moderador'}
+            </span>
+          </div>
+
+          {/* BOTÃO COPIAR CONVITE (SE FOR ADMIN) */}
+          {currentUser.role === 'admin' && (
+            <button
+              className="btn-secondary"
+              onClick={copiarConviteEquipe}
+              title="Copiar código e link de convite para outros moderadores"
+              style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+            >
+              {conviteCopiado ? <Check size={16} color="#10B981" /> : <UserPlus size={16} />}
+              {conviteCopiado ? 'Convite Copiado!' : 'Convidar Moderador'}
+            </button>
           )}
 
+          {/* TEMA DARK MODE */}
           <button 
             className="btn-secondary" 
             onClick={() => setDarkMode(!darkMode)}
             title="Alternar Modo Claro / Escuro"
-            style={{ padding: '10px 12px' }}
+            style={{ padding: '8px 12px' }}
           >
-            {darkMode ? <Sun size={18} color="#FFB6C1" /> : <Moon size={18} color="#0369A1" />}
+            {darkMode ? <Sun size={17} color="#FFB6C1" /> : <Moon size={17} color="#0369A1" />}
+          </button>
+
+          {/* BOTÃO LOGOUT */}
+          <button 
+            className="btn-secondary"
+            onClick={handleLogout}
+            title="Sair da sessão"
+            style={{ padding: '8px 12px', color: '#DC2626' }}
+          >
+            <LogOut size={17} />
           </button>
         </div>
       </header>
@@ -1123,7 +1480,7 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 3: ORÁCULO & IA ANALISTA (NOVA ABA) */}
+      {/* ABA 3: ORÁCULO & IA ANALISTA */}
       {activeTab === 'oraculo' && (
         <section>
           {/* BANNER PRINCIPAL DO ORÁCULO */}
@@ -1142,7 +1499,7 @@ export default function App() {
                 </p>
               </div>
 
-              {/* SELETOR DE MODELOS & CONFIGURAÇÃO */}
+              {/* SELETOR DE MODELOS */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
                   onClick={() => setOraculoModel('gemini')}

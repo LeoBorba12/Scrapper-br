@@ -20,3 +20,6 @@ node_modules/
 frontend/node_modules/
 .vite/
 frontend/.vite/
+
+# Raw caches de raspagem
+data/raw_*

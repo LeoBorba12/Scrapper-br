@@ -32,6 +32,78 @@ def static_proxy(path):
         return send_from_directory(FRONTEND_DIST, 'index.html')
     return jsonify({"error": "Arquivo não encontrado"}), 404
 
+# ==================== ROTAS DE AUTENTICAÇÃO ====================
+@app.route('/api/auth/login', methods=['POST'])
+def api_login():
+    try:
+        from backend.auth import login_usuario
+    except ImportError:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from auth import login_usuario
+
+    dados = request.get_json(force=True, silent=True) or {}
+    username = dados.get('username', '')
+    password = dados.get('password', '')
+    
+    res, err = login_usuario(username, password)
+    if err:
+        return jsonify({"error": err}), 401
+    return jsonify(res)
+
+@app.route('/api/auth/registro', methods=['POST'])
+def api_registro():
+    try:
+        from backend.auth import cadastrar_com_convite
+    except ImportError:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from auth import cadastrar_com_convite
+
+    dados = request.get_json(force=True, silent=True) or {}
+    nome = dados.get('nome', '')
+    username = dados.get('username', '')
+    password = dados.get('password', '')
+    codigo_convite = dados.get('codigo_convite', '')
+    
+    res, err = cadastrar_com_convite(nome, username, password, codigo_convite)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify(res)
+
+@app.route('/api/auth/me', methods=['GET'])
+def api_me():
+    try:
+        from backend.auth import validar_token
+    except ImportError:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from auth import validar_token
+
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
+    
+    user = validar_token(token)
+    if not user:
+        return jsonify({"error": "Sessão inválida ou expirada."}), 401
+    return jsonify({"user": user})
+
+@app.route('/api/auth/convite-codigo', methods=['GET'])
+def api_get_convite():
+    try:
+        from backend.auth import validar_token, INVITE_CODE
+    except ImportError:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from auth import validar_token, INVITE_CODE
+
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
+    user = validar_token(token)
+    if not user or user.get('role') != 'admin':
+        return jsonify({"error": "Apenas administradores podem visualizar o código de convite."}), 403
+    return jsonify({"codigo_convite": INVITE_CODE})
+
 def get_db():
     conn = sqlite3.connect(DB_FUTEBOL)
     conn.row_factory = sqlite3.Row
