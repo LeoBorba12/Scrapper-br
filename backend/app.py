@@ -378,6 +378,312 @@ def get_clima_futebol():
         "jogos_chuva_extrema": top_chuva
     })
 
+@app.route('/api/jogadores/destaques', methods=['GET'])
+def get_jogadores_destaques():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT atleta, GROUP_CONCAT(DISTINCT clube) as clubes, COUNT(*) as total
+        FROM gols
+        WHERE atleta NOT LIKE '%(%' AND atleta NOT LIKE '% e %' AND LENGTH(atleta) > 2
+        GROUP BY atleta
+        ORDER BY total DESC
+        LIMIT 10;
+    """)
+    artilheiros = [{"nome": r["atleta"], "clubes": r["clubes"].split(',') if r["clubes"] else [], "total": r["total"]} for r in c.fetchall()]
+
+    c.execute("""
+        SELECT atleta, GROUP_CONCAT(DISTINCT clube) as clubes, COUNT(*) as total
+        FROM cartoes
+        WHERE cartao LIKE '%Amarelo%' AND LENGTH(atleta) > 2
+        GROUP BY atleta
+        ORDER BY total DESC
+        LIMIT 10;
+    """)
+    amarelos = [{"nome": r["atleta"], "clubes": r["clubes"].split(',') if r["clubes"] else [], "total": r["total"]} for r in c.fetchall()]
+
+    c.execute("""
+        SELECT atleta, GROUP_CONCAT(DISTINCT clube) as clubes, COUNT(*) as total
+        FROM cartoes
+        WHERE cartao LIKE '%Vermelho%' AND LENGTH(atleta) > 2
+        GROUP BY atleta
+        ORDER BY total DESC
+        LIMIT 10;
+    """)
+    vermelhos = [{"nome": r["atleta"], "clubes": r["clubes"].split(',') if r["clubes"] else [], "total": r["total"]} for r in c.fetchall()]
+
+    conn.close()
+    return jsonify({
+        "artilheiros": artilheiros,
+        "amarelos": amarelos,
+        "vermelhos": vermelhos
+    })
+
+@app.route('/api/jogadores/busca', methods=['GET'])
+def buscar_jogadores():
+    q = request.args.get('q', '').strip()
+    limit = min(request.args.get('limit', 20, type=int), 50)
+    if not q or len(q) < 2:
+        return jsonify([])
+
+    conn = get_db()
+    c = conn.cursor()
+    param_like = f"%{q}%"
+
+    sql = """
+        WITH base AS (
+            SELECT atleta, clube, 'gol' as tipo FROM gols WHERE atleta LIKE ?
+            UNION ALL
+            SELECT atleta, clube, 'cartao_amarelo' as tipo FROM cartoes WHERE atleta LIKE ? AND cartao LIKE '%Amarelo%'
+            UNION ALL
+            SELECT atleta, clube, 'cartao_vermelho' as tipo FROM cartoes WHERE atleta LIKE ? AND cartao LIKE '%Vermelho%'
+            UNION ALL
+            SELECT atleta, clube, 'jogo' as tipo FROM escalacoes WHERE atleta LIKE ?
+        )
+        SELECT 
+            atleta,
+            GROUP_CONCAT(DISTINCT clube) as clubes,
+            SUM(CASE WHEN tipo = 'gol' THEN 1 ELSE 0 END) as gols,
+            SUM(CASE WHEN tipo = 'cartao_amarelo' THEN 1 ELSE 0 END) as amarelos,
+            SUM(CASE WHEN tipo = 'cartao_vermelho' THEN 1 ELSE 0 END) as vermelhos,
+            SUM(CASE WHEN tipo = 'jogo' THEN 1 ELSE 0 END) as jogos
+        FROM base
+        GROUP BY atleta
+        HAVING (gols + amarelos + vermelhos + jogos) > 0
+        ORDER BY 
+            CASE 
+                WHEN LOWER(atleta) = LOWER(?) THEN 1
+                WHEN LOWER(atleta) LIKE LOWER(? || ' %') THEN 2
+                WHEN LOWER(atleta) LIKE LOWER(? || '%') THEN 3
+                ELSE 4 
+            END,
+            gols DESC,
+            (amarelos + vermelhos) DESC,
+            jogos DESC
+        LIMIT ?;
+    """
+    rows = c.execute(sql, (param_like, param_like, param_like, param_like, q, q, q, limit)).fetchall()
+    
+    resultados = []
+    for r in rows:
+        resultados.append({
+            "nome": r["atleta"],
+            "clubes": [cb.strip() for cb in r["clubes"].split(',') if cb.strip()] if r["clubes"] else [],
+            "gols": r["gols"],
+            "amarelos": r["amarelos"],
+            "vermelhos": r["vermelhos"],
+            "jogos": r["jogos"]
+        })
+    conn.close()
+    return jsonify(resultados)
+
+@app.route('/api/jogadores/perfil', methods=['GET'])
+def get_jogador_perfil():
+    nome = request.args.get('nome', '').strip()
+    clube_filtro = request.args.get('clube', '').strip()
+    if not nome:
+        return jsonify({"error": "Nome do atleta não informado"}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Buscar gols
+    sql_gols = """
+        SELECT g.id_gol, g.id_partida, g.tipo_de_gol, g.minuto, g.clube, 
+               p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE (g.atleta = ? OR g.atleta LIKE ? OR g.atleta LIKE ?)
+    """
+    params_gols = [nome, f"{nome}(%", f"{nome} %"]
+    if clube_filtro:
+        sql_gols += " AND g.clube LIKE ?"
+        params_gols.append(f"%{clube_filtro}%")
+    sql_gols += " ORDER BY p.data DESC, p.id_partida DESC;"
+    
+    c.execute(sql_gols, params_gols)
+    gols = [dict(r) for r in c.fetchall()]
+
+    # Buscar cartoes
+    sql_cartoes = """
+        SELECT cr.id_cartao, cr.id_partida, cr.cartao, cr.minuto, cr.motivo, cr.num_camisa, cr.posicao, cr.clube,
+               p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
+        FROM cartoes cr
+        JOIN partidas p ON cr.id_partida = p.id_partida
+        WHERE (cr.atleta = ? OR cr.atleta LIKE ? OR cr.atleta LIKE ?)
+    """
+    params_cartoes = [nome, f"{nome} %", f"% {nome}"]
+    if clube_filtro:
+        sql_cartoes += " AND cr.clube LIKE ?"
+        params_cartoes.append(f"%{clube_filtro}%")
+    sql_cartoes += " ORDER BY p.data DESC, p.id_partida DESC;"
+    
+    c.execute(sql_cartoes, params_cartoes)
+    cartoes = [dict(r) for r in c.fetchall()]
+
+    # Buscar escalacoes
+    sql_esc = """
+        SELECT e.id_escalacao, e.id_partida, e.num_camisa, e.posicao, e.titular, e.is_goleiro, e.is_capitao, e.clube,
+               p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
+        FROM escalacoes e
+        JOIN partidas p ON e.id_partida = p.id_partida
+        WHERE (e.atleta = ? OR e.atleta LIKE ? OR e.atleta LIKE ? OR e.atleta LIKE ?)
+    """
+    params_esc = [nome, f"{nome} %", f"% {nome} %", f"% {nome}"]
+    if clube_filtro:
+        sql_esc += " AND e.clube LIKE ?"
+        params_esc.append(f"%{clube_filtro}%")
+    sql_esc += " ORDER BY p.data DESC, p.id_partida DESC;"
+    
+    c.execute(sql_esc, params_esc)
+    escalacoes = [dict(r) for r in c.fetchall()]
+
+    # Mapear partidas consolidadas
+    partidas_map = {}
+    for g in gols:
+        pid = g['id_partida']
+        if pid not in partidas_map:
+            partidas_map[pid] = {
+                'id_partida': pid, 'ano': g['ano'], 'data': g['data'],
+                'mandante': g['mandante'], 'visitante': g['visitante'],
+                'placar': g['placar'], 'campeonato': g['campeonato'], 'estadio': g['estadio'],
+                'gols': [], 'cartoes': [], 'escalacao': None
+            }
+        partidas_map[pid]['gols'].append({
+            'minuto': g['minuto'], 'tipo': g['tipo_de_gol'], 'clube': g['clube']
+        })
+
+    for cr in cartoes:
+        pid = cr['id_partida']
+        if pid not in partidas_map:
+            partidas_map[pid] = {
+                'id_partida': pid, 'ano': cr['ano'], 'data': cr['data'],
+                'mandante': cr['mandante'], 'visitante': cr['visitante'],
+                'placar': cr['placar'], 'campeonato': cr['campeonato'], 'estadio': cr['estadio'],
+                'gols': [], 'cartoes': [], 'escalacao': None
+            }
+        partidas_map[pid]['cartoes'].append({
+            'cartao': cr['cartao'], 'minuto': cr['minuto'], 'motivo': cr['motivo'], 'clube': cr['clube']
+        })
+
+    for e in escalacoes:
+        pid = e['id_partida']
+        if pid not in partidas_map:
+            partidas_map[pid] = {
+                'id_partida': pid, 'ano': e['ano'], 'data': e['data'],
+                'mandante': e['mandante'], 'visitante': e['visitante'],
+                'placar': e['placar'], 'campeonato': e['campeonato'], 'estadio': e['estadio'],
+                'gols': [], 'cartoes': [], 'escalacao': None
+            }
+        partidas_map[pid]['escalacao'] = {
+            'posicao': e['posicao'], 'camisa': e['num_camisa'], 'titular': bool(e['titular']),
+            'clube': e['clube']
+        }
+
+    partidas_ordenadas = sorted(partidas_map.values(), key=lambda x: (x['data'] or '', x['id_partida']), reverse=True)
+
+    # Detalhamento de gols
+    gols_normais = len([g for g in gols if not g['tipo_de_gol'] or 'normal' in (g['tipo_de_gol'] or '').lower()])
+    gols_penalti = len([g for g in gols if g['tipo_de_gol'] and ('pênalti' in g['tipo_de_gol'].lower() or 'penalti' in g['tipo_de_gol'].lower())])
+    gols_falta = len([g for g in gols if g['tipo_de_gol'] and 'falta' in g['tipo_de_gol'].lower()])
+    gols_contra = len([g for g in gols if g['tipo_de_gol'] and 'contra' in g['tipo_de_gol'].lower()])
+    amarelos = len([c for c in cartoes if 'amarelo' in (c['cartao'] or '').lower()])
+    vermelhos = len([c for c in cartoes if 'vermelho' in (c['cartao'] or '').lower()])
+    total_jogos = len(partidas_ordenadas)
+
+    # Vítimas mais frequentes
+    vitimas = {}
+    for g in gols:
+        clube_marcou = g['clube'] or ''
+        m = g['mandante'] or ''
+        v = g['visitante'] or ''
+        adv = v if clube_marcou.lower() in m.lower() else m
+        if adv and adv != clube_marcou:
+            vitimas[adv] = vitimas.get(adv, 0) + 1
+    top_vitimas = [{"clube": k, "gols": v} for k, v in sorted(vitimas.items(), key=lambda x: x[1], reverse=True)[:8]]
+
+    # Desempenho por Clube
+    stats_por_clube = {}
+    for g in gols:
+        clb = g['clube'] or 'Outros'
+        if clb not in stats_por_clube:
+            stats_por_clube[clb] = {"clube": clb, "gols": 0, "amarelos": 0, "vermelhos": 0, "pids": set()}
+        stats_por_clube[clb]["gols"] += 1
+        stats_por_clube[clb]["pids"].add(g['id_partida'])
+
+    for cr in cartoes:
+        clb = cr['clube'] or 'Outros'
+        if clb not in stats_por_clube:
+            stats_por_clube[clb] = {"clube": clb, "gols": 0, "amarelos": 0, "vermelhos": 0, "pids": set()}
+        if 'amarelo' in (cr['cartao'] or '').lower():
+            stats_por_clube[clb]["amarelos"] += 1
+        if 'vermelho' in (cr['cartao'] or '').lower():
+            stats_por_clube[clb]["vermelhos"] += 1
+        stats_por_clube[clb]["pids"].add(cr['id_partida'])
+
+    for e in escalacoes:
+        clb = e['clube'] or 'Outros'
+        if clb not in stats_por_clube:
+            stats_por_clube[clb] = {"clube": clb, "gols": 0, "amarelos": 0, "vermelhos": 0, "pids": set()}
+        stats_por_clube[clb]["pids"].add(e['id_partida'])
+
+    historico_clubes = []
+    for k, v in sorted(stats_por_clube.items(), key=lambda x: (x[1]["gols"], len(x[1]["pids"])), reverse=True):
+        historico_clubes.append({
+            "clube": v["clube"],
+            "gols": v["gols"],
+            "amarelos": v["amarelos"],
+            "vermelhos": v["vermelhos"],
+            "jogos": len(v["pids"])
+        })
+
+    # Desempenho por Torneio
+    stats_camps = {}
+    for p in partidas_ordenadas:
+        camp = p['campeonato'] or 'Não Informado'
+        if camp not in stats_camps:
+            stats_camps[camp] = {"campeonato": camp, "jogos": 0, "gols": 0, "amarelos": 0, "vermelhos": 0, "ano_min": p['ano'], "ano_max": p['ano']}
+        stats_camps[camp]["jogos"] += 1
+        stats_camps[camp]["gols"] += len(p['gols'])
+        stats_camps[camp]["amarelos"] += len([c for c in p['cartoes'] if 'amarelo' in (c['cartao'] or '').lower()])
+        stats_camps[camp]["vermelhos"] += len([c for c in p['cartoes'] if 'vermelho' in (c['cartao'] or '').lower()])
+        if p['ano']:
+            stats_camps[camp]["ano_min"] = min(stats_camps[camp]["ano_min"] or p['ano'], p['ano'])
+            stats_camps[camp]["ano_max"] = max(stats_camps[camp]["ano_max"] or p['ano'], p['ano'])
+
+    historico_torneios = sorted(stats_camps.values(), key=lambda x: (x["gols"], x["jogos"]), reverse=True)
+
+    # Anos
+    anos = [p['ano'] for p in partidas_ordenadas if p['ano']]
+    ano_min = min(anos) if anos else None
+    ano_max = max(anos) if anos else None
+
+    conn.close()
+
+    return jsonify({
+        "nome": nome,
+        "clube_filtro": clube_filtro,
+        "resumo": {
+            "total_gols": len(gols),
+            "gols_normais": gols_normais,
+            "gols_penalti": gols_penalti,
+            "gols_falta": gols_falta,
+            "gols_contra": gols_contra,
+            "amarelos": amarelos,
+            "vermelhos": vermelhos,
+            "jogos_registrados": total_jogos,
+            "media_gols": round(len(gols) / total_jogos, 2) if total_jogos > 0 else 0,
+            "ano_min": ano_min,
+            "ano_max": ano_max,
+            "assistencias": 0,
+            "nota_assistencias": "Súmulas históricas oficiais da CBF registram Gols, Cartões e Escalações. Passes a gol/assistências possuem cobertura de scouts pós-2015."
+        },
+        "top_vitimas": top_vitimas,
+        "historico_clubes": historico_clubes,
+        "historico_torneios": historico_torneios,
+        "partidas": partidas_ordenadas[:100]
+    })
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Iniciando API de Futebol & Clima em http://localhost:{port}")

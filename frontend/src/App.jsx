@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Trophy, CloudRain, Swords, Search, Copy, Check, Sparkles, 
   Sun, Moon, Flame, ShieldAlert, Calendar, MapPin, BarChart3, 
-  ArrowRight, RefreshCw, Share2
+  ArrowRight, RefreshCw, Share2, User, Users, Award, AlertCircle, 
+  X, ChevronRight, Filter
 } from 'lucide-react';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'playground', 'clima', 'tweets'
+  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'playground', 'clima', 'tweets'
 
   // Overview
   const [overview, setOverview] = useState(null);
@@ -19,7 +20,18 @@ export default function App() {
   const [h2hData, setH2hData] = useState(null);
   const [h2hLoading, setH2hLoading] = useState(false);
 
-  // Tab 2: Playground state
+  // Tab 2: Jogadores state
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [playerSuggestions, setPlayerSuggestions] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [playerProfile, setPlayerProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [destaques, setDestaques] = useState(null);
+  const [destaquesLoading, setDestaquesLoading] = useState(false);
+  const [playerClubeFiltro, setPlayerClubeFiltro] = useState('');
+
+  // Tab 3: Playground state
   const [campeonatosList, setCampeonatosList] = useState([]);
   const [pgClube, setPgClube] = useState('');
   const [pgCamp, setPgCamp] = useState('');
@@ -29,7 +41,7 @@ export default function App() {
   const [partidasData, setPartidasData] = useState(null);
   const [partidasLoading, setPartidasLoading] = useState(false);
 
-  // Tab 3: Clima state
+  // Tab 4: Clima state
   const [climaData, setClimaData] = useState(null);
   const [climaLoading, setClimaLoading] = useState(false);
 
@@ -80,6 +92,62 @@ export default function App() {
     carregarH2H();
   }, []);
 
+  // Carregar destaques de jogadores quando abrir a aba de jogadores
+  useEffect(() => {
+    if (activeTab === 'jogadores' && !destaques) {
+      setDestaquesLoading(true);
+      fetch('/api/jogadores/destaques')
+        .then(r => r.json())
+        .then(d => {
+          setDestaques(d);
+          setDestaquesLoading(false);
+        })
+        .catch(() => setDestaquesLoading(false));
+    }
+  }, [activeTab, destaques]);
+
+  // Busca de jogadores com autocomplete
+  useEffect(() => {
+    if (!playerSearch || playerSearch.trim().length < 2) {
+      setPlayerSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSearchLoading(true);
+      fetch(`/api/jogadores/busca?q=${encodeURIComponent(playerSearch.trim())}`)
+        .then(r => r.json())
+        .then(d => {
+          setPlayerSuggestions(Array.isArray(d) ? d : []);
+          setSearchLoading(false);
+        })
+        .catch(() => setSearchLoading(false));
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [playerSearch]);
+
+  // Carregar perfil completo do jogador
+  const carregarPerfilJogador = (nome, clube = '') => {
+    if (!nome) return;
+    setProfileLoading(true);
+    setSelectedPlayer(nome);
+    setPlayerClubeFiltro(clube);
+    setPlayerSuggestions([]);
+
+    let url = `/api/jogadores/perfil?nome=${encodeURIComponent(nome)}`;
+    if (clube) {
+      url += `&clube=${encodeURIComponent(clube)}`;
+    }
+
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        setPlayerProfile(d);
+        setProfileLoading(false);
+      })
+      .catch(() => setProfileLoading(false));
+  };
+
   // Buscar Partidas no Playground
   const carregarPartidas = (p = 1) => {
     setPartidasLoading(true);
@@ -127,6 +195,12 @@ export default function App() {
     setTimeout(() => setCopiedKey(null), 2500);
   };
 
+  // Jogadores populares rápidos
+  const jogadoresPopulares = [
+    'Zico', 'Roberto Dinamite', 'Reinaldo', 'Careca', 'Dario', 
+    'Thiago Heleno', 'Fagner', 'Gabriel Barbosa', 'Felipe Melo', 'Romário'
+  ];
+
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px' }}>
       
@@ -138,10 +212,12 @@ export default function App() {
               FutStats & Clima
             </h1>
             <span className="badge badge-blue">Soft UI Evolution</span>
-            <span className="badge badge-green">43.980 Jogos</span>
+            <span className="badge badge-green">
+              {overview?.total_partidas ? `${overview.total_partidas.toLocaleString('pt-BR')} Jogos` : '55.395 Jogos'}
+            </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Central analítica de futebol e meteorologia para a equipe de moderação e Twitter/X
+            Central analítica histórica de futebol brasileiro (Série A & B) e meteorologia
           </p>
         </div>
 
@@ -178,6 +254,13 @@ export default function App() {
           onClick={() => setActiveTab('h2h')}
         >
           <Swords size={18} /> Raio-X de Confrontos (H2H)
+        </button>
+
+        <button 
+          className={activeTab === 'jogadores' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => setActiveTab('jogadores')}
+        >
+          <User size={18} /> Jogadores & Estatísticas
         </button>
 
         <button 
@@ -259,7 +342,7 @@ export default function App() {
           {h2hData && (
             <div>
               {/* PLACAR GERAL RESUMO */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Vitórias de {h2hData.clube1}</div>
                   <div className="font-mono" style={{ fontSize: '2.5rem', fontWeight: '700', color: '#0369A1' }}>
@@ -301,125 +384,88 @@ export default function App() {
                 </div>
               </div>
 
-              {/* CARD DE TABU E MAIORES GOLEADAS */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                {h2hData.tabu_invicto && (
-                  <div className="soft-card" style={{ padding: '18px', borderLeft: '4px solid #90EE90' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <ShieldAlert size={20} color="#15803D" />
-                      <strong style={{ fontSize: '0.95rem' }}>Tabu de Invencibilidade Ativo</strong>
-                    </div>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                      O <strong>{h2hData.tabu_invicto.clube}</strong> não perde este confronto há 
-                      <strong className="font-mono"> {h2hData.tabu_invicto.jogos} jogos consecutivos</strong>.
-                    </p>
+              {/* CARD DE TABU / INVENCIBILIDADE */}
+              {h2hData.tabu_invicto && (
+                <div className="soft-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px', borderLeft: '4px solid #10B981' }}>
+                  <Flame size={24} color="#10B981" />
+                  <div>
+                    <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>Série Invicte em Vigor: </strong>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      O <strong style={{ color: '#10B981' }}>{h2hData.tabu_invicto.clube}</strong> não perde para o rival há <strong>{h2hData.tabu_invicto.jogos} confrontos seguidos</strong>.
+                    </span>
                   </div>
-                )}
-
-                {h2hData.maior_goleada_clube1 && (
-                  <div className="soft-card" style={{ padding: '18px' }}>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Maior Goleada de {h2hData.clube1}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="font-mono" style={{ fontSize: '1.25rem', fontWeight: '700' }}>
-                        {h2hData.maior_goleada_clube1.mandante} {h2hData.maior_goleada_clube1.placar} {h2hData.maior_goleada_clube1.visitante}
-                      </span>
-                      <span className="badge badge-blue font-mono">{h2hData.maior_goleada_clube1.data}</span>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      {h2hData.maior_goleada_clube1.campeonato} • {h2hData.maior_goleada_clube1.estadio || 'Estádio não informado'}
-                    </div>
-                  </div>
-                )}
-
-                {h2hData.maior_goleada_clube2 && (
-                  <div className="soft-card" style={{ padding: '18px' }}>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                      Maior Goleada de {h2hData.clube2}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="font-mono" style={{ fontSize: '1.25rem', fontWeight: '700' }}>
-                        {h2hData.maior_goleada_clube2.mandante} {h2hData.maior_goleada_clube2.placar} {h2hData.maior_goleada_clube2.visitante}
-                      </span>
-                      <span className="badge badge-pink font-mono">{h2hData.maior_goleada_clube2.data}</span>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      {h2hData.maior_goleada_clube2.campeonato} • {h2hData.maior_goleada_clube2.estadio || 'Estádio não informado'}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* GERADOR RÁPIDO DE TWEET DESTE CONFRONTO */}
-              <div className="soft-card" style={{ padding: '20px', marginBottom: '24px', background: 'linear-gradient(135deg, rgba(135,206,235,0.08), rgba(255,182,193,0.08))' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Sparkles size={18} color="#0369A1" />
-                    <strong>Snippet para Postagem no Twitter / X</strong>
-                  </div>
-                  <button 
-                    className="btn-primary" 
-                    style={{ padding: '6px 14px', fontSize: '0.85rem' }}
-                    onClick={() => {
-                      const tweet = `📊 RAIO-X HISTÓRICO | ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
-                        `Em ${h2hData.total_jogos} confrontos oficiais desde 1950:\n` +
-                        `🔹 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
-                        `🔸 ${h2hData.vitorias_clube2} vitórias do ${h2hData.clube2}\n` +
-                        `🤝 ${h2hData.empates} empates\n` +
-                        `⚽ Gols: ${h2hData.gols_clube1} x ${h2hData.gols_clube2}\n` +
-                        (h2hData.tabu_invicto ? `🔥 Tabu ativo: ${h2hData.tabu_invicto.clube} invicto há ${h2hData.tabu_invicto.jogos} jogos!\n` : '') +
-                        `\n#Futebol #Estatísticas #${h2hData.clube1.replace(/[^a-zA-Z0-9]/g, '')} #${h2hData.clube2.replace(/[^a-zA-Z0-9]/g, '')}`;
-                      copiarTweet(tweet, 'h2h-tweet');
-                    }}
-                  >
-                    {copiedKey === 'h2h-tweet' ? <Check size={16} /> : <Copy size={16} />}
-                    {copiedKey === 'h2h-tweet' ? 'Copiado!' : 'Copiar Texto para Tweet'}
-                  </button>
                 </div>
-                <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--surface)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  {`📊 RAIO-X HISTÓRICO | ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
-                   `Em ${h2hData.total_jogos} confrontos oficiais desde 1950:\n` +
-                   `🔹 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
-                   `🔸 ${h2hData.vitorias_clube2} vitórias do ${h2hData.clube2}\n` +
-                   `🤝 ${h2hData.empates} empates\n` +
-                   `⚽ Gols: ${h2hData.gols_clube1} x ${h2hData.gols_clube2}\n` +
-                   (h2hData.tabu_invicto ? `🔥 Tabu ativo: ${h2hData.tabu_invicto.clube} invicto há ${h2hData.tabu_invicto.jogos} jogos!\n` : '')}
+              )}
+
+              {/* MAIORES GOLEADAS */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div className="soft-card" style={{ padding: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <Trophy size={18} color="#0369A1" />
+                    <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Maior Goleada de {h2hData.clube1}</span>
+                  </div>
+                  {h2hData.maior_goleada_clube1 ? (
+                    <div>
+                      <div className="font-mono" style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0369A1' }}>
+                        {h2hData.maior_goleada_clube1.mandante} {h2hData.maior_goleada_clube1.placar} {h2hData.maior_goleada_clube1.visitante}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        {h2hData.maior_goleada_clube1.data} • {h2hData.maior_goleada_clube1.campeonato} • {h2hData.maior_goleada_clube1.estadio || 'Estádio não inf.'}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nenhuma vitória catalogada</span>
+                  )}
+                </div>
+
+                <div className="soft-card" style={{ padding: '18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <Trophy size={18} color="#BE185D" />
+                    <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Maior Goleada de {h2hData.clube2}</span>
+                  </div>
+                  {h2hData.maior_goleada_clube2 ? (
+                    <div>
+                      <div className="font-mono" style={{ fontSize: '1.4rem', fontWeight: '700', color: '#BE185D' }}>
+                        {h2hData.maior_goleada_clube2.mandante} {h2hData.maior_goleada_clube2.placar} {h2hData.maior_goleada_clube2.visitante}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        {h2hData.maior_goleada_clube2.data} • {h2hData.maior_goleada_clube2.campeonato} • {h2hData.maior_goleada_clube2.estadio || 'Estádio não inf.'}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nenhuma vitória catalogada</span>
+                  )}
                 </div>
               </div>
 
               {/* LISTA DOS ÚLTIMOS CONFRONTOS */}
               <div className="soft-card" style={{ padding: '20px' }}>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px' }}>
-                  Últimos 30 Jogos Entre as Equipes
+                  Últimos Confrontos Oficiais
                 </h3>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1.5px solid var(--border)', color: 'var(--text-muted)' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                         <th style={{ padding: '10px 8px' }}>Data</th>
-                        <th style={{ padding: '10px 8px' }}>Competição</th>
-                        <th style={{ padding: '10px 8px' }}>Fase</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'right' }}>Mandante</th>
+                        <th style={{ padding: '10px 8px' }}>Campeonato</th>
+                        <th style={{ padding: '10px 8px' }}>Partida</th>
                         <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
-                        <th style={{ padding: '10px 8px' }}>Visitante</th>
                         <th style={{ padding: '10px 8px' }}>Estádio</th>
                       </tr>
                     </thead>
                     <tbody>
                       {h2hData.partidas.map(p => (
                         <tr key={p.id_partida} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td className="font-mono" style={{ padding: '10px 8px', fontSize: '0.82rem' }}>{p.data}</td>
-                          <td style={{ padding: '10px 8px' }}>{p.campeonato}</td>
-                          <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{p.fase || '-'}</td>
-                          <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: p.vencedor === p.mandante ? '700' : '400' }}>
-                            {p.mandante}
+                          <td className="font-mono" style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{p.data}</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <span className="badge badge-blue">{p.campeonato}</span>
+                          </td>
+                          <td style={{ padding: '10px 8px', fontWeight: '500' }}>
+                            {p.mandante} <span style={{ color: 'var(--text-subtle)' }}>x</span> {p.visitante}
                           </td>
                           <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700' }}>
-                            <span className="badge badge-blue">{p.placar}</span>
-                          </td>
-                          <td style={{ padding: '10px 8px', fontWeight: p.vencedor === p.visitante ? '700' : '400' }}>
-                            {p.visitante}
+                            {p.placar || `${p.gols_mandante} x ${p.gols_visitante}`}
                           </td>
                           <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
                             {p.estadio || '-'}
@@ -435,29 +481,614 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 2: PLAYGROUND DE JOGOS & GOLS */}
+      {/* ABA 2: JOGADORES & ESTATÍSTICAS (NOVA ABA) */}
+      {activeTab === 'jogadores' && (
+        <section>
+          {/* BARRA DE PESQUISA DE JOGADORES */}
+          <div className="soft-card" style={{ padding: '22px', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <User size={22} color="#87CEEB" /> Busca de Jogadores & Histórico Individual
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginBottom: '16px' }}>
+              Pesquise qualquer atleta da história do futebol brasileiro para ver gols, cartões, jogos e maiores vítimas.
+            </p>
+
+            <div style={{ position: 'relative' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input 
+                    type="text" 
+                    className="soft-input"
+                    value={playerSearch}
+                    onChange={e => setPlayerSearch(e.target.value)}
+                    placeholder="Digite o nome do jogador (Ex: Zico, Roberto Dinamite, Thiago Heleno, Fagner, Gabigol...)"
+                    style={{ paddingLeft: '40px', fontSize: '1rem', height: '46px' }}
+                  />
+                  <Search size={18} style={{ position: 'absolute', left: '14px', top: '14px', color: 'var(--text-muted)' }} />
+                  {playerSearch && (
+                    <button 
+                      onClick={() => { setPlayerSearch(''); setPlayerSuggestions([]); }}
+                      style={{ position: 'absolute', right: '12px', top: '13px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
+                </div>
+
+                {searchLoading && (
+                  <RefreshCw size={20} className="animate-spin" color="#87CEEB" />
+                )}
+              </div>
+
+              {/* DROPDOWN DE SUGESTÕES AUTOCOMPLETE */}
+              {playerSuggestions.length > 0 && (
+                <div 
+                  className="soft-card" 
+                  style={{ 
+                    position: 'absolute', 
+                    top: '52px', 
+                    left: 0, 
+                    right: 0, 
+                    zIndex: 50, 
+                    maxHeight: '360px', 
+                    overflowY: 'auto',
+                    boxShadow: 'var(--shadow-lift)',
+                    border: '1px solid var(--border-focus)'
+                  }}
+                >
+                  {playerSuggestions.map((s, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => carregarPerfilJogador(s.nome)}
+                      style={{ 
+                        padding: '12px 16px', 
+                        borderBottom: '1px solid var(--border)', 
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'background-color 150ms'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <div>
+                        <strong style={{ fontSize: '0.98rem', color: 'var(--text-main)' }}>{s.nome}</strong>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                          {s.clubes?.slice(0, 4).map((c, i) => (
+                            <span key={i} className="badge badge-blue" style={{ fontSize: '0.72rem' }}>{c}</span>
+                          ))}
+                          {s.clubes?.length > 4 && (
+                            <span className="badge" style={{ fontSize: '0.72rem', backgroundColor: 'var(--surface-active)' }}>
+                              +{s.clubes.length - 4} clubes
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '14px', alignItems: 'center', fontSize: '0.85rem' }}>
+                        {s.gols > 0 && (
+                          <span style={{ color: '#15803D', fontWeight: '600' }}>⚽ {s.gols} gols</span>
+                        )}
+                        {(s.amarelos > 0 || s.vermelhos > 0) && (
+                          <span>
+                            {s.amarelos > 0 && <span style={{ color: '#D97706', marginRight: '6px' }}>🟨 {s.amarelos}</span>}
+                            {s.vermelhos > 0 && <span style={{ color: '#DC2626' }}>🟥 {s.vermelhos}</span>}
+                          </span>
+                        )}
+                        <ChevronRight size={16} color="var(--text-subtle)" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ATALHOS RÁPIDOS DE JOGADORES FAMOSOS */}
+            <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '500' }}>Sugestões rápidas:</span>
+              {jogadoresPopulares.map(nome => (
+                <button
+                  key={nome}
+                  onClick={() => carregarPerfilJogador(nome)}
+                  className="btn-secondary"
+                  style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '14px' }}
+                >
+                  {nome}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* LOADING DO PERFIL */}
+          {profileLoading && (
+            <div className="soft-card" style={{ padding: '40px', textAlign: 'center' }}>
+              <RefreshCw size={32} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 12px' }} />
+              <p style={{ color: 'var(--text-muted)' }}>Carregando dados detalhados do atleta...</p>
+            </div>
+          )}
+
+          {/* PERFIL DO ATLETA SELECIONADO */}
+          {!profileLoading && playerProfile && (
+            <div>
+              {/* HEADER DO ATLETA */}
+              <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <h2 style={{ fontSize: '1.7rem', fontWeight: '700' }}>
+                        {playerProfile.nome}
+                      </h2>
+                      {playerProfile.resumo?.ano_min && (
+                        <span className="badge badge-blue font-mono">
+                          {playerProfile.resumo.ano_min} - {playerProfile.resumo.ano_max}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {playerProfile.historico_clubes?.map(c => (
+                        <span 
+                          key={c.clube}
+                          onClick={() => carregarPerfilJogador(playerProfile.nome, playerClubeFiltro === c.clube ? '' : c.clube)}
+                          className={playerClubeFiltro === c.clube ? 'badge badge-green' : 'badge badge-blue'}
+                          style={{ cursor: 'pointer', fontSize: '0.78rem' }}
+                          title="Clique para filtrar por este clube"
+                        >
+                          {c.clube} ({c.jogos}j / {c.gols}g)
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    {playerClubeFiltro && (
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+                        onClick={() => carregarPerfilJogador(playerProfile.nome, '')}
+                      >
+                        Limpar Filtro ({playerClubeFiltro})
+                      </button>
+                    )}
+                    <button 
+                      className="btn-primary" 
+                      style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+                      onClick={() => {
+                        const topV = playerProfile.top_vitimas?.[0] ? `${playerProfile.top_vitimas[0].clube} (${playerProfile.top_vitimas[0].gols} gols)` : 'Vários';
+                        const txt = `📊 RAIO-X DO CRAQUE: ${playerProfile.nome}\n\n` +
+                          `⚽ Gols: ${playerProfile.resumo.total_gols} (${playerProfile.resumo.media_gols} por jogo)\n` +
+                          `🟨 Cartões Amarelos: ${playerProfile.resumo.amarelos}\n` +
+                          `🟥 Cartões Vermelhos: ${playerProfile.resumo.vermelhos}\n` +
+                          `🏟️ Jogos Catalogados: ${playerProfile.resumo.jogos_registrados} (${playerProfile.resumo.ano_min}-${playerProfile.resumo.ano_max})\n` +
+                          `🎯 Maior Vítima: ${topV}\n\n` +
+                          `#Futebol #Dados #Estatisticas #FutStats`;
+                        copiarTweet(txt, 'tweet-jogador');
+                      }}
+                    >
+                      {copiedKey === 'tweet-jogador' ? <Check size={16} /> : <Share2 size={16} />}
+                      {copiedKey === 'tweet-jogador' ? 'Copiado!' : 'Compartilhar no X/Twitter'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5 CARDS DE MÉTRICAS PRINCIPAIS */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px', marginTop: '22px' }}>
+                  {/* CARD GOLS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #10B981' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>⚽ Gols Marcados</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#15803D', margin: '4px 0' }}>
+                      {playerProfile.resumo.total_gols}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                      <span>Normais: {playerProfile.resumo.gols_normais}</span>
+                      {playerProfile.resumo.gols_penalti > 0 && <span>• Pên: {playerProfile.resumo.gols_penalti}</span>}
+                      {playerProfile.resumo.gols_falta > 0 && <span>• Falta: {playerProfile.resumo.gols_falta}</span>}
+                    </div>
+                  </div>
+
+                  {/* CARD AMARELOS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #F59E0B' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🟨 Cartões Amarelos</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#D97706', margin: '4px 0' }}>
+                      {playerProfile.resumo.amarelos}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Em {playerProfile.resumo.jogos_registrados} partidas
+                    </div>
+                  </div>
+
+                  {/* CARD VERMELHOS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #EF4444' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🟥 Cartões Vermelhos</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#DC2626', margin: '4px 0' }}>
+                      {playerProfile.resumo.vermelhos}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Expulsões diretas / 2º amarelo
+                    </div>
+                  </div>
+
+                  {/* CARD ASSISTÊNCIAS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #87CEEB' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎯 Assistências</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0369A1', margin: '4px 0' }}>
+                      0*
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }} title={playerProfile.resumo.nota_assistencias}>
+                      *Súmula oficial CBF
+                    </div>
+                  </div>
+
+                  {/* CARD JOGOS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #6366F1' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🏟️ Jogos Catalogados</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#4F46E5', margin: '4px 0' }}>
+                      {playerProfile.resumo.jogos_registrados}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Média: {playerProfile.resumo.media_gols} gols/jogo
+                    </div>
+                  </div>
+                </div>
+
+                {/* NOTA METODOLÓGICA SÚMULA CBF */}
+                <div style={{ marginTop: '16px', padding: '10px 14px', backgroundColor: 'var(--surface-hover)', borderRadius: '8px', fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={15} color="#87CEEB" />
+                  <span>
+                    <strong>Metodologia Oficial:</strong> {playerProfile.resumo.nota_assistencias}
+                  </span>
+                </div>
+              </div>
+
+              {/* DUAS COLUNAS: MAIORES VÍTIMAS E DESEMPENHO POR CLUBE */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                {/* MAIORES VÍTIMAS */}
+                <div className="soft-card" style={{ padding: '20px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Flame size={18} color="#EF4444" /> Maiores Vítimas (Clubes Mais Vazados)
+                  </h3>
+                  {playerProfile.top_vitimas?.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {playerProfile.top_vitimas.map((v, i) => {
+                        const maxG = playerProfile.top_vitimas[0].gols;
+                        const pct = Math.max(10, (v.gols / maxG) * 100);
+                        return (
+                          <div key={i}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
+                              <span><strong>{i + 1}º</strong> {v.clube}</span>
+                              <span className="font-mono" style={{ fontWeight: '700', color: '#15803D' }}>{v.gols} {v.gols === 1 ? 'gol' : 'gols'}</span>
+                            </div>
+                            <div style={{ height: '7px', width: '100%', backgroundColor: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, backgroundColor: '#10B981', borderRadius: '4px' }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Sem gols catalogados ou dados de adversários.
+                    </p>
+                  )}
+                </div>
+
+                {/* DESEMPENHO POR CLUBE */}
+                <div className="soft-card" style={{ padding: '20px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ShieldAlert size={18} color="#87CEEB" /> Desempenho por Clube Defendido
+                  </h3>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '8px 6px' }}>Clube</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Jogos</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Gols</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>🟨</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>🟥</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {playerProfile.historico_clubes?.map((c, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 6px', fontWeight: '500' }}>{c.clube}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center' }}>{c.jogos}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', fontWeight: '700', color: '#15803D' }}>{c.gols}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', color: '#D97706' }}>{c.amarelos}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', color: '#DC2626' }}>{c.vermelhos}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* DESEMPENHO POR TORNEIO */}
+              {playerProfile.historico_torneios?.length > 0 && (
+                <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Trophy size={18} color="#F59E0B" /> Histórico por Campeonato
+                  </h3>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '8px 6px' }}>Campeonato</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Período</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Jogos</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Gols</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Amarelos</th>
+                          <th style={{ padding: '8px 6px', textAlign: 'center' }}>Vermelhos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {playerProfile.historico_torneios.map((t, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 6px', fontWeight: '500' }}>
+                              <span className="badge badge-blue">{t.campeonato}</span>
+                            </td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                              {t.ano_min ? `${t.ano_min} - ${t.ano_max}` : '-'}
+                            </td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center' }}>{t.jogos}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', fontWeight: '700', color: '#15803D' }}>{t.gols}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', color: '#D97706' }}>{t.amarelos}</td>
+                            <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'center', color: '#DC2626' }}>{t.vermelhos}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* LISTA COMPLETA DAS PARTIDAS DO ATLETA */}
+              <div className="soft-card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
+                    Partidas Catalogadas & Lances ({playerProfile.partidas?.length})
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Exibindo as partidas mais recentes onde o atleta atuou, marcou ou foi punido
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px 8px' }}>Data</th>
+                        <th style={{ padding: '10px 8px' }}>Campeonato</th>
+                        <th style={{ padding: '10px 8px' }}>Partida</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
+                        <th style={{ padding: '10px 8px' }}>Lances & Ações do Atleta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {playerProfile.partidas?.map(p => (
+                        <tr key={p.id_partida} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td className="font-mono" style={{ padding: '10px 8px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            {p.data}
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <span className="badge badge-blue">{p.campeonato}</span>
+                          </td>
+                          <td style={{ padding: '10px 8px', fontWeight: '500' }}>
+                            {p.mandante} <span style={{ color: 'var(--text-subtle)' }}>x</span> {p.visitante}
+                          </td>
+                          <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700' }}>
+                            {p.placar || '-'}
+                          </td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {p.gols?.map((g, gi) => (
+                                <span key={`g-${gi}`} className="badge badge-green">
+                                  ⚽ Gol {g.minuto ? `aos ${g.minuto}'` : ''} {g.tipo && g.tipo !== 'Normal' ? `(${g.tipo})` : ''}
+                                </span>
+                              ))}
+                              {p.cartoes?.map((c, ci) => (
+                                <span 
+                                  key={`c-${ci}`} 
+                                  className={c.cartao?.toLowerCase().includes('vermelho') ? 'badge badge-pink' : 'badge'}
+                                  style={{ backgroundColor: c.cartao?.toLowerCase().includes('amarelo') ? 'rgba(245, 158, 11, 0.2)' : undefined, color: c.cartao?.toLowerCase().includes('amarelo') ? '#D97706' : undefined }}
+                                >
+                                  {c.cartao?.toLowerCase().includes('vermelho') ? '🟥 Vermelho' : '🟨 Amarelo'} {c.minuto ? `aos ${c.minuto}'` : ''} {c.motivo ? `(${c.motivo})` : ''}
+                                </span>
+                              ))}
+                              {p.escalacao && (
+                                <span className="badge" style={{ backgroundColor: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                                  📋 {p.escalacao.titular ? 'Titular' : 'Reserva'} {p.escalacao.posicao ? `• ${p.escalacao.posicao}` : ''} {p.escalacao.camisa ? `(Nº ${p.escalacao.camisa})` : ''}
+                                </span>
+                              )}
+                              {!p.gols?.length && !p.cartoes?.length && !p.escalacao && (
+                                <span style={{ color: 'var(--text-subtle)', fontSize: '0.78rem' }}>Sem eventos registrados</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ESTADO INICIAL / LEADERBOARDS QUANDO NENHUM JOGADOR ESTIVER SELECIONADO */}
+          {!playerProfile && (
+            <div>
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: '600' }}>
+                  Rankings Históricos & Destaques Nacionais
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  Clique em qualquer jogador para abrir o dossiê completo de estatísticas da carreira.
+                </p>
+              </div>
+
+              {destaquesLoading ? (
+                <div className="soft-card" style={{ padding: '30px', textAlign: 'center' }}>
+                  <RefreshCw size={24} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 8px' }} />
+                  <p style={{ color: 'var(--text-muted)' }}>Carregando rankings históricos...</p>
+                </div>
+              ) : destaques ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))', gap: '20px' }}>
+                  {/* TOP ARTILHEIROS */}
+                  <div className="soft-card" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                      <Award size={20} color="#10B981" />
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Top 10 Maiores Artilheiros</h4>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {destaques.artilheiros.map((a, i) => (
+                        <div 
+                          key={i}
+                          onClick={() => carregarPerfilJogador(a.nome)}
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '8px 10px', 
+                            borderRadius: '8px', 
+                            cursor: 'pointer',
+                            backgroundColor: 'var(--surface-hover)',
+                            transition: 'transform 150ms'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.transform = 'translateX(4px)'}
+                          onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                        >
+                          <div>
+                            <span style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                              <strong style={{ color: '#10B981', marginRight: '6px' }}>{i + 1}º</strong> {a.nome}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {a.clubes.slice(0, 3).join(', ')}
+                            </div>
+                          </div>
+                          <span className="badge badge-green font-mono" style={{ fontSize: '0.85rem' }}>
+                            ⚽ {a.total} gols
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* TOP AMARELOS */}
+                  <div className="soft-card" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                      <ShieldAlert size={20} color="#F59E0B" />
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Top 10 Cartões Amarelos</h4>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {destaques.amarelos.map((a, i) => (
+                        <div 
+                          key={i}
+                          onClick={() => carregarPerfilJogador(a.nome)}
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '8px 10px', 
+                            borderRadius: '8px', 
+                            cursor: 'pointer',
+                            backgroundColor: 'var(--surface-hover)',
+                            transition: 'transform 150ms'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.transform = 'translateX(4px)'}
+                          onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                        >
+                          <div>
+                            <span style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                              <strong style={{ color: '#F59E0B', marginRight: '6px' }}>{i + 1}º</strong> {a.nome}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {a.clubes.slice(0, 3).join(', ')}
+                            </div>
+                          </div>
+                          <span className="badge font-mono" style={{ backgroundColor: 'rgba(245, 158, 11, 0.2)', color: '#D97706', fontSize: '0.85rem' }}>
+                            🟨 {a.total}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* TOP VERMELHOS */}
+                  <div className="soft-card" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                      <AlertCircle size={20} color="#EF4444" />
+                      <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Top 10 Cartões Vermelhos</h4>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {destaques.vermelhos.map((a, i) => (
+                        <div 
+                          key={i}
+                          onClick={() => carregarPerfilJogador(a.nome)}
+                          style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            padding: '8px 10px', 
+                            borderRadius: '8px', 
+                            cursor: 'pointer',
+                            backgroundColor: 'var(--surface-hover)',
+                            transition: 'transform 150ms'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.transform = 'translateX(4px)'}
+                          onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                        >
+                          <div>
+                            <span style={{ fontWeight: '600', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                              <strong style={{ color: '#EF4444', marginRight: '6px' }}>{i + 1}º</strong> {a.nome}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              {a.clubes.slice(0, 3).join(', ')}
+                            </div>
+                          </div>
+                          <span className="badge badge-pink font-mono" style={{ fontSize: '0.85rem' }}>
+                            🟥 {a.total}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ABA 3: EXPLORADOR DE JOGOS & GOLS (PLAYGROUND) */}
       {activeTab === 'playground' && (
         <section>
           {/* FILTROS DO PLAYGROUND */}
           <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Search size={20} color="#87CEEB" /> Filtro Avançado de Partidas
+              <Search size={20} color="#87CEEB" /> Filtros do Banco de Partidas
             </h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Clube</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Clube Envolvido
+                </label>
                 <input 
                   type="text" 
-                  className="soft-input" 
-                  placeholder="Nome do clube..."
+                  className="soft-input"
                   value={pgClube}
                   onChange={e => setPgClube(e.target.value)}
+                  placeholder="Ex: Palmeiras, Grêmio..."
+                  list="clubes-sugestoes"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Campeonato</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Campeonato
+                </label>
                 <select 
                   className="soft-input"
                   value={pgCamp}
@@ -473,207 +1104,225 @@ export default function App() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Cenário</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Cenário Especial
+                </label>
                 <select 
                   className="soft-input"
                   value={pgCenario}
                   onChange={e => setPgCenario(e.target.value)}
                 >
                   <option value="todos">Todos os Jogos</option>
-                  <option value="goleadas">Goleadas (Diferença ≥ 4 ou ≥ 6 gols)</option>
-                  <option value="finais">Finais & Decisões</option>
+                  <option value="goleadas">Apenas Goleadas (4+ gols dif ou 6+ total)</option>
+                  <option value="finais">Finais e Decisões</option>
                 </select>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Busca Livre (Estádio, Árbitro)</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                  Busca Textual (Estádio, Árbitro...)
+                </label>
                 <input 
                   type="text" 
-                  className="soft-input" 
-                  placeholder="Ex: Maracanã, Wright..."
+                  className="soft-input"
                   value={pgBusca}
                   onChange={e => setPgBusca(e.target.value)}
+                  placeholder="Ex: Maracanã, Claus..."
                 />
               </div>
 
               <div>
-                <button className="btn-primary" style={{ width: '100%' }} onClick={() => carregarPartidas(1)}>
-                  <Search size={16} /> Filtrar Jogos
+                <button 
+                  className="btn-primary" 
+                  style={{ width: '100%' }}
+                  onClick={() => { setPgPage(1); carregarPartidas(1); }}
+                  disabled={partidasLoading}
+                >
+                  {partidasLoading ? <RefreshCw size={18} className="animate-spin" /> : <Search size={18} />}
+                  Filtrar Partidas
                 </button>
               </div>
             </div>
           </div>
 
-          {/* LISTA DE RESULTADOS DO PLAYGROUND */}
-          <div className="soft-card" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: '600' }}>
-                {partidasData ? `${partidasData.total.toLocaleString('pt-BR')} partidas encontradas` : 'Carregando...'}
-              </h3>
+          {/* TABELA DE PARTIDAS ENCONTRADAS */}
+          {partidasData && (
+            <div className="soft-card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  Total encontrado: <strong className="font-mono">{partidasData.total.toLocaleString('pt-BR')}</strong> partidas
+                </span>
 
-              {partidasData && (
-                <div style={{ display: 'flex', gap: '8px' }}>
+                {/* PAGINAÇÃO */}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <button 
                     className="btn-secondary" 
-                    style={{ padding: '6px 12px', fontSize: '0.82rem' }}
-                    disabled={partidasData.page <= 1}
+                    style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    disabled={pgPage <= 1}
                     onClick={() => {
-                      setPgPage(partidasData.page - 1);
-                      carregarPartidas(partidasData.page - 1);
+                      const next = pgPage - 1;
+                      setPgPage(next);
+                      carregarPartidas(next);
                     }}
                   >
                     Anterior
                   </button>
-                  <span className="badge badge-blue font-mono">Página {partidasData.page}</span>
+                  <span className="font-mono" style={{ fontSize: '0.85rem', padding: '0 4px' }}>
+                    Pág. {pgPage} de {Math.max(1, Math.ceil(partidasData.total / 15))}
+                  </span>
                   <button 
                     className="btn-secondary" 
-                    style={{ padding: '6px 12px', fontSize: '0.82rem' }}
-                    disabled={partidasData.page * partidasData.limit >= partidasData.total}
+                    style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    disabled={pgPage >= Math.ceil(partidasData.total / 15)}
                     onClick={() => {
-                      setPgPage(partidasData.page + 1);
-                      carregarPartidas(partidasData.page + 1);
+                      const next = pgPage + 1;
+                      setPgPage(next);
+                      carregarPartidas(next);
                     }}
                   >
                     Próxima
                   </button>
                 </div>
-              )}
+              </div>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '10px 8px' }}>Data / Ano</th>
+                      <th style={{ padding: '10px 8px' }}>Torneio</th>
+                      <th style={{ padding: '10px 8px' }}>Confronto</th>
+                      <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
+                      <th style={{ padding: '10px 8px' }}>Gols Catalogados</th>
+                      <th style={{ padding: '10px 8px' }}>Estádio / Local</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partidasData.partidas.map(p => (
+                      <tr key={p.id_partida} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="font-mono" style={{ padding: '10px 8px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          {p.data || p.ano}
+                        </td>
+                        <td style={{ padding: '10px 8px' }}>
+                          <span className="badge badge-blue">{p.campeonato}</span>
+                        </td>
+                        <td style={{ padding: '10px 8px', fontWeight: '500' }}>
+                          {p.mandante} <span style={{ color: 'var(--text-subtle)' }}>x</span> {p.visitante}
+                        </td>
+                        <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700' }}>
+                          {p.placar || `${p.gols_mandante} x ${p.gols_visitante}`}
+                        </td>
+                        <td style={{ padding: '10px 8px', fontSize: '0.8rem' }}>
+                          {p.gols?.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                              {p.gols.map((g, idx) => (
+                                <span key={idx} className="badge badge-green">
+                                  ⚽ {g.atleta} {g.minuto ? `(${g.minuto}')` : ''}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--text-subtle)' }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                          {p.estadio ? `${p.estadio} (${p.cidade || ''})` : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {partidasData?.partidas.map(p => (
-                <div 
-                  key={p.id_partida}
-                  style={{ 
-                    padding: '14px 18px', 
-                    borderRadius: '8px', 
-                    border: '1px solid var(--border)',
-                    backgroundColor: 'var(--surface)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <span className="badge badge-blue font-mono">{p.data}</span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-muted)' }}>{p.campeonato}</span>
-                      {p.fase && <span style={{ fontSize: '0.78rem', color: 'var(--text-subtle)' }}>({p.fase})</span>}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      {p.estadio} {p.cidade && `• ${p.cidade}/${p.estado}`}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0' }}>
-                    <div style={{ fontSize: '1.15rem', fontWeight: p.vencedor === p.mandante ? '700' : '500', width: '40%', textAlign: 'right' }}>
-                      {p.mandante}
-                    </div>
-                    <div className="font-mono" style={{ fontSize: '1.4rem', fontWeight: '800', padding: '0 16px', color: '#0369A1' }}>
-                      {p.placar}
-                    </div>
-                    <div style={{ fontSize: '1.15rem', fontWeight: p.vencedor === p.visitante ? '700' : '500', width: '40%', textAlign: 'left' }}>
-                      {p.visitante}
-                    </div>
-                  </div>
-
-                  {/* AUTORES DOS GOLS (SE HOUVER) */}
-                  {p.gols && p.gols.length > 0 && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border)', paddingTop: '6px', marginTop: '6px' }}>
-                      ⚽ <strong>Gols: </strong>
-                      {p.gols.map((g, idx) => (
-                        <span key={idx}>
-                          {g.atleta} ({g.clube} {g.minuto}')
-                          {idx < p.gols.length - 1 ? ', ' : ''}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </section>
       )}
 
-      {/* ABA 3: FUTEBOL X CLIMA */}
+      {/* ABA 4: FUTEBOL X CLIMA */}
       {activeTab === 'clima' && (
         <section>
-          <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CloudRain size={22} color="#87CEEB" /> O Efeito do Clima nas Partidas (2015 a 2024)
+          <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CloudRain size={22} color="#87CEEB" /> Impacto Meteorológico no Futebol Brasileiro
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Cruzamento entre o histórico de partidas oficiais e a base meteorológica de 12 capitais brasileiras.
+              Cruzamento científico de mais de 7.000 partidas com medições das estações meteorológicas oficiais do INMET nas capitais brasileiras (2015 - 2024).
             </p>
           </div>
 
-          {climaData ? (
+          {climaLoading ? (
+            <div className="soft-card" style={{ padding: '40px', textAlign: 'center' }}>
+              <RefreshCw size={32} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 12px' }} />
+              <p style={{ color: 'var(--text-muted)' }}>Processando dados de meteorologia e partidas...</p>
+            </div>
+          ) : climaData ? (
             <div>
-              {/* COMPARAÇÃO CHUVA VS TEMPO SECO */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                {climaData.impacto_chuva.map((item, idx) => (
-                  <div key={idx} className="soft-card" style={{ padding: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span className={`badge ${item.cond_chuva === 'Com Chuva' ? 'badge-blue' : 'badge-pink'}`}>
-                        {item.cond_chuva}
+              {/* COMPARATIVO CHUVA X TEMPO SECO */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                {climaData.impacto_chuva?.map((item, idx) => (
+                  <div key={idx} className="soft-card" style={{ padding: '22px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <span className="badge badge-blue">{item.cond_chuva}</span>
+                      <span className="font-mono" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                        {item.total_jogos.toLocaleString('pt-BR')} partidas
                       </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.total_jogos.toLocaleString('pt-BR')} jogos</span>
                     </div>
 
-                    <div style={{ margin: '14px 0' }}>
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Média de Gols por Jogo</div>
-                      <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0369A1' }}>
-                        {item.media_gols}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Média Total de Gols</div>
+                        <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#0369A1' }}>
+                          {item.media_gols}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>% Vitórias Mandante</div>
+                        <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#15803D' }}>
+                          {item.pct_vit_mandante}%
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
-                      Vitória do Mandante: <strong className="font-mono">{item.pct_vit_mandante}%</strong>
-                      <br />
-                      Média Mandante: <strong className="font-mono">{item.media_mandante}</strong> | Visitante: <strong className="font-mono">{item.media_visitante}</strong>
+                    <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      Média Mandante: <strong>{item.media_mandante}</strong> • Visitante: <strong>{item.media_visitante}</strong>
                     </div>
                   </div>
                 ))}
-
-                {/* TEMPERATURA */}
-                <div className="soft-card" style={{ padding: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <Flame size={18} color="#FFB6C1" />
-                    <strong>Gols por Faixa Térmica</strong>
-                  </div>
-                  {climaData.impacto_temperatura.map((t, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
-                      <span>{t.faixa_temp}</span>
-                      <strong className="font-mono">{t.media_gols} gols/jogo ({t.total_jogos})</strong>
-                    </div>
-                  ))}
-                </div>
               </div>
 
-              {/* JOGOS SOB TEMPORAL */}
-              <div className="soft-card" style={{ padding: '20px' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CloudRain size={18} color="#0369A1" /> Top Jogos com Chuva Torrencial no Brasil (&gt; 30mm)
+              {/* JOGOS SOB TEMPESTADES EXTREMAS */}
+              <div className="soft-card" style={{ padding: '22px' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CloudRain size={18} color="#0369A1" /> Top Jogos com Maior Volume de Chuva (mm)
                 </h3>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                     <thead>
-                      <tr style={{ borderBottom: '1.5px solid var(--border)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '8px' }}>Data</th>
-                        <th style={{ padding: '8px' }}>Cidade</th>
-                        <th style={{ padding: '8px' }}>Chuva</th>
-                        <th style={{ padding: '8px' }}>Temp.</th>
-                        <th style={{ padding: '8px' }}>Partida</th>
-                        <th style={{ padding: '8px' }}>Placar</th>
+                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '10px 8px' }}>Data</th>
+                        <th style={{ padding: '10px 8px' }}>Precipitação</th>
+                        <th style={{ padding: '10px 8px' }}>Temperatura</th>
+                        <th style={{ padding: '10px 8px' }}>Partida</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
+                        <th style={{ padding: '10px 8px' }}>Cidade</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {climaData.jogos_chuva_extrema.map((j, idx) => (
+                      {climaData.jogos_chuva_extrema?.map((j, idx) => (
                         <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td className="font-mono" style={{ padding: '8px' }}>{j.data}</td>
-                          <td style={{ padding: '8px' }}>{j.cidade}</td>
-                          <td className="font-mono" style={{ padding: '8px', color: '#0369A1', fontWeight: '700' }}>{j.precipitacao_mm} mm</td>
-                          <td className="font-mono" style={{ padding: '8px' }}>{j.temperatura_media}°C</td>
-                          <td style={{ padding: '8px' }}>{j.mandante} x {j.visitante}</td>
-                          <td className="font-mono" style={{ padding: '8px', fontWeight: '700' }}>{j.placar}</td>
+                          <td className="font-mono" style={{ padding: '10px 8px' }}>{j.data}</td>
+                          <td style={{ padding: '10px 8px' }}>
+                            <span className="badge badge-pink font-mono">{j.precipitacao_mm} mm</span>
+                          </td>
+                          <td className="font-mono" style={{ padding: '10px 8px' }}>{j.temperatura_media ? `${j.temperatura_media}°C` : '-'}</td>
+                          <td style={{ padding: '10px 8px', fontWeight: '500' }}>
+                            {j.mandante} <span style={{ color: 'var(--text-subtle)' }}>x</span> {j.visitante}
+                          </td>
+                          <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700' }}>
+                            {j.placar}
+                          </td>
+                          <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{j.cidade}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -681,61 +1330,57 @@ export default function App() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="soft-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              Carregando análises meteorológicas...
-            </div>
-          )}
+          ) : null}
         </section>
       )}
 
-      {/* ABA 4: GERADOR DE POSTS & TWEETS */}
+      {/* ABA 5: GERADOR DE TWEETS & POSTS */}
       {activeTab === 'tweets' && (
         <section>
-          <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={20} color="#87CEEB" /> Gerador de Fios e Posts para o Twitter / X
+          <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={22} color="#FFB6C1" /> Gerador de Tweets & Posts com Dados Históricos
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Copie com 1 clique modelos de postagens de alto engajamento prontos com estatísticas do nosso banco de dados.
+              Modelos de postagens prontos com estatísticas verificadas para engajamento no X/Twitter.
             </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px' }}>
-            {/* CARD MODELO 1: DIA DE CLÁSSICO */}
-            <div className="soft-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span className="badge badge-blue">Template: Dia de Clássico</span>
+            {/* CARD MODELO 1: RETROSPECTO DO DUELO ATUAL */}
+            {h2hData && (
+              <div className="soft-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span className="badge badge-blue">Template: Raio-X Pré-Jogo</span>
+                  </div>
+                  <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--bg)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    {`🔥 HISTÓRICO DO CLÁSSICO: ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
+                     `Em ${h2hData.total_jogos} jogos oficiais catalogados:\n\n` +
+                     `🟢 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
+                     `⚪ ${h2hData.empates} empates\n` +
+                     `🔴 ${h2hData.vitorias_clube2} vitórias do ${h2hData.clube2}\n\n` +
+                     `⚽ Gols: ${h2hData.gols_clube1} do ${h2hData.clube1} x ${h2hData.gols_clube2} do ${h2hData.clube2}`}
+                  </div>
                 </div>
-                <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--bg)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  {`🔥 HOJE É DIA DE CLÁSSICO! Quem leva a melhor?\n\n` +
-                   `Histórico oficial do confronto:\n` +
-                   `⚔️ 109 jogos desde 1950\n` +
-                   `🔴 43 vitórias do Flamengo\n` +
-                   `⚪ 31 vitórias do Vasco\n` +
-                   `🤝 35 empates\n\n` +
-                   `Qual o seu palpite para o jogo de hoje? Deixe nos comentários! 👇⚽`}
-                </div>
+                <button 
+                  className="btn-primary" 
+                  style={{ marginTop: '14px' }}
+                  onClick={() => copiarTweet(
+                    `🔥 HISTÓRICO DO CLÁSSICO: ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
+                    `Em ${h2hData.total_jogos} jogos oficiais catalogados:\n\n` +
+                    `🟢 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
+                    `⚪ ${h2hData.empates} empates\n` +
+                    `🔴 ${h2hData.vitorias_clube2} vitórias do ${h2hData.clube2}\n\n` +
+                    `⚽ Gols: ${h2hData.gols_clube1} x ${h2hData.gols_clube2}\n#Futebol #Brasileirao #Estatisticas`,
+                    'tweet-h2h'
+                  )}
+                >
+                  {copiedKey === 'tweet-h2h' ? <Check size={16} /> : <Copy size={16} />}
+                  {copiedKey === 'tweet-h2h' ? 'Copiado para Área de Transferência!' : 'Copiar Tweet'}
+                </button>
               </div>
-              <button 
-                className="btn-primary" 
-                style={{ marginTop: '14px' }}
-                onClick={() => copiarTweet(
-                  `🔥 HOJE É DIA DE CLÁSSICO! Quem leva a melhor?\n\n` +
-                  `Histórico oficial do confronto:\n` +
-                  `⚔️ 109 jogos desde 1950\n` +
-                  `🔴 43 vitórias do Flamengo\n` +
-                  `⚪ 31 vitórias do Vasco\n` +
-                  `🤝 35 empates\n\n` +
-                  `Qual o seu palpite para o jogo de hoje? Deixe nos comentários! 👇⚽\n#Futebol #Brasileirao #Classico`,
-                  'tweet-classico'
-                )}
-              >
-                {copiedKey === 'tweet-classico' ? <Check size={16} /> : <Copy size={16} />}
-                {copiedKey === 'tweet-classico' ? 'Copiado para Área de Transferência!' : 'Copiar Tweet'}
-              </button>
-            </div>
+            )}
 
             {/* CARD MODELO 2: CURIOSIDADE CLIMA X FUTEBOL */}
             <div className="soft-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -777,7 +1422,7 @@ export default function App() {
           FutStats & Clima • Feito com <strong style={{ color: 'var(--text-main)' }}>Soft UI Evolution</strong>
         </div>
         <div className="font-mono">
-          43.980 jogos oficiais • 42.133 gols detalhados • 12 capitais climáticas
+          {overview?.total_partidas?.toLocaleString('pt-BR') || '55.395'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '42.138'} gols catalogados • 12 capitais climáticas
         </div>
       </footer>
 
