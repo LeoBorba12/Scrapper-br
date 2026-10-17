@@ -129,8 +129,15 @@ export default function App() {
       })
     })
       .then(async r => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'Erro ao realizar login.');
+        const contentType = r.headers.get("content-type") || "";
+        let d = null;
+        if (contentType.includes("application/json")) {
+          d = await r.json();
+        } else {
+          const raw = await r.text();
+          throw new Error(`Erro ${r.status} do servidor: ${raw.slice(0, 100)}`);
+        }
+        if (!r.ok) throw new Error(d?.error || 'Erro ao realizar login.');
         return d;
       })
       .then(d => {
@@ -161,8 +168,15 @@ export default function App() {
       })
     })
       .then(async r => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || 'Erro ao criar conta.');
+        const contentType = r.headers.get("content-type") || "";
+        let d = null;
+        if (contentType.includes("application/json")) {
+          d = await r.json();
+        } else {
+          const raw = await r.text();
+          throw new Error(`Erro ${r.status} do servidor: ${raw.slice(0, 100)}`);
+        }
+        if (!r.ok) throw new Error(d?.error || 'Erro ao criar conta.');
         return d;
       })
       .then(d => {

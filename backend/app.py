@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import sys
 from flask import Flask, request, jsonify, send_from_directory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -8,7 +9,31 @@ FRONTEND_DIST = os.path.join(ROOT_DIR, 'frontend', 'dist')
 DB_FUTEBOL = os.path.join(ROOT_DIR, 'data', 'futebol.db')
 DB_CLIMA = os.path.join(ROOT_DIR, 'data', 'clima.db')
 
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+try:
+    from backend.auth import login_usuario, cadastrar_com_convite, validar_token, INVITE_CODE
+except ImportError:
+    from auth import login_usuario, cadastrar_com_convite, validar_token, INVITE_CODE
+
+try:
+    from backend.ia_analista import processar_pergunta_oraculo
+except ImportError:
+    from ia_analista import processar_pergunta_oraculo
+
 app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path='')
+
+# Handler global para garantir que o Flask SEMPRE retorne JSON (nunca HTML de erro 500)
+@app.errorhandler(500)
+def handle_500(err):
+    return jsonify({"error": f"Erro interno do servidor: {str(err)}"}), 500
+
+@app.errorhandler(Exception)
+def handle_exception(err):
+    return jsonify({"error": f"Erro no servidor: {str(err)}"}), 500
 
 # Configura CORS para permitir chamadas do frontend Vite (porta 5173 ou qualquer origem local)
 @app.after_request
@@ -36,73 +61,57 @@ def static_proxy(path):
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
     try:
-        from backend.auth import login_usuario
-    except ImportError:
-        import sys
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from auth import login_usuario
-
-    dados = request.get_json(force=True, silent=True) or {}
-    username = dados.get('username', '')
-    password = dados.get('password', '')
-    
-    res, err = login_usuario(username, password)
-    if err:
-        return jsonify({"error": err}), 401
-    return jsonify(res)
+        dados = request.get_json(force=True, silent=True) or {}
+        username = dados.get('username', '')
+        password = dados.get('password', '')
+        
+        res, err = login_usuario(username, password)
+        if err:
+            return jsonify({"error": err}), 401
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": f"Falha ao autenticar usuário: {str(e)}"}), 500
 
 @app.route('/api/auth/registro', methods=['POST'])
 def api_registro():
     try:
-        from backend.auth import cadastrar_com_convite
-    except ImportError:
-        import sys
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from auth import cadastrar_com_convite
-
-    dados = request.get_json(force=True, silent=True) or {}
-    nome = dados.get('nome', '')
-    username = dados.get('username', '')
-    password = dados.get('password', '')
-    codigo_convite = dados.get('codigo_convite', '')
-    
-    res, err = cadastrar_com_convite(nome, username, password, codigo_convite)
-    if err:
-        return jsonify({"error": err}), 400
-    return jsonify(res)
+        dados = request.get_json(force=True, silent=True) or {}
+        nome = dados.get('nome', '')
+        username = dados.get('username', '')
+        password = dados.get('password', '')
+        codigo_convite = dados.get('codigo_convite', '')
+        
+        res, err = cadastrar_com_convite(nome, username, password, codigo_convite)
+        if err:
+            return jsonify({"error": err}), 400
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"error": f"Falha ao cadastrar: {str(e)}"}), 500
 
 @app.route('/api/auth/me', methods=['GET'])
 def api_me():
     try:
-        from backend.auth import validar_token
-    except ImportError:
-        import sys
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from auth import validar_token
-
-    auth_header = request.headers.get('Authorization', '')
-    token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
-    
-    user = validar_token(token)
-    if not user:
-        return jsonify({"error": "Sessão inválida ou expirada."}), 401
-    return jsonify({"user": user})
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
+        
+        user = validar_token(token)
+        if not user:
+            return jsonify({"error": "Sessão inválida ou expirada."}), 401
+        return jsonify({"user": user})
+    except Exception as e:
+        return jsonify({"error": f"Falha ao validar sessão: {str(e)}"}), 500
 
 @app.route('/api/auth/convite-codigo', methods=['GET'])
 def api_get_convite():
     try:
-        from backend.auth import validar_token, INVITE_CODE
-    except ImportError:
-        import sys
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from auth import validar_token, INVITE_CODE
-
-    auth_header = request.headers.get('Authorization', '')
-    token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
-    user = validar_token(token)
-    if not user or user.get('role') != 'admin':
-        return jsonify({"error": "Apenas administradores podem visualizar o código de convite."}), 403
-    return jsonify({"codigo_convite": INVITE_CODE})
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
+        user = validar_token(token)
+        if not user or user.get('role') != 'admin':
+            return jsonify({"error": "Apenas administradores podem visualizar o código de convite."}), 403
+        return jsonify({"codigo_convite": INVITE_CODE})
+    except Exception as e:
+        return jsonify({"error": f"Falha ao obter convite: {str(e)}"}), 500
 
 def get_db():
     conn = sqlite3.connect(DB_FUTEBOL)
@@ -758,13 +767,6 @@ def get_jogador_perfil():
 
 @app.route('/api/ia/perguntar', methods=['POST'])
 def perguntar_ia():
-    try:
-        from backend.ia_analista import processar_pergunta_oraculo
-    except ImportError:
-        import sys
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        from ia_analista import processar_pergunta_oraculo
-
     dados = request.get_json(force=True, silent=True) or {}
     pergunta = dados.get('pergunta', '').strip()
     modelo = dados.get('modelo', 'gemini').strip()
