@@ -1,9 +1,9 @@
-# Ignorar scripts locais de raspagem e análise
+# Ignorar scripts locais de raspagem e caches pesados
 scripts/
 data/raw_*
 *.log
-*.txt
 .env
 .env.local
 .git
 .github
+!requirements.txt
