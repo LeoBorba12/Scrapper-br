@@ -103,26 +103,29 @@ def executar_query_segura(sql):
     if not cleaned_sql:
         raise ValueError("Consulta SQL vazia após limpeza de comentários.")
 
-    upper_sql = cleaned_sql.upper().strip()
-
-    # Validação estrita de comando: deve iniciar com SELECT ou WITH
-    if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
-        raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
-
     # Lista de comandos e funções proibidas
     prohibited_keywords = [
         'DROP ', 'DELETE ', 'UPDATE ', 'INSERT ', 'ALTER ', 'CREATE ', 
         'ATTACH ', 'DETACH ', 'TRUNCATE ', 'REPLACE ', 'PRAGMA ', 
         'VACUUM', 'EXEC ', 'EXECUTE ', 'LOAD_EXTENSION', ';--'
     ]
-    for p in prohibited_keywords:
-        if p in upper_sql:
-            raise ValueError(f"Comando ou palavra reservada proibida: '{p.strip()}'.")
 
-    # Impede execução de múltiplos comandos separados por ponto e vírgula
-    stripped_no_trailing_semi = cleaned_sql.rstrip().rstrip(';').strip()
-    if ';' in stripped_no_trailing_semi:
-        raise ValueError("Múltiplas instruções SQL em uma única requisição não são permitidas.")
+    # Se a IA retornou mais de um comando separado por ;, valida cada comando contra palavras proibidas
+    statements = [s.strip() for s in cleaned_sql.split(';') if s.strip()]
+    for stmt in statements:
+        u = stmt.upper()
+        for p in prohibited_keywords:
+            if p in u:
+                raise ValueError(f"Comando ou palavra reservada proibida: '{p.strip()}'.")
+
+    if statements:
+        cleaned_sql = statements[0]
+
+    upper_sql = cleaned_sql.upper().strip()
+
+    # Validação estrita de comando: deve iniciar com SELECT ou WITH
+    if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
+        raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
 
     # Adiciona salvaguarda de LIMIT caso a IA não tenha colocado
     if "LIMIT " not in upper_sql:
@@ -435,9 +438,55 @@ WHERE p.ano = {ano};
             "conclusao": f"{total_g} gols marcados em {ano}."
         }
 
-    # Clubes específicos
+    # Clubes específicos e Confrontos diretos
     clubes_conhecidos = ['palmeiras', 'flamengo', 'corinthians', 'são paulo', 'sao paulo', 'vasco', 'santos', 'grêmio', 'gremio', 'internacional', 'cruzeiro', 'atlético', 'atletico', 'botafogo', 'fluminense', 'bahia', 'fortaleza', 'sport']
-    clube_encontrado = next((c for c in clubes_conhecidos if c in p), None)
+    clubes_no_prompt = [c for c in clubes_conhecidos if c in p]
+
+    # Confronto direto entre dois clubes (ex: Flamengo vs Vasco, Corinthians x Palmeiras)
+    if len(clubes_no_prompt) >= 2:
+        def canonizar_nome(c):
+            c_low = c.lower()
+            if "paulo" in c_low: return "São Paulo"
+            if "gremio" in c_low or "grêmio" in c_low: return "Grêmio"
+            if "atletico" in c_low or "atlético" in c_low: return "Atlético"
+            return c.capitalize()
+            
+        c1 = canonizar_nome(clubes_no_prompt[0])
+        c2 = canonizar_nome(clubes_no_prompt[1])
+        col_v1 = f"vitorias_{c1.lower()[:8]}"
+        col_v2 = f"vitorias_{c2.lower()[:8]}"
+        sql = f"""
+SELECT 
+    COUNT(*) as total_jogos,
+    SUM(CASE WHEN vencedor LIKE '%{c1}%' THEN 1 ELSE 0 END) as {col_v1},
+    SUM(CASE WHEN vencedor LIKE '%{c2}%' THEN 1 ELSE 0 END) as {col_v2},
+    SUM(CASE WHEN vencedor = 'Empate' THEN 1 ELSE 0 END) as empates
+FROM partidas
+WHERE (mandante LIKE '%{c1}%' AND visitante LIKE '%{c2}%')
+   OR (mandante LIKE '%{c2}%' AND visitante LIKE '%{c1}%');
+"""
+        colunas, dados = executar_query_segura(sql)
+        d = dados[0] if dados else {}
+        tj = d.get('total_jogos', 0)
+        v1 = d.get(col_v1, 0) or 0
+        v2 = d.get(col_v2, 0) or 0
+        emp = d.get('empates', 0) or 0
+        
+        insight = f"No histórico oficial do clássico {c1} vs {c2} no banco de dados do FutStats, foram disputados {tj} jogos: {v1} vitórias do {c1}, {v2} vitórias do {c2} e {emp} empates!"
+        tweet = f"⚔️ Clássico {c1} x {c2} no FutStats ({tj} jogos): {c1} {v1}V | {emp}E | {c2} {v2}V. Quem leva a melhor? #Futebol #Dados"
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Analytics (Banco SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": len(dados),
+            "insight": insight,
+            "tweet": tweet,
+            "conclusao": f"{c1} tem {v1} vitórias e {c2} tem {v2} vitórias em {tj} jogos."
+        }
+
+    clube_encontrado = clubes_no_prompt[0] if clubes_no_prompt else None
     if clube_encontrado and ("jogo" in p or "partida" in p or "quantos" in p or "vitoria" in p or "vitória" in p or "histórico" in p or "historico" in p):
         nome_busca = clube_encontrado.capitalize()
         if "paulo" in clube_encontrado: nome_busca = "São Paulo"
