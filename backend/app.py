@@ -885,6 +885,45 @@ def get_jogador_perfil():
         "partidas": partidas_ordenadas[:100]
     })
 
+@app.route('/api/ia/diagnostico', methods=['GET'])
+def ia_diagnostico():
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    deepseek_key = (os.environ.get("DEEPSEEK_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")).strip()
+
+    diag = {
+        "gemini_key_present": bool(gemini_key),
+        "gemini_key_prefix": gemini_key[:6] + "..." if gemini_key else "",
+        "gemini_key_len": len(gemini_key),
+        "deepseek_key_present": bool(deepseek_key),
+        "gemini_tests": {},
+        "available_models": []
+    }
+
+    if gemini_key:
+        try:
+            r = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_key}", timeout=4)
+            if r.status_code == 200:
+                models_data = r.json().get("models", [])
+                diag["available_models"] = [m.get("name") for m in models_data if "generateContent" in m.get("supportedGenerationMethods", [])]
+            else:
+                diag["models_error"] = f"{r.status_code}: {r.text[:200]}"
+        except Exception as e:
+            diag["models_error"] = str(e)
+
+        for m in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+            try:
+                r = requests.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_key}",
+                    json={"contents": [{"parts": [{"text": "Oi"}]}]},
+                    headers={"Content-Type": "application/json"},
+                    timeout=3
+                )
+                diag["gemini_tests"][m] = f"{r.status_code}: {r.text[:150]}"
+            except Exception as e:
+                diag["gemini_tests"][m] = str(e)
+
+    return jsonify(diag)
+
 @app.route('/api/ia/perguntar', methods=['POST'])
 def perguntar_ia():
     dados = request.get_json(force=True, silent=True) or {}
