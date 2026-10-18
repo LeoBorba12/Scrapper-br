@@ -118,28 +118,19 @@ def executar_query_segura(sql):
     return colunas, resultados
 
 def chamar_gemini(prompt, api_key):
-    models = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-flash-lite-latest"]
-    last_err = ""
-    for model in models:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 2048
-            }
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 2048
         }
-        try:
-            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=4)
-            if resp.status_code == 200:
-                data = resp.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-            else:
-                last_err = f"{resp.status_code} - {resp.text[:120]}"
-        except Exception as e:
-            last_err = str(e)
-            continue
-    raise RuntimeError(f"Erro Gemini API: {last_err}")
+    }
+    resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=3.5)
+    if resp.status_code == 200:
+        data = resp.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    raise RuntimeError(f"Erro Gemini API ({resp.status_code}): {resp.text[:120]}")
 
 def chamar_deepseek(prompt, api_key, model="deepseek-chat"):
     is_openrouter = api_key.startswith("sk-or-")
@@ -202,10 +193,15 @@ def processar_pergunta_oraculo(pergunta, modelo_escolhido="gemini", api_key_usua
     if not pergunta:
         return {"error": "Por favor, digite uma pergunta."}
         
+    # 1. Verifica se é uma pergunta temática/curiosidade pré-indexada para resposta ultra-rápida (5ms)
+    demo_resp = responder_perguntas_demo(pergunta)
+    if demo_resp:
+        return demo_resp
+
     # Resolver Chave de API das variáveis de ambiente ou input
     api_key = api_key_usuario.strip()
-    gemini_key = os.environ.get("GEMINI_API_KEY", "")
-    deepseek_key = os.environ.get("DEEPSEEK_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
+    gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    deepseek_key = (os.environ.get("DEEPSEEK_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")).strip()
 
     modelo_real = modelo_escolhido
     if not api_key:
@@ -213,17 +209,12 @@ def processar_pergunta_oraculo(pergunta, modelo_escolhido="gemini", api_key_usua
             if deepseek_key:
                 api_key = deepseek_key
             elif gemini_key:
-                # Fallback inteligente se a chave DeepSeek não estiver configurada
                 api_key = gemini_key
                 modelo_real = "gemini (fallback automático)"
         else:
             api_key = gemini_key
 
-    # Se não houver nenhuma chave configurada, testa as respostas de demonstração integrada
     if not api_key:
-        demo_resp = responder_perguntas_demo(pergunta)
-        if demo_resp:
-            return demo_resp
         return {
             "requer_api_key": True,
             "mensagem": "Nenhuma Chave de API encontrada no servidor Vercel. Por favor, adicione a variável 'GEMINI_API_KEY' (gratuita em aistudio.google.com) no painel da Vercel (Project Settings -> Environment Variables) para habilitar perguntas livres ilimitadas.",
@@ -297,38 +288,8 @@ Corrija a consulta SQL. Retorne APENAS o SQL corrigido em ```sql ... ```."""
                 return demo_resp
             raise RuntimeError(f"Não foi possível executar a consulta gerada para esta pergunta: {str(e)}")
 
-    # PASSO 3: Gerar a síntese analítica e o tweet com fallback instantâneo
-    amostra_dados = json.dumps(dados[:15], ensure_ascii=False)
-    prompt_sintese = f"""Você é o Oráculo de Futebol do FutStats.
-O usuário perguntou: "{pergunta}"
-
-A consulta SQL executada foi:
-{sql}
-
-O resultado retornado do banco de dados (55.395 jogos) foi:
-{amostra_dados}
-
-Gere uma resposta em formato JSON com as 3 chaves exatas:
-1. "insight": Um parágrafo com uma análise perspicaz, divertida e jornalística em português do Brasil, destacando os números encontrados e respondendo à dúvida com clareza.
-2. "tweet": Um texto pronto de até 280 caracteres para postar no Twitter/X, com emojis, os dados mais impactantes e hashtags (#Futebol #Dados #FutStats).
-3. "conclusao": Uma frase de resumo direto.
-
-Retorne APENAS o JSON válido dentro de ```json ... ```."""
-
-    sintese = None
-    try:
-        active_key = api_key if "gemini" not in modelo_real else (gemini_key or api_key)
-        if "deepseek" in modelo_real and api_key != gemini_key:
-            resp_analise_raw = chamar_deepseek(prompt_sintese, active_key)
-        else:
-            resp_analise_raw = chamar_gemini(prompt_sintese, active_key)
-
-        match_json = re.search(r'```(?:json)?\s*(.*?)\s*```', resp_analise_raw, re.DOTALL | re.IGNORECASE)
-        json_text = match_json.group(1).strip() if match_json else resp_analise_raw.strip()
-        sintese = json.loads(json_text)
-    except Exception:
-        # Se a síntese falhar ou estourar tempo, utiliza gerador analítico local instantâneo
-        sintese = sintetizar_dados_localmente(pergunta, sql, dados, colunas)
+    # PASSO 3: Síntese analítica imediata a partir dos dados reais do SQLite (0ms)
+    sintese = sintetizar_dados_localmente(pergunta, sql, dados, colunas)
 
     return {
         "pergunta": pergunta,
