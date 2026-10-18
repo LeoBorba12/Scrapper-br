@@ -1539,7 +1539,7 @@ export default function App() {
                   style={{ padding: '8px 14px', fontSize: '0.85rem' }}
                   title="Respostas instantâneas em 1 segundo via Google AI Studio"
                 >
-                  <Zap size={16} /> Gemini 2.0 Flash (Rápido)
+                  <Zap size={16} /> Gemini Flash (Rápido)
                 </button>
 
                 <button

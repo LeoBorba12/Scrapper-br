@@ -118,7 +118,7 @@ def executar_query_segura(sql):
     return colunas, resultados
 
 def chamar_gemini(prompt, api_key):
-    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"]
+    models = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3-flash-preview", "gemini-flash-lite-latest"]
     last_err = ""
     for model in models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -130,7 +130,7 @@ def chamar_gemini(prompt, api_key):
             }
         }
         try:
-            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=7)
+            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=4)
             if resp.status_code == 200:
                 data = resp.json()
                 return data["candidates"][0]["content"]["parts"][0]["text"]
@@ -246,16 +246,21 @@ Retorne APENAS o bloco SQL dentro de ```sql ... ```. Não inclua texto explicati
             try:
                 resposta_sql_raw = chamar_deepseek(prompt_sql, api_key)
             except Exception as e_ds:
-                # Se DeepSeek falhar (sem saldo, timeout ou erro 402/429) e tivermos Gemini, fazemos fallback
                 if gemini_key:
-                    modelo_real = "gemini (fallback de segurança)"
+                    modelo_real = "gemini (fallback automático)"
                     resposta_sql_raw = chamar_gemini(prompt_sql, gemini_key)
                 else:
                     raise e_ds
         else:
-            resposta_sql_raw = chamar_gemini(prompt_sql, api_key)
+            try:
+                resposta_sql_raw = chamar_gemini(prompt_sql, api_key)
+            except Exception as e_gem:
+                if deepseek_key:
+                    modelo_real = "deepseek (fallback automático)"
+                    resposta_sql_raw = chamar_deepseek(prompt_sql, deepseek_key)
+                else:
+                    raise e_gem
     except Exception as e_llm:
-        # Se for timeout ou erro de rede, tenta demo antes de quebrar
         demo_resp = responder_perguntas_demo(pergunta)
         if demo_resp:
             return demo_resp
@@ -471,6 +476,56 @@ LIMIT 8;
             "insight": insight,
             "tweet": tweet,
             "conclusao": f"{top.get('clube')} lidera em gols nos acréscimos."
+        }
+
+    # Eleição presidencial / política
+    if "eleição" in p or "eleicao" in p or "presidente" in p:
+        clube = "São Paulo"
+        if "palmeiras" in p: clube = "Palmeiras"
+        elif "corinthians" in p: clube = "Corinthians"
+        elif "flamengo" in p: clube = "Flamengo"
+        elif "vasco" in p: clube = "Vasco"
+        elif "santos" in p: clube = "Santos"
+        elif "grêmio" in p or "gremio" in p: clube = "Grêmio"
+
+        datas_eleicao = [
+            '1994-10-01', '1994-10-02', '1998-10-03', '1998-10-04',
+            '2002-10-05', '2002-10-06', '2006-09-30', '2006-10-01',
+            '2010-10-02', '2010-10-03', '2014-10-04', '2014-10-05',
+            '2018-10-06', '2018-10-07', '2022-10-01', '2022-10-02'
+        ]
+        datas_sql = "','".join(datas_eleicao)
+        sql = f"""
+SELECT 
+    data,
+    mandante,
+    visitante,
+    placar,
+    vencedor,
+    campeonato
+FROM partidas
+WHERE (mandante LIKE '%{clube}%' OR visitante LIKE '%{clube}%')
+  AND data IN ('{datas_sql}')
+ORDER BY data DESC;
+"""
+        colunas, dados = executar_query_segura(sql)
+        tot = len(dados)
+        vit = sum(1 for d in dados if clube in (d.get('vencedor') or ''))
+        emp = sum(1 for d in dados if d.get('vencedor') == 'Empate')
+        der = tot - vit - emp
+        aprov = round(((vit * 3 + emp) / (tot * 3.0)) * 100, 1) if tot > 0 else 0
+        insight = f"Curiosidade política no futebol! Em fins de semana de eleições presidenciais brasileiras (1º turno entre 1994 e 2022), o {clube} entrou em campo {tot} vezes, somando {vit} vitórias, {emp} empates e {der} derrotas ({aprov}% de aproveitamento dos pontos)!"
+        tweet = f"🗳️⚽ O {clube} na urna e no campo: em finais de semana de eleição pra presidente (1994-2022), foram {tot} jogos catalogados, com {vit} vitórias e {aprov}% de aproveitamento! #Futebol #Eleições #FutStats"
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Analytics (Cruzamento Histórico & SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": tot,
+            "insight": insight,
+            "tweet": tweet,
+            "conclusao": f"Aproveitamento de {aprov}% em finais de semana de eleições presidenciais."
         }
 
     # 3. Série B maiores artilheiros
