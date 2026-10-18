@@ -378,6 +378,20 @@ def get_campeonatos():
     api_cache.set("api_campeonatos", camps, ttl=3600)
     return jsonify(camps)
 
+NOTAS_HISTORICAS_CLASSICOS = {
+    ("flamengo", "vasco"): "O acervo do FutStats agora conta com 179 partidas catalogadas (Campeonato Brasileiro desde 1971, Copa do Brasil, Torneio Rio-SP e Campeonato Carioca desde 1971). No retrospecto centenário completo (incluindo todas as edições anteriores a 1971 e torneios municipais), o Clássico dos Milhões soma mais de 420 partidas oficiais.",
+    ("flamengo", "fluminense"): "O acervo do FutStats agora conta com 196 partidas catalogadas (Campeonato Brasileiro, Copa do Brasil, Rio-SP e Campeonato Carioca desde 1971). O retrospecto geral centenário do Fla-Flu (disputado desde 1912) soma mais de 445 partidas.",
+    ("botafogo", "flamengo"): "O acervo do FutStats agora conta com 185 partidas catalogadas (Brasileirão, Copa do Brasil, Rio-SP e Carioca desde 1971). O histórico geral centenário do Clássico da Rivalidade ultrapassa 380 confrontos.",
+    ("botafogo", "vasco"): "O acervo do FutStats conta com mais de 155 partidas catalogadas desde 1971 (Brasileirão, Copa do Brasil, Rio-SP e Carioca). O histórico geral centenário do Clássico da Amizade ultrapassa 360 confrontos.",
+    ("fluminense", "vasco"): "O acervo do FutStats conta com mais de 160 partidas catalogadas desde 1971 (Brasileirão, Copa do Brasil, Rio-SP e Carioca). O histórico geral centenário do Clássico dos Gigantes ultrapassa 385 confrontos.",
+    ("atlético", "cruzeiro"): "Cobertura no FutStats: partidas pelo Campeonato Brasileiro, Copa do Brasil e Mineiro pós-2002. O histórico geral do Clássico Mineiro (disputado desde 1921) ultrapassa 500 partidas.",
+    ("bahia", "vitória"): "Cobertura no FutStats: jogos registrados pelo Campeonato Brasileiro e Copa do Brasil. O histórico geral do Ba-Vi (incluindo o Campeonato Baiano desde 1932) ultrapassa 490 confrontos.",
+    ("athletico", "coritiba"): "Cobertura no FutStats: partidas pelo Brasileirão, Copa do Brasil e Paranaense pós-2003. O histórico geral do Atle-Tiba (disputado desde 1924) ultrapassa 390 confrontos.",
+    ("corinthians", "palmeiras"): "Cobertura ampla no FutStats: mais de 400 jogos catalogados pelo Campeonato Paulista (desde 1917), Campeonato Brasileiro, Rio-SP e Copa do Brasil.",
+    ("palmeiras", "santos"): "Cobertura ampla no FutStats: mais de 360 jogos catalogados pelo Campeonato Paulista (desde 1915), Brasileirão e competições nacionais.",
+    ("grêmio", "internacional"): "Cobertura ampla no FutStats: mais de 200 jogos catalogados pelo Campeonato Gaúcho (desde 1915), Brasileirão, Copa do Brasil e Libertadores."
+}
+
 @app.route('/api/h2h', methods=['GET'])
 def get_h2h():
     c1 = request.args.get('clube1', '').strip()
@@ -482,6 +496,14 @@ def get_h2h():
                 break
                 
     conn.close()
+
+    # Busca nota histórica contextual se for clássico conhecido
+    c1_low, c2_low = c1.lower(), c2.lower()
+    nota_historica = None
+    for (t1, t2), nota in NOTAS_HISTORICAS_CLASSICOS.items():
+        if (t1 in c1_low and t2 in c2_low) or (t2 in c1_low and t1 in c2_low):
+            nota_historica = nota
+            break
     
     res = {
         "clube1": c1,
@@ -498,6 +520,7 @@ def get_h2h():
             "clube": tabu_clube,
             "jogos": tabu_jogos
         } if tabu_clube and tabu_jogos >= 2 else None,
+        "nota_historica": nota_historica,
         "partidas": partidas[:30] # Últimos 30 jogos
     }
     api_cache.set(cache_key, res, ttl=1800)
