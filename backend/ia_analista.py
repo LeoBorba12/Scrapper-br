@@ -117,28 +117,29 @@ def executar_query_segura(sql):
         
     return colunas, resultados
 
-def chamar_gemini(prompt, api_key, model="gemini-2.0-flash"):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.2,
-            "maxOutputTokens": 2048
+def chamar_gemini(prompt, api_key):
+    models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"]
+    last_err = ""
+    for model in models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 2048
+            }
         }
-    }
-    # Timeout de 7s para não estourar os limites da Vercel (10-15s)
-    resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=7)
-    if resp.status_code != 200:
-        # Fallback to gemini-1.5-flash se 2.0-flash der 404/400
-        if model != "gemini-1.5-flash":
-            return chamar_gemini(prompt, api_key, model="gemini-1.5-flash")
-        raise RuntimeError(f"Erro Gemini API ({resp.status_code}): {resp.text}")
-        
-    data = resp.json()
-    try:
-        return data["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception:
-        raise RuntimeError("Resposta vazia ou inválida da Gemini API.")
+        try:
+            resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=7)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                last_err = f"{resp.status_code} - {resp.text[:120]}"
+        except Exception as e:
+            last_err = str(e)
+            continue
+    raise RuntimeError(f"Erro Gemini API: {last_err}")
 
 def chamar_deepseek(prompt, api_key, model="deepseek-chat"):
     is_openrouter = api_key.startswith("sk-or-")

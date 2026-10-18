@@ -904,7 +904,17 @@ def perguntar_ia():
         resultado = processar_pergunta_oraculo(pergunta, modelo_escolhido=modelo, api_key_usuario=api_key)
         return jsonify(resultado)
     except Exception as e:
-        return jsonify({"error": f"Erro ao processar consulta: {str(e)}"}), 500
+        return jsonify({
+            "pergunta": pergunta,
+            "modelo_usado": modelo,
+            "sql_executado": "-- Consulta não concluída",
+            "colunas": ["Status"],
+            "dados": [{"Status": str(e)[:200]}],
+            "total_registros": 0,
+            "insight": f"O Oráculo encontrou uma instabilidade ao consultar o modelo {modelo}: {str(e)[:200]}. Tente reformular a pergunta ou verificar a chave de API.",
+            "tweet": f"📊 Consulta no FutStats: '{pergunta[:40]}...' - instabilidade temporária na IA. Tente novamente em instantes! #FutStats",
+            "conclusao": "Instabilidade temporária na IA."
+        }), 200
 
 @app.route('/')
 def index():
