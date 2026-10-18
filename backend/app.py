@@ -158,19 +158,9 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
     return response
 
-@app.route('/')
-def index():
-    if os.path.exists(os.path.join(FRONTEND_DIST, 'index.html')):
-        return send_from_directory(FRONTEND_DIST, 'index.html')
-    return jsonify({"status": "API ativa", "mensagem": "Execute 'npm run build' na pasta frontend"})
-
-@app.route('/<path:path>')
-def static_proxy(path):
-    if os.path.exists(os.path.join(FRONTEND_DIST, path)):
-        return send_from_directory(FRONTEND_DIST, path)
-    if os.path.exists(os.path.join(FRONTEND_DIST, 'index.html')):
-        return send_from_directory(FRONTEND_DIST, 'index.html')
-    return jsonify({"error": "Arquivo não encontrado"}), 404
+@app.route('/api/health', methods=['GET'])
+def api_health():
+    return jsonify({"status": "ok", "mensagem": "API operacional"})
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
 @app.route('/api/auth/login', methods=['POST'])
@@ -915,6 +905,22 @@ def perguntar_ia():
         return jsonify(resultado)
     except Exception as e:
         return jsonify({"error": f"Erro ao processar consulta: {str(e)}"}), 500
+
+@app.route('/')
+def index():
+    if os.path.exists(os.path.join(FRONTEND_DIST, 'index.html')):
+        return send_from_directory(FRONTEND_DIST, 'index.html')
+    return jsonify({"status": "API ativa", "mensagem": "Execute 'npm run build' na pasta frontend"})
+
+@app.route('/<path:path>')
+def static_proxy(path):
+    if path.startswith('api/'):
+        return jsonify({"error": "Endpoint não encontrado"}), 404
+    if os.path.exists(os.path.join(FRONTEND_DIST, path)):
+        return send_from_directory(FRONTEND_DIST, path)
+    if os.path.exists(os.path.join(FRONTEND_DIST, 'index.html')):
+        return send_from_directory(FRONTEND_DIST, 'index.html')
+    return jsonify({"error": "Arquivo não encontrado"}), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
