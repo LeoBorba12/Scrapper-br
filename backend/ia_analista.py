@@ -379,6 +379,71 @@ GROUP BY tipo_dia;
             "conclusao": "Aproveitamento quase idêntico entre dias pares e ímpares."
         }
 
+    # Anos específicos (ex: 2024, 2023, 1982...)
+    match_ano = re.search(r'\b(19\d{2}|20\d{2})\b', p)
+    if ("gol" in p or "partida" in p or "jogo" in p or "quantos" in p) and match_ano:
+        ano = match_ano.group(1)
+        sql = f"""
+SELECT 
+    p.ano,
+    COUNT(DISTINCT p.id_partida) as total_jogos,
+    SUM(p.gols_mandante + p.gols_visitante) as total_gols,
+    ROUND(SUM(p.gols_mandante + p.gols_visitante) * 1.0 / COUNT(DISTINCT p.id_partida), 2) as media_gols_por_jogo
+FROM partidas p
+WHERE p.ano = {ano};
+"""
+        colunas, dados = executar_query_segura(sql)
+        d = dados[0] if dados else {}
+        total_g = d.get('total_gols', 0)
+        total_j = d.get('total_jogos', 0)
+        media = d.get('media_gols_por_jogo', 0)
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Analytics (Banco SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": len(dados),
+            "insight": f"No ano de {ano}, foram registrados oficialmente {total_g} gols em {total_j} partidas catalogadas, com uma média de {media} gols por jogo!",
+            "tweet": f"⚽ Em {ano}, foram {total_g} gols marcados em {total_j} jogos oficiais pelo futebol brasileiro (média de {media} gols/jogo)! #Futebol #Dados #{ano}",
+            "conclusao": f"{total_g} gols marcados em {ano}."
+        }
+
+    # Clubes específicos
+    clubes_conhecidos = ['palmeiras', 'flamengo', 'corinthians', 'são paulo', 'sao paulo', 'vasco', 'santos', 'grêmio', 'gremio', 'internacional', 'cruzeiro', 'atlético', 'atletico', 'botafogo', 'fluminense', 'bahia', 'fortaleza', 'sport']
+    clube_encontrado = next((c for c in clubes_conhecidos if c in p), None)
+    if clube_encontrado and ("jogo" in p or "partida" in p or "quantos" in p or "vitoria" in p or "vitória" in p or "histórico" in p or "historico" in p):
+        nome_busca = clube_encontrado.capitalize()
+        if "paulo" in clube_encontrado: nome_busca = "São Paulo"
+        elif "gremio" in clube_encontrado or "grêmio" in clube_encontrado: nome_busca = "Grêmio"
+        elif "atletico" in clube_encontrado or "atlético" in clube_encontrado: nome_busca = "Atlético"
+        sql = f"""
+SELECT 
+    COUNT(*) as total_jogos,
+    SUM(CASE WHEN vencedor LIKE '%{nome_busca}%' THEN 1 ELSE 0 END) as total_vitorias,
+    SUM(CASE WHEN vencedor = 'Empate' THEN 1 ELSE 0 END) as empates,
+    SUM(CASE WHEN vencedor NOT LIKE '%{nome_busca}%' AND vencedor != 'Empate' AND vencedor IS NOT NULL THEN 1 ELSE 0 END) as derrotas,
+    ROUND(SUM(CASE WHEN vencedor LIKE '%{nome_busca}%' THEN 1.0 ELSE 0 END) * 100.0 / COUNT(*), 1) as pct_vitorias
+FROM partidas
+WHERE mandante LIKE '%{nome_busca}%' OR visitante LIKE '%{nome_busca}%';
+"""
+        colunas, dados = executar_query_segura(sql)
+        d = dados[0] if dados else {}
+        tj = d.get('total_jogos', 0)
+        tv = d.get('total_vitorias', 0)
+        pct = d.get('pct_vitorias', 0)
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Analytics (Banco SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": len(dados),
+            "insight": f"O {nome_busca} possui {tj} partidas oficiais catalogadas no acervo do FutStats, com {tv} vitórias registradas ({pct}% de aproveitamento vitorioso)!",
+            "tweet": f"🏆 Histórico do {nome_busca}: {tj} jogos catalogados no FutStats, com {tv} vitórias ({pct}% de aproveitamento)! #Futebol #Dados #{nome_busca}",
+            "conclusao": f"{tj} jogos e {tv} vitórias do {nome_busca}."
+        }
+
     # 2. Acréscimos
     if "acréscimo" in p or "acrescimo" in p or "45+" in p or "90+" in p:
         sql = """
