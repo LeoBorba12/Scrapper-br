@@ -887,14 +887,17 @@ def get_jogador_perfil():
 
 @app.route('/api/ia/diagnostico', methods=['GET'])
 def ia_diagnostico():
+    import requests
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     deepseek_key = (os.environ.get("DEEPSEEK_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")).strip()
 
     diag = {
         "gemini_key_present": bool(gemini_key),
-        "gemini_key_prefix": gemini_key[:6] + "..." if gemini_key else "",
+        "gemini_key_prefix": gemini_key[:8] + "..." if gemini_key else "",
         "gemini_key_len": len(gemini_key),
         "deepseek_key_present": bool(deepseek_key),
+        "deepseek_key_prefix": deepseek_key[:8] + "..." if deepseek_key else "",
+        "deepseek_test": "",
         "gemini_tests": {},
         "available_models": []
     }
@@ -921,6 +924,17 @@ def ia_diagnostico():
                 diag["gemini_tests"][m] = f"{r.status_code}: {r.text[:150]}"
             except Exception as e:
                 diag["gemini_tests"][m] = str(e)
+
+    if deepseek_key:
+        try:
+            is_or = deepseek_key.startswith("sk-or-")
+            url = "https://openrouter.ai/api/v1/chat/completions" if is_or else "https://api.deepseek.com/chat/completions"
+            headers = {"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"}
+            payload = {"model": "deepseek/deepseek-chat" if is_or else "deepseek-chat", "messages": [{"role": "user", "content": "Oi"}], "max_tokens": 10}
+            r_ds = requests.post(url, json=payload, headers=headers, timeout=5)
+            diag["deepseek_test"] = f"{r_ds.status_code}: {r_ds.text[:150]}"
+        except Exception as e:
+            diag["deepseek_test"] = str(e)
 
     return jsonify(diag)
 
