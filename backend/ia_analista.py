@@ -3,6 +3,7 @@ import sqlite3
 import re
 import json
 import requests
+import time
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -90,31 +91,90 @@ REGRAS OBRIGATÓRIAS DE SQL:
 """
 
 def executar_query_segura(sql):
-    cleaned = sql.strip().upper()
-    prohibited = ['DROP ', 'DELETE ', 'UPDATE ', 'INSERT ', 'ALTER ', 'CREATE ', 'ATTACH ', 'DETACH ', 'TRUNCATE ', ';--']
-    for p in prohibited:
-        if p in cleaned:
-            raise ValueError(f"Comando proibido detectado: {p.strip()}. Apenas consultas SELECT são permitidas.")
-            
-    conn = sqlite3.connect(DB_FUTEBOL)
+    if not sql or not isinstance(sql, str):
+        raise ValueError("Consulta SQL vazia ou inválida.")
+    
+    # Remove blocos markdown e quebras desnecessárias
+    cleaned_sql = re.sub(r'```(?:sql)?', '', sql).strip()
+    # Remove comentários SQL simples (-- ...)
+    lines = [l for l in cleaned_sql.splitlines() if not l.strip().startswith('--')]
+    cleaned_sql = ' '.join(lines).strip()
+    
+    if not cleaned_sql:
+        raise ValueError("Consulta SQL vazia após limpeza de comentários.")
+
+    upper_sql = cleaned_sql.upper().strip()
+
+    # Validação estrita de comando: deve iniciar com SELECT ou WITH
+    if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
+        raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
+
+    # Lista de comandos e funções proibidas
+    prohibited_keywords = [
+        'DROP ', 'DELETE ', 'UPDATE ', 'INSERT ', 'ALTER ', 'CREATE ', 
+        'ATTACH ', 'DETACH ', 'TRUNCATE ', 'REPLACE ', 'PRAGMA ', 
+        'VACUUM', 'EXEC ', 'EXECUTE ', 'LOAD_EXTENSION', ';--'
+    ]
+    for p in prohibited_keywords:
+        if p in upper_sql:
+            raise ValueError(f"Comando ou palavra reservada proibida: '{p.strip()}'.")
+
+    # Impede execução de múltiplos comandos separados por ponto e vírgula
+    stripped_no_trailing_semi = cleaned_sql.rstrip().rstrip(';').strip()
+    if ';' in stripped_no_trailing_semi:
+        raise ValueError("Múltiplas instruções SQL em uma única requisição não são permitidas.")
+
+    # Adiciona salvaguarda de LIMIT caso a IA não tenha colocado
+    if "LIMIT " not in upper_sql:
+        cleaned_sql += " LIMIT 100"
+
+    # Conecta ao SQLite com modo somente leitura
+    if os.path.exists(DB_FUTEBOL):
+        try:
+            conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True)
+        except Exception:
+            conn = sqlite3.connect(DB_FUTEBOL)
+    else:
+        conn = sqlite3.connect(DB_FUTEBOL)
+
+    # Guardrail de timeout: aborta se a query levar mais de 2 segundos (previne travamento serverless)
+    start_time = time.time()
+    def check_query_timeout():
+        if time.time() - start_time > 2.0:
+            return 1 # Aborta a consulta com OperationalError: interrupted
+        return 0
+
+    conn.set_progress_handler(check_query_timeout, 1000)
     c = conn.cursor()
-    c.execute("PRAGMA query_only = ON;")
+
+    try:
+        c.execute("PRAGMA query_only = ON;")
+        c.execute("PRAGMA mmap_size = 268435456;")
+        c.execute("PRAGMA cache_size = -8000;")
+    except Exception:
+        pass
+
     if os.path.exists(DB_CLIMA):
         try:
-            c.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+            c.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
         except Exception:
-            pass
-            
-    c.execute(sql)
-    colunas = [d[0] for d in c.description] if c.description else []
-    linhas = c.fetchall()
-    conn.close()
-    
-    # Formata como lista de dicionários
-    resultados = []
-    for row in linhas:
-        resultados.append(dict(zip(colunas, row)))
-        
+            try:
+                c.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+            except Exception:
+                pass
+
+    try:
+        c.execute(cleaned_sql)
+        colunas = [d[0] for d in c.description] if c.description else []
+        linhas = c.fetchall()
+    except sqlite3.OperationalError as op_err:
+        if "interrupted" in str(op_err).lower():
+            raise TimeoutError("A consulta SQL excedeu o limite de tempo de segurança (2 segundos). Tente adicionar filtros específicos.")
+        raise
+    finally:
+        conn.close()
+
+    resultados = [dict(zip(colunas, row)) for row in linhas]
     return colunas, resultados
 
 def chamar_gemini(prompt, api_key):

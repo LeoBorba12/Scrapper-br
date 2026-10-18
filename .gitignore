@@ -23,3 +23,4 @@ frontend/.vite/
 
 # Raw caches de raspagem
 data/raw_*
+scratch/

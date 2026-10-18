@@ -6,7 +6,55 @@ import hashlib
 import base64
 import json
 import time
+import threading
 from flask import Flask, request, jsonify, send_from_directory
+
+class TTLCache:
+    """Cache thread-safe em memória com TTL para endpoints analíticos (python-performance-optimization)."""
+    def __init__(self, default_ttl=1800):
+        self._cache = {}
+        self._lock = threading.Lock()
+        self._default_ttl = default_ttl
+
+    def get(self, key):
+        with self._lock:
+            item = self._cache.get(key)
+            if not item:
+                return None
+            val, exp = item
+            if time.time() > exp:
+                del self._cache[key]
+                return None
+            return val
+
+    def set(self, key, value, ttl=None):
+        with self._lock:
+            exp = time.time() + (ttl if ttl is not None else self._default_ttl)
+            self._cache[key] = (value, exp)
+
+    def clear(self):
+        with self._lock:
+            self._cache.clear()
+
+api_cache = TTLCache(default_ttl=1800)
+
+class RateLimiter:
+    """Limitador de requisições por janela deslizante para segurança de APIs e proteção de IA (api-security-best-practices)."""
+    def __init__(self):
+        self._records = {}
+        self._lock = threading.Lock()
+
+    def is_allowed(self, key, max_requests=15, window_seconds=60):
+        now = time.time()
+        with self._lock:
+            history = self._records.setdefault(key, [])
+            history[:] = [t for t in history if now - t < window_seconds]
+            if len(history) >= max_requests:
+                return False
+            history.append(now)
+            return True
+
+limiter = RateLimiter()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -25,7 +73,6 @@ def find_db_path(filename):
 
 DB_FUTEBOL = find_db_path('futebol.db')
 DB_CLIMA = find_db_path('clima.db')
-
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'futstats-secret-key-2026-super-segura-lb-jwt')
 INVITE_CODE = os.environ.get('INVITE_CODE', 'FUTSTATS-2026')
@@ -166,6 +213,10 @@ def api_health():
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
     try:
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+        if not limiter.is_allowed(f"login_{ip}", max_requests=10, window_seconds=60):
+            return jsonify({"error": "Muitas tentativas consecutivas de login. Por segurança, aguarde 1 minuto."}), 429
+
         dados = request.get_json(force=True, silent=True) or {}
         username = dados.get('username', '')
         password = dados.get('password', '')
@@ -218,31 +269,43 @@ def api_get_convite():
         return jsonify({"error": f"Falha ao obter convite: {str(e)}"}), 500
 
 def get_db():
+    conn = None
     if os.path.exists(DB_FUTEBOL):
         try:
             conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            if os.path.exists(DB_CLIMA):
-                try:
-                    cursor.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
-                except Exception:
-                    pass
-            return conn
         except Exception:
-            pass
-    conn = sqlite3.connect(DB_FUTEBOL)
+            conn = sqlite3.connect(DB_FUTEBOL)
+    else:
+        conn = sqlite3.connect(DB_FUTEBOL)
+
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    # Otimizações de leitura SQLite de alta performance (database-design & python-perf)
+    try:
+        cursor.execute("PRAGMA query_only = ON;")
+        cursor.execute("PRAGMA mmap_size = 268435456;")
+        cursor.execute("PRAGMA cache_size = -8000;")
+        cursor.execute("PRAGMA temp_store = MEMORY;")
+    except Exception:
+        pass
+
     if os.path.exists(DB_CLIMA):
         try:
-            cursor.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+            cursor.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
         except Exception:
-            pass
+            try:
+                cursor.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+            except Exception:
+                pass
     return conn
 
 @app.route('/api/overview', methods=['GET'])
 def get_overview():
+    cached = api_cache.get("api_overview")
+    if cached:
+        return jsonify(cached)
+
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT COUNT(*), MIN(ano), MAX(ano) FROM partidas;")
@@ -258,17 +321,23 @@ def get_overview():
     total_clubes = c.fetchone()[0]
     
     conn.close()
-    return jsonify({
+    data = {
         "total_partidas": total_partidas,
         "total_gols": total_gols,
         "total_campeonatos": total_camps,
         "total_clubes": total_clubes,
         "ano_min": min_ano,
         "ano_max": max_ano
-    })
+    }
+    api_cache.set("api_overview", data, ttl=3600)
+    return jsonify(data)
 
 @app.route('/api/clubes', methods=['GET'])
 def get_clubes():
+    cached = api_cache.get("api_clubes")
+    if cached:
+        return jsonify(cached)
+
     conn = get_db()
     c = conn.cursor()
     # Pega os clubes com mais partidas registradas
@@ -287,10 +356,15 @@ def get_clubes():
     """)
     clubes = [{"nome": row["clube"], "jogos": row["jogos"]} for row in c.fetchall()]
     conn.close()
+    api_cache.set("api_clubes", clubes, ttl=3600)
     return jsonify(clubes)
 
 @app.route('/api/campeonatos', methods=['GET'])
 def get_campeonatos():
+    cached = api_cache.get("api_campeonatos")
+    if cached:
+        return jsonify(cached)
+
     conn = get_db()
     c = conn.cursor()
     c.execute("""
@@ -301,6 +375,7 @@ def get_campeonatos():
     """)
     camps = [dict(row) for row in c.fetchall()]
     conn.close()
+    api_cache.set("api_campeonatos", camps, ttl=3600)
     return jsonify(camps)
 
 @app.route('/api/h2h', methods=['GET'])
@@ -310,6 +385,11 @@ def get_h2h():
     
     if not c1 or not c2:
         return jsonify({"error": "Informe clube1 e clube2"}), 400
+
+    cache_key = f"h2h_{c1.lower()}_{c2.lower()}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
         
     conn = get_db()
     c = conn.cursor()
@@ -403,7 +483,7 @@ def get_h2h():
                 
     conn.close()
     
-    return jsonify({
+    res = {
         "clube1": c1,
         "clube2": c2,
         "total_jogos": total,
@@ -419,7 +499,9 @@ def get_h2h():
             "jogos": tabu_jogos
         } if tabu_clube and tabu_jogos >= 2 else None,
         "partidas": partidas[:30] # Últimos 30 jogos
-    })
+    }
+    api_cache.set(cache_key, res, ttl=1800)
+    return jsonify(res)
 
 @app.route('/api/partidas', methods=['GET'])
 def get_partidas():
@@ -940,6 +1022,20 @@ def ia_diagnostico():
 
 @app.route('/api/ia/perguntar', methods=['POST'])
 def perguntar_ia():
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+    if not limiter.is_allowed(f"ia_{ip}", max_requests=15, window_seconds=60):
+        return jsonify({
+            "pergunta": "",
+            "modelo_usado": "rate-limit",
+            "sql_executado": "-- Limite de segurança excedido",
+            "colunas": ["Alerta"],
+            "dados": [{"Alerta": "Muitas perguntas em pouco tempo. Limite de segurança de 15/minuto atingido."}],
+            "total_registros": 0,
+            "insight": "Você atingiu o limite de segurança de 15 consultas por minuto ao Oráculo. Por favor, aguarde alguns instantes antes de enviar uma nova pergunta.",
+            "tweet": "⏱️ Limite temporário atingido no FutStats Oráculo. Voltando em instantes!",
+            "conclusao": "Aguarde alguns segundos para fazer novas perguntas."
+        }), 429
+
     dados = request.get_json(force=True, silent=True) or {}
     pergunta = dados.get('pergunta', '').strip()
     modelo = dados.get('modelo', 'gemini').strip()
@@ -948,6 +1044,13 @@ def perguntar_ia():
     if not pergunta:
         return jsonify({"error": "Por favor, digite sua pergunta."}), 400
 
+    # Cache de perguntas idênticas (economiza chamadas de IA e responde em < 5ms)
+    cache_key = f"ia_{hashlib.md5((pergunta.lower() + '_' + modelo).encode('utf-8')).hexdigest()}"
+    if not api_key:
+        cached = api_cache.get(cache_key)
+        if cached:
+            return jsonify(cached)
+
     try:
         from backend.ia_analista import processar_pergunta_oraculo
     except ImportError:
@@ -955,6 +1058,8 @@ def perguntar_ia():
 
     try:
         resultado = processar_pergunta_oraculo(pergunta, modelo_escolhido=modelo, api_key_usuario=api_key)
+        if resultado and resultado.get("total_registros", 0) > 0 and not api_key:
+            api_cache.set(cache_key, resultado, ttl=1800)
         return jsonify(resultado)
     except Exception as e:
         return jsonify({
