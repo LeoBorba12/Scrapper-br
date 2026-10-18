@@ -11,8 +11,21 @@ from flask import Flask, request, jsonify, send_from_directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 FRONTEND_DIST = os.path.join(ROOT_DIR, 'frontend', 'dist')
-DB_FUTEBOL = os.path.join(ROOT_DIR, 'data', 'futebol.db')
-DB_CLIMA = os.path.join(ROOT_DIR, 'data', 'clima.db')
+def find_db_path(filename):
+    candidates = [
+        os.path.join(ROOT_DIR, 'api', 'data', filename),
+        os.path.join(ROOT_DIR, 'data', filename),
+        os.path.join(BASE_DIR, 'data', filename),
+        os.path.join(BASE_DIR, '..', 'api', 'data', filename),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return os.path.join(ROOT_DIR, 'data', filename)
+
+DB_FUTEBOL = find_db_path('futebol.db')
+DB_CLIMA = find_db_path('clima.db')
+
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'futstats-secret-key-2026-super-segura-lb-jwt')
 INVITE_CODE = os.environ.get('INVITE_CODE', 'FUTSTATS-2026')

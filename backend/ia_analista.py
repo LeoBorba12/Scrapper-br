@@ -6,8 +6,20 @@ import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
-DB_FUTEBOL = os.path.join(ROOT_DIR, 'data', 'futebol.db')
-DB_CLIMA = os.path.join(ROOT_DIR, 'data', 'clima.db')
+def find_db_path(filename):
+    candidates = [
+        os.path.join(ROOT_DIR, 'api', 'data', filename),
+        os.path.join(ROOT_DIR, 'data', filename),
+        os.path.join(BASE_DIR, 'data', filename),
+        os.path.join(BASE_DIR, '..', 'api', 'data', filename),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return os.path.join(ROOT_DIR, 'data', filename)
+
+DB_FUTEBOL = find_db_path('futebol.db')
+DB_CLIMA = find_db_path('clima.db')
 
 SCHEMA_PROMPT = """
 Você é o Oráculo de Futebol & IA Analista de Dados do FutStats, conectado a um banco SQLite real com 55.395 jogos oficiais e 42.138 gols do futebol brasileiro.
