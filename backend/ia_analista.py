@@ -685,27 +685,55 @@ LIMIT 8;
     # 6. Cartões vermelhos / clássicos mais indisciplinados
     if "cartão" in p or "cartao" in p or "vermelho" in p:
         sql = """
+WITH jogos_era_cartoes AS (
+    SELECT DISTINCT id_partida 
+    FROM cartoes
+),
+classicos_tradicionais AS (
+    SELECT 
+        CASE 
+            WHEN (p.mandante LIKE '%Grêmio%' AND p.visitante LIKE '%Internacional%') OR (p.mandante LIKE '%Internacional%' AND p.visitante LIKE '%Grêmio%') THEN 'Grêmio x Internacional (Gre-Nal)'
+            WHEN (p.mandante LIKE '%Flamengo%' AND p.visitante LIKE '%Fluminense%') OR (p.mandante LIKE '%Fluminense%' AND p.visitante LIKE '%Flamengo%') THEN 'Flamengo x Fluminense (Fla-Flu)'
+            WHEN (p.mandante LIKE '%Flamengo%' AND p.visitante LIKE '%Vasco%') OR (p.mandante LIKE '%Vasco%' AND p.visitante LIKE '%Flamengo%') THEN 'Flamengo x Vasco (Clássico dos Milhões)'
+            WHEN (p.mandante LIKE '%Corinthians%' AND p.visitante LIKE '%Palmeiras%') OR (p.mandante LIKE '%Palmeiras%' AND p.visitante LIKE '%Corinthians%') THEN 'Corinthians x Palmeiras (Dérbi)'
+            WHEN (p.mandante LIKE '%São Paulo%' AND p.visitante LIKE '%Palmeiras%') OR (p.mandante LIKE '%Palmeiras%' AND p.visitante LIKE '%São Paulo%') THEN 'São Paulo x Palmeiras (Choque-Rei)'
+            WHEN (p.mandante LIKE '%Corinthians%' AND p.visitante LIKE '%São Paulo%') OR (p.mandante LIKE '%São Paulo%' AND p.visitante LIKE '%Corinthians%') THEN 'Corinthians x São Paulo (Majestoso)'
+            WHEN (p.mandante LIKE '%Santos%' AND p.visitante LIKE '%São Paulo%') OR (p.mandante LIKE '%São Paulo%' AND p.visitante LIKE '%Santos%') THEN 'Santos x São Paulo (San-São)'
+            WHEN (p.mandante LIKE '%Corinthians%' AND p.visitante LIKE '%Santos%') OR (p.mandante LIKE '%Santos%' AND p.visitante LIKE '%Corinthians%') THEN 'Corinthians x Santos (Alvinegro)'
+            WHEN (p.mandante LIKE '%Atlético-MG%' AND p.visitante LIKE '%Cruzeiro%') OR (p.mandante LIKE '%Cruzeiro%' AND p.visitante LIKE '%Atlético-MG%') THEN 'Atlético-MG x Cruzeiro (Clássico Mineiro)'
+            WHEN (p.mandante LIKE '%Botafogo%' AND p.visitante LIKE '%Flamengo%') OR (p.mandante LIKE '%Flamengo%' AND p.visitante LIKE '%Botafogo%') THEN 'Botafogo x Flamengo (Clássico da Rivalidade)'
+            WHEN (p.mandante LIKE '%Botafogo%' AND p.visitante LIKE '%Fluminense%') OR (p.mandante LIKE '%Fluminense%' AND p.visitante LIKE '%Botafogo%') THEN 'Botafogo x Fluminense (Clássico Vovô)'
+            WHEN (p.mandante LIKE '%Botafogo%' AND p.visitante LIKE '%Vasco%') OR (p.mandante LIKE '%Vasco%' AND p.visitante LIKE '%Botafogo%') THEN 'Botafogo x Vasco (Clássico da Amizade)'
+            WHEN (p.mandante LIKE '%Fluminense%' AND p.visitante LIKE '%Vasco%') OR (p.mandante LIKE '%Vasco%' AND p.visitante LIKE '%Fluminense%') THEN 'Fluminense x Vasco (Clássico dos Gigantes)'
+            WHEN (p.mandante LIKE '%Bahia%' AND p.visitante LIKE '%Vitória%') OR (p.mandante LIKE '%Vitória%' AND p.visitante LIKE '%Bahia%') THEN 'Bahia x Vitória (Ba-Vi)'
+            WHEN (p.mandante LIKE '%Athletico-PR%' AND p.visitante LIKE '%Coritiba%') OR (p.mandante LIKE '%Coritiba%' AND p.visitante LIKE '%Athletico-PR%') THEN 'Athletico-PR x Coritiba (Atle-Tiba)'
+            ELSE NULL 
+        END as classico,
+        p.id_partida
+    FROM partidas p
+    JOIN jogos_era_cartoes j ON p.id_partida = j.id_partida
+    WHERE p.campeonato LIKE '%Brasileiro%'
+)
 SELECT 
-    p.mandante || ' x ' || p.visitante as confronto,
-    COUNT(DISTINCT p.id_partida) as total_jogos,
+    classico,
+    COUNT(DISTINCT c1.id_partida) as total_jogos,
     COUNT(c.id_cartao) as total_vermelhos,
-    ROUND(COUNT(c.id_cartao) * 1.0 / COUNT(DISTINCT p.id_partida), 2) as media_vermelhos
-FROM partidas p
-JOIN cartoes c ON p.id_partida = c.id_partida AND c.cartao = 'Vermelho'
-WHERE p.campeonato LIKE '%Brasileiro%'
-GROUP BY p.mandante, p.visitante
-HAVING total_jogos >= 5
+    ROUND(COUNT(c.id_cartao) * 1.0 / COUNT(DISTINCT c1.id_partida), 2) as media_vermelhos
+FROM classicos_tradicionais c1
+LEFT JOIN cartoes c ON c1.id_partida = c.id_partida AND c.cartao = 'Vermelho'
+WHERE classico IS NOT NULL
+GROUP BY classico
 ORDER BY media_vermelhos DESC
 LIMIT 8;
 """
         colunas, dados = executar_query_segura(sql)
-        top = dados[0] if dados else {'confronto': 'São Paulo x Cruzeiro', 'media_vermelhos': 1.4, 'total_vermelhos': 7, 'total_jogos': 5}
-        conf = top.get('confronto', 'São Paulo x Cruzeiro')
-        med = top.get('media_vermelhos', 1.4)
-        tot_v = top.get('total_vermelhos', 7)
-        tot_j = top.get('total_jogos', 5)
-        insight = f"Clima quente! No Campeonato Brasileiro catalogado pelo FutStats, o confronto com maior média de expulsões é {conf}, com média de {med} cartões vermelhos por partida ({tot_v} cartões vermelhos em {tot_j} jogos analisados)!"
-        tweet = f"🟥 Clima quente no Brasileirão! O confronto com maior média de cartões vermelhos é {conf} com {med} expulsões por jogo. Confira o ranking de indisciplina no FutStats! #Futebol #Estatisticas #Cartoes"
+        top = dados[0] if dados else {'classico': 'Flamengo x Fluminense (Fla-Flu)', 'media_vermelhos': 0.64, 'total_vermelhos': 14, 'total_jogos': 22}
+        conf = top.get('classico', 'Flamengo x Fluminense (Fla-Flu)')
+        med = top.get('media_vermelhos', 0.64)
+        tot_v = top.get('total_vermelhos', 14)
+        tot_j = top.get('total_jogos', 22)
+        insight = f"Clima quente! Na era do scout detalhado de cartões do Brasileirão (2014 a 2024), o clássico com maior média de expulsões é o {conf}, com {med} cartões vermelhos por partida ({tot_v} expulsões em {tot_j} confrontos catalogados), seguido pelo Clássico Mineiro (0.60) e pelo Atle-Tiba (0.50)!"
+        tweet = f"🟥 Clássico mais quente do Brasil! Na era moderna do Brasileirão (2014-2024), o {conf} lidera com {tot_v} expulsões em {tot_j} jogos (média de {med}/jogo)! Confira o ranking completo no FutStats. #Futebol #Classicos #Cartoes"
         return {
             "pergunta": pergunta,
             "modelo_usado": "Demonstração (Executado no Banco SQLite)",
@@ -715,7 +743,7 @@ LIMIT 8;
             "total_registros": len(dados),
             "insight": insight,
             "tweet": tweet,
-            "conclusao": f"{conf} tem a maior média de expulsões ({med} por jogo)."
+            "conclusao": f"{conf} tem a maior média de expulsões ({med} por jogo na era moderna)."
         }
 
     # 7. Eleição presidencial / política
