@@ -26,26 +26,26 @@ SCHEMA_PROMPT = """
 Você é o Oráculo de Futebol & IA Analista de Dados do FutStats, conectado a um banco SQLite real com 55.395 jogos oficiais e 42.138 gols do futebol brasileiro.
 
 Tabelas disponíveis:
-1. partidas (todas as partidas 1971-2024 de Série A, Série B, Copa do Brasil, etc):
+1. partidas (todas as partidas 1971-2024 de Série A, Série B, Copa do Brasil, Libertadores, etc):
    - id_partida (INT, PK)
-   - ano (INT, ex: 1982, 2024)
-   - data (TEXT, formato YYYY-MM-DD, ex: '2024-05-12')
+   - ano (INT, EDIÇÃO OFICIAL/TEMPORADA DO CAMPEONATO. Ex: 1982, 2020, 2024. IMPORTANTE: temporadas estendidas como a de 2020 possuem ano = 2020 mesmo com partidas em jan/fev de 2021).
+   - data (TEXT, formato YYYY-MM-DD, data civil exata do jogo, ex: '2024-05-12')
    - horario (TEXT, ex: '16:00')
    - estadio (TEXT)
    - cidade (TEXT)
    - estado (TEXT)
-   - mandante (TEXT, ex: 'Flamengo', 'Corinthians', 'Palmeiras', 'São Paulo')
+   - mandante (TEXT, nome canônico ex: 'Flamengo', 'Corinthians', 'Palmeiras', 'São Paulo', 'Botafogo', 'Atlético-MG', 'Athletico-PR')
    - visitante (TEXT)
    - gols_mandante (INT)
    - gols_visitante (INT)
    - placar (TEXT, ex: '2 x 1')
-   - vencedor (TEXT, ex: 'Flamengo' ou 'Empate')
-   - campeonato (TEXT, ex: 'Campeonato Brasileiro Série A', 'Campeonato Brasileiro Série B')
-   - fase (TEXT, ex: 'Final', 'Rodada 1')
+   - vencedor (TEXT, nome do clube vencedor ex: 'Flamengo' ou 'Empate')
+   - campeonato (TEXT, padronizado: 'Campeonato Brasileiro Série A' para toda a história 1971-2024 da 1ª divisão; 'Campeonato Brasileiro Série B'; 'Copa do Brasil'; 'Copa Libertadores'; 'Copa Sul-Americana')
+   - fase (TEXT, ex: 'Final', 'Semifinal', 'Rodada 1')
    - arbitro (TEXT)
    - publico (INT)
 
-2. gols (gols catalogados lance a lance):
+2. gols (gols catalogados lance a lance por atleta):
    - id_gol (INT, PK)
    - id_partida (INT, FK partidas)
    - clube (TEXT)
@@ -54,7 +54,7 @@ Tabelas disponíveis:
    - tempo (TEXT, ex: '1T', '2T')
    - tipo_de_gol (TEXT, ex: 'Normal', 'Pênalti', 'Falta', 'Contra')
 
-3. cartoes (cartões aplicados):
+3. cartoes (cartões disciplinares aplicados):
    - id_cartao (INT, PK)
    - id_partida (INT, FK)
    - clube (TEXT)
@@ -63,7 +63,7 @@ Tabelas disponíveis:
    - minuto (TEXT)
    - motivo (TEXT)
 
-4. escalacoes (titulares e reservas):
+4. escalacoes (atletas titulares e reservas):
    - id_escalacao (INT)
    - id_partida (INT)
    - clube (TEXT)
@@ -71,23 +71,42 @@ Tabelas disponíveis:
    - titular (INT, 1=titular, 0=reserva)
    - posicao (TEXT)
 
-5. clima.clima_diario (dados meteorológicos oficiais do INMET em capitais brasileiras):
+5. artilharia_historica (rankings oficiais consolidados de torneios):
+   - id (INT, PK)
+   - divisao (TEXT, ex: 'Série A', 'Série B', 'Copa do Brasil', 'Libertadores')
+   - posicao (INT, 1 a 10)
+   - atleta (TEXT, ex: 'Léo Gamalho', 'Neto Baiano', 'Zé Carlos', 'Roberto Dinamite')
+   - clubes (TEXT)
+   - total_gols (INT)
+   - periodo (TEXT)
+
+6. clima.clima_diario (dados meteorológicos oficiais do INMET em capitais brasileiras 2015-2024):
    - data (TEXT, YYYY-MM-DD)
    - cidade (TEXT)
    - estado (TEXT)
-   - precipitacao_mm (REAL)
-   - temperatura_media (REAL)
+   - precipitacao_mm (REAL, chuva em milímetros)
+   - temperatura_media (REAL, temperatura em Celsius)
+
+MATRIZ DE COBERTURA DE DADOS (TRANSPARÊNCIA METODOLÓGICA):
+- Partidas, Placares e Vencedores: cobertura integral de 1971 a 2024 em Série A, Série B, Copa do Brasil e Libertadores.
+- Gols de Atletas lance a lance: cobertura no Brasileirão clássico (1971-2002), Libertadores, Sul-Americana e Copa do Brasil.
+- Rankings Consagrados de Artilharia: consulte sempre a tabela artilharia_historica para rankings oficiais consolidados de artilheiros (especialmente para Série B e Copa do Brasil).
+- Cartões e Árbitros: cobertura sistemática a partir de 2003 (Série A moderna) e torneios pós-2010.
 
 REGRAS OBRIGATÓRIAS DE SQL:
 - Escreva APENAS comandos SELECT (somente-leitura).
-- Para filtros de data por dia par/ímpar, use: CAST(strftime('%d', data) AS INT) % 2 = 0
-- Para filtros de acréscimos, use: (minuto LIKE '45+%' OR minuto LIKE '90+%' OR CAST(minuto AS INT) >= 90)
-- Para clubes, use LIKE com % (ex: mandante LIKE '%Corinthians%' ou visitante LIKE '%Corinthians%')
+- REGRA DE OURO DOS CLUBES: NUNCA use LIKE '%Botafogo%' ou LIKE '%Atlético%' indiscriminadamente. Use igualdade exata ou lista IN:
+  * Botafogo carioca: mandante = 'Botafogo' OR visitante = 'Botafogo' (evite LIKE '%Botafogo%' para não misturar Botafogo-SP e Botafogo-PB).
+  * São Paulo: mandante = 'São Paulo' OR visitante = 'São Paulo' (evite LIKE '%São Paulo%' para não pegar São Paulo-RS).
+  * Atlético-MG: mandante = 'Atlético-MG' OR visitante = 'Atlético-MG' (o clube paranaense é 'Athletico-PR').
+  * Grêmio: mandante = 'Grêmio' OR visitante = 'Grêmio' (evite pegar Grêmio Prudente ou Grêmio Maringá).
+- BRASILEIRÃO SÉRIE A: O campeonato está unificado em:
+  campeonato = 'Campeonato Brasileiro Série A'
+- TEMPORADAS: Para consultar um ano de torneio, use `ano = 2020` (a edição oficial), e reserve `data` para filtros de dias específicos, meses ou dias pares/ímpares.
+- Para filtros de dia par/ímpar: CAST(strftime('%d', data) AS INT) % 2 = 0
+- Para filtros de acréscimos: (minuto LIKE '45+%' OR minuto LIKE '90+%' OR CAST(minuto AS INT) >= 90)
 - Sempre limite o resultado caso retorne muitas linhas (LIMIT 50).
-- EVENTOS EXTERNOS E CULTURA POP (NOVELAS, ELEIÇÕES, FERIADOS):
-  Se a pergunta do usuário envolver eventos externos, finais de novelas (ex: último capítulo de novela das 9 da Globo), datas de eleições ou fatos históricos sem tabela própria, use seu conhecimento prévio de datas para construir uma cláusula com as datas exatas (formato YYYY-MM-DD):
-  `WHERE data IN ('YYYY-MM-DD', 'YYYY-MM-DD', ...)`
-  Exemplo: para "finais de novelas das 9", utilize datas de partidas que aconteceram logo após desfechos marcantes de novelas (ex: 2017-10-22 pós A Força do Querer, 2018-05-13 pós O Outro Lado do Paraíso, 2019-11-24 pós A Dona do Pedaço, 2022-10-10 pós Pantanal, 2024-09-15 pós Renascer).
+- EVENTOS EXTERNOS E CULTURA POP: Quando envolver novelas das 9, datas de eleições ou fatos da cultura brasileira, use seu conhecimento prévio para filtrar as datas civis exatas: `WHERE data IN ('YYYY-MM-DD', ...)`
 """
 
 def executar_query_segura(sql):

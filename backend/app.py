@@ -712,7 +712,7 @@ def get_clima_futebol():
         FROM partidas p
         JOIN clima.clima_diario c 
           ON p.data = c.data 
-         AND (LOWER(p.cidade) = LOWER(c.cidade) OR LOWER(p.estado) = LOWER(c.estado))
+         AND LOWER(p.cidade) = LOWER(c.cidade)
         WHERE p.ano >= 2015 AND c.precipitacao_mm > 30
         ORDER BY c.precipitacao_mm DESC
         LIMIT 5;
@@ -783,23 +783,23 @@ def buscar_jogadores():
 
     sql = """
         SELECT 
-            atleta,
+            nome as atleta,
             clubes,
-            gols,
-            amarelos,
-            vermelhos,
-            jogos
+            total_gols as gols,
+            total_amarelos as amarelos,
+            total_vermelhos as vermelhos,
+            total_jogos as jogos
         FROM jogadores_resumo
-        WHERE atleta LIKE ?
+        WHERE nome LIKE ?
         ORDER BY 
             CASE 
-                WHEN LOWER(atleta) = LOWER(?) THEN 1
-                WHEN LOWER(atleta) LIKE LOWER(? || ' %') THEN 2
-                WHEN LOWER(atleta) LIKE LOWER(? || '%') THEN 3
+                WHEN LOWER(nome) = LOWER(?) THEN 1
+                WHEN LOWER(nome) LIKE LOWER(? || ' %') THEN 2
+                WHEN LOWER(nome) LIKE LOWER(? || '%') THEN 3
                 ELSE 4 
             END,
-            gols DESC,
-            total_eventos DESC
+            total_gols DESC,
+            total_jogos DESC
         LIMIT ?;
     """
     rows = c.execute(sql, (param_like, q, q, q, limit)).fetchall()
