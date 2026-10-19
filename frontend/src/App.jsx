@@ -8,10 +8,12 @@ import {
   Download, Camera, Scale
 } from 'lucide-react';
 import { baixarCardSocialPNG } from './utils/cardGenerator';
+import SoomaFutStatsView from './SoomaFutStatsView';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'oraculo', 'playground', 'clima', 'arbitragem', 'tweets'
+  const [viewTheme, setViewTheme] = useState('sooma'); // 'sooma' (referência Outcrowd) | 'classic' (Soft UI)
 
   // ==================== AUTH STATE ====================
   const [currentUser, setCurrentUser] = useState(null);
@@ -773,70 +775,127 @@ export default function App() {
     );
   }
 
-  // ==================== TELA DE LOGIN / CADASTRO ====================
+  // ==================== TELA DE LOGIN / CADASTRO (SOOMA STYLE) ====================
   if (!currentUser) {
     return (
-      <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', backgroundColor: 'var(--bg)' }}>
-        <div className="soft-card" style={{ maxWidth: '440px', width: '100%', padding: '36px 30px', boxShadow: 'var(--shadow-lift)' }}>
+      <div 
+        style={{ 
+          minHeight: '100dvh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          padding: '24px', 
+          background: 'linear-gradient(135deg, #FBF9FF 0%, #F5F1FB 45%, #FDEEE9 100%)',
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        }}
+      >
+        <div 
+          style={{ 
+            maxWidth: '460px', 
+            width: '100%', 
+            padding: '42px 36px', 
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(16px)',
+            borderRadius: '34px',
+            boxShadow: '0 24px 60px -15px rgba(100, 85, 140, 0.12)',
+            border: '1px solid rgba(255, 255, 255, 0.95)'
+          }}
+        >
           {/* LOGO & CABEÇALHO */}
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(135, 206, 235, 0.2)', marginBottom: '14px' }}>
-              <Lock size={26} color="#0369A1" />
+            <div 
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                width: '58px', 
+                height: '42px', 
+                borderRadius: '21px', 
+                backgroundColor: '#111318', 
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: '0.86rem',
+                letterSpacing: '-0.02em',
+                marginBottom: '16px',
+                boxShadow: '0 8px 20px -4px rgba(17, 19, 24, 0.35)'
+              }}
+            >
+              Sooma
             </div>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: '700', letterSpacing: '-0.02em', marginBottom: '6px' }}>
-              FutStats & Clima
+            <h1 style={{ fontSize: '1.9rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#12141A', marginBottom: '6px' }}>
+              Welcome Back
             </h1>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
-              <span className="badge badge-blue">Acesso Restrito</span>
-              <span className="badge badge-green">55.395 Jogos</span>
-            </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '8px' }}>
-              Central de inteligência e moderação para o Twitter/X
+            <p style={{ color: '#767C8E', fontSize: '0.88rem', fontWeight: 500 }}>
+              The simplest way to keep everyone updated.
             </p>
           </div>
 
           {/* TABS LOGIN / REGISTRO COM CONVITE */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', backgroundColor: 'var(--surface-hover)', padding: '4px', borderRadius: '12px', marginBottom: '22px' }}>
+          <div 
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '6px', 
+              backgroundColor: '#F3F4F8', 
+              padding: '5px', 
+              borderRadius: '9999px', 
+              marginBottom: '26px' 
+            }}
+          >
             <button
               onClick={() => { setAuthMode('login'); setAuthError(null); }}
               style={{
-                padding: '8px',
-                borderRadius: '8px',
+                padding: '9px',
+                borderRadius: '9999px',
                 border: 'none',
-                background: authMode === 'login' ? 'var(--surface)' : 'transparent',
-                color: 'var(--text-main)',
-                fontWeight: authMode === 'login' ? '600' : '500',
-                boxShadow: authMode === 'login' ? 'var(--shadow-soft)' : 'none',
+                background: authMode === 'login' ? '#FFFFFF' : 'transparent',
+                color: authMode === 'login' ? '#111318' : '#757B8C',
+                fontWeight: authMode === 'login' ? 700 : 500,
+                boxShadow: authMode === 'login' ? '0 2px 10px rgba(0,0,0,0.06)' : 'none',
                 cursor: 'pointer',
-                fontSize: '0.85rem',
+                fontSize: '0.84rem',
                 transition: 'all 150ms'
               }}
             >
-              Entrar na Conta
+              Log In
             </button>
 
             <button
               onClick={() => { setAuthMode('registro'); setAuthError(null); }}
               style={{
-                padding: '8px',
-                borderRadius: '8px',
+                padding: '9px',
+                borderRadius: '9999px',
                 border: 'none',
-                background: authMode === 'registro' ? 'var(--surface)' : 'transparent',
-                color: 'var(--text-main)',
-                fontWeight: authMode === 'registro' ? '600' : '500',
-                boxShadow: authMode === 'registro' ? 'var(--shadow-soft)' : 'none',
+                background: authMode === 'registro' ? '#FFFFFF' : 'transparent',
+                color: authMode === 'registro' ? '#111318' : '#757B8C',
+                fontWeight: authMode === 'registro' ? 700 : 500,
+                boxShadow: authMode === 'registro' ? '0 2px 10px rgba(0,0,0,0.06)' : 'none',
                 cursor: 'pointer',
-                fontSize: '0.85rem',
+                fontSize: '0.84rem',
                 transition: 'all 150ms'
               }}
             >
-              Tenho um Convite
+              First Time Here? Sign Up
             </button>
           </div>
 
           {/* ERRO BANNER */}
           {authError && (
-            <div style={{ padding: '10px 14px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#DC2626', fontSize: '0.82rem', marginBottom: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div 
+              style={{ 
+                padding: '12px 16px', 
+                backgroundColor: 'rgba(239, 68, 68, 0.08)', 
+                border: '1px solid rgba(239, 68, 68, 0.25)', 
+                borderRadius: '16px', 
+                color: '#DC2626', 
+                fontSize: '0.82rem', 
+                fontWeight: 500,
+                marginBottom: '20px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px' 
+              }}
+            >
               <AlertCircle size={16} />
               <span>{authError}</span>
             </div>
@@ -846,22 +905,22 @@ export default function App() {
           {authMode === 'login' && (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Usuário
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '6px' }}>
+                  Enter Email / Username
                 </label>
                 <input 
                   type="text" 
                   className="soft-input font-mono"
                   value={loginUsername}
                   onChange={e => setLoginUsername(e.target.value)}
-                  placeholder="Ex: LB"
+                  placeholder="LB"
                   required
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Senha
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '6px' }}>
+                  Enter Password
                 </label>
                 <input 
                   type="password" 
@@ -876,11 +935,11 @@ export default function App() {
               <button 
                 type="submit" 
                 className="btn-primary" 
-                style={{ width: '100%', height: '44px', marginTop: '6px' }}
+                style={{ width: '100%', height: '48px', marginTop: '8px', fontSize: '0.92rem' }}
                 disabled={authLoading}
               >
-                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : <Lock size={18} />}
-                {authLoading ? 'Verificando...' : 'Acessar Central'}
+                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : null}
+                {authLoading ? 'Verifying...' : 'Log In'}
               </button>
             </form>
           )}
@@ -889,58 +948,58 @@ export default function App() {
           {authMode === 'registro' && (
             <form onSubmit={handleRegistro} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  Código de Convite da Equipe
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
+                  Invite Code
                 </label>
                 <input 
                   type="text" 
                   className="soft-input font-mono"
                   value={regCodigoConvite}
                   onChange={e => setRegCodigoConvite(e.target.value)}
-                  placeholder="Ex: FUTSTATS-2026"
+                  placeholder="FUTSTATS-2026"
                   required
                   style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  Seu Nome ou Apelido
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
+                  Full Name / Nickname
                 </label>
                 <input 
                   type="text" 
                   className="soft-input"
                   value={regNome}
                   onChange={e => setRegNome(e.target.value)}
-                  placeholder="Ex: Carlos Silva"
+                  placeholder="Alice James"
                   required
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  Criar Nome de Usuário (Login)
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
+                  Choose Username
                 </label>
                 <input 
                   type="text" 
                   className="soft-input font-mono"
                   value={regUsername}
                   onChange={e => setRegUsername(e.target.value)}
-                  placeholder="Ex: carlos_mod"
+                  placeholder="alice"
                   required
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                  Criar uma Senha
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
+                  Choose Password
                 </label>
                 <input 
                   type="password" 
                   className="soft-input font-mono"
                   value={regPassword}
                   onChange={e => setRegPassword(e.target.value)}
-                  placeholder="Mínimo 4 caracteres"
+                  placeholder="Min 4 chars"
                   required
                 />
               </div>
@@ -948,149 +1007,564 @@ export default function App() {
               <button 
                 type="submit" 
                 className="btn-primary" 
-                style={{ width: '100%', height: '44px', marginTop: '6px' }}
+                style={{ width: '100%', height: '48px', marginTop: '6px' }}
                 disabled={authLoading}
               >
-                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : <UserPlus size={18} />}
-                {authLoading ? 'Criando Conta...' : 'Validar Convite e Entrar'}
+                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : null}
+                {authLoading ? 'Creating Account...' : 'Get Started'}
               </button>
             </form>
           )}
 
           {/* DICA DE SUPORTE */}
-          <div style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Apenas moderadores e analistas autorizados.
+          <div style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.76rem', color: '#8E94A4' }}>
+            By continuing, you agree to our Terms of Service & Privacy Policy.
           </div>
         </div>
       </div>
     );
   }
 
-  // ==================== DASHBOARD AUTENTICADA ====================
+  // ==================== DASHBOARD AUTENTICADA (SOOMA EXPERIENCE INTEGRADA) ====================
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 20px' }}>
-      
-      {/* HEADER DA DASHBOARD */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: '700', letterSpacing: '-0.02em' }}>
-              FutStats & Clima
-            </h1>
-            <span className="badge badge-blue">Soft UI Evolution</span>
-            <span className="badge badge-green">
-              {overview?.total_partidas ? `${overview.total_partidas.toLocaleString('pt-BR')} Jogos` : '55.395 Jogos'}
-            </span>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>
-            Central analítica histórica de futebol brasileiro (Série A & B) e meteorologia
-          </p>
+    <div
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        background: 'linear-gradient(135deg, #FBF9FF 0%, #F5F1FB 45%, #FDEEE9 100%)',
+        color: '#15171C',
+        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+        display: 'flex',
+        padding: '18px 24px 28px 20px',
+        boxSizing: 'border-box',
+        overflowX: 'hidden'
+      }}
+    >
+      {/* ================= BARRA LATERAL (DOCK COMPACTO OUTGROWD) ================= */}
+      <aside
+        style={{
+          width: '74px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+          flexShrink: 0,
+          paddingTop: '6px'
+        }}
+      >
+        {/* LOGO PILL SOOMA */}
+        <div
+          style={{
+            backgroundColor: '#12141A',
+            color: '#FFFFFF',
+            width: '56px',
+            height: '42px',
+            borderRadius: '21px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 800,
+            fontSize: '0.85rem',
+            letterSpacing: '-0.02em',
+            boxShadow: '0 8px 20px -4px rgba(18, 20, 26, 0.35)',
+            cursor: 'pointer'
+          }}
+          title="FutStats by Sooma"
+          onClick={() => setActiveTab('overview')}
+        >
+          Sooma
         </div>
 
-        {/* CONTROLES DO USUÁRIO & HEADER */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-          {/* BADGE DO USUÁRIO ATUAL */}
-          <div className="soft-card" style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10B981' }} />
-            <span>Olá, <strong>{currentUser.nome}</strong></span>
-            <span className={currentUser.role === 'admin' ? 'badge badge-pink' : 'badge badge-blue'} style={{ fontSize: '0.7rem' }}>
-              {currentUser.role === 'admin' ? 'Admin' : 'Moderador'}
-            </span>
-          </div>
-
-          {/* BOTÃO COPIAR CONVITE (SE FOR ADMIN) */}
-          {currentUser.role === 'admin' && (
-            <button
-              className="btn-secondary"
-              onClick={copiarConviteEquipe}
-              title="Copiar código e link de convite para outros moderadores"
-              style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+        {/* ITENS DE NAVEGAÇÃO VERTICAL */}
+        <nav
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '14px'
+          }}
+        >
+          {/* Home / Overview */}
+          <button
+            onClick={() => setActiveTab('overview')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'overview' ? '#12141A' : 'transparent',
+                color: activeTab === 'overview' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'overview' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
             >
-              {conviteCopiado ? <Check size={16} color="#10B981" /> : <UserPlus size={16} />}
-              {conviteCopiado ? 'Convite Copiado!' : 'Convidar Moderador'}
+              <Flame size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'overview' ? '#12141A' : '#9499A8' }}>
+              Home
+            </span>
+          </button>
+
+          {/* Confrontos H2H */}
+          <button
+            onClick={() => setActiveTab('h2h')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'h2h' ? '#12141A' : 'transparent',
+                color: activeTab === 'h2h' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'h2h' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <Swords size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'h2h' ? '#12141A' : '#9499A8' }}>
+              H2H
+            </span>
+          </button>
+
+          {/* Jogadores */}
+          <button
+            onClick={() => setActiveTab('jogadores')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'jogadores' ? '#12141A' : 'transparent',
+                color: activeTab === 'jogadores' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'jogadores' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <User size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'jogadores' ? '#12141A' : '#9499A8' }}>
+              Atletas
+            </span>
+          </button>
+
+          {/* Oráculo & IA */}
+          <button
+            onClick={() => setActiveTab('oraculo')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'oraculo' ? '#12141A' : 'transparent',
+                color: activeTab === 'oraculo' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'oraculo' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <Brain size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'oraculo' ? '#12141A' : '#9499A8' }}>
+              Oráculo
+            </span>
+          </button>
+
+          {/* Explorador de Jogos */}
+          <button
+            onClick={() => setActiveTab('playground')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'playground' ? '#12141A' : 'transparent',
+                color: activeTab === 'playground' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'playground' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <Search size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'playground' ? '#12141A' : '#9499A8' }}>
+              Jogos
+            </span>
+          </button>
+
+          {/* Clima */}
+          <button
+            onClick={() => setActiveTab('clima')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'clima' ? '#12141A' : 'transparent',
+                color: activeTab === 'clima' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'clima' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <CloudRain size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'clima' ? '#12141A' : '#9499A8' }}>
+              Clima
+            </span>
+          </button>
+
+          {/* Apito */}
+          <button
+            onClick={() => setActiveTab('arbitros')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '#12141A' : 'transparent',
+                color: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <ShieldAlert size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '#12141A' : '#9499A8' }}>
+              Apito
+            </span>
+          </button>
+
+          {/* Social Tweets */}
+          <button
+            onClick={() => setActiveTab('tweets')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'tweets' ? '#12141A' : 'transparent',
+                color: activeTab === 'tweets' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'tweets' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <Sparkles size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'tweets' ? '#12141A' : '#9499A8' }}>
+              Social
+            </span>
+          </button>
+
+          {/* Tabela Ao Vivo */}
+          <button
+            onClick={() => setActiveTab('aovivo')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                backgroundColor: activeTab === 'aovivo' ? '#12141A' : 'transparent',
+                color: activeTab === 'aovivo' ? '#FFFFFF' : '#8A8F9E',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 200ms ease',
+                boxShadow: activeTab === 'aovivo' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              <Trophy size={20} strokeWidth={2.2} />
+            </div>
+            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'aovivo' ? '#12141A' : '#9499A8' }}>
+              Ao Vivo
+            </span>
+          </button>
+        </nav>
+      </aside>
+
+      {/* ================= CORPO PRINCIPAL ================= */}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: '16px' }}>
+        
+        {/* CABEÇALHO SUPERIOR (USUÁRIO + AÇÕES SOOMA) */}
+        <header
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}
+        >
+          {/* Status Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span 
+              style={{
+                backgroundColor: '#FFFFFF',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: '#111318',
+                boxShadow: '0 4px 14px -2px rgba(100, 90, 130, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.9)'
+              }}
+            >
+              ⚽ {overview?.total_partidas ? `${overview.total_partidas.toLocaleString('pt-BR')} Partidas` : '55.395 Jogos'}
+            </span>
+            <span 
+              style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                color: '#059669',
+                padding: '6px 14px',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                fontWeight: 700
+              }}
+            >
+              ● Sistema Conectado
+            </span>
+          </div>
+
+          {/* Controles da Direita */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {currentUser.role === 'admin' && (
+              <button
+                onClick={copiarConviteEquipe}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  color: '#12141A',
+                  border: '1px solid rgba(0,0,0,0.06)',
+                  borderRadius: '9999px',
+                  padding: '7px 14px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 14px -2px rgba(100, 90, 130, 0.08)'
+                }}
+              >
+                {conviteCopiado ? <Check size={14} color="#10B981" /> : <UserPlus size={14} />}
+                {conviteCopiado ? 'Convite Copiado!' : 'Convidar'}
+              </button>
+            )}
+
+            {/* User Profile Pill */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#FFFFFF',
+                padding: '4px 14px 4px 5px',
+                borderRadius: '9999px',
+                boxShadow: '0 4px 16px -2px rgba(100, 90, 130, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.9)',
+                cursor: 'pointer'
+              }}
+              onClick={handleLogout}
+              title="Clique para sair"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
+                alt="Avatar"
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+              />
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#1B1E26' }}>
+                {currentUser?.nome || 'LB'}
+              </span>
+              <LogOut size={13} color="#9095A2" />
+            </div>
+          </div>
+        </header>
+
+        {/* ================= SELETOR HORIZONTAL DE SUB-ABAS (ESTILO PILL OUTGROWD) ================= */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: 'rgba(255, 255, 255, 0.65)',
+            backdropFilter: 'blur(12px)',
+            padding: '6px',
+            borderRadius: '9999px',
+            boxShadow: '0 4px 18px -4px rgba(100, 85, 140, 0.06)',
+            marginBottom: '26px',
+            border: '1px solid rgba(255, 255, 255, 0.95)',
+            overflowX: 'auto'
+          }}
+        >
+          {[
+            { id: 'overview', label: 'Home Overview' },
+            { id: 'h2h', label: 'Raio-X de Confrontos' },
+            { id: 'jogadores', label: 'Atletas & Estatísticas' },
+            { id: 'oraculo', label: 'Oráculo & IA' },
+            { id: 'playground', label: 'Explorador de Jogos' },
+            { id: 'clima', label: 'Futebol x Clima' },
+            { id: 'arbitros', label: 'Raio-X do Apito' },
+            { id: 'tweets', label: 'Gerador Social' },
+            { id: 'aovivo', label: 'Tabela & Ao Vivo' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                padding: '7px 18px',
+                borderRadius: '9999px',
+                border: 'none',
+                backgroundColor: activeTab === tab.id ? '#12141A' : 'transparent',
+                color: activeTab === tab.id ? '#FFFFFF' : '#6B7280',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 160ms ease',
+                boxShadow: activeTab === tab.id ? '0 4px 12px rgba(18, 20, 26, 0.25)' : 'none'
+              }}
+            >
+              {tab.label}
             </button>
-          )}
-
-          {/* TEMA DARK MODE */}
-          <button 
-            className="btn-secondary" 
-            onClick={() => setDarkMode(!darkMode)}
-            title="Alternar Modo Claro / Escuro"
-            style={{ padding: '8px 12px' }}
-          >
-            {darkMode ? <Sun size={17} color="#FFB6C1" /> : <Moon size={17} color="#0369A1" />}
-          </button>
-
-          {/* BOTÃO LOGOUT */}
-          <button 
-            className="btn-secondary"
-            onClick={handleLogout}
-            title="Sair da sessão"
-            style={{ padding: '8px 12px', color: '#DC2626' }}
-          >
-            <LogOut size={17} />
-          </button>
+          ))}
         </div>
-      </header>
 
-      {/* NAVEGAÇÃO ENTRE ABAS */}
-      <nav style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '24px', overflowX: 'auto' }}>
-        <button 
-          className={activeTab === 'h2h' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('h2h')}
-        >
-          <Swords size={18} /> Raio-X de Confrontos (H2H)
-        </button>
-
-        <button 
-          className={activeTab === 'jogadores' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('jogadores')}
-        >
-          <User size={18} /> Jogadores & Estatísticas
-        </button>
-
-        <button 
-          className={activeTab === 'oraculo' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('oraculo')}
-        >
-          <Brain size={18} /> Oráculo & IA Analista
-        </button>
-
-        <button 
-          className={activeTab === 'playground' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('playground')}
-        >
-          <Search size={18} /> Explorador de Jogos & Gols
-        </button>
-
-        <button 
-          className={activeTab === 'clima' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('clima')}
-        >
-          <CloudRain size={18} /> Futebol x Clima
-        </button>
-
-        <button 
-          className={(activeTab === 'arbitros' || activeTab === 'arbitragem') ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('arbitros')}
-        >
-          <ShieldAlert size={18} /> Raio-X do Apito
-        </button>
-
-        <button 
-          className={activeTab === 'tweets' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('tweets')}
-        >
-          <Sparkles size={18} /> Gerador de Tweets & Posts
-        </button>
-
-        <button 
-          className={activeTab === 'aovivo' ? 'btn-primary' : 'btn-secondary'}
-          onClick={() => setActiveTab('aovivo')}
-        >
-          <Trophy size={18} color="#10B981" /> Tabela & Rodada Ao Vivo
-        </button>
-      </nav>
+        {/* ================= VIEW 1: HOME OVERVIEW (HERO CARDS DA REFERÊNCIA) ================= */}
+        {activeTab === 'overview' && (
+          <SoomaFutStatsView
+            currentUser={currentUser}
+            overview={overview}
+            onNavigateTab={(t) => setActiveTab(t)}
+            onSelectH2H={(c1, c2) => { setClube1(c1); setClube2(c2); setActiveTab('h2h'); }}
+            onSelectJogador={(p) => { setSelectedPlayer(p); setActiveTab('jogadores'); }}
+            onRunOraculo={(text) => { setOraculoPrompt(text); setActiveTab('oraculo'); }}
+            onLogout={handleLogout}
+          />
+        )}
 
       {/* ABA 1: RAIO-X H2H */}
       {activeTab === 'h2h' && (
@@ -2916,15 +3390,16 @@ export default function App() {
       )}
 
       {/* FOOTER */}
-      <footer style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', flexWrap: 'wrap', gap: '12px' }}>
+      <footer style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', color: '#8A8F9E', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          FutStats & Clima • Feito com <strong style={{ color: 'var(--text-main)' }}>Soft UI Evolution</strong>
+          FutStats & Clima • Feito com <strong style={{ color: '#12141A' }}>Outcrowd Experience</strong>
         </div>
         <div className="font-mono">
           {overview?.total_partidas?.toLocaleString('pt-BR') || '55.395'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '42.138'} gols catalogados • 12 capitais climáticas
         </div>
       </footer>
 
+      </main>
     </div>
   );
 }

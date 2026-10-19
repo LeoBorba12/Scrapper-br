@@ -1,12 +1,24 @@
 :root {
-  --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-system: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Cores Soft UI Evolution */
+  /* Cores Soft UI Evolution & Outcrowd Experience */
   --primary: #87CEEB;
   --primary-hover: #72b9d6;
   --secondary: #FFB6C1;
   --tertiary: #90EE90;
+
+  /* Outcrowd Atmospheric Palette */
+  --sooma-bg-top: #FAF9FE;
+  --sooma-bg-mid: #F3EDF8;
+  --sooma-bg-bot: #FCE8E4;
+  --sooma-pill-bg: #FFFFFF;
+  --sooma-dark-accent: #11141A;
+  --sooma-dark-hover: #222631;
+  --sooma-card-bg: rgba(255, 255, 255, 0.94);
+  --sooma-card-border: rgba(255, 255, 255, 0.8);
+  --sooma-shadow: 0 16px 40px -12px rgba(110, 95, 145, 0.08);
+  --sooma-shadow-float: 0 20px 48px -10px rgba(80, 60, 120, 0.12);
 
   --bg: #F8FAFC;
   --surface: #FFFFFF;
@@ -26,6 +38,7 @@
   --radius-sm: 10px;
   --radius-md: 20px;
   --radius-lg: 30px;
+  --radius-pill: 9999px;
 
   --transition-fast: 200ms ease-out;
   --transition-normal: 280ms ease-out;
@@ -56,8 +69,9 @@
 
 body {
   font-family: var(--font-system);
-  background-color: var(--bg);
-  color: var(--text-main);
+  background: linear-gradient(135deg, #FBF9FF 0%, #F5F1FB 45%, #FDEEE9 100%);
+  background-attachment: fixed;
+  color: #12141A;
   min-height: 100dvh;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -68,39 +82,41 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Card e containers Soft UI Evolution */
+/* Card e containers Sooma / Outcrowd */
 .soft-card {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-soft);
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 26px;
+  box-shadow: 0 16px 40px -12px rgba(100, 85, 140, 0.08);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .soft-card:hover {
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 20px 48px -10px rgba(80, 60, 120, 0.12);
 }
 
-/* Botões */
+/* Botões Sooma High Fidelity */
 .btn-primary {
-  background-color: var(--primary);
-  color: #0F172A;
+  background-color: #11141A;
+  color: #FFFFFF;
   font-weight: 600;
-  border-radius: var(--radius-sm);
-  padding: 10px 18px;
+  border-radius: 9999px;
+  padding: 10px 22px;
   border: 1px solid transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-shadow: 0 6px 18px -2px rgba(17, 20, 26, 0.25);
   transition: transform var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-hover);
+  background-color: #222631;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(135, 206, 235, 0.35);
+  box-shadow: 0 8px 24px -2px rgba(17, 20, 26, 0.35);
 }
 
 .btn-primary:active {
@@ -108,42 +124,45 @@ body {
 }
 
 .btn-secondary {
-  background-color: var(--surface);
-  color: var(--text-main);
-  font-weight: 500;
-  border-radius: var(--radius-sm);
-  padding: 10px 18px;
-  border: 1.5px solid var(--border);
+  background-color: #FFFFFF;
+  color: #12141A;
+  font-weight: 600;
+  border-radius: 9999px;
+  padding: 10px 20px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 14px -2px rgba(100, 90, 130, 0.06);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
 
 .btn-secondary:hover {
-  background-color: var(--surface-hover);
-  border-color: var(--border-focus);
+  background-color: #F8F9FD;
+  border-color: rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
 }
 
-/* Inputs */
+/* Inputs Curvados com Alta Fidelidade */
 .soft-input {
   width: 100%;
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  color: var(--text-main);
+  background-color: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  padding: 12px 18px;
+  color: #12141A;
   font-family: var(--font-system);
   font-size: 0.95rem;
   outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .soft-input:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(135, 206, 235, 0.25);
+  border-color: #11141A;
+  box-shadow: 0 0 0 3px rgba(17, 20, 26, 0.08);
 }
 
 /* Badges e tags */
