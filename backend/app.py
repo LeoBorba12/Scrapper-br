@@ -1318,6 +1318,113 @@ def get_arbitro_perfil():
     api_cache.set(cache_key, dados, ttl=1800)
     return jsonify(dados)
 
+@app.route('/api/brasileirao/aovivo', methods=['GET'])
+def get_brasileirao_aovivo():
+    """Retorna classificação e rodada atual em tempo real das Séries A, B, C ou D."""
+    serie = request.args.get('serie', 'a').lower().strip()
+    if serie not in ('a', 'b', 'c', 'd'):
+        serie = 'a'
+
+    cache_key = f"brasileirao_aovivo_{serie}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    import urllib.request
+    import re
+    import json
+    import ssl
+
+    url = f"https://ge.globo.com/futebol/brasileirao-serie-{serie}/"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+
+        match = re.search(r'const\s+classificacao\s*=\s*(\{.+?\});', html)
+        if not match:
+            return jsonify({"error": "Não foi possível extrair os dados da competição no momento."}), 502
+
+        raw_data = json.loads(match.group(1))
+
+        # 1. Normalizar Tabela de Classificação
+        tabela = []
+        for item in raw_data.get('classificacao', []):
+            tabela.append({
+                "posicao": item.get('ordem'),
+                "clube": item.get('nome_popular'),
+                "sigla": item.get('sigla'),
+                "escudo": item.get('escudo'),
+                "pontos": item.get('pontos'),
+                "jogos": item.get('jogos'),
+                "vitorias": item.get('vitorias'),
+                "empates": item.get('empates'),
+                "derrotas": item.get('derrotas'),
+                "gols_pro": item.get('gols_pro'),
+                "gols_contra": item.get('gols_contra'),
+                "saldo_gols": item.get('saldo_gols'),
+                "aproveitamento": item.get('aproveitamento'),
+                "variacao": item.get('variacao'),
+                "ultimos_jogos": item.get('ultimos_jogos', []),
+                "faixa_cor": item.get('faixa_classificacao_cor')
+            })
+
+        # 2. Normalizar Rodada Atual e Próximos Jogos
+        rodada_meta = raw_data.get('rodada', {})
+        jogos_rodada = []
+        for j in raw_data.get('lista_jogos', []):
+            equipes = j.get('equipes', {})
+            mand = equipes.get('mandante', {})
+            vis = equipes.get('visitante', {})
+            transmissao = j.get('transmissao', {})
+            broadcast = transmissao.get('broadcast', {})
+
+            jogos_rodada.append({
+                "id": j.get('id'),
+                "data": (j.get('data_realizacao') or '').split('T')[0],
+                "hora": j.get('hora_realizacao') or '00:00',
+                "comecou": j.get('jogo_ja_comecou', False),
+                "status": broadcast.get('id', 'SCHEDULED'),
+                "status_label": broadcast.get('label') or transmissao.get('label') or '',
+                "estadio": (j.get('sede') or {}).get('nome_popular') or '',
+                "mandante": {
+                    "nome": mand.get('nome_popular'),
+                    "sigla": mand.get('sigla'),
+                    "escudo": mand.get('escudo'),
+                    "placar": j.get('placar_oficial_mandante')
+                },
+                "visitante": {
+                    "nome": vis.get('nome_popular'),
+                    "sigla": vis.get('sigla'),
+                    "escudo": vis.get('escudo'),
+                    "placar": j.get('placar_oficial_visitante')
+                }
+            })
+
+        resultado = {
+            "serie": serie.upper(),
+            "edicao": raw_data.get('edicao', {}).get('nome') or f"Brasileirão Série {serie.upper()}",
+            "rodada_atual": rodada_meta.get('numero', 1),
+            "total_rodadas": rodada_meta.get('total', 38),
+            "tabela": tabela,
+            "jogos_rodada": jogos_rodada
+        }
+
+        # Cache de 10 minutos (600s) para garantir dados frescos e proteger contra rate limit do GE
+        api_cache.set(cache_key, resultado, ttl=600)
+        return jsonify(resultado)
+
+    except Exception as e:
+        return jsonify({"error": f"Falha ao carregar dados ao vivo: {str(e)}"}), 500
+
 @app.route('/api/ia/diagnostico', methods=['GET'])
 @require_admin
 def ia_diagnostico():

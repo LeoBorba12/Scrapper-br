@@ -79,6 +79,11 @@ export default function App() {
   const [arbitragemData, setArbitragemData] = useState(null);
   const [downloadingCard, setDownloadingCard] = useState(false);
 
+  // Tab 8: Brasileirão Ao Vivo (Classificação & Rodada Atual)
+  const [aovivoData, setAovivoData] = useState(null);
+  const [aovivoSerie, setAovivoSerie] = useState('a');
+  const [aovivoLoading, setAovivoLoading] = useState(false);
+
   // Feedback de cópia do Twitter
   const [copiedKey, setCopiedKey] = useState(null);
 
@@ -452,6 +457,19 @@ export default function App() {
         .catch(() => {});
     }
   }, [activeTab, currentUser]);
+
+  useEffect(() => {
+    if (activeTab === 'aovivo') {
+      setAovivoLoading(true);
+      fetch(`/api/brasileirao/aovivo?serie=${aovivoSerie}`)
+        .then(r => r.json())
+        .then(d => {
+          setAovivoData(d);
+          setAovivoLoading(false);
+        })
+        .catch(() => setAovivoLoading(false));
+    }
+  }, [activeTab, aovivoSerie]);
 
   // ==================== GERADORES DE CARDS VISUAIS (CANVAS) ====================
   const baixarCardH2H = () => {
@@ -1064,6 +1082,13 @@ export default function App() {
           onClick={() => setActiveTab('tweets')}
         >
           <Sparkles size={18} /> Gerador de Tweets & Posts
+        </button>
+
+        <button 
+          className={activeTab === 'aovivo' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => setActiveTab('aovivo')}
+        >
+          <Trophy size={18} color="#10B981" /> Tabela & Rodada Ao Vivo
         </button>
       </nav>
 
@@ -2688,6 +2713,178 @@ export default function App() {
               </button>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ABA 8: TABELA E RODADA AO VIVO (INTEGRAÇÃO EZEFRANCA) */}
+      {activeTab === 'aovivo' && (
+        <section>
+          {/* HEADER COM SELETOR DE SÉRIES */}
+          <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Trophy size={22} color="#10B981" /> Brasileirão em Tempo Real (Classificação & Rodada)
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '4px' }}>
+                  Dados oficiais atualizados ao vivo via GE & <code>campeonato-brasileiro-api</code>.
+                </p>
+              </div>
+
+              {/* SELETOR DE SÉRIE */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { id: 'a', label: 'Série A' },
+                  { id: 'b', label: 'Série B' },
+                  { id: 'c', label: 'Série C' },
+                  { id: 'd', label: 'Série D' },
+                ].map(s => (
+                  <button
+                    key={s.id}
+                    className={aovivoSerie === s.id ? 'btn-primary' : 'btn-secondary'}
+                    onClick={() => setAovivoSerie(s.id)}
+                    style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* LOADING STATE */}
+          {aovivoLoading && (
+            <div className="soft-card" style={{ padding: '48px 20px', textAlign: 'center', marginBottom: '24px' }}>
+              <RefreshCw size={36} className="animate-spin" color="#10B981" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>Carregando tabela e rodada ao vivo...</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
+                Conectando à fonte oficial de dados esportivos.
+              </p>
+            </div>
+          )}
+
+          {/* CONTEÚDO PRINCIPAL: TABELA + JOGOS DA RODADA */}
+          {!aovivoLoading && aovivoData && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px', alignItems: 'flex-start' }}>
+              
+              {/* COLUNA ESQUERDA: TABELA DE CLASSIFICAÇÃO */}
+              <div className="soft-card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
+                    Classificação • {aovivoData.edicao}
+                  </h3>
+                  <span className="badge badge-blue">
+                    {aovivoData.tabela.length} Clubes
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>#</th>
+                        <th style={{ padding: '8px' }}>Clube</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>P</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>J</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>V</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>SG</th>
+                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {aovivoData.tabela.map((t) => (
+                        <tr 
+                          key={t.posicao} 
+                          style={{ 
+                            borderBottom: '1px solid var(--border)',
+                            backgroundColor: t.posicao <= 4 ? 'rgba(16, 185, 129, 0.04)' : (t.posicao >= 17 ? 'rgba(239, 68, 68, 0.04)' : 'transparent')
+                          }}
+                        >
+                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: '700', color: t.posicao <= 4 ? '#10B981' : (t.posicao >= 17 ? '#EF4444' : 'var(--text-muted)') }}>
+                            {t.posicao}º
+                          </td>
+                          <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {t.escudo ? (
+                              <img src={t.escudo} alt={t.clube} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+                            ) : null}
+                            <strong style={{ color: 'var(--text-main)' }}>{t.clube}</strong>
+                          </td>
+                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: '700', color: '#0369A1' }}>
+                            {t.pontos}
+                          </td>
+                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center' }}>{t.jogos}</td>
+                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: '#15803D' }}>{t.vitorias}</td>
+                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: t.saldo_gols >= 0 ? '#15803D' : '#DC2626' }}>
+                            {t.saldo_gols > 0 ? `+${t.saldo_gols}` : t.saldo_gols}
+                          </td>
+                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            {t.aproveitamento}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* COLUNA DIREITA: JOGOS DA RODADA ATUAL */}
+              <div className="soft-card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
+                    Jogos da {aovivoData.rodada_atual}ª Rodada
+                  </h3>
+                  <span className="badge badge-green">Ao Vivo / Recentes</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {aovivoData.jogos_rodada.map((j) => (
+                    <div 
+                      key={j.id} 
+                      className="soft-card" 
+                      style={{ padding: '14px', border: '1px solid var(--border)' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                        <span>{j.data} • {j.hora}</span>
+                        <span style={{ fontWeight: '600', color: j.status === 'live' ? '#EF4444' : '#64748B' }}>
+                          {j.status_label || (j.comecou ? 'ENCERRADO' : 'AGENDADO')}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
+                        {/* Mandante */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start' }}>
+                          {j.mandante.escudo && (
+                            <img src={j.mandante.escudo} alt={j.mandante.nome} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                          )}
+                          <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{j.mandante.nome}</span>
+                        </div>
+
+                        {/* Placar */}
+                        <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: '700', padding: '0 10px', color: '#0369A1' }}>
+                          {j.comecou ? `${j.mandante.placar ?? 0} × ${j.visitante.placar ?? 0}` : 'vs'}
+                        </div>
+
+                        {/* Visitante */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                          <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{j.visitante.nome}</span>
+                          {j.visitante.escudo && (
+                            <img src={j.visitante.escudo} alt={j.visitante.nome} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                          )}
+                        </div>
+                      </div>
+
+                      {j.estadio && (
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>
+                          📍 {j.estadio}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
         </section>
       )}
 

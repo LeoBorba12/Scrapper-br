@@ -81,16 +81,60 @@ def gerar_tweets_matchday(forcar_demo=False):
 
     hoje_str = datetime.now().strftime("%Y-%m-%d")
     
+    # 1. Tentar buscar partidas do dia no banco SQLite
     c.execute("""
         SELECT id_partida, data, horario, mandante, visitante, estadio, cidade, campeonato
         FROM partidas
         WHERE data = date('now')
         ORDER BY horario ASC;
     """)
-    jogos = c.fetchall()
+    jogos = [dict(r) for r in c.fetchall()]
 
+    # 2. Se não houver jogos de hoje no banco local, consultar a rodada ao vivo do Brasileirão
+    if not jogos:
+        try:
+            import urllib.request
+            import re
+            import json
+            import ssl
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            req = urllib.request.Request(
+                'https://ge.globo.com/futebol/brasileirao-serie-a/',
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            )
+            with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+                html = resp.read().decode('utf-8', errors='ignore')
+            m = re.search(r'const\s+classificacao\s*=\s*(\{.+?\});', html)
+            if m:
+                d = json.loads(m.group(1))
+                for j in d.get('lista_jogos', []):
+                    dt_str = (j.get('data_realizacao') or '').split('T')[0]
+                    # Seleciona jogos agendados para hoje ou futuros na rodada
+                    if dt_str == hoje_str or forcar_demo or "--demo" in sys.argv:
+                        equipes = j.get('equipes', {})
+                        mand = equipes.get('mandante', {}).get('nome_popular') or 'Mandante'
+                        vis = equipes.get('visitante', {}).get('nome_popular') or 'Visitante'
+                        sede = (j.get('sede') or {}).get('nome_popular') or 'Estádio a definir'
+                        jogos.append({
+                            "id_partida": j.get('id'),
+                            "data": dt_str or hoje_str,
+                            "horario": j.get('hora_realizacao') or 'Horário a definir',
+                            "mandante": mand,
+                            "visitante": vis,
+                            "estadio": sede,
+                            "cidade": "São Paulo", # fallback
+                            "campeonato": "Brasileirão Série A"
+                        })
+                        if len(jogos) >= 5 and ("--demo" in sys.argv or forcar_demo):
+                            break
+        except Exception as e:
+            print(f"[LOG] Falha ao consultar rodada ao vivo: {e}")
+
+    # 3. Fallback final para demo via banco histórico se ainda vazio
     if not jogos and (forcar_demo or "--demo" in sys.argv or os.environ.get("MATCHDAY_DEMO") == "1"):
-        print(f"[DEMO] Sem jogos hoje ({hoje_str}). Buscando a rodada mais recente para demonstração...")
+        print(f"[DEMO] Buscando a rodada mais recente no acervo para demonstração...")
         c.execute("""
             SELECT id_partida, data, horario, mandante, visitante, estadio, cidade, campeonato
             FROM partidas
@@ -98,11 +142,11 @@ def gerar_tweets_matchday(forcar_demo=False):
             ORDER BY id_partida DESC
             LIMIT 5;
         """)
-        jogos = c.fetchall()
+        jogos = [dict(r) for r in c.fetchall()]
 
     if not jogos:
-        print(f"Nenhum jogo agendado para hoje ({hoje_str}) na base de dados.")
-        print("Dica: Use 'python matchday_bot.py --demo' para testar com a última rodada catalogada.")
+        print(f"Nenhum jogo agendado para hoje ({hoje_str}) na base de dados ou na rodada ao vivo.")
+        print("Dica: Use 'python matchday_bot.py --demo' para testar com jogos da rodada atual.")
         conn.close()
         return
 
