@@ -36,11 +36,16 @@ jobs:
         python consultar_combinacoes.py
         python gerar_card_tweet.py
 
+    - name: Validar integridade e sanidade do banco de dados
+      run: |
+        python scripts/validar_banco.py
+
     - name: Salvar e commitar dados atualizados no GitHub
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add data/*.db api/data/*.db *.png *.csv *.py scripts/*.py || true
         git commit -m "Auto-update: Bancos de Futebol e Clima atualizados via Bot" || echo "Sem alterações para commitar"
+
         git push
 
