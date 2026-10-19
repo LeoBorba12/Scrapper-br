@@ -220,21 +220,19 @@ export default function App() {
     setLoginPassword('');
   };
 
-  // Copiar código de convite para a equipe (obtido com segurança da API)
+  // Busca o código de convite da API restrita a admins em vez de expor no bundle JS
   const copiarConviteEquipe = async () => {
     try {
-      const res = await apiFetch('/api/auth/convite-codigo');
-      const data = await res.json();
-      const code = data.codigo_convite || 'FUTSTATS-2026';
-      const inviteText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: ${code}\nLink Direto: ${window.location.origin}/?convite=${code}`;
-      navigator.clipboard.writeText(inviteText);
-      setConviteCopiado(true);
-      setTimeout(() => setConviteCopiado(false), 3000);
-    } catch {
-      const fallbackText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: FUTSTATS-2026\nLink Direto: ${window.location.origin}/?convite=FUTSTATS-2026`;
-      navigator.clipboard.writeText(fallbackText);
-      setConviteCopiado(true);
-      setTimeout(() => setConviteCopiado(false), 3000);
+      const r = await apiFetch('/api/auth/convite-codigo');
+      const d = await r.json();
+      if (d.codigo_convite) {
+        const inviteText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: ${d.codigo_convite}\nLink Direto: ${window.location.origin}/?convite=${d.codigo_convite}`;
+        await navigator.clipboard.writeText(inviteText);
+        setConviteCopiado(true);
+        setTimeout(() => setConviteCopiado(false), 3000);
+      }
+    } catch (e) {
+      console.error('Erro ao obter convite:', e);
     }
   };
 

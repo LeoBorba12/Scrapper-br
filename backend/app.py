@@ -8,7 +8,9 @@ import json
 import time
 import threading
 import functools
-from flask import Flask, request, jsonify, send_from_directory
+import secrets
+from functools import wraps
+from flask import Flask, request, jsonify, send_from_directory, g
 
 class TTLCache:
     """Cache thread-safe em memória com TTL para endpoints analíticos (python-performance-optimization)."""
@@ -75,8 +77,11 @@ def find_db_path(filename):
 DB_FUTEBOL = find_db_path('futebol.db')
 DB_CLIMA = find_db_path('clima.db')
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'futstats-secret-key-2026-super-segura-lb-jwt')
+SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 INVITE_CODE = os.environ.get('INVITE_CODE', 'FUTSTATS-2026')
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'LB')
+# Defina ADMIN_PASSWORD_HASH nas variáveis de ambiente da Vercel (gerado via hash_senha)
+ADMIN_PASSWORD_HASH = os.environ.get('ADMIN_PASSWORD_HASH', '')
 
 def gerar_token(payload):
     header = {"alg": "HS256", "typ": "JWT"}
@@ -140,12 +145,22 @@ def login_usuario(username, password):
     username = (username or "").strip()
     password = (password or "").strip()
     if not username or not password:
-        return None, "Informe usuário e senha."
+        return None, "Informe utilizador e palavra-passe."
 
+    # 1. Validação do Admin via variável de ambiente segura (Zero I/O e sem senha exposta no código)
+    if ADMIN_PASSWORD_HASH and username.lower() == ADMIN_USERNAME.lower():
+        if verificar_senha(password, ADMIN_PASSWORD_HASH):
+            user_info = {"username": ADMIN_USERNAME, "nome": "Administrador", "role": "admin"}
+            return {"user": user_info, "token": gerar_token(user_info)}, None
+
+    # 2. Validação na tabela usuarios do banco
     try:
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT id_usuario, username, nome, senha_hash, role FROM usuarios WHERE LOWER(username) = LOWER(?);", (username,))
+        c.execute(
+            "SELECT id_usuario, username, nome, senha_hash, role FROM usuarios WHERE LOWER(username) = LOWER(?);",
+            (username,)
+        )
         row = c.fetchone()
         conn.close()
         if row and verificar_senha(password, row["senha_hash"]):
@@ -153,47 +168,52 @@ def login_usuario(username, password):
             return {"user": user_info, "token": gerar_token(user_info)}, None
     except Exception:
         pass
-    return None, "Usuário ou senha incorretos."
 
-def get_client_ip():
-    ip = request.headers.get('x-real-ip')
-    if not ip:
-        xff = request.headers.get('x-forwarded-for')
-        if xff:
-            ips = [i.strip() for i in xff.split(',') if i.strip()]
-            ip = ips[0] if ips else None
-    return ip or request.remote_addr or '127.0.0.1'
+    return None, "Utilizador ou palavra-passe incorretos."
+
+def obter_ip_real():
+    """
+    Na Vercel, 'x-real-ip' ou o último IP confiável evita falsificação de cabeçalho X-Forwarded-For pelo cliente.
+    """
+    vercel_ip = request.headers.get('X-Real-IP') or request.headers.get('X-Vercel-Forwarded-For')
+    if vercel_ip:
+        return vercel_ip.split(',')[0].strip()
+    xff = request.headers.get('X-Forwarded-For', '')
+    if xff:
+        # Pega o último IP adicionado pelo proxy reverso, não o primeiro enviado pelo cliente
+        return xff.split(',')[-1].strip()
+    return request.remote_addr or 'unknown'
+
+get_client_ip = obter_ip_real
 
 def require_auth(f):
-    @functools.wraps(f)
+    """Decorator para proteger rotas da API exigindo JWT válido."""
+    @wraps(f)
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        token = None
-        if auth_header.startswith("Bearer "):
-            token = auth_header.split(" ", 1)[1].strip()
-        elif "token" in request.args:
-            token = request.args.get("token")
-        
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '').strip() if auth_header.startswith('Bearer ') else ''
+        if not token and 'token' in request.args:
+            token = request.args.get('token')
         user = validar_token(token)
         if not user:
-            return jsonify({"status": "error", "erro": "Acesso não autorizado. Faça login para continuar."}), 401
+            return jsonify({"error": "Não autorizado. Faça login novamente."}), 401
+        g.current_user = user
         request.user = user
         return f(*args, **kwargs)
     return decorated
 
 def require_admin(f):
-    @functools.wraps(f)
+    """Decorator para rotas exclusivas de administradores."""
+    @wraps(f)
     def decorated(*args, **kwargs):
-        auth_header = request.headers.get("Authorization", "")
-        token = None
-        if auth_header.startswith("Bearer "):
-            token = auth_header.split(" ", 1)[1].strip()
-        elif "token" in request.args:
-            token = request.args.get("token")
-        
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header.replace('Bearer ', '').strip() if auth_header.startswith('Bearer ') else ''
+        if not token and 'token' in request.args:
+            token = request.args.get('token')
         user = validar_token(token)
-        if not user or user.get("role") != "admin":
-            return jsonify({"status": "error", "erro": "Acesso restrito a administradores."}), 403
+        if not user or user.get('role') != 'admin':
+            return jsonify({"error": "Acesso restrito a administradores."}), 403
+        g.current_user = user
         request.user = user
         return f(*args, **kwargs)
     return decorated
@@ -1126,31 +1146,22 @@ def ia_diagnostico():
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     deepseek_key = (os.environ.get("DEEPSEEK_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")).strip()
 
-    diag = {
-        "status": "ok",
+    # Retorna apenas status booleano de configuração sem expor prefixos de chaves nem disparar chamadas externas
+    return jsonify({
         "gemini_configured": bool(gemini_key),
-        "gemini_key_len": len(gemini_key),
         "deepseek_configured": bool(deepseek_key),
-        "deepseek_key_len": len(deepseek_key),
-        "authenticated_admin": getattr(request, 'user', {}).get("username")
-    }
-    return jsonify(diag)
+        "db_futebol_exists": os.path.exists(DB_FUTEBOL),
+        "db_clima_exists": os.path.exists(DB_CLIMA)
+    })
 
 @app.route('/api/ia/perguntar', methods=['POST'])
 @require_auth
 def perguntar_ia():
-    ip = get_client_ip()
-    if not limiter.is_allowed(f"ia_{ip}", max_requests=15, window_seconds=60):
+    ip = obter_ip_real()
+    usuario_key = getattr(g, 'current_user', {}).get("username", ip)
+    if not limiter.is_allowed(f"ia_{usuario_key}_{ip}", max_requests=15, window_seconds=60):
         return jsonify({
-            "pergunta": "",
-            "modelo_usado": "rate-limit",
-            "sql_executado": "-- Limite de segurança excedido",
-            "colunas": ["Alerta"],
-            "dados": [{"Alerta": "Muitas perguntas em pouco tempo. Limite de segurança de 15/minuto atingido."}],
-            "total_registros": 0,
-            "insight": "Você atingiu o limite de segurança de 15 consultas por minuto ao Oráculo. Por favor, aguarde alguns instantes antes de enviar uma nova pergunta.",
-            "tweet": "⏱️ Limite temporário atingido no FutStats Oráculo. Voltando em instantes!",
-            "conclusao": "Aguarde alguns segundos para fazer novas perguntas."
+            "error": "Limite de segurança de 15 consultas por minuto atingido. Aguarde alguns instantes."
         }), 429
 
     dados = request.get_json(force=True, silent=True) or {}

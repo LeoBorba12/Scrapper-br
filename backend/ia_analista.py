@@ -146,68 +146,109 @@ def executar_query_segura(sql):
     if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
         raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
 
-    # Adiciona salvaguarda de LIMIT caso a IA não tenha colocado
+# Tabelas públicas permitidas para o Oráculo IA (exclui explicitamente 'usuarios' e metadados internos)
+TABELAS_PERMITIDAS = {
+    "partidas",
+    "gols",
+    "cartoes",
+    "escalacoes",
+    "clima_diario",
+    "artilharia_historica",
+    "jogadores_resumo",
+}
+
+def sqlite_authorizer_callback(action, arg1, arg2, dbname, source):
+    """
+    Callback nativo do SQLite para sandboxing estrito (Zero-Trust).
+    Bloqueia leitura da tabela 'usuarios' e qualquer operação que não seja SELECT/READ.
+    """
+    # 1. Permite instrução SELECT e uso de funções SQL (COUNT, SUM, ROUND, strftime, etc.)
+    if action in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_FUNCTION):
+        return sqlite3.SQLITE_OK
+
+    # 2. Valida leitura de tabelas e colunas (arg1 = tabela, arg2 = coluna)
+    if action == sqlite3.SQLITE_READ:
+        tabela = (arg1 or "").lower().strip()
+        if tabela in TABELAS_PERMITIDAS:
+            return sqlite3.SQLITE_OK
+        # Bloqueia acesso a 'usuarios', 'sqlite_master', 'sqlite_schema', etc.
+        return sqlite3.SQLITE_DENY
+
+    # 3. Nega qualquer outra operação (INSERT, UPDATE, DELETE, PRAGMA, ATTACH dinâmico, etc.)
+    return sqlite3.SQLITE_DENY
+
+def executar_query_segura(sql):
+    if not sql or not isinstance(sql, str):
+        raise ValueError("Consulta SQL vazia ou inválida.")
+    
+    # Remove blocos markdown e comentários SQL
+    cleaned_sql = re.sub(r'```(?:sql)?', '', sql).strip()
+    lines = [l for l in cleaned_sql.splitlines() if not l.strip().startswith('--')]
+    cleaned_sql = ' '.join(lines).strip()
+    
+    if not cleaned_sql:
+        raise ValueError("Consulta SQL vazia após limpeza de comentários.")
+
+    # Garante execução de apenas um comando SQL
+    statements = [s.strip() for s in cleaned_sql.split(';') if s.strip()]
+    if len(statements) > 1:
+        raise ValueError("Múltiplos comandos SQL não são permitidos.")
+    cleaned_sql = statements[0]
+
+    upper_sql = cleaned_sql.upper().strip()
+    if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
+        raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
+
+    # Salvaguarda automática de LIMIT
     if "LIMIT " not in upper_sql:
         cleaned_sql += " LIMIT 100"
 
-    # Conecta ao SQLite com modo somente leitura
+    # Conecta ao SQLite em modo estritamente Read-Only via URI
     if os.path.exists(DB_FUTEBOL):
         try:
             conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True)
         except Exception:
             conn = sqlite3.connect(DB_FUTEBOL)
     else:
-        conn = sqlite3.connect(DB_FUTEBOL)
+        raise FileNotFoundError("Banco de dados principal não encontrado.")
 
-    # Guardrail de timeout: aborta se a query levar mais de 2 segundos (previne travamento serverless)
+    # Guardrail de timeout: aborta se a query levar mais de 4 segundos
     start_time = time.time()
     def check_query_timeout():
         if time.time() - start_time > 4.0:
-            return 1 # Aborta a consulta com OperationalError: interrupted
+            return 1
         return 0
 
-    def sql_authorizer(action, arg1, arg2, db_name, trigger_name):
-        # Bloqueio estrito de acesso à tabela de credenciais de usuários
-        if action in (sqlite3.SQLITE_READ, sqlite3.SQLITE_SELECT):
-            if arg1 and 'usuarios' in arg1.lower():
-                return sqlite3.SQLITE_DENY
-        # Bloqueio de qualquer operação de escrita, DDL ou alteração de schema
-        if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE, 
-                      sqlite3.SQLITE_DROP_TABLE, sqlite3.SQLITE_DROP_VIEW, sqlite3.SQLITE_ALTER_TABLE):
-            return sqlite3.SQLITE_DENY
-        return sqlite3.SQLITE_OK
-
-    conn.set_authorizer(sql_authorizer)
     conn.set_progress_handler(check_query_timeout, 1000)
     c = conn.cursor()
 
     try:
+        # Configura PRAGMAs e ATTACH antes de travar o authorizer
         c.execute("PRAGMA query_only = ON;")
         c.execute("PRAGMA mmap_size = 268435456;")
         c.execute("PRAGMA cache_size = -8000;")
-    except Exception:
-        pass
 
-    if os.path.exists(DB_CLIMA):
-        try:
-            c.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
-        except Exception:
+        if os.path.exists(DB_CLIMA):
             try:
-                c.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+                c.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
             except Exception:
-                pass
+                try:
+                    c.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+                except Exception:
+                    pass
 
-    try:
+        # Ativa o Sandboxing nativo do SQLite ANTES de executar o SQL gerado pela IA
+        conn.set_authorizer(sqlite_authorizer_callback)
+
         c.execute(cleaned_sql)
         colunas = [d[0] for d in c.description] if c.description else []
         linhas = c.fetchall()
-    except sqlite3.OperationalError as op_err:
-        if "interrupted" in str(op_err).lower():
-            raise TimeoutError("A consulta SQL excedeu o limite de tempo de segurança (4 segundos). Tente adicionar filtros específicos.")
-        raise
     except sqlite3.DatabaseError as db_err:
-        if "prohibited" in str(db_err).lower() or "not authorized" in str(db_err).lower():
-            raise PermissionError("Acesso negado: Tentativa de consulta a tabelas restritas do sistema.")
+        msg = str(db_err).lower()
+        if "interrupted" in msg:
+            raise TimeoutError("A consulta SQL excedeu o limite de tempo de segurança (4 segundos).")
+        if "not authorized" in msg or "prohibited" in msg:
+            raise PermissionError("Consulta bloqueada pela política de segurança: tentativa de acesso a tabela ou comando restrito.")
         raise
     finally:
         conn.close()
