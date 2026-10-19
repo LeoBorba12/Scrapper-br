@@ -1963,10 +1963,27 @@ export default function App() {
               <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <h2 style={{ fontSize: '1.7rem', fontWeight: '700' }}>
                         {playerProfile.nome}
                       </h2>
+                      {playerProfile.posicao && (
+                        <span className="badge font-mono" style={{ background: '#FEF3C7', color: '#92400E' }}>
+                          {playerProfile.posicao}
+                        </span>
+                      )}
+                      {playerProfile.ogol_id && (
+                        <a 
+                          href={`https://www.ogol.com.br/jogador/${playerProfile.ogol_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="badge font-mono"
+                          style={{ background: '#F1F5F9', color: '#475569', textDecoration: 'none', border: '1px solid #CBD5E1', fontSize: '0.75rem' }}
+                          title="Perfil oficial no OGol"
+                        >
+                          🆔 OGol #{playerProfile.ogol_id}
+                        </a>
+                      )}
                       {playerProfile.resumo?.ano_min && (
                         <span className="badge badge-blue font-mono">
                           {playerProfile.resumo.ano_min} - {playerProfile.resumo.ano_max}
@@ -2006,6 +2023,7 @@ export default function App() {
                         const topV = playerProfile.top_vitimas?.[0] ? `${playerProfile.top_vitimas[0].clube} (${playerProfile.top_vitimas[0].gols} gols)` : 'Vários';
                         const txt = `📊 RAIO-X DO CRAQUE: ${playerProfile.nome}\n\n` +
                           `⚽ Gols: ${playerProfile.resumo.total_gols} (${playerProfile.resumo.media_gols} por jogo)\n` +
+                          `🎯 Assistências: ${playerProfile.resumo.assistencias ?? 0}\n` +
                           `🟨 Cartões Amarelos: ${playerProfile.resumo.amarelos}\n` +
                           `🟥 Cartões Vermelhos: ${playerProfile.resumo.vermelhos}\n` +
                           `🏟️ Jogos Catalogados: ${playerProfile.resumo.jogos_registrados} (${playerProfile.resumo.ano_min}-${playerProfile.resumo.ano_max})\n` +
@@ -2058,13 +2076,13 @@ export default function App() {
                   </div>
 
                   {/* CARD ASSISTÊNCIAS */}
-                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #87CEEB' }}>
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #0284C7' }}>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎯 Assistências</div>
-                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0369A1', margin: '4px 0' }}>
-                      0*
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0284C7', margin: '4px 0' }}>
+                      {playerProfile.resumo.assistencias ?? 0}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }} title={playerProfile.resumo.nota_assistencias}>
-                      *Súmula oficial CBF
+                      Passes para gol (OGol / CBF)
                     </div>
                   </div>
 

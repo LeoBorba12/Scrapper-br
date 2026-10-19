@@ -814,7 +814,16 @@ MAPA_APELIDOS_ATLETAS = {
     'pele': 'Pelé',
     'dinamite': 'Roberto Dinamite',
     'ronaldinho': 'Ronaldinho Gaúcho',
-    'ronaldinho gaucho': 'Ronaldinho Gaúcho'
+    'ronaldinho gaucho': 'Ronaldinho Gaúcho',
+    'paulinho': 'Paulinho (Atlético-MG)',
+    'paulinho galo': 'Paulinho (Atlético-MG)',
+    'paulinho atletico': 'Paulinho (Atlético-MG)',
+    'paulinho corinthians': 'Paulinho (Corinthians)',
+    'paulinho mclaren': 'Paulinho McLaren',
+    'paulinho flamengo': 'Paulinho (Flamengo)',
+    'paulinho moccelin': 'Paulinho Moccelin',
+    'paulinho criciuma': 'Paulinho Criciúma',
+    'paulinho paula': 'Paulinho Paula'
 }
 
 @app.route('/api/jogadores/busca', methods=['GET'])
@@ -881,15 +890,30 @@ def get_jogador_perfil():
     conn = get_db()
     c = conn.cursor()
 
+    # Busca restrita para nomes desambiguados com parenteses ou multiplos tokens para evitar mesclar homonimos
+    if "(" in nome_canonico or len(nome_canonico.split()) > 1:
+        cond_gols = "(g.atleta = ? OR g.atleta = ?)"
+        params_gols = [nome, nome_canonico]
+        cond_cartoes = "(cr.atleta = ? OR cr.atleta = ?)"
+        params_cartoes = [nome, nome_canonico]
+        cond_esc = "(e.atleta = ? OR e.atleta = ?)"
+        params_esc = [nome, nome_canonico]
+    else:
+        cond_gols = "(g.atleta = ? OR g.atleta = ? OR g.atleta LIKE ? OR g.atleta LIKE ?)"
+        params_gols = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
+        cond_cartoes = "(cr.atleta = ? OR cr.atleta = ? OR cr.atleta LIKE ? OR cr.atleta LIKE ?)"
+        params_cartoes = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
+        cond_esc = "(e.atleta = ? OR e.atleta = ? OR e.atleta LIKE ? OR e.atleta LIKE ?)"
+        params_esc = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
+
     # Buscar gols
-    sql_gols = """
+    sql_gols = f"""
         SELECT g.id_gol, g.id_partida, g.tipo_de_gol, g.minuto, g.clube, 
                p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
         FROM gols g
         JOIN partidas p ON g.id_partida = p.id_partida
-        WHERE (g.atleta = ? OR g.atleta = ? OR g.atleta LIKE ? OR g.atleta LIKE ?)
+        WHERE {cond_gols}
     """
-    params_gols = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
     if clube_filtro:
         sql_gols += " AND g.clube LIKE ?"
         params_gols.append(f"%{clube_filtro}%")
@@ -899,14 +923,13 @@ def get_jogador_perfil():
     gols = [dict(r) for r in c.fetchall()]
 
     # Buscar cartoes
-    sql_cartoes = """
+    sql_cartoes = f"""
         SELECT cr.id_cartao, cr.id_partida, cr.cartao, cr.minuto, cr.motivo, cr.num_camisa, cr.posicao, cr.clube,
                p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
         FROM cartoes cr
         JOIN partidas p ON cr.id_partida = p.id_partida
-        WHERE (cr.atleta = ? OR cr.atleta = ? OR cr.atleta LIKE ? OR cr.atleta LIKE ?)
+        WHERE {cond_cartoes}
     """
-    params_cartoes = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
     if clube_filtro:
         sql_cartoes += " AND cr.clube LIKE ?"
         params_cartoes.append(f"%{clube_filtro}%")
@@ -916,14 +939,13 @@ def get_jogador_perfil():
     cartoes = [dict(r) for r in c.fetchall()]
 
     # Buscar escalacoes
-    sql_esc = """
+    sql_esc = f"""
         SELECT e.id_escalacao, e.id_partida, e.num_camisa, e.posicao, e.titular, e.is_goleiro, e.is_capitao, e.clube,
                p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
         FROM escalacoes e
         JOIN partidas p ON e.id_partida = p.id_partida
-        WHERE (e.atleta = ? OR e.atleta = ? OR e.atleta LIKE ? OR e.atleta LIKE ?)
+        WHERE {cond_esc}
     """
-    params_esc = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
     if clube_filtro:
         sql_esc += " AND e.clube LIKE ?"
         params_esc.append(f"%{clube_filtro}%")
@@ -1052,10 +1074,36 @@ def get_jogador_perfil():
     ano_min = min(anos) if anos else None
     ano_max = max(anos) if anos else None
 
+    # Metadados e Assistencias consolidadas (Tabela jogadores com OGol ID e jogadores_resumo)
+    c.execute("""
+        SELECT ogol_id, nome_exibicao, nome_completo, posicao, total_assistencias
+        FROM jogadores
+        WHERE LOWER(nome_exibicao) = LOWER(?) OR LOWER(nome_completo) = LOWER(?) OR LOWER(apelido) = LOWER(?)
+        LIMIT 1
+    """, (nome_canonico, nome_canonico, nome))
+    row_jog = c.fetchone()
+
+    ogol_id = None
+    posicao = None
+    total_ass = 0
+    if row_jog:
+        row_dict = dict(row_jog)
+        ogol_id = row_dict.get('ogol_id')
+        posicao = row_dict.get('posicao')
+        total_ass = row_dict.get('total_assistencias') or 0
+    else:
+        # Fallback para jogadores_resumo
+        c.execute("SELECT total_assistencias FROM jogadores_resumo WHERE LOWER(nome) = LOWER(?) LIMIT 1", (nome_canonico,))
+        row_res = c.fetchone()
+        if row_res and row_res['total_assistencias']:
+            total_ass = row_res['total_assistencias']
+
     conn.close()
 
     return jsonify({
-        "nome": nome,
+        "nome": nome_canonico,
+        "ogol_id": ogol_id,
+        "posicao": posicao,
         "clube_filtro": clube_filtro,
         "resumo": {
             "total_gols": len(gols),
@@ -1069,8 +1117,8 @@ def get_jogador_perfil():
             "media_gols": round(len(gols) / total_jogos, 2) if total_jogos > 0 else 0,
             "ano_min": ano_min,
             "ano_max": ano_max,
-            "assistencias": 0,
-            "nota_assistencias": "Súmulas históricas oficiais da CBF registram Gols, Cartões e Escalações. Passes a gol/assistências possuem cobertura de scouts pós-2015."
+            "assistencias": total_ass,
+            "nota_assistencias": "Passes a gol oficiais registrados via OGol e scouts da CBF pós-2014."
         },
         "top_vitimas": top_vitimas,
         "historico_clubes": historico_clubes,
