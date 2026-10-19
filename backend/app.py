@@ -1140,6 +1140,184 @@ def get_arbitragem():
     api_cache.set("api_arbitragem", resultado, ttl=3600)
     return jsonify(resultado)
 
+@app.route('/api/arbitros/destaques', methods=['GET'])
+def get_arbitros_destaques():
+    cached = api_cache.get("api_arbitros_destaques")
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Top árbitros por volume de jogos apitados e cruzamento de cartões
+    c.execute("""
+        WITH stats_arbitro AS (
+            SELECT 
+                TRIM(p.arbitro) as arbitro,
+                COUNT(DISTINCT p.id_partida) as total_jogos,
+                MIN(p.ano) as ano_min,
+                MAX(p.ano) as ano_max,
+                ROUND(AVG(p.gols_mandante + p.gols_visitante), 2) as media_gols,
+                ROUND(SUM(CASE WHEN p.vencedor = p.mandante THEN 1.0 ELSE 0 END) * 100.0 / COUNT(*), 1) as pct_vit_mandante,
+                ROUND(SUM(CASE WHEN p.vencedor = 'Empate' THEN 1.0 ELSE 0 END) * 100.0 / COUNT(*), 1) as pct_empates,
+                ROUND(SUM(CASE WHEN p.vencedor = p.visitante THEN 1.0 ELSE 0 END) * 100.0 / COUNT(*), 1) as pct_vit_visitante
+            FROM partidas p
+            WHERE p.arbitro IS NOT NULL 
+              AND LENGTH(TRIM(p.arbitro)) > 3
+              AND LOWER(p.arbitro) NOT IN ('não informado', 'nao informado', 'desconhecido', '-')
+              AND LOWER(p.arbitro) NOT LIKE '%informado%'
+              AND LOWER(p.arbitro) NOT LIKE '%rbitro%'
+            GROUP BY TRIM(p.arbitro)
+            HAVING total_jogos >= 20
+        ),
+        cartoes_por_arbitro AS (
+            SELECT 
+                TRIM(p.arbitro) as arbitro,
+                COUNT(DISTINCT p.id_partida) as jogos_com_scout_cartoes,
+                SUM(CASE WHEN cr.cartao LIKE '%Amarelo%' THEN 1 ELSE 0 END) as amarelos,
+                SUM(CASE WHEN cr.cartao LIKE '%Vermelho%' THEN 1 ELSE 0 END) as vermelhos
+            FROM partidas p
+            JOIN cartoes cr ON p.id_partida = cr.id_partida
+            WHERE p.arbitro IS NOT NULL
+            GROUP BY TRIM(p.arbitro)
+        )
+        SELECT 
+            s.*,
+            COALESCE(ca.jogos_com_scout_cartoes, 0) as jogos_cartoes,
+            COALESCE(ca.amarelos, 0) as total_amarelos,
+            COALESCE(ca.vermelhos, 0) as total_vermelhos,
+            CASE 
+                WHEN COALESCE(ca.jogos_com_scout_cartoes, 0) >= 5 
+                THEN ROUND(ca.amarelos * 1.0 / ca.jogos_com_scout_cartoes, 2) 
+                ELSE 0 
+            END as media_amarelos,
+            CASE 
+                WHEN COALESCE(ca.jogos_com_scout_cartoes, 0) >= 5 
+                THEN ROUND(ca.vermelhos * 1.0 / ca.jogos_com_scout_cartoes, 2) 
+                ELSE 0 
+            END as media_vermelhos
+        FROM stats_arbitro s
+        LEFT JOIN cartoes_por_arbitro ca ON s.arbitro = ca.arbitro
+        ORDER BY s.total_jogos DESC
+        LIMIT 30;
+    """)
+    arbitros = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    api_cache.set("api_arbitros_destaques", arbitros, ttl=3600)
+    return jsonify(arbitros)
+
+
+@app.route('/api/arbitros/perfil', methods=['GET'])
+def get_arbitro_perfil():
+    nome = request.args.get('nome', '').strip()
+    clube = request.args.get('clube', '').strip()
+    if not nome:
+        return jsonify({"error": "Informe o nome do árbitro"}), 400
+
+    cache_key = f"arbitro_{nome.lower()}_{clube.lower()}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    params = [f"%{nome}%"]
+    filtro_clube_sql = ""
+    if clube:
+        filtro_clube_sql = " AND (p.mandante LIKE ? OR p.visitante LIKE ?)"
+        params.extend([f"%{clube}%", f"%{clube}%"])
+
+    # Resumo geral do árbitro (ou específico para o clube filtrado)
+    c.execute(f"""
+        SELECT 
+            COUNT(*) as total_jogos,
+            MIN(p.ano) as ano_min,
+            MAX(p.ano) as ano_max,
+            ROUND(AVG(p.gols_mandante + p.gols_visitante), 2) as media_gols,
+            SUM(CASE WHEN p.vencedor = p.mandante THEN 1 ELSE 0 END) as vit_mandante,
+            SUM(CASE WHEN p.vencedor = 'Empate' THEN 1 ELSE 0 END) as empates,
+            SUM(CASE WHEN p.vencedor = p.visitante THEN 1 ELSE 0 END) as vit_visitante
+        FROM partidas p
+        WHERE p.arbitro LIKE ? {filtro_clube_sql};
+    """, params)
+    resumo_row = dict(c.fetchone() or {})
+
+    # Cartões aplicados pelo árbitro nos jogos filtrados
+    c.execute(f"""
+        SELECT 
+            COUNT(DISTINCT p.id_partida) as jogos_com_cartoes,
+            SUM(CASE WHEN cr.cartao LIKE '%Amarelo%' THEN 1 ELSE 0 END) as amarelos,
+            SUM(CASE WHEN cr.cartao LIKE '%Vermelho%' THEN 1 ELSE 0 END) as vermelhos
+        FROM partidas p
+        JOIN cartoes cr ON p.id_partida = cr.id_partida
+        WHERE p.arbitro LIKE ? {filtro_clube_sql};
+    """, params)
+    cartoes_row = dict(c.fetchone() or {})
+
+    # Desempenho dos clubes mais apitados por este árbitro
+    c.execute("""
+        WITH jogos_clube AS (
+            SELECT mandante as clube, vencedor FROM partidas WHERE arbitro LIKE ?
+            UNION ALL
+            SELECT visitante as clube, vencedor FROM partidas WHERE arbitro LIKE ?
+        )
+        SELECT 
+            clube,
+            COUNT(*) as jogos,
+            SUM(CASE WHEN vencedor = clube THEN 1 ELSE 0 END) as vitorias,
+            SUM(CASE WHEN vencedor = 'Empate' THEN 1 ELSE 0 END) as empates,
+            SUM(CASE WHEN vencedor != clube AND vencedor != 'Empate' THEN 1 ELSE 0 END) as derrotas,
+            ROUND(SUM(CASE WHEN vencedor = clube THEN 3.0 WHEN vencedor = 'Empate' THEN 1.0 ELSE 0 END) * 100.0 / (COUNT(*) * 3.0), 1) as aproveitamento_pct
+        FROM jogos_clube
+        GROUP BY clube
+        ORDER BY jogos DESC
+        LIMIT 12;
+    """, (f"%{nome}%", f"%{nome}%"))
+    clubes_apitados = [dict(r) for r in c.fetchall()]
+
+    # Últimas 25 partidas apitadas
+    c.execute(f"""
+        SELECT p.id_partida, p.data, p.campeonato, p.mandante, p.visitante, p.placar, p.estadio, p.arbitro
+        FROM partidas p
+        WHERE p.arbitro LIKE ? {filtro_clube_sql}
+        ORDER BY p.data DESC, p.id_partida DESC
+        LIMIT 25;
+    """, params)
+    partidas = [dict(r) for r in c.fetchall()]
+
+    conn.close()
+
+    total_j = resumo_row.get("total_jogos") or 0
+    jc = cartoes_row.get("jogos_com_cartoes") or 0
+    am = cartoes_row.get("amarelos") or 0
+    vm = cartoes_row.get("vermelhos") or 0
+
+    dados = {
+        "arbitro": nome,
+        "clube_filtro": clube,
+        "resumo": {
+            "total_jogos": total_j,
+            "ano_min": resumo_row.get("ano_min"),
+            "ano_max": resumo_row.get("ano_max"),
+            "media_gols": resumo_row.get("media_gols") or 0,
+            "vit_mandante": resumo_row.get("vit_mandante") or 0,
+            "empates": resumo_row.get("empates") or 0,
+            "vit_visitante": resumo_row.get("vit_visitante") or 0,
+            "pct_mandante": round((resumo_row.get("vit_mandante") or 0) * 100.0 / total_j, 1) if total_j > 0 else 0,
+            "amarelos": am,
+            "vermelhos": vm,
+            "media_amarelos": round(am / jc, 2) if jc > 0 else 0,
+            "media_vermelhos": round(vm / jc, 2) if jc > 0 else 0,
+        },
+        "clubes_apitados": clubes_apitados,
+        "partidas": partidas
+    }
+
+    api_cache.set(cache_key, dados, ttl=1800)
+    return jsonify(dados)
+
 @app.route('/api/ia/diagnostico', methods=['GET'])
 @require_admin
 def ia_diagnostico():
