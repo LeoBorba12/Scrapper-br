@@ -7,6 +7,7 @@ import base64
 import json
 import time
 import threading
+import functools
 from flask import Flask, request, jsonify, send_from_directory
 
 class TTLCache:
@@ -141,11 +142,6 @@ def login_usuario(username, password):
     if not username or not password:
         return None, "Informe usuário e senha."
 
-    # Validação mestre LB (100% em memória, zero I/O)
-    if username == "LB" and password == "46475595":
-        user_info = {"username": "LB", "nome": "Leonardo (LB)", "role": "admin"}
-        return {"user": user_info, "token": gerar_token(user_info)}, None
-
     try:
         conn = get_db()
         c = conn.cursor()
@@ -158,6 +154,49 @@ def login_usuario(username, password):
     except Exception:
         pass
     return None, "Usuário ou senha incorretos."
+
+def get_client_ip():
+    ip = request.headers.get('x-real-ip')
+    if not ip:
+        xff = request.headers.get('x-forwarded-for')
+        if xff:
+            ips = [i.strip() for i in xff.split(',') if i.strip()]
+            ip = ips[0] if ips else None
+    return ip or request.remote_addr or '127.0.0.1'
+
+def require_auth(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        token = None
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+        elif "token" in request.args:
+            token = request.args.get("token")
+        
+        user = validar_token(token)
+        if not user:
+            return jsonify({"status": "error", "erro": "Acesso não autorizado. Faça login para continuar."}), 401
+        request.user = user
+        return f(*args, **kwargs)
+    return decorated
+
+def require_admin(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        token = None
+        if auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1].strip()
+        elif "token" in request.args:
+            token = request.args.get("token")
+        
+        user = validar_token(token)
+        if not user or user.get("role") != "admin":
+            return jsonify({"status": "error", "erro": "Acesso restrito a administradores."}), 403
+        request.user = user
+        return f(*args, **kwargs)
+    return decorated
 
 def cadastrar_com_convite(nome, username, password, codigo_convite):
     nome = (nome or "").strip()
@@ -393,6 +432,7 @@ NOTAS_HISTORICAS_CLASSICOS = {
 }
 
 @app.route('/api/h2h', methods=['GET'])
+@require_auth
 def get_h2h():
     c1 = request.args.get('clube1', '').strip()
     c2 = request.args.get('clube2', '').strip()
@@ -527,6 +567,7 @@ def get_h2h():
     return jsonify(res)
 
 @app.route('/api/partidas', methods=['GET'])
+@require_auth
 def get_partidas():
     clube = request.args.get('clube', '').strip()
     campeonato = request.args.get('campeonato', '').strip()
@@ -620,11 +661,13 @@ def get_partidas():
     })
 
 @app.route('/api/clima-futebol', methods=['GET'])
+@require_auth
 def get_clima_futebol():
     conn = get_db()
     c = conn.cursor()
     
     # Cruzamento de partidas 2015-2024 com dados meteorológicos do clima_diario
+    # Fix: Join estrito por cidade para evitar produto cartesiano e contaminação do interior
     c.execute("""
         SELECT 
             CASE WHEN c.precipitacao_mm > 5 THEN 'Com Chuva' ELSE 'Tempo Seco' END as cond_chuva,
@@ -636,7 +679,7 @@ def get_clima_futebol():
         FROM partidas p
         JOIN clima.clima_diario c 
           ON p.data = c.data 
-         AND (LOWER(p.cidade) = LOWER(c.cidade) OR LOWER(p.estado) = LOWER(c.estado))
+         AND LOWER(p.cidade) = LOWER(c.cidade)
         WHERE p.ano >= 2015
         GROUP BY cond_chuva;
     """)
@@ -655,7 +698,7 @@ def get_clima_futebol():
         FROM partidas p
         JOIN clima.clima_diario c 
           ON p.data = c.data 
-         AND (LOWER(p.cidade) = LOWER(c.cidade) OR LOWER(p.estado) = LOWER(c.estado))
+         AND LOWER(p.cidade) = LOWER(c.cidade)
         WHERE p.ano >= 2015 AND c.temperatura_media IS NOT NULL
         GROUP BY faixa_temp
         ORDER BY media_gols DESC;
@@ -685,6 +728,7 @@ def get_clima_futebol():
     })
 
 @app.route('/api/jogadores/destaques', methods=['GET'])
+@require_auth
 def get_jogadores_destaques():
     conn = get_db()
     c = conn.cursor()
@@ -726,6 +770,7 @@ def get_jogadores_destaques():
     })
 
 @app.route('/api/jogadores/busca', methods=['GET'])
+@require_auth
 def buscar_jogadores():
     q = request.args.get('q', '').strip()
     limit = min(request.args.get('limit', 20, type=int), 50)
@@ -737,25 +782,15 @@ def buscar_jogadores():
     param_like = f"%{q}%"
 
     sql = """
-        WITH base AS (
-            SELECT atleta, clube, 'gol' as tipo FROM gols WHERE atleta LIKE ?
-            UNION ALL
-            SELECT atleta, clube, 'cartao_amarelo' as tipo FROM cartoes WHERE atleta LIKE ? AND cartao LIKE '%Amarelo%'
-            UNION ALL
-            SELECT atleta, clube, 'cartao_vermelho' as tipo FROM cartoes WHERE atleta LIKE ? AND cartao LIKE '%Vermelho%'
-            UNION ALL
-            SELECT atleta, clube, 'jogo' as tipo FROM escalacoes WHERE atleta LIKE ?
-        )
         SELECT 
             atleta,
-            GROUP_CONCAT(DISTINCT clube) as clubes,
-            SUM(CASE WHEN tipo = 'gol' THEN 1 ELSE 0 END) as gols,
-            SUM(CASE WHEN tipo = 'cartao_amarelo' THEN 1 ELSE 0 END) as amarelos,
-            SUM(CASE WHEN tipo = 'cartao_vermelho' THEN 1 ELSE 0 END) as vermelhos,
-            SUM(CASE WHEN tipo = 'jogo' THEN 1 ELSE 0 END) as jogos
-        FROM base
-        GROUP BY atleta
-        HAVING (gols + amarelos + vermelhos + jogos) > 0
+            clubes,
+            gols,
+            amarelos,
+            vermelhos,
+            jogos
+        FROM jogadores_resumo
+        WHERE atleta LIKE ?
         ORDER BY 
             CASE 
                 WHEN LOWER(atleta) = LOWER(?) THEN 1
@@ -764,11 +799,10 @@ def buscar_jogadores():
                 ELSE 4 
             END,
             gols DESC,
-            (amarelos + vermelhos) DESC,
-            jogos DESC
+            total_eventos DESC
         LIMIT ?;
     """
-    rows = c.execute(sql, (param_like, param_like, param_like, param_like, q, q, q, limit)).fetchall()
+    rows = c.execute(sql, (param_like, q, q, q, limit)).fetchall()
     
     resultados = []
     for r in rows:
@@ -784,6 +818,7 @@ def buscar_jogadores():
     return jsonify(resultados)
 
 @app.route('/api/jogadores/perfil', methods=['GET'])
+@require_auth
 def get_jogador_perfil():
     nome = request.args.get('nome', '').strip()
     clube_filtro = request.args.get('clube', '').strip()
@@ -990,62 +1025,121 @@ def get_jogador_perfil():
         "partidas": partidas_ordenadas[:100]
     })
 
+@app.route('/api/arbitragem', methods=['GET'])
+@require_auth
+def get_arbitragem():
+    cached = api_cache.get("api_arbitragem")
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        WITH jogos_era_scout AS (
+            SELECT DISTINCT id_partida FROM cartoes
+        ),
+        stats_partidas AS (
+            SELECT 
+                p.arbitro,
+                COUNT(p.id_partida) as total_jogos,
+                SUM(CASE WHEN p.vencedor = p.mandante THEN 1 ELSE 0 END) as vit_mandante,
+                SUM(CASE WHEN p.vencedor = p.visitante THEN 1 ELSE 0 END) as vit_visitante,
+                SUM(CASE WHEN p.vencedor = 'Empate' THEN 1 ELSE 0 END) as empates
+            FROM partidas p
+            JOIN jogos_era_scout j ON p.id_partida = j.id_partida
+            WHERE p.arbitro IS NOT NULL AND p.arbitro != '' AND p.arbitro != 'Não informado'
+            GROUP BY p.arbitro
+        ),
+        stats_cartoes AS (
+            SELECT 
+                p.arbitro,
+                COUNT(c.id_cartao) as total_cartoes,
+                SUM(CASE WHEN c.cartao = 'Vermelho' THEN 1 ELSE 0 END) as total_vermelhos,
+                SUM(CASE WHEN c.cartao LIKE '%Amarelo%' THEN 1 ELSE 0 END) as total_amarelos
+            FROM partidas p
+            JOIN cartoes c ON p.id_partida = c.id_partida
+            WHERE p.arbitro IS NOT NULL AND p.arbitro != '' AND p.arbitro != 'Não informado'
+            GROUP BY p.arbitro
+        )
+        SELECT 
+            sp.arbitro,
+            sp.total_jogos,
+            ROUND(sp.vit_mandante * 100.0 / sp.total_jogos, 1) as pct_vit_mandante,
+            ROUND(sp.vit_visitante * 100.0 / sp.total_jogos, 1) as pct_vit_visitante,
+            ROUND(sp.empates * 100.0 / sp.total_jogos, 1) as pct_empate,
+            sc.total_cartoes,
+            ROUND(sc.total_cartoes * 1.0 / sp.total_jogos, 2) as media_cartoes,
+            sc.total_vermelhos,
+            ROUND(sc.total_vermelhos * 1.0 / sp.total_jogos, 2) as media_vermelhos
+        FROM stats_partidas sp
+        JOIN stats_cartoes sc ON sp.arbitro = sc.arbitro
+        WHERE sp.total_jogos >= 15
+        ORDER BY sp.total_jogos DESC
+        LIMIT 15;
+    """)
+    raw_arbitros = [dict(row) for row in c.fetchall()]
+    conn.close()
+
+    total_jogos_all = sum(a["total_jogos"] for a in raw_arbitros)
+    total_cartoes_all = sum(a["total_cartoes"] for a in raw_arbitros)
+    total_vermelhos_all = sum(a["total_vermelhos"] for a in raw_arbitros)
+
+    arbitros = []
+    for a in raw_arbitros:
+        jogos = a["total_jogos"]
+        total_vermelhos = a["total_vermelhos"]
+        total_amarelos = max(0, a["total_cartoes"] - total_vermelhos)
+        media_amarelos = round(total_amarelos / max(1, jogos), 2)
+        media_cartoes = a["media_cartoes"]
+        perfil = "Disciplinador / Rigoroso" if media_cartoes >= 5.2 else ("Moderado" if media_cartoes >= 4.5 else "Tolerante")
+        
+        arbitros.append({
+            "arbitro": a["arbitro"],
+            "jogos": jogos,
+            "total_jogos": jogos,
+            "total_amarelos": total_amarelos,
+            "media_amarelos": media_amarelos,
+            "total_vermelhos": total_vermelhos,
+            "media_vermelhos": a["media_vermelhos"],
+            "media_cartoes": media_cartoes,
+            "pct_mandante": a["pct_vit_mandante"],
+            "pct_vit_mandante": a["pct_vit_mandante"],
+            "pct_empate": a["pct_empate"],
+            "pct_visitante": a["pct_vit_visitante"],
+            "pct_vit_visitante": a["pct_vit_visitante"],
+            "perfil": perfil
+        })
+
+    resultado = {
+        "total_arbitros_analisados": len(arbitros),
+        "media_nacional_amarelos": round((total_cartoes_all - total_vermelhos_all) / max(1, total_jogos_all), 2) if total_jogos_all else 0,
+        "media_nacional_vermelhos": round(total_vermelhos_all / max(1, total_jogos_all), 2) if total_jogos_all else 0,
+        "arbitros": arbitros
+    }
+
+    api_cache.set("api_arbitragem", resultado, ttl=3600)
+    return jsonify(resultado)
+
 @app.route('/api/ia/diagnostico', methods=['GET'])
+@require_admin
 def ia_diagnostico():
-    import requests
     gemini_key = os.environ.get("GEMINI_API_KEY", "").strip()
     deepseek_key = (os.environ.get("DEEPSEEK_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")).strip()
 
     diag = {
-        "gemini_key_present": bool(gemini_key),
-        "gemini_key_prefix": gemini_key[:8] + "..." if gemini_key else "",
+        "status": "ok",
+        "gemini_configured": bool(gemini_key),
         "gemini_key_len": len(gemini_key),
-        "deepseek_key_present": bool(deepseek_key),
-        "deepseek_key_prefix": deepseek_key[:8] + "..." if deepseek_key else "",
-        "deepseek_test": "",
-        "gemini_tests": {},
-        "available_models": []
+        "deepseek_configured": bool(deepseek_key),
+        "deepseek_key_len": len(deepseek_key),
+        "authenticated_admin": getattr(request, 'user', {}).get("username")
     }
-
-    if gemini_key:
-        try:
-            r = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_key}", timeout=4)
-            if r.status_code == 200:
-                models_data = r.json().get("models", [])
-                diag["available_models"] = [m.get("name") for m in models_data if "generateContent" in m.get("supportedGenerationMethods", [])]
-            else:
-                diag["models_error"] = f"{r.status_code}: {r.text[:200]}"
-        except Exception as e:
-            diag["models_error"] = str(e)
-
-        for m in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
-            try:
-                r = requests.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={gemini_key}",
-                    json={"contents": [{"parts": [{"text": "Oi"}]}]},
-                    headers={"Content-Type": "application/json"},
-                    timeout=3
-                )
-                diag["gemini_tests"][m] = f"{r.status_code}: {r.text[:150]}"
-            except Exception as e:
-                diag["gemini_tests"][m] = str(e)
-
-    if deepseek_key:
-        try:
-            is_or = deepseek_key.startswith("sk-or-")
-            url = "https://openrouter.ai/api/v1/chat/completions" if is_or else "https://api.deepseek.com/chat/completions"
-            headers = {"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"}
-            payload = {"model": "deepseek/deepseek-chat" if is_or else "deepseek-chat", "messages": [{"role": "user", "content": "Oi"}], "max_tokens": 10}
-            r_ds = requests.post(url, json=payload, headers=headers, timeout=5)
-            diag["deepseek_test"] = f"{r_ds.status_code}: {r_ds.text[:150]}"
-        except Exception as e:
-            diag["deepseek_test"] = str(e)
-
     return jsonify(diag)
 
 @app.route('/api/ia/perguntar', methods=['POST'])
+@require_auth
 def perguntar_ia():
-    ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+    ip = get_client_ip()
     if not limiter.is_allowed(f"ia_{ip}", max_requests=15, window_seconds=60):
         return jsonify({
             "pergunta": "",

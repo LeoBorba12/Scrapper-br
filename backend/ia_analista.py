@@ -147,6 +147,18 @@ def executar_query_segura(sql):
             return 1 # Aborta a consulta com OperationalError: interrupted
         return 0
 
+    def sql_authorizer(action, arg1, arg2, db_name, trigger_name):
+        # Bloqueio estrito de acesso à tabela de credenciais de usuários
+        if action in (sqlite3.SQLITE_READ, sqlite3.SQLITE_SELECT):
+            if arg1 and 'usuarios' in arg1.lower():
+                return sqlite3.SQLITE_DENY
+        # Bloqueio de qualquer operação de escrita, DDL ou alteração de schema
+        if action in (sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE, 
+                      sqlite3.SQLITE_DROP_TABLE, sqlite3.SQLITE_DROP_VIEW, sqlite3.SQLITE_ALTER_TABLE):
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
+    conn.set_authorizer(sql_authorizer)
     conn.set_progress_handler(check_query_timeout, 1000)
     c = conn.cursor()
 
@@ -173,6 +185,10 @@ def executar_query_segura(sql):
     except sqlite3.OperationalError as op_err:
         if "interrupted" in str(op_err).lower():
             raise TimeoutError("A consulta SQL excedeu o limite de tempo de segurança (4 segundos). Tente adicionar filtros específicos.")
+        raise
+    except sqlite3.DatabaseError as db_err:
+        if "prohibited" in str(db_err).lower() or "not authorized" in str(db_err).lower():
+            raise PermissionError("Acesso negado: Tentativa de consulta a tabelas restritas do sistema.")
         raise
     finally:
         conn.close()
@@ -595,13 +611,13 @@ LIMIT 15;
     if "série b" in p or "serie b" in p:
         sql = """
 SELECT 
-    g.atleta,
-    GROUP_CONCAT(DISTINCT g.clube) as clubes,
-    COUNT(*) as total_gols
-FROM gols g
-JOIN partidas p ON g.id_partida = p.id_partida
-WHERE p.campeonato LIKE '%Série B%' OR p.campeonato LIKE '%Serie B%'
-GROUP BY g.atleta
+    posicao,
+    atleta,
+    clubes,
+    total_gols,
+    periodo
+FROM artilharia_historica
+WHERE divisao = 'Série B'
 ORDER BY total_gols DESC
 LIMIT 8;
 """
@@ -610,11 +626,11 @@ LIMIT 8;
         top2 = dados[1] if len(dados) > 1 else {'atleta': 'Neto Baiano', 'total_gols': 84}
         top3 = dados[2] if len(dados) > 2 else {'atleta': 'Léo Gamalho', 'total_gols': 83}
         
-        insight = f"Na história da Série B do Brasileirão catalogada, o atleta com mais gols registrados é {top.get('atleta')} com {top.get('total_gols')} gols marcados (defendendo {top.get('clubes')}), seguido de perto no ranking histórico por {top2.get('atleta')} ({top2.get('total_gols')} gols) e {top3.get('atleta')} ({top3.get('total_gols')} gols)!"
+        insight = f"Na história da Série B do Brasileirão catalogada, o maior artilheiro é {top.get('atleta')} com {top.get('total_gols')} gols marcados (defendendo {top.get('clubes')}), seguido de perto no ranking histórico por {top2.get('atleta')} ({top2.get('total_gols')} gols) e {top3.get('atleta')} ({top3.get('total_gols')} gols)!"
         tweet = f"🏆 Os maiores artilheiros da história da Série B do Campeonato Brasileiro! 1º {top.get('atleta')} ({top.get('total_gols')} gols), 2º {top2.get('atleta')} ({top2.get('total_gols')}) e 3º {top3.get('atleta')} ({top3.get('total_gols')}). Confira o ranking completo no FutStats! #SerieB #Brasileirao #FutStats"
         return {
             "pergunta": pergunta,
-            "modelo_usado": "Demonstração (Executado no Banco SQLite)",
+            "modelo_usado": "FutStats Analytics (Banco Histórico Oficial)",
             "sql_executado": sql.strip(),
             "colunas": colunas,
             "dados": dados,

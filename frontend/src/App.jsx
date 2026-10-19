@@ -4,12 +4,13 @@ import {
   Sun, Moon, Flame, ShieldAlert, Calendar, MapPin, BarChart3, 
   ArrowRight, RefreshCw, Share2, User, Users, Award, AlertCircle, 
   X, ChevronRight, Filter, Bot, Brain, Code, Terminal, Settings, 
-  Key, Lightbulb, Zap, Lock, LogOut, UserPlus, ShieldCheck
+  Key, Lightbulb, Zap, Lock, LogOut, UserPlus, ShieldCheck,
+  Download, Camera, Scale
 } from 'lucide-react';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'oraculo', 'playground', 'clima', 'tweets'
+  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'oraculo', 'playground', 'clima', 'arbitragem', 'tweets'
 
   // ==================== AUTH STATE ====================
   const [currentUser, setCurrentUser] = useState(null);
@@ -68,8 +69,32 @@ export default function App() {
   const [climaData, setClimaData] = useState(null);
   const [climaLoading, setClimaLoading] = useState(false);
 
+  // Tab 7: Raio-X do Apito & VAR state
+  const [arbitragemData, setArbitragemData] = useState(null);
+  const [arbitragemLoading, setArbitragemLoading] = useState(false);
+  const [arbitroBusca, setArbitroBusca] = useState('');
+  const [downloadingCard, setDownloadingCard] = useState(false);
+
   // Feedback de cópia do Twitter
   const [copiedKey, setCopiedKey] = useState(null);
+
+  // ==================== CLIENTE HTTP CENTRALIZADO COM JWT ====================
+  const apiFetch = async (url, options = {}) => {
+    const token = localStorage.getItem('futstats_auth_token');
+    const headers = {
+      ...(options.headers || {})
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      localStorage.removeItem('futstats_auth_token');
+      setCurrentUser(null);
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+    return res;
+  };
 
   // Alternar modo escuro
   useEffect(() => {
@@ -97,9 +122,7 @@ export default function App() {
       return;
     }
 
-    fetch('/api/auth/me', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    apiFetch('/api/auth/me')
       .then(r => r.json())
       .then(d => {
         if (d.user) {
@@ -197,29 +220,39 @@ export default function App() {
     setLoginPassword('');
   };
 
-  // Copiar código de convite para a equipe
-  const copiarConviteEquipe = () => {
-    const inviteText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: FUTSTATS-2026\nLink Direto: ${window.location.origin}/?convite=FUTSTATS-2026`;
-    navigator.clipboard.writeText(inviteText);
-    setConviteCopiado(true);
-    setTimeout(() => setConviteCopiado(false), 3000);
+  // Copiar código de convite para a equipe (obtido com segurança da API)
+  const copiarConviteEquipe = async () => {
+    try {
+      const res = await apiFetch('/api/auth/convite-codigo');
+      const data = await res.json();
+      const code = data.codigo_convite || 'FUTSTATS-2026';
+      const inviteText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: ${code}\nLink Direto: ${window.location.origin}/?convite=${code}`;
+      navigator.clipboard.writeText(inviteText);
+      setConviteCopiado(true);
+      setTimeout(() => setConviteCopiado(false), 3000);
+    } catch {
+      const fallbackText = `Convite de Acesso à Dashboard FutStats & Clima:\nCódigo de Convite: FUTSTATS-2026\nLink Direto: ${window.location.origin}/?convite=FUTSTATS-2026`;
+      navigator.clipboard.writeText(fallbackText);
+      setConviteCopiado(true);
+      setTimeout(() => setConviteCopiado(false), 3000);
+    }
   };
 
-  // Carregar dados iniciais (overview, clubes, campeonatos) quando logado
+  // Carregar dados iniciais (overview, clubes, campeonatos) quando logado via apiFetch
   useEffect(() => {
     if (!currentUser) return;
 
-    fetch('/api/overview')
+    apiFetch('/api/overview')
       .then(r => r.json())
       .then(d => setOverview(d))
       .catch(() => {});
 
-    fetch('/api/clubes')
+    apiFetch('/api/clubes')
       .then(r => r.json())
       .then(d => setClubesList(d))
       .catch(() => {});
 
-    fetch('/api/campeonatos')
+    apiFetch('/api/campeonatos')
       .then(r => r.json())
       .then(d => setCampeonatosList(d))
       .catch(() => {});
@@ -229,7 +262,7 @@ export default function App() {
   const carregarH2H = () => {
     if (!clube1 || !clube2) return;
     setH2hLoading(true);
-    fetch(`/api/h2h?clube1=${encodeURIComponent(clube1)}&clube2=${encodeURIComponent(clube2)}`)
+    apiFetch(`/api/h2h?clube1=${encodeURIComponent(clube1)}&clube2=${encodeURIComponent(clube2)}`)
       .then(r => r.json())
       .then(d => {
         setH2hData(d);
@@ -248,7 +281,7 @@ export default function App() {
   useEffect(() => {
     if (activeTab === 'jogadores' && !destaques && currentUser) {
       setDestaquesLoading(true);
-      fetch('/api/jogadores/destaques')
+      apiFetch('/api/jogadores/destaques')
         .then(r => r.json())
         .then(d => {
           setDestaques(d);
@@ -258,7 +291,7 @@ export default function App() {
     }
   }, [activeTab, destaques, currentUser]);
 
-  // Busca de jogadores com autocomplete
+  // Busca de jogadores com autocomplete via apiFetch
   useEffect(() => {
     if (!playerSearch || playerSearch.trim().length < 2) {
       setPlayerSuggestions([]);
@@ -266,7 +299,7 @@ export default function App() {
     }
     const timer = setTimeout(() => {
       setSearchLoading(true);
-      fetch(`/api/jogadores/busca?q=${encodeURIComponent(playerSearch.trim())}`)
+      apiFetch(`/api/jogadores/busca?q=${encodeURIComponent(playerSearch.trim())}`)
         .then(r => r.json())
         .then(d => {
           setPlayerSuggestions(Array.isArray(d) ? d : []);
@@ -278,7 +311,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [playerSearch]);
 
-  // Carregar perfil completo do jogador
+  // Carregar perfil completo do jogador via apiFetch
   const carregarPerfilJogador = (nome, clube = '') => {
     if (!nome) return;
     setProfileLoading(true);
@@ -291,7 +324,7 @@ export default function App() {
       url += `&clube=${encodeURIComponent(clube)}`;
     }
 
-    fetch(url)
+    apiFetch(url)
       .then(r => r.json())
       .then(d => {
         setPlayerProfile(d);
@@ -300,7 +333,7 @@ export default function App() {
       .catch(() => setProfileLoading(false));
   };
 
-  // Enviar pergunta ao Oráculo
+  // Enviar pergunta ao Oráculo via apiFetch
   const enviarPerguntaOraculo = (perguntaTexto) => {
     const texto = (perguntaTexto || oraculoPrompt).trim();
     if (!texto) return;
@@ -311,13 +344,10 @@ export default function App() {
       setOraculoPrompt(perguntaTexto);
     }
 
-    const token = localStorage.getItem('futstats_auth_token') || '';
-
-    fetch('/api/ia/perguntar', {
+    apiFetch('/api/ia/perguntar', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         pergunta: texto,
@@ -358,7 +388,7 @@ export default function App() {
       });
   };
 
-  // Buscar Partidas no Playground
+  // Buscar Partidas no Playground via apiFetch
   const carregarPartidas = (p = 1) => {
     setPartidasLoading(true);
     const params = new URLSearchParams({
@@ -369,7 +399,7 @@ export default function App() {
       cenario: pgCenario,
       busca: pgBusca
     });
-    fetch(`/api/partidas?${params.toString()}`)
+    apiFetch(`/api/partidas?${params.toString()}`)
       .then(r => r.json())
       .then(d => {
         setPartidasData(d);
@@ -384,11 +414,11 @@ export default function App() {
     }
   }, [activeTab, currentUser]);
 
-  // Carregar dados do clima
+  // Carregar dados do clima via apiFetch
   useEffect(() => {
     if (activeTab === 'clima' && !climaData && currentUser) {
       setClimaLoading(true);
-      fetch('/api/clima-futebol')
+      apiFetch('/api/clima-futebol')
         .then(r => r.json())
         .then(d => {
           setClimaData(d);
@@ -397,6 +427,289 @@ export default function App() {
         .catch(() => setClimaLoading(false));
     }
   }, [activeTab, currentUser]);
+
+  // Carregar dados de arbitragem via apiFetch
+  useEffect(() => {
+    if (activeTab === 'arbitragem' && !arbitragemData && currentUser) {
+      setArbitragemLoading(true);
+      apiFetch('/api/arbitragem')
+        .then(r => r.json())
+        .then(d => {
+          setArbitragemData(d);
+          setArbitragemLoading(false);
+        })
+        .catch(() => setArbitragemLoading(false));
+    }
+  }, [activeTab, currentUser]);
+
+  // ==================== GERADORES DE CARDS VISUAIS (CANVAS) ====================
+  const baixarCardH2H = () => {
+    if (!h2hData) return;
+    setDownloadingCard(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1080;
+      const ctx = canvas.getContext('2d');
+
+      // Background Gradient
+      const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+      grad.addColorStop(0, '#0a0f1d');
+      grad.addColorStop(0.5, '#111827');
+      grad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1080, 1080);
+
+      // Linha de destaque no topo
+      const lineGrad = ctx.createLinearGradient(80, 0, 1000, 0);
+      lineGrad.addColorStop(0, '#38bdf8');
+      lineGrad.addColorStop(0.5, '#10b981');
+      lineGrad.addColorStop(1, '#f43f5e');
+      ctx.fillStyle = lineGrad;
+      ctx.fillRect(80, 60, 920, 6);
+
+      // Marca FutStats
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('FUTSTATS • RAIO-X HISTÓRICO OFICIAL', 540, 110);
+
+      // Título do Duelo
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 48px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`${h2hData.clube1.toUpperCase()}  ×  ${h2hData.clube2.toUpperCase()}`, 540, 185);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '500 22px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`Confrontos Diretos Catalogados no Futebol Brasileiro`, 540, 230);
+
+      // Card Container Central
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(80, 275, 920, 520, 24);
+      ctx.fill();
+      ctx.stroke();
+
+      // Total de Jogos
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText('TOTAL DE PARTIDAS', 540, 330);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '900 64px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`${h2hData.total_jogos}`, 540, 400);
+
+      // Coluna 1: Vitórias Clube 1
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.1)';
+      ctx.beginPath();
+      ctx.roundRect(110, 450, 260, 210, 16);
+      ctx.fill();
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText('VITÓRIAS', 240, 495);
+      ctx.font = '600 17px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(h2hData.clube1.slice(0, 15), 240, 525);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '900 66px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`${h2hData.vitorias_clube1}`, 240, 600);
+      const pct1 = h2hData.total_jogos > 0 ? ((h2hData.vitorias_clube1 / h2hData.total_jogos) * 100).toFixed(1) : 0;
+      ctx.font = '500 17px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`${pct1}% dos jogos`, 240, 638);
+
+      // Coluna 2: Empates
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.1)';
+      ctx.beginPath();
+      ctx.roundRect(410, 450, 260, 210, 16);
+      ctx.fill();
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText('EMPATES', 540, 495);
+      ctx.font = '600 17px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Igualdade', 540, 525);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 66px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`${h2hData.empates}`, 540, 600);
+      const pctE = h2hData.total_jogos > 0 ? ((h2hData.empates / h2hData.total_jogos) * 100).toFixed(1) : 0;
+      ctx.font = '500 17px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`${pctE}% dos jogos`, 540, 638);
+
+      // Coluna 3: Vitórias Clube 2
+      ctx.fillStyle = 'rgba(244, 63, 94, 0.1)';
+      ctx.beginPath();
+      ctx.roundRect(710, 450, 260, 210, 16);
+      ctx.fill();
+
+      ctx.fillStyle = '#fb7185';
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText('VITÓRIAS', 840, 495);
+      ctx.font = '600 17px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(h2hData.clube2.slice(0, 15), 840, 525);
+      ctx.fillStyle = '#fb7185';
+      ctx.font = '900 66px system-ui, -apple-system, sans-serif';
+      ctx.fillText(`${h2hData.vitorias_clube2}`, 840, 600);
+      const pct2 = h2hData.total_jogos > 0 ? ((h2hData.vitorias_clube2 / h2hData.total_jogos) * 100).toFixed(1) : 0;
+      ctx.font = '500 17px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(`${pct2}% dos jogos`, 840, 638);
+
+      // Gols Banner
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.beginPath();
+      ctx.roundRect(110, 685, 860, 80, 12);
+      ctx.fill();
+
+      ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`⚽  GOLS MARCADOS:   ${h2hData.clube1} ${h2hData.gols_clube1}  ×  ${h2hData.gols_clube2} ${h2hData.clube2}`, 540, 735);
+
+      // Série invicta no rodapé
+      if (h2hData.tabu_invicto) {
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
+        ctx.strokeStyle = '#10b981';
+        ctx.beginPath();
+        ctx.roundRect(80, 825, 920, 95, 16);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#34d399';
+        ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`🔥 SÉRIE INVICTA ATUAL: ${h2hData.tabu_invicto.clube} está há ${h2hData.tabu_invicto.jogos} jogos sem perder!`, 540, 880);
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.beginPath();
+        ctx.roundRect(80, 825, 920, 95, 16);
+        ctx.fill();
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+        ctx.fillText(`Equilíbrio histórico marcante nos duelos do futebol brasileiro`, 540, 880);
+      }
+
+      // Rodapé marca
+      ctx.fillStyle = '#64748b';
+      ctx.font = '500 18px system-ui, -apple-system, sans-serif';
+      ctx.fillText('Gerado por FutStats & Clima • Base Oficial com 55.395 Partidas', 540, 1020);
+
+      // Download do PNG
+      const link = document.createElement('a');
+      link.download = `futstats_h2h_${h2hData.clube1}_vs_${h2hData.clube2}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDownloadingCard(false);
+    }
+  };
+
+  const baixarCardOraculo = () => {
+    if (!oraculoResult) return;
+    setDownloadingCard(true);
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1080;
+      canvas.height = 1080;
+      const ctx = canvas.getContext('2d');
+
+      // Fundo Gradient
+      const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+      grad.addColorStop(0, '#090d16');
+      grad.addColorStop(0.5, '#0f172a');
+      grad.addColorStop(1, '#064e3b');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1080, 1080);
+
+      // Linha de acento
+      const lineGrad = ctx.createLinearGradient(80, 0, 1000, 0);
+      lineGrad.addColorStop(0, '#10b981');
+      lineGrad.addColorStop(0.5, '#38bdf8');
+      lineGrad.addColorStop(1, '#a855f7');
+      ctx.fillStyle = lineGrad;
+      ctx.fillRect(80, 60, 920, 6);
+
+      // Tag
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('FUTSTATS • ORÁCULO DE INTELIGÊNCIA ARTIFICIAL', 540, 115);
+
+      // Quebra de texto auxiliar
+      const wrapText = (text, x, startY, maxWidth, lineHeight, maxLines = 5) => {
+        const words = text.split(' ');
+        let line = '';
+        let y = startY;
+        let lineCount = 0;
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && n > 0) {
+            ctx.fillText(line.trim(), x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+            lineCount++;
+            if (lineCount >= maxLines - 1 && n < words.length - 1) {
+              line += '...';
+              break;
+            }
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line.trim(), x, y);
+        return y;
+      };
+
+      // Pergunta
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 34px system-ui, -apple-system, sans-serif';
+      const endY = wrapText(`"${oraculoResult.pergunta}"`, 540, 190, 880, 46, 3);
+
+      // Card Container do Insight
+      const cardStartY = Math.max(endY + 35, 330);
+      const cardHeight = 880 - cardStartY;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(80, cardStartY, 920, cardHeight, 20);
+      ctx.fill();
+      ctx.stroke();
+
+      // Badge do Insight
+      ctx.fillStyle = '#10b981';
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.fillText('VEREDITO DOS DADOS (55.395 PARTIDAS)', 540, cardStartY + 50);
+
+      // Texto do Insight
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = '500 26px system-ui, -apple-system, sans-serif';
+      const cleanInsight = (oraculoResult.insight || '').replace(/[#*`]/g, '');
+      wrapText(cleanInsight, 540, cardStartY + 115, 840, 42, 8);
+
+      // Watermark
+      ctx.fillStyle = '#64748b';
+      ctx.font = '500 18px system-ui, -apple-system, sans-serif';
+      ctx.fillText('Gerado via FutStats Code Interpreter • Text-to-SQL em Tempo Real', 540, 1020);
+
+      const link = document.createElement('a');
+      link.download = 'futstats_oraculo_insight.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDownloadingCard(false);
+    }
+  };
 
   // Função auxiliar para copiar texto do tweet
   const copiarTweet = (texto, key) => {
@@ -729,6 +1042,13 @@ export default function App() {
         </button>
 
         <button 
+          className={activeTab === 'arbitragem' ? 'btn-primary' : 'btn-secondary'}
+          onClick={() => setActiveTab('arbitragem')}
+        >
+          <Scale size={18} /> Raio-X do Apito & VAR
+        </button>
+
+        <button 
           className={activeTab === 'tweets' ? 'btn-primary' : 'btn-secondary'}
           onClick={() => setActiveTab('tweets')}
         >
@@ -792,6 +1112,21 @@ export default function App() {
           {/* RESULTADO DO CONFRONTO */}
           {h2hData && (
             <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>
+                  Retrospecto Histórico: {h2hData.clube1} × {h2hData.clube2}
+                </h3>
+                <button
+                  className="btn-primary"
+                  onClick={baixarCardH2H}
+                  disabled={downloadingCard}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  <Camera size={16} />
+                  {downloadingCard ? 'Gerando Card...' : '📸 Baixar Card para X / Instagram'}
+                </button>
+              </div>
+
               {/* PLACAR GERAL RESUMO */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
                 <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
@@ -1672,14 +2007,26 @@ export default function App() {
                         {oraculoResult.tweet}
                       </div>
                     </div>
-                    <button 
-                      className="btn-primary" 
-                      style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-                      onClick={() => copiarTweet(oraculoResult.tweet, 'tweet-oraculo')}
-                    >
-                      {copiedKey === 'tweet-oraculo' ? <Check size={16} /> : <Copy size={16} />}
-                      {copiedKey === 'tweet-oraculo' ? 'Copiado!' : 'Copiar Tweet'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={baixarCardOraculo}
+                        disabled={downloadingCard}
+                      >
+                        <Camera size={16} />
+                        {downloadingCard ? 'Gerando...' : '📸 Baixar Card Visual'}
+                      </button>
+
+                      <button 
+                        className="btn-primary" 
+                        style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                        onClick={() => copiarTweet(oraculoResult.tweet, 'tweet-oraculo')}
+                      >
+                        {copiedKey === 'tweet-oraculo' ? <Check size={16} /> : <Copy size={16} />}
+                        {copiedKey === 'tweet-oraculo' ? 'Copiado!' : 'Copiar Tweet'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1998,6 +2345,193 @@ export default function App() {
               </div>
             </div>
           ) : null}
+        </section>
+      )}
+
+      {/* ABA 7: RAIO-X DO APITO & VAR */}
+      {activeTab === 'arbitragem' && (
+        <section>
+          {/* BANNER PRINCIPAL */}
+          <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Scale size={26} color="#87CEEB" />
+                  <h2 style={{ fontSize: '1.35rem', fontWeight: '700' }}>
+                    Raio-X do Apito & Tendências de Arbitragem
+                  </h2>
+                  <span className="badge badge-blue">Árbitros com 10+ Jogos</span>
+                </div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px', maxWidth: '800px' }}>
+                  Tendências disciplinares e estatísticas de arbitragem no futebol brasileiro: média de cartões por partida, rigor disciplinar e viés histórico de mandante vs visitante.
+                </p>
+              </div>
+
+              {/* BUSCA DE ÁRBITRO */}
+              <div style={{ minWidth: '260px', flex: '1', maxWidth: '380px' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '12px', top: '12px', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    className="soft-input"
+                    value={arbitroBusca}
+                    onChange={e => setArbitroBusca(e.target.value)}
+                    placeholder="Filtrar por nome do árbitro..."
+                    style={{ paddingLeft: '38px', height: '42px' }}
+                  />
+                  {arbitroBusca && (
+                    <button
+                      onClick={() => setArbitroBusca('')}
+                      style={{ position: 'absolute', right: '10px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* LOADING STATE */}
+          {arbitragemLoading && (
+            <div className="soft-card" style={{ padding: '48px 20px', textAlign: 'center', marginBottom: '24px' }}>
+              <RefreshCw size={36} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 16px' }} />
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>Carregando estatísticas dos árbitros...</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
+                Cruzando milhares de partidas e súmulas catalogadas.
+              </p>
+            </div>
+          )}
+
+          {/* KPI CARDS RESUMO */}
+          {!arbitragemLoading && arbitragemData && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Árbitros Analisados</div>
+                  <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0369A1' }}>
+                    {arbitragemData.total_arbitros_analisados}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Mínimo 10 jogos oficiais</div>
+                </div>
+
+                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Média Geral de Amarelos</div>
+                  <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#D97706' }}>
+                    🟨 {arbitragemData.media_nacional_amarelos}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>por partida</div>
+                </div>
+
+                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Média Geral de Vermelhos</div>
+                  <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#DC2626' }}>
+                    🟥 {arbitragemData.media_nacional_vermelhos}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>por partida</div>
+                </div>
+
+                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Árbitro com Mais Jogos</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '8px' }}>
+                    {arbitragemData.arbitros?.[0]?.arbitro || '-'}
+                  </div>
+                  <div className="font-mono" style={{ fontSize: '0.82rem', color: '#10B981', marginTop: '4px' }}>
+                    {arbitragemData.arbitros?.[0]?.jogos} partidas apitadas
+                  </div>
+                </div>
+              </div>
+
+              {/* TABELA DE ÁRBITROS */}
+              <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BarChart3 size={18} color="#87CEEB" /> Ranking Completo de Árbitros
+                  </h3>
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    Exibindo {arbitragemData.arbitros.filter(a => !arbitroBusca || a.arbitro.toLowerCase().includes(arbitroBusca.toLowerCase())).length} árbitros
+                  </span>
+                </div>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '12px 10px' }}>#</th>
+                        <th style={{ padding: '12px 10px' }}>Árbitro</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Jogos</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Média Amarelos</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Média Vermelhos</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Viés Mandante / Empate / Visitante</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Perfil</th>
+                        <th style={{ padding: '12px 10px', textAlign: 'center' }}>Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {arbitragemData.arbitros
+                        .filter(a => !arbitroBusca || a.arbitro.toLowerCase().includes(arbitroBusca.toLowerCase()))
+                        .map((arb, idx) => (
+                          <tr key={arb.arbitro} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 150ms' }}>
+                            <td className="font-mono" style={{ padding: '12px 10px', color: 'var(--text-muted)' }}>
+                              {idx + 1}º
+                            </td>
+                            <td style={{ padding: '12px 10px' }}>
+                              <strong style={{ color: 'var(--text-main)' }}>{arb.arbitro}</strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {arb.total_amarelos} amarelos • {arb.total_vermelhos} vermelhos
+                              </div>
+                            </td>
+                            <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', fontWeight: '600' }}>
+                              {arb.jogos}
+                            </td>
+                            <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#D97706' }}>
+                                🟨 {arb.media_amarelos.toFixed(2)}
+                              </span>
+                            </td>
+                            <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <span className="badge" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#DC2626' }}>
+                                🟥 {arb.media_vermelhos.toFixed(2)}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }} className="font-mono">
+                                <span style={{ color: '#10B981', fontWeight: '600' }} title="Vitórias do Mandante">M: {arb.pct_mandante}%</span>
+                                <span style={{ color: 'var(--text-muted)' }}>•</span>
+                                <span style={{ color: '#64748B' }} title="Empates">E: {arb.pct_empate}%</span>
+                                <span style={{ color: 'var(--text-muted)' }}>•</span>
+                                <span style={{ color: '#EF4444', fontWeight: '600' }} title="Vitórias do Visitante">V: {arb.pct_visitante}%</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <span className={
+                                arb.perfil.includes('Rigoroso') ? 'badge badge-pink' :
+                                arb.perfil === 'Moderado' ? 'badge badge-blue' : 'badge badge-green'
+                              } style={{ fontSize: '0.75rem' }}>
+                                {arb.perfil}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                              <button
+                                className="btn-secondary"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '6px' }}
+                                onClick={() => {
+                                  setActiveTab('oraculo');
+                                  enviarPerguntaOraculo(`Qual o retrospecto detalhado de cartões e pênaltis nos jogos apitados por ${arb.arbitro}?`);
+                                }}
+                                title="Analisar este árbitro com o Oráculo de IA"
+                              >
+                                Consultar IA
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
