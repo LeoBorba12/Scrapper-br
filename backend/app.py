@@ -796,6 +796,27 @@ def get_jogadores_destaques():
         "vermelhos": vermelhos
     })
 
+MAPA_APELIDOS_ATLETAS = {
+    'gabigol': 'Gabriel Barbosa',
+    'gabi': 'Gabriel Barbosa',
+    'gabriel barbosa': 'Gabriel Barbosa',
+    'hulk': 'Hulk',
+    'arrascaeta': 'Arrascaeta',
+    'de arrascaeta': 'Arrascaeta',
+    'giorgian de arrascaeta': 'Arrascaeta',
+    'german cano': 'Germán Cano',
+    'cano': 'Germán Cano',
+    'veiga': 'Raphael Veiga',
+    'raphael veiga': 'Raphael Veiga',
+    'dudu': 'Dudu',
+    'pedro': 'Pedro',
+    'zico': 'Zico',
+    'pele': 'Pelé',
+    'dinamite': 'Roberto Dinamite',
+    'ronaldinho': 'Ronaldinho Gaúcho',
+    'ronaldinho gaucho': 'Ronaldinho Gaúcho'
+}
+
 @app.route('/api/jogadores/busca', methods=['GET'])
 @require_auth
 def buscar_jogadores():
@@ -806,7 +827,9 @@ def buscar_jogadores():
 
     conn = get_db()
     c = conn.cursor()
-    param_like = f"%{q}%"
+    canonico = MAPA_APELIDOS_ATLETAS.get(q.lower(), q)
+    param_like_q = f"%{q}%"
+    param_like_c = f"%{canonico}%"
 
     sql = """
         SELECT 
@@ -817,19 +840,20 @@ def buscar_jogadores():
             total_vermelhos as vermelhos,
             total_jogos as jogos
         FROM jogadores_resumo
-        WHERE nome LIKE ?
+        WHERE nome LIKE ? OR nome LIKE ?
         ORDER BY 
             CASE 
                 WHEN LOWER(nome) = LOWER(?) THEN 1
-                WHEN LOWER(nome) LIKE LOWER(? || ' %') THEN 2
-                WHEN LOWER(nome) LIKE LOWER(? || '%') THEN 3
-                ELSE 4 
+                WHEN LOWER(nome) = LOWER(?) THEN 2
+                WHEN LOWER(nome) LIKE LOWER(? || ' %') THEN 3
+                WHEN LOWER(nome) LIKE LOWER(? || ' %') THEN 4
+                ELSE 5 
             END,
             total_gols DESC,
             total_jogos DESC
         LIMIT ?;
     """
-    rows = c.execute(sql, (param_like, q, q, q, limit)).fetchall()
+    rows = c.execute(sql, (param_like_q, param_like_c, canonico, q, canonico, q, limit)).fetchall()
     
     resultados = []
     for r in rows:
@@ -852,6 +876,8 @@ def get_jogador_perfil():
     if not nome:
         return jsonify({"error": "Nome do atleta não informado"}), 400
 
+    nome_canonico = MAPA_APELIDOS_ATLETAS.get(nome.lower(), nome)
+
     conn = get_db()
     c = conn.cursor()
 
@@ -861,9 +887,9 @@ def get_jogador_perfil():
                p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
         FROM gols g
         JOIN partidas p ON g.id_partida = p.id_partida
-        WHERE (g.atleta = ? OR g.atleta LIKE ? OR g.atleta LIKE ?)
+        WHERE (g.atleta = ? OR g.atleta = ? OR g.atleta LIKE ? OR g.atleta LIKE ?)
     """
-    params_gols = [nome, f"{nome}(%", f"{nome} %"]
+    params_gols = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
     if clube_filtro:
         sql_gols += " AND g.clube LIKE ?"
         params_gols.append(f"%{clube_filtro}%")
@@ -878,9 +904,9 @@ def get_jogador_perfil():
                p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
         FROM cartoes cr
         JOIN partidas p ON cr.id_partida = p.id_partida
-        WHERE (cr.atleta = ? OR cr.atleta LIKE ? OR cr.atleta LIKE ?)
+        WHERE (cr.atleta = ? OR cr.atleta = ? OR cr.atleta LIKE ? OR cr.atleta LIKE ?)
     """
-    params_cartoes = [nome, f"{nome} %", f"% {nome}"]
+    params_cartoes = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
     if clube_filtro:
         sql_cartoes += " AND cr.clube LIKE ?"
         params_cartoes.append(f"%{clube_filtro}%")
@@ -895,9 +921,9 @@ def get_jogador_perfil():
                p.ano, p.data, p.mandante, p.visitante, p.placar, p.campeonato, p.estadio
         FROM escalacoes e
         JOIN partidas p ON e.id_partida = p.id_partida
-        WHERE (e.atleta = ? OR e.atleta LIKE ? OR e.atleta LIKE ? OR e.atleta LIKE ?)
+        WHERE (e.atleta = ? OR e.atleta = ? OR e.atleta LIKE ? OR e.atleta LIKE ?)
     """
-    params_esc = [nome, f"{nome} %", f"% {nome} %", f"% {nome}"]
+    params_esc = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
     if clube_filtro:
         sql_esc += " AND e.clube LIKE ?"
         params_esc.append(f"%{clube_filtro}%")
