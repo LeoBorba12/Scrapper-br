@@ -100,8 +100,28 @@ Tabelas disponíveis:
    - odd_b365_mandante, odd_b365_visitante (REAL, cotação da Bet365)
    - status_zebra (TEXT: 'Normal', 'Zebra Mandante', 'Super Zebra Mandante', 'Zebra Visitante', 'Super Zebra Visitante')
 
+8. view_estatisticas_estadios (visão agregada oficial de estádios):
+   - estadio (TEXT, nome do estádio ex: 'Maracanã', 'Mineirão', 'Neo Química Arena', 'Allianz Parque')
+   - cidade (TEXT, ex: 'Rio de Janeiro', 'São Paulo', 'Belo Horizonte')
+   - estado (TEXT, UF de 2 letras ex: 'RJ', 'SP', 'MG')
+   - total_jogos (INT, total de partidas sediadas)
+   - total_gols (INT, total de gols marcados no estádio)
+   - media_gols_jogo (REAL, média de gols por jogo)
+   - recorde_publico (INT, maior público registrado)
+   - competicoes_distintas (INT)
+
+9. view_estatisticas_arbitros (visão analítica de arbitragem):
+   - arbitro (TEXT, nome completo do árbitro ex: 'Raphael Claus', 'Wilton Pereira Sampaio', 'Anderson Daronco')
+   - total_jogos (INT, partidas apitadas)
+   - vitorias_mandante (INT)
+   - vitorias_visitante (INT)
+   - empates (INT)
+   - pct_vitorias_mandante (REAL, percentual de vitórias do mandante)
+   - media_gols_jogo (REAL, média de gols nas partidas que apitou)
+
 MATRIZ DE COBERTURA DE DADOS (TRANSPARÊNCIA METODOLÓGICA):
-- Partidas, Placares e Vencedores: cobertura integral de 1971 a 2024 em Série A, Série B, Copa do Brasil e Libertadores.
+- Partidas, Placares e Vencedores: cobertura abrangente de 1910 a 2026 nos 20 maiores clubes e de 1971 a 2026 em Série A, Série B, Copa do Brasil e Libertadores.
+- Estádios e Árbitros: para rankings gerais de estádios ou arbitragem, SEMPRE use `view_estatisticas_estadios` e `view_estatisticas_arbitros`. Para saber o estádio ou árbitro de uma partida específica, consulte `partidas.estadio`, `partidas.arbitro`, `partidas.tecnico_mandante` e `partidas.publico`.
 - Gols de Atletas lance a lance: cobertura no Brasileirão clássico (1971-2002), Libertadores, Sul-Americana e Copa do Brasil. Na tabela 'gols', a esmagadora maioria dos registros está catalogada como 'Normal' ou 'Pênalti'.
 - Rankings Oficiais e Gols de Falta: SEMPRE consulte a tabela artilharia_historica para rankings de artilheiros ou especialistas em fundamentos (ex: WHERE divisao = 'Gols de Falta' traz o ranking histórico oficial de batedores como Zico, Juninho Pernambucano, Pelé, Ronaldinho Gaúcho, Rogério Ceni e Marcelinho Carioca; WHERE divisao = 'Série B' traz os artilheiros da 2ª divisão). NUNCA filtre a tabela 'gols' por tipo_de_gol = 'Falta', pois ela contém apenas uma amostra de torneios internacionais.
 

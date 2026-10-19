@@ -100,38 +100,45 @@ def normalizar_time(nome: str) -> str:
 
 def extrair_jogos_ogol(clube_slug: str, ano: int) -> List[Dict]:
     """
-    Extrai todos os jogos de uma temporada para determinado clube via OGol, tratando paginação.
+    Extrai todos os jogos de uma temporada para determinado clube via OGol, tratando paginação dinâmica.
     """
     clube_nome = CLUBES_OGOL.get(clube_slug, clube_slug.title())
     jogos = []
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    url = f"https://www.ogol.com.br/equipe/{clube_slug}/todos-os-jogos?ano={ano}"
     pagina = 1
 
-    while True:
-        url = f"https://www.ogol.com.br/equipe/{clube_slug}/todos-os-jogos?ano={ano}&page={pagina}"
+    while url:
         try:
             time.sleep(0.4)
-            resp = requests.get(url, headers=HEADERS, timeout=12)
+            resp = session.get(url, timeout=15)
             if resp.status_code != 200:
                 break
 
             soup = BeautifulSoup(resp.text, "html.parser")
-            tables = soup.find_all("table")
-            if len(tables) < 2:
+            
+            # Localiza dinamicamente a tabela que contém as partidas
+            tabela_jogos = None
+            for t in soup.find_all("table"):
+                rows = t.find_all("tr")
+                if len(rows) > 1:
+                    sample_tds = [td.get_text(strip=True) for td in rows[1].find_all(["td", "th"])]
+                    if len(sample_tds) >= 8 and re.match(r"^\d{4}-\d{2}-\d{2}$", sample_tds[1]):
+                        tabela_jogos = t
+                        break
+
+            if not tabela_jogos:
                 break
 
-            tabela_jogos = tables[1]
             rows = tabela_jogos.find_all("tr")
-            if len(rows) <= 1:
-                break
-
             jogos_nesta_pagina = 0
             for r in rows[1:]:
                 tds = [td.get_text(strip=True) for td in r.find_all(["td", "th"])]
                 if len(tds) < 8:
                     continue
 
-                # Colunas OGol:
-                # 0: V/E/D, 1: Data (YYYY-MM-DD), 2: Hora, 3: (C)/(F), 4: logo, 5: Adversário, 6: Placar, 7: Competição
                 data_iso = tds[1].strip()
                 if not re.match(r"^\d{4}-\d{2}-\d{2}$", data_iso):
                     continue
@@ -141,7 +148,7 @@ def extrair_jogos_ogol(clube_slug: str, ano: int) -> List[Dict]:
                 adv_raw = tds[5].strip()
                 adversario = normalizar_time(adv_raw)
 
-                # Placar
+                # Placar (ignora partidas não realizadas com "-")
                 placar_raw = tds[6].strip()
                 m_placar = re.search(r"^(\d+)\s*[-xX]\s*(\d+)", placar_raw)
                 if not m_placar:
@@ -183,17 +190,13 @@ def extrair_jogos_ogol(clube_slug: str, ano: int) -> List[Dict]:
             if jogos_nesta_pagina == 0:
                 break
 
-            # Checa se existe próxima página na paginação
-            pag_div = soup.find(class_=lambda c: c and "pagin" in str(c).lower())
-            if not pag_div:
-                break
-
-            prox_page_str = str(pagina + 1)
-            tem_proxima = any(a.get_text(strip=True) == prox_page_str for a in pag_div.find_all("a"))
-            if not tem_proxima:
-                break
-
-            pagina += 1
+            # Avança na paginação oficial usando next-link
+            next_a = soup.find("a", class_="next-link")
+            if next_a and next_a.get("href"):
+                url = "https://www.ogol.com.br" + next_a["href"]
+                pagina += 1
+            else:
+                url = None
 
         except Exception as e:
             print(f"[ERRO] Falha ao extrair página {pagina} de {clube_slug} em {ano}: {e}")
@@ -221,8 +224,15 @@ def aplicar_ao_banco(jogos: List[Dict], db_path: str) -> Dict[str, int]:
         c.execute("""
             SELECT id_partida, horario, placar
             FROM partidas
-            WHERE data = ? AND mandante LIKE ? AND visitante LIKE ?
-        """, (j["data"], f"%{j['mandante'][:4]}%", f"%{j['visitante'][:4]}%"))
+            WHERE data = ? AND (
+                (mandante LIKE ? AND visitante LIKE ?) OR
+                (mandante LIKE ? AND visitante LIKE ?)
+            )
+        """, (
+            j["data"],
+            f"%{j['mandante'][:4]}%", f"%{j['visitante'][:4]}%",
+            f"%{j['visitante'][:4]}%", f"%{j['mandante'][:4]}%"
+        ))
         db_match = c.fetchone()
 
         if db_match:
@@ -256,34 +266,48 @@ def aplicar_ao_banco(jogos: List[Dict], db_path: str) -> Dict[str, int]:
     conn.close()
     return {"inseridos": inseridos, "atualizados": atualizados}
 
-def atualizar_temporada_atual_clubes():
+def sincronizar_clubes(anos: List[int], clubes: Optional[List[str]] = None):
     """
-    Rotina executada diariamente para atualizar os resultados dos 20 clubes da Série A no ano corrente.
+    Sincroniza uma lista de anos para os clubes especificados (ou todos os 20 principais).
     """
-    from datetime import datetime
-    ano_atual = datetime.now().year
-    print(f"=== ATUALIZAÇÃO DIÁRIA DE JOGOS RECENTES ({ano_atual}) ===")
+    alvo_slugs = clubes if clubes else sorted(list(CLUBES_OGOL.keys()))
+    print(f"=== INICIANDO SINCRONIZAÇÃO DE CLUBES (Anos: {anos}) ===")
     
     total_ins = 0
     total_upd = 0
     
-    for slug in sorted(list(CLUBES_OGOL.keys())):
-        print(f"\nSincronizando {CLUBES_OGOL[slug]} ({ano_atual})...")
-        jogos = extrair_jogos_ogol(slug, ano_atual)
-        if jogos:
-            res_loc = aplicar_ao_banco(jogos, DB_LOCAL)
-            res_api = aplicar_ao_banco(jogos, DB_API)
-            total_ins += res_loc["inseridos"]
-            total_upd += res_loc["atualizados"]
-            print(f" -> {CLUBES_OGOL[slug]}: +{res_loc['inseridos']} novos jogos, {res_loc['atualizados']} atualizados.")
-            
-    print(f"\n[FIM DA ATUALIZAÇÃO DIÁRIA] Inseridos: {total_ins} | Atualizados: {total_upd}")
+    for ano in anos:
+        for slug in alvo_slugs:
+            nome_exib = CLUBES_OGOL.get(slug, slug)
+            print(f"\nSincronizando {nome_exib} ({ano})...")
+            jogos = extrair_jogos_ogol(slug, ano)
+            if jogos:
+                res_loc = aplicar_ao_banco(jogos, DB_LOCAL)
+                res_api = aplicar_ao_banco(jogos, DB_API)
+                total_ins += res_loc["inseridos"]
+                total_upd += res_loc["atualizados"]
+                print(f" -> {nome_exib} ({ano}): +{res_loc['inseridos']} novos jogos, {res_loc['atualizados']} atualizados.")
+                
+    print(f"\n[FIM DA SINCRONIZAÇÃO] Total Inseridos: {total_ins} | Total Atualizados: {total_upd}")
 
 if __name__ == "__main__":
-    if "--diario" in sys.argv:
-        atualizar_temporada_atual_clubes()
+    import argparse
+    parser = argparse.ArgumentParser(description="Extrator de Jogos de Clubes Brasileiros (OGol)")
+    parser.add_argument("--anos", type=str, default="", help="Anos separados por vírgula (ex: 2024,2025,2026)")
+    parser.add_argument("--clube", type=str, default="", help="Slug do clube (ex: flamengo, vasco)")
+    parser.add_argument("--diario", action="store_true", help="Executa atualização do ano corrente para todos os clubes")
+    args = parser.parse_args()
+
+    from datetime import datetime
+    ano_atual = datetime.now().year
+
+    if args.diario:
+        sincronizar_clubes(anos=[ano_atual])
+    elif args.anos:
+        anos_lista = [int(a.strip()) for a in args.anos.split(",") if a.strip()]
+        clubes_lista = [args.clube.strip().lower()] if args.clube else None
+        sincronizar_clubes(anos=anos_lista, clubes=clubes_lista)
     else:
-        print("=== EXTRATOR UNIVERSAL DE CLUBES BRASILEIROS (OGOL) ===")
-        # Se chamado diretamente sem argumentos, roda a sincronização recente
-        atualizar_temporada_atual_clubes()
+        # Padrão: atualiza temporada atual
+        sincronizar_clubes(anos=[ano_atual])
 

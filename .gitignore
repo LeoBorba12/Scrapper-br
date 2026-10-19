@@ -23,4 +23,5 @@ frontend/.vite/
 
 # Raw caches de raspagem
 data/raw_*
+data/.backfill_checkpoint.json
 scratch/
