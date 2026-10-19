@@ -25,12 +25,14 @@ jobs:
     - name: Instalar dependências
       run: |
         python -m pip install --upgrade pip
-        pip install requests pandas pillow numpy
+        pip install requests pandas pillow numpy beautifulsoup4
 
     - name: Construir e atualizar bancos de dados isolados
       run: |
         python construir_banco_futebol.py
         python construir_banco_clima.py
+        python scripts/scraper_ogol_clubes.py --diario || true
+        python matchday_bot.py || true
         python consultar_combinacoes.py
         python gerar_card_tweet.py
 
@@ -38,6 +40,7 @@ jobs:
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git add data/*.db *.png *.csv *.py || true
+        git add data/*.db api/data/*.db *.png *.csv *.py scripts/*.py || true
         git commit -m "Auto-update: Bancos de Futebol e Clima atualizados via Bot" || echo "Sem alterações para commitar"
         git push
+

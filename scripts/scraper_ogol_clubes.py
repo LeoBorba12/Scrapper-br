@@ -256,31 +256,34 @@ def aplicar_ao_banco(jogos: List[Dict], db_path: str) -> Dict[str, int]:
     conn.close()
     return {"inseridos": inseridos, "atualizados": atualizados}
 
-if __name__ == "__main__":
-    print("=== EXTRATOR UNIVERSAL DE CLUBES BRASILEIROS (OGOL) ===")
+def atualizar_temporada_atual_clubes():
+    """
+    Rotina executada diariamente para atualizar os resultados dos 20 clubes da Série A no ano corrente.
+    """
+    from datetime import datetime
+    ano_atual = datetime.now().year
+    print(f"=== ATUALIZAÇÃO DIÁRIA DE JOGOS RECENTES ({ano_atual}) ===")
     
-    # Teste 1: Temporada Histórica de 1981 do Flamengo (Mundial e Libertadores)
-    clube_teste = "flamengo"
-    ano_teste = 1981
-    print(f"\n1. Baixando temporada {ano_teste} do {clube_teste.upper()}...")
-    jogos_fla = extrair_jogos_ogol(clube_teste, ano_teste)
+    total_ins = 0
+    total_upd = 0
+    
+    for slug in sorted(list(CLUBES_OGOL.keys())):
+        print(f"\nSincronizando {CLUBES_OGOL[slug]} ({ano_atual})...")
+        jogos = extrair_jogos_ogol(slug, ano_atual)
+        if jogos:
+            res_loc = aplicar_ao_banco(jogos, DB_LOCAL)
+            res_api = aplicar_ao_banco(jogos, DB_API)
+            total_ins += res_loc["inseridos"]
+            total_upd += res_loc["atualizados"]
+            print(f" -> {CLUBES_OGOL[slug]}: +{res_loc['inseridos']} novos jogos, {res_loc['atualizados']} atualizados.")
+            
+    print(f"\n[FIM DA ATUALIZAÇÃO DIÁRIA] Inseridos: {total_ins} | Atualizados: {total_upd}")
 
-    print("\n2. Exemplo das primeiras partidas extraídas:")
-    for j in jogos_fla[:3]:
-        print(f" -> {j['data']} | {j['mandante']} {j['placar']} {j['visitante']} | {j['campeonato']}")
+if __name__ == "__main__":
+    if "--diario" in sys.argv:
+        atualizar_temporada_atual_clubes()
+    else:
+        print("=== EXTRATOR UNIVERSAL DE CLUBES BRASILEIROS (OGOL) ===")
+        # Se chamado diretamente sem argumentos, roda a sincronização recente
+        atualizar_temporada_atual_clubes()
 
-    print("\n3. Aplicando ao banco de dados...")
-    res_loc = aplicar_ao_banco(jogos_fla, DB_LOCAL)
-    res_api = aplicar_ao_banco(jogos_fla, DB_API)
-    print(f" -> data/futebol.db: {res_loc['inseridos']} inseridos, {res_loc['atualizados']} enriquecidos.")
-    print(f" -> api/data/futebol.db: {res_api['inseridos']} inseridos, {res_api['atualizados']} enriquecidos.")
-
-    # Teste 2: Temporada Histórica de 1992 do São Paulo (Mundial de Tóquio)
-    clube_spfc = "sao-paulo"
-    ano_spfc = 1992
-    print(f"\n4. Baixando temporada {ano_spfc} do SÃO PAULO...")
-    jogos_spfc = extrair_jogos_ogol(clube_spfc, ano_spfc)
-    res_spfc_loc = aplicar_ao_banco(jogos_spfc, DB_LOCAL)
-    res_spfc_api = aplicar_ao_banco(jogos_spfc, DB_API)
-    print(f" -> data/futebol.db: {res_spfc_loc['inseridos']} inseridos, {res_spfc_loc['atualizados']} enriquecidos.")
-    print(f" -> api/data/futebol.db: {res_spfc_api['inseridos']} inseridos, {res_spfc_api['atualizados']} enriquecidos.")
