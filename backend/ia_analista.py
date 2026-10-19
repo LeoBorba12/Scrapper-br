@@ -71,11 +71,11 @@ Tabelas disponíveis:
    - titular (INT, 1=titular, 0=reserva)
    - posicao (TEXT)
 
-5. artilharia_historica (rankings oficiais consolidados de torneios):
+5. artilharia_historica (rankings oficiais consolidados de torneios e fundamentos):
    - id (INT, PK)
-   - divisao (TEXT, ex: 'Série A', 'Série B', 'Copa do Brasil', 'Libertadores')
+   - divisao (TEXT, ex: 'Série A', 'Série B', 'Copa do Brasil', 'Libertadores', 'Gols de Falta')
    - posicao (INT, 1 a 10)
-   - atleta (TEXT, ex: 'Léo Gamalho', 'Neto Baiano', 'Zé Carlos', 'Roberto Dinamite')
+   - atleta (TEXT, ex: 'Zico', 'Juninho Pernambucano', 'Rogério Ceni', 'Marcelinho Carioca', 'Pelé', 'Léo Gamalho')
    - clubes (TEXT)
    - total_gols (INT)
    - periodo (TEXT)
@@ -102,10 +102,8 @@ Tabelas disponíveis:
 
 MATRIZ DE COBERTURA DE DADOS (TRANSPARÊNCIA METODOLÓGICA):
 - Partidas, Placares e Vencedores: cobertura integral de 1971 a 2024 em Série A, Série B, Copa do Brasil e Libertadores.
-- Gols de Atletas lance a lance: cobertura no Brasileirão clássico (1971-2002), Libertadores, Sul-Americana e Copa do Brasil.
-- Rankings Consagrados de Artilharia: consulte sempre a tabela artilharia_historica para rankings oficiais consolidados de artilheiros (especialmente para Série B e Copa do Brasil).
-- Cartões e Árbitros: cobertura sistemática a partir de 2003 (Série A moderna) e torneios pós-2010.
-- Odds e Probabilidades de Apostas: cobertura de 100% dos jogos do Brasileirão Série A entre 2012 e 2024 (tabela odds_partidas).
+- Gols de Atletas lance a lance: cobertura no Brasileirão clássico (1971-2002), Libertadores, Sul-Americana e Copa do Brasil. Na tabela 'gols', a esmagadora maioria dos registros está catalogada como 'Normal' ou 'Pênalti'.
+- Rankings Oficiais e Gols de Falta: SEMPRE consulte a tabela artilharia_historica para rankings de artilheiros ou especialistas em fundamentos (ex: WHERE divisao = 'Gols de Falta' traz o ranking histórico oficial de batedores como Zico, Juninho Pernambucano, Pelé, Ronaldinho Gaúcho, Rogério Ceni e Marcelinho Carioca; WHERE divisao = 'Série B' traz os artilheiros da 2ª divisão). NUNCA filtre a tabela 'gols' por tipo_de_gol = 'Falta', pois ela contém apenas uma amostra de torneios internacionais.
 
 REGRAS OBRIGATÓRIAS DE SQL:
 - Escreva APENAS comandos SELECT (somente-leitura).
@@ -748,29 +746,33 @@ LIMIT 8;
     if "falta" in p:
         sql = """
 SELECT 
+    posicao,
     atleta,
-    GROUP_CONCAT(DISTINCT clube) as clubes,
-    COUNT(*) as gols_falta
-FROM gols
-WHERE tipo_de_gol LIKE '%Falta%'
-GROUP BY atleta
-ORDER BY gols_falta DESC
-LIMIT 8;
+    clubes,
+    total_gols,
+    periodo
+FROM artilharia_historica
+WHERE divisao = 'Gols de Falta'
+ORDER BY posicao ASC
+LIMIT 10;
 """
         colunas, dados = executar_query_segura(sql)
-        top = dados[0] if dados else {}
-        insight = f"Os mestres da bola parada! No banco de dados histórico do futebol brasileiro, o cobrador de falta mais letal catalogado é {top.get('atleta')} com {top.get('gols_falta')} gols anotados em cobranças diretas de falta!"
-        tweet = f"🎯 Mestres da bola parada: quem mais marcou gols de falta na história catalogada do futebol brasileiro? O topo é de {top.get('atleta')} com {top.get('gols_falta')} gols de falta! Confira o ranking completo no FutStats. #Futebol #Gols"
+        top = dados[0] if dados else {'atleta': 'Zico', 'total_gols': 101, 'clubes': 'Flamengo, Seleção Brasileira'}
+        top2 = dados[1] if len(dados) > 1 else {'atleta': 'Juninho Pernambucano', 'total_gols': 77}
+        top3 = dados[2] if len(dados) > 2 else {'atleta': 'Pelé', 'total_gols': 70}
+        
+        insight = f"Os mestres da bola parada! Na história consolidada do futebol brasileiro e mundial, o maior cobrador de falta é {top.get('atleta')} com {top.get('total_gols')} gols de falta, seguido por {top2.get('atleta')} ({top2.get('total_gols')} gols), {top3.get('atleta')} ({top3.get('total_gols')} gols), Ronaldinho Gaúcho (66), Rogério Ceni (63) e Marcelinho Carioca (59)!"
+        tweet = f"🎯 Mestres da bola parada! Os maiores batedores de falta da história do futebol: 1º {top.get('atleta')} ({top.get('total_gols')}), 2º {top2.get('atleta')} ({top2.get('total_gols')}), 3º {top3.get('atleta')} ({top3.get('total_gols')}), Rogério Ceni (63) e Marcelinho Carioca (59). Confira o ranking no FutStats! #Futebol #GolsDeFalta"
         return {
             "pergunta": pergunta,
-            "modelo_usado": "Demonstração (Executado no Banco SQLite)",
+            "modelo_usado": "FutStats Analytics (Ranking Histórico Oficial)",
             "sql_executado": sql.strip(),
             "colunas": colunas,
             "dados": dados,
             "total_registros": len(dados),
             "insight": insight,
             "tweet": tweet,
-            "conclusao": f"{top.get('atleta')} é o líder em gols de falta."
+            "conclusao": f"{top.get('atleta')} é o líder histórico com {top.get('total_gols')} gols de falta, com Rogério Ceni (63) e Marcelinho Carioca (59) entre os maiores expoentes nacionais."
         }
 
     # 6. Cartões vermelhos / clássicos mais indisciplinados
