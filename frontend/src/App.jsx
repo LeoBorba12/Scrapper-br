@@ -1298,6 +1298,7 @@ export default function App() {
                         <th style={{ padding: '10px 8px' }}>Campeonato</th>
                         <th style={{ padding: '10px 8px' }}>Partida</th>
                         <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Odds & Favorito</th>
                         <th style={{ padding: '10px 8px' }}>Estádio</th>
                       </tr>
                     </thead>
@@ -1313,6 +1314,32 @@ export default function App() {
                           </td>
                           <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700' }}>
                             {p.placar || `${p.gols_mandante} x ${p.gols_visitante}`}
+                          </td>
+                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            {p.odd_mandante ? (
+                              <div style={{ fontSize: '0.78rem' }} className="font-mono">
+                                <span title={`Probabilidade Mandante: ${p.prob_mandante}%`}>
+                                  <strong>{p.odd_mandante}</strong>
+                                </span>
+                                <span style={{ color: 'var(--text-muted)' }}> • </span>
+                                <span title={`Probabilidade Empate: ${p.prob_empate}%`}>
+                                  {p.odd_empate}
+                                </span>
+                                <span style={{ color: 'var(--text-muted)' }}> • </span>
+                                <span title={`Probabilidade Visitante: ${p.prob_visitante}%`}>
+                                  <strong>{p.odd_visitante}</strong>
+                                </span>
+                                {p.status_zebra && p.status_zebra.includes('Zebra') && (
+                                  <div style={{ marginTop: '2px' }}>
+                                    <span className="badge badge-pink" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                                      {p.status_zebra}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>-</span>
+                            )}
                           </td>
                           <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
                             {p.estadio || '-'}

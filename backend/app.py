@@ -468,12 +468,19 @@ def get_h2h():
     conn = get_db()
     c = conn.cursor()
     
-    # Busca todas as partidas entre os dois
+    # Busca todas as partidas entre os dois com cotações de apostas (quando disponíveis)
     query = """
-        SELECT id_partida, ano, data, mandante, visitante, gols_mandante, gols_visitante, placar, vencedor, campeonato, estadio, fase
-        FROM partidas
-        WHERE (mandante LIKE ? AND visitante LIKE ?) OR (mandante LIKE ? AND visitante LIKE ?)
-        ORDER BY data DESC, id_partida DESC;
+        SELECT 
+            p.id_partida, p.ano, p.data, p.mandante, p.visitante, 
+            p.gols_mandante, p.gols_visitante, p.placar, p.vencedor, 
+            p.campeonato, p.estadio, p.fase,
+            o.odd_mandante, o.odd_empate, o.odd_visitante,
+            o.prob_mandante, o.prob_empate, o.prob_visitante,
+            o.status_zebra
+        FROM partidas p
+        LEFT JOIN odds_partidas o ON p.id_partida = o.id_partida
+        WHERE (p.mandante LIKE ? AND p.visitante LIKE ?) OR (p.mandante LIKE ? AND p.visitante LIKE ?)
+        ORDER BY p.data DESC, p.id_partida DESC;
     """
     c.execute(query, (f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%"))
     rows = c.fetchall()
@@ -1424,6 +1431,38 @@ def get_brasileirao_aovivo():
 
     except Exception as e:
         return jsonify({"error": f"Falha ao carregar dados ao vivo: {str(e)}"}), 500
+
+@app.route('/api/odds/zebras', methods=['GET'])
+def get_maiores_zebras():
+    """Retorna os maiores upsets (zebras históricas) do Brasileirão com base nas odds de apostas."""
+    cached = api_cache.get("api_odds_zebras")
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT 
+            p.id_partida, p.ano, p.data, p.mandante, p.visitante, p.placar, p.vencedor, p.estadio,
+            o.odd_mandante, o.odd_empate, o.odd_visitante,
+            o.prob_mandante, o.prob_empate, o.prob_visitante,
+            o.status_zebra,
+            CASE 
+                WHEN p.vencedor = p.visitante THEN o.odd_visitante 
+                WHEN p.vencedor = p.mandante THEN o.odd_mandante 
+                ELSE o.odd_empate 
+            END as odd_vencedor
+        FROM partidas p
+        JOIN odds_partidas o ON p.id_partida = o.id_partida
+        WHERE o.status_zebra LIKE '%Zebra%'
+        ORDER BY odd_vencedor DESC
+        LIMIT 25;
+    """)
+    zebras = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    api_cache.set("api_odds_zebras", zebras, ttl=3600)
+    return jsonify(zebras)
 
 @app.route('/api/ia/diagnostico', methods=['GET'])
 @require_admin

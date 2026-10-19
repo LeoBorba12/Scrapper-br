@@ -87,11 +87,25 @@ Tabelas disponíveis:
    - precipitacao_mm (REAL, chuva em milímetros)
    - temperatura_media (REAL, temperatura em Celsius)
 
+7. odds_partidas (cotações de apostas e probabilidades implícitas de mercado no Brasileirão Série A 2012-2024):
+   - id_partida (INT, PK, FK partidas.id_partida)
+   - odd_mandante (REAL, cotação média de mercado para vitória do mandante, ex: 1.65)
+   - odd_empate (REAL, cotação média para empate, ex: 3.40)
+   - odd_visitante (REAL, cotação média para vitória do visitante, ex: 5.20)
+   - prob_mandante (REAL, probabilidade percentual implícita de vitória do mandante, ex: 60.6%)
+   - prob_empate (REAL, probabilidade percentual de empate, ex: 29.4%)
+   - prob_visitante (REAL, probabilidade percentual de vitória do visitante, ex: 19.2%)
+   - odd_max_mandante, odd_max_visitante (REAL, cotação máxima do mercado)
+   - odd_pinnacle_mandante, odd_pinnacle_visitante (REAL, cotação da Pinnacle Sports)
+   - odd_b365_mandante, odd_b365_visitante (REAL, cotação da Bet365)
+   - status_zebra (TEXT: 'Normal', 'Zebra Mandante', 'Super Zebra Mandante', 'Zebra Visitante', 'Super Zebra Visitante')
+
 MATRIZ DE COBERTURA DE DADOS (TRANSPARÊNCIA METODOLÓGICA):
 - Partidas, Placares e Vencedores: cobertura integral de 1971 a 2024 em Série A, Série B, Copa do Brasil e Libertadores.
 - Gols de Atletas lance a lance: cobertura no Brasileirão clássico (1971-2002), Libertadores, Sul-Americana e Copa do Brasil.
 - Rankings Consagrados de Artilharia: consulte sempre a tabela artilharia_historica para rankings oficiais consolidados de artilheiros (especialmente para Série B e Copa do Brasil).
 - Cartões e Árbitros: cobertura sistemática a partir de 2003 (Série A moderna) e torneios pós-2010.
+- Odds e Probabilidades de Apostas: cobertura de 100% dos jogos do Brasileirão Série A entre 2012 e 2024 (tabela odds_partidas).
 
 REGRAS OBRIGATÓRIAS DE SQL:
 - Escreva APENAS comandos SELECT (somente-leitura).
@@ -155,6 +169,7 @@ TABELAS_PERMITIDAS = {
     "clima_diario",
     "artilharia_historica",
     "jogadores_resumo",
+    "odds_partidas",
 }
 
 def sqlite_authorizer_callback(action, arg1, arg2, dbname, source):
