@@ -122,7 +122,78 @@ MAPA_CLUBES = {
     "São Luiz": "São Luiz",
     "Guarany de Bagé": "Guarany de Bagé",
     "Monsoon": "Monsoon",
-    "Pelotas": "Pelotas"
+    "Pelotas": "Pelotas",
+
+    # Paraná
+    "Athletico Paranaense": "Athletico-PR",
+    "Atlético Paranaense": "Athletico-PR",
+    "Atlético-PR": "Athletico-PR",
+    "Athletico-PR": "Athletico-PR",
+    "Coritiba": "Coritiba",
+    "Coritiba FC": "Coritiba",
+    "Operário Ferroviário": "Operário-PR",
+    "Operário-PR": "Operário-PR",
+    "Londrina": "Londrina",
+    "Maringá": "Maringá",
+    "Cianorte": "Cianorte",
+    "FC Cascavel": "FC Cascavel",
+    "Cascavel": "FC Cascavel",
+    "Paraná": "Paraná",
+    "Paraná Clube": "Paraná",
+    "Azuriz": "Azuriz",
+
+    # Nordeste
+    "Bahia": "Bahia",
+    "Vitória": "Vitória",
+    "Fortaleza": "Fortaleza",
+    "Ceará": "Ceará",
+    "Sport": "Sport",
+    "Sport Recife": "Sport",
+    "Náutico": "Náutico",
+    "Santa Cruz": "Santa Cruz",
+    "CRB": "CRB",
+    "CSA": "CSA",
+    "ABC": "ABC",
+    "América-RN": "América-RN",
+    "América de Natal": "América-RN",
+    "Sampaio Corrêa": "Sampaio Corrêa",
+    "Confiança": "Confiança",
+    "Botafogo-PB": "Botafogo-PB",
+    "Ferroviário": "Ferroviário",
+    "Ferroviário-CE": "Ferroviário",
+    "Treze": "Treze",
+    "Campinense": "Campinense",
+    "Altos": "Altos",
+    "River-PI": "River-PI",
+    "Moto Club": "Moto Club",
+    "Sergipe": "Sergipe",
+    "Itabaiana": "Itabaiana",
+    "Juazeirense": "Juazeirense",
+    "Sousa": "Sousa",
+
+    # Santa Catarina
+    "Chapecoense": "Chapecoense",
+    "Avaí": "Avaí",
+    "Figueirense": "Figueirense",
+    "Criciúma": "Criciúma",
+    "Joinville": "Joinville",
+    "Brusque": "Brusque",
+    "Marcílio Dias": "Marcílio Dias",
+    "Hercílio Luz": "Hercílio Luz",
+    "Barra-SC": "Barra-SC",
+    "Concórdia": "Concórdia",
+
+    # Goiás
+    "Goiás": "Goiás",
+    "Atlético Goianiense": "Atlético-GO",
+    "Atlético-GO": "Atlético-GO",
+    "Vila Nova": "Vila Nova",
+    "Aparecidense": "Aparecidense",
+    "Anápolis": "Anápolis",
+    "Goianésia": "Goianésia",
+    "CRAC": "CRAC",
+    "Iporá": "Iporá",
+    "Morrinhos": "Morrinhos"
 }
 
 # Normalização Canônica de Jogadores para evitar fragmentação
@@ -521,6 +592,9 @@ def executar_pipeline_estaduais(slug_comp: str, entry_url: str, nome_campeonato:
                     vencedor = away
 
                 dt_final = data_iso or f"{ano}-01-01"
+                nome_final = nome_campeonato if nome_campeonato.startswith(("Campeonato", "Copa")) else f"Campeonato {nome_campeonato}"
+                formato_final = "Copa Regional" if "Copa" in nome_final else "Campeonato Estadual"
+
                 c.execute("""
                     INSERT INTO partidas (
                         id_partida, ano, rodada, data, horario, estadio, cidade, estado,
@@ -531,12 +605,12 @@ def executar_pipeline_estaduais(slug_comp: str, entry_url: str, nome_campeonato:
                         ?, ?, NULL, ?, '16:00', ?, NULL, NULL,
                         ?, ?, ?, ?, ?, ?,
                         ?, NULL, NULL, NULL, NULL,
-                        NULL, NULL, NULL, ?, 'Campeonato Estadual', 'Fase Única'
+                        NULL, NULL, NULL, ?, ?, 'Fase Única'
                     )
                 """, (
                     pid, ano, dt_final, detalhes.get("estadio"),
                     home, away, gols_m, gols_v, placar_str, vencedor,
-                    detalhes.get("arbitro"), f"Campeonato {nome_campeonato}"
+                    detalhes.get("arbitro"), nome_final, formato_final
                 ))
                 total_partidas_inseridas += 1
 
@@ -594,14 +668,39 @@ TORNEIOS_CONFIG = {
         "slug": "campeonato-paranaense",
         "entry_url": "https://www.ogol.com.br/competicao/campeonato-paranaense/959",
         "nome": "Paranaense"
+    },
+    "catarinense": {
+        "slug": "campeonato-catarinense",
+        "entry_url": "https://www.ogol.com.br/competicao/campeonato-catarinense",
+        "nome": "Catarinense"
+    },
+    "baiano": {
+        "slug": "campeonato-baiano",
+        "entry_url": "https://www.ogol.com.br/competicao/campeonato-baiano",
+        "nome": "Baiano"
+    },
+    "pernambucano": {
+        "slug": "campeonato-pernambucano",
+        "entry_url": "https://www.ogol.com.br/competicao/campeonato-pernambucano",
+        "nome": "Pernambucano"
+    },
+    "goiano": {
+        "slug": "campeonato-goiano",
+        "entry_url": "https://www.ogol.com.br/competicao/campeonato-goiano",
+        "nome": "Goiano"
+    },
+    "cearense": {
+        "slug": "campeonato-cearense",
+        "entry_url": "https://www.ogol.com.br/competicao/campeonato-cearense",
+        "nome": "Cearense"
     }
 }
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Pipeline OGol Estaduais & Regionais")
-    parser.add_argument("--torneios", nargs="+", default=["paulista", "carioca", "mineiro", "gaucho"],
-                        help="Torneios alvo: paulista, carioca, mineiro, gaucho, nordeste, paranaense")
+    parser.add_argument("--torneios", nargs="+", default=["nordeste", "paranaense"],
+                        help="Torneios alvo: paulista, carioca, mineiro, gaucho, nordeste, paranaense, catarinense, baiano, pernambucano, goiano, cearense")
     parser.add_argument("--anos", nargs="+", type=int, default=[2022, 2023],
                         help="Anos alvo (ex: 2022 2023)")
     args = parser.parse_args()
