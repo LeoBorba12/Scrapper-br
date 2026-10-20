@@ -584,22 +584,40 @@ TORNEIOS_CONFIG = {
         "slug": "campeonato-gaucho",
         "entry_url": "https://www.ogol.com.br/edicao/campeonato-gaucho-2024/180895",
         "nome": "Gaúcho"
+    },
+    "nordeste": {
+        "slug": "copa-do-nordeste",
+        "entry_url": "https://www.ogol.com.br/competicao/copa-do-nordeste/921",
+        "nome": "Copa do Nordeste"
+    },
+    "paranaense": {
+        "slug": "campeonato-paranaense",
+        "entry_url": "https://www.ogol.com.br/competicao/campeonato-paranaense/959",
+        "nome": "Paranaense"
     }
 }
 
 if __name__ == "__main__":
-    # Suporta passar nomes dos campeonatos via CLI: python scraper_ogol_estaduais.py mineiro gaucho
-    alvos = sys.argv[1:] if len(sys.argv) > 1 else ["mineiro", "gaucho"]
-    anos = [2024, 2025]
+    import argparse
+    parser = argparse.ArgumentParser(description="Pipeline OGol Estaduais & Regionais")
+    parser.add_argument("--torneios", nargs="+", default=["paulista", "carioca", "mineiro", "gaucho"],
+                        help="Torneios alvo: paulista, carioca, mineiro, gaucho, nordeste, paranaense")
+    parser.add_argument("--anos", nargs="+", type=int, default=[2022, 2023],
+                        help="Anos alvo (ex: 2022 2023)")
+    args = parser.parse_args()
 
-    for chave in alvos:
+    print(f"\n>>> INICIANDO INGESTÃO DOS ESTADUAIS <<<")
+    print(f"Torneios: {', '.join(args.torneios)}")
+    print(f"Anos: {args.anos}")
+
+    for chave in args.torneios:
         cfg = TORNEIOS_CONFIG.get(chave.lower())
         if cfg:
             executar_pipeline_estaduais(
                 slug_comp=cfg["slug"],
                 entry_url=cfg["entry_url"],
                 nome_campeonato=cfg["nome"],
-                anos_alvo=anos
+                anos_alvo=args.anos
             )
 
     # Reconcilia craques e sincroniza ambos os bancos
