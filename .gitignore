@@ -23,5 +23,7 @@ frontend/.vite/
 
 # Raw caches de raspagem
 data/raw_*
+data/cache_ogol_*
+data/resultados_ogol_*
 data/.backfill_checkpoint.json
 scratch/

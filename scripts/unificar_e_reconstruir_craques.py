@@ -59,14 +59,14 @@ def unificar_banco(db_path: str):
         clubes_gols = c.fetchone()[0] or ""
 
         # Verifica se já existe o registro canônico
-        c.execute("SELECT id_jogador FROM jogadores_resumo WHERE nome = ?", (nome_canonico,))
-        row_id = c.fetchone()
-        if row_id:
+        c.execute("SELECT nome FROM jogadores_resumo WHERE nome = ?", (nome_canonico,))
+        row_nome = c.fetchone()
+        if row_nome:
             c.execute("""
                 UPDATE jogadores_resumo 
                 SET total_gols = ?, total_jogos = ?, total_amarelos = ?, total_vermelhos = ?, clubes = ?
-                WHERE id_jogador = ?
-            """, (total_gols, total_jogos, tot_amarelos, tot_vermelhos, clubes_gols, row_id[0]))
+                WHERE nome = ?
+            """, (total_gols, total_jogos, tot_amarelos, tot_vermelhos, clubes_gols, nome_canonico))
         else:
             c.execute("""
                 INSERT INTO jogadores_resumo (nome, clubes, total_jogos, total_gols, total_amarelos, total_vermelhos, ano_min, ano_max)
