@@ -1045,71 +1045,141 @@ def buscar_jogadores():
     param_like_q = f"%{q}%"
     param_like_c = f"%{canonico}%"
 
+    # Busca prioritária na tabela jogadores_estatisticas
     sql = """
         SELECT 
-            nome as atleta,
+            id_jogador,
+            ogol_id,
+            nome_exibicao as atleta,
+            posicao,
             clubes,
             total_gols as gols,
-            total_amarelos as amarelos,
-            total_vermelhos as vermelhos,
+            total_assistencias as assistencias,
+            participacoes_gols,
+            aproveitamento_pontos,
+            cartoes_amarelos as amarelos,
+            cartoes_vermelhos as vermelhos,
             total_jogos as jogos
-        FROM jogadores_resumo
-        WHERE nome LIKE ? OR nome LIKE ?
+        FROM jogadores_estatisticas
+        WHERE nome_exibicao LIKE ? OR nome_completo LIKE ? OR apelido LIKE ? OR nome_exibicao LIKE ?
         ORDER BY 
             CASE 
-                WHEN LOWER(nome) = LOWER(?) THEN 1
-                WHEN LOWER(nome) = LOWER(?) THEN 2
-                WHEN LOWER(nome) LIKE LOWER(? || ' %') THEN 3
-                WHEN LOWER(nome) LIKE LOWER(? || ' %') THEN 4
+                WHEN LOWER(nome_exibicao) = LOWER(?) THEN 1
+                WHEN LOWER(nome_exibicao) = LOWER(?) THEN 2
+                WHEN LOWER(nome_exibicao) LIKE LOWER(? || ' %') THEN 3
+                WHEN LOWER(nome_exibicao) LIKE LOWER(? || ' %') THEN 4
                 ELSE 5 
             END,
             total_gols DESC,
+            participacoes_gols DESC,
             total_jogos DESC
         LIMIT ?;
     """
-    rows = c.execute(sql, (param_like_q, param_like_c, canonico, q, canonico, q, limit)).fetchall()
+    rows = c.execute(sql, (param_like_q, param_like_q, param_like_q, param_like_c, canonico, q, canonico, q, limit)).fetchall()
     
     resultados = []
     for r in rows:
         resultados.append({
+            "id_jogador": r["id_jogador"],
+            "ogol_id": r["ogol_id"],
             "nome": r["atleta"],
-            "clubes": [cb.strip() for cb in r["clubes"].split(',') if cb.strip()] if r["clubes"] else [],
-            "gols": r["gols"],
-            "amarelos": r["amarelos"],
-            "vermelhos": r["vermelhos"],
-            "jogos": r["jogos"]
+            "posicao": r["posicao"],
+            "clubes": [cb.strip() for cb in (r["clubes"] or "").split(',') if cb.strip()],
+            "gols": r["gols"] or 0,
+            "assistencias": r["assistencias"] or 0,
+            "participacoes_gols": r["participacoes_gols"] or 0,
+            "aproveitamento_pontos": r["aproveitamento_pontos"] or 0.0,
+            "amarelos": r["amarelos"] or 0,
+            "vermelhos": r["vermelhos"] or 0,
+            "jogos": r["jogos"] or 0
         })
     conn.close()
     return jsonify(resultados)
 
+@app.route('/api/jogadores/ranking', methods=['GET'])
+@require_auth
+def get_jogadores_ranking():
+    tipo = request.args.get('tipo', 'gols').strip() # 'gols', 'assistencias', 'clutch', 'participacoes', 'aproveitamento'
+    limit = min(request.args.get('limit', 20, type=int), 50)
+    conn = get_db()
+    c = conn.cursor()
+    
+    where_extra = "WHERE total_gols > 0"
+    if tipo == 'assistencias':
+        order_col = "total_assistencias DESC, total_gols DESC"
+        where_extra = "WHERE total_assistencias > 0"
+    elif tipo == 'clutch':
+        order_col = "gols_decisivos_80mais DESC, total_gols DESC"
+        where_extra = "WHERE gols_decisivos_80mais > 0"
+    elif tipo == 'participacoes':
+        order_col = "participacoes_gols DESC, total_gols DESC"
+        where_extra = "WHERE participacoes_gols > 0"
+    elif tipo == 'aproveitamento':
+        order_col = "aproveitamento_pontos DESC, total_jogos DESC"
+        where_extra = "WHERE total_jogos >= 30"
+    else:
+        order_col = "total_gols DESC, total_jogos ASC"
+        
+    sql = f"""
+        SELECT id_jogador, ogol_id, nome_exibicao as nome, posicao, clubes,
+               total_jogos as jogos, total_gols as gols, total_assistencias as assistencias,
+               participacoes_gols, gols_decisivos_80mais as gols_clutch,
+               maior_vitima_clube, estadio_favorito, aproveitamento_pontos
+        FROM jogadores_estatisticas
+        {where_extra}
+        ORDER BY {order_col}
+        LIMIT ?;
+    """
+    rows = [dict(r) for r in c.execute(sql, (limit,)).fetchall()]
+    for r in rows:
+        r['clubes'] = [cb.strip() for cb in (r.get('clubes') or '').split(',') if cb.strip()]
+    conn.close()
+    return jsonify(rows)
+
 @app.route('/api/jogadores/perfil', methods=['GET'])
 @require_auth
 def get_jogador_perfil():
+    player_id = request.args.get('id', type=int)
     nome = request.args.get('nome', '').strip()
     clube_filtro = request.args.get('clube', '').strip()
-    if not nome:
-        return jsonify({"error": "Nome do atleta não informado"}), 400
-
-    nome_canonico = MAPA_APELIDOS_ATLETAS.get(nome.lower(), nome)
+    if not player_id and not nome:
+        return jsonify({"error": "Identificador ou Nome do atleta não informado"}), 400
 
     conn = get_db()
     c = conn.cursor()
 
-    # Busca restrita para nomes desambiguados com parenteses ou multiplos tokens para evitar mesclar homonimos
-    if "(" in nome_canonico or len(nome_canonico.split()) > 1:
+    # Buscar metadados consolidados de jogadores_estatisticas
+    row_est = None
+    if player_id:
+        row_est = c.execute("SELECT * FROM jogadores_estatisticas WHERE id_jogador = ? LIMIT 1;", (player_id,)).fetchone()
+    if not row_est and nome:
+        nome_canonico = MAPA_APELIDOS_ATLETAS.get(nome.lower(), nome)
+        row_est = c.execute("""
+            SELECT * FROM jogadores_estatisticas 
+            WHERE LOWER(nome_exibicao) = LOWER(?) OR LOWER(nome_completo) = LOWER(?) OR LOWER(apelido) = LOWER(?)
+            ORDER BY total_gols DESC LIMIT 1;
+        """, (nome_canonico, nome_canonico, nome)).fetchone()
+
+    stats_meta = dict(row_est) if row_est else {}
+    target_id = stats_meta.get('id_jogador') or player_id
+    nome_exib = stats_meta.get('nome_exibicao') or nome
+
+    # Condições de busca para partidas (usando id_jogador se disponível para velocidade máxima)
+    if target_id:
+        cond_gols = "(g.id_jogador = ?)"
+        params_gols = [target_id]
+        cond_cartoes = "(cr.id_jogador = ?)"
+        params_cartoes = [target_id]
+        cond_esc = "(e.id_jogador = ?)"
+        params_esc = [target_id]
+    else:
+        nome_canonico = MAPA_APELIDOS_ATLETAS.get(nome.lower(), nome)
         cond_gols = "(g.atleta = ? OR g.atleta = ?)"
         params_gols = [nome, nome_canonico]
         cond_cartoes = "(cr.atleta = ? OR cr.atleta = ?)"
         params_cartoes = [nome, nome_canonico]
         cond_esc = "(e.atleta = ? OR e.atleta = ?)"
         params_esc = [nome, nome_canonico]
-    else:
-        cond_gols = "(g.atleta = ? OR g.atleta = ? OR g.atleta LIKE ? OR g.atleta LIKE ?)"
-        params_gols = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
-        cond_cartoes = "(cr.atleta = ? OR cr.atleta = ? OR cr.atleta LIKE ? OR cr.atleta LIKE ?)"
-        params_cartoes = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
-        cond_esc = "(e.atleta = ? OR e.atleta = ? OR e.atleta LIKE ? OR e.atleta LIKE ?)"
-        params_esc = [nome, nome_canonico, f"{nome_canonico}%", f"%{nome_canonico}%"]
 
     # Buscar gols
     sql_gols = f"""
@@ -1123,7 +1193,6 @@ def get_jogador_perfil():
         sql_gols += " AND g.clube LIKE ?"
         params_gols.append(f"%{clube_filtro}%")
     sql_gols += " ORDER BY p.data DESC, p.id_partida DESC;"
-    
     c.execute(sql_gols, params_gols)
     gols = [dict(r) for r in c.fetchall()]
 
@@ -1139,7 +1208,6 @@ def get_jogador_perfil():
         sql_cartoes += " AND cr.clube LIKE ?"
         params_cartoes.append(f"%{clube_filtro}%")
     sql_cartoes += " ORDER BY p.data DESC, p.id_partida DESC;"
-    
     c.execute(sql_cartoes, params_cartoes)
     cartoes = [dict(r) for r in c.fetchall()]
 
@@ -1155,7 +1223,6 @@ def get_jogador_perfil():
         sql_esc += " AND e.clube LIKE ?"
         params_esc.append(f"%{clube_filtro}%")
     sql_esc += " ORDER BY p.data DESC, p.id_partida DESC;"
-    
     c.execute(sql_esc, params_esc)
     escalacoes = [dict(r) for r in c.fetchall()]
 
@@ -1204,13 +1271,12 @@ def get_jogador_perfil():
     partidas_ordenadas = sorted(partidas_map.values(), key=lambda x: (x['data'] or '', x['id_partida']), reverse=True)
 
     # Detalhamento de gols
-    gols_normais = len([g for g in gols if not g['tipo_de_gol'] or 'normal' in (g['tipo_de_gol'] or '').lower()])
-    gols_penalti = len([g for g in gols if g['tipo_de_gol'] and ('pênalti' in g['tipo_de_gol'].lower() or 'penalti' in g['tipo_de_gol'].lower())])
-    gols_falta = len([g for g in gols if g['tipo_de_gol'] and 'falta' in g['tipo_de_gol'].lower()])
-    gols_contra = len([g for g in gols if g['tipo_de_gol'] and 'contra' in g['tipo_de_gol'].lower()])
-    amarelos = len([c for c in cartoes if 'amarelo' in (c['cartao'] or '').lower()])
-    vermelhos = len([c for c in cartoes if 'vermelho' in (c['cartao'] or '').lower()])
-    total_jogos = len(partidas_ordenadas)
+    gols_normais = stats_meta.get('gols_bola_rolando') or len([g for g in gols if not g['tipo_de_gol'] or 'normal' in (g['tipo_de_gol'] or '').lower()])
+    gols_penalti = stats_meta.get('gols_penalti') or len([g for g in gols if g['tipo_de_gol'] and ('pênalti' in g['tipo_de_gol'].lower() or 'penalti' in g['tipo_de_gol'].lower())])
+    gols_falta = stats_meta.get('gols_falta') or len([g for g in gols if g['tipo_de_gol'] and 'falta' in g['tipo_de_gol'].lower()])
+    amarelos = stats_meta.get('cartoes_amarelos') or len([c for c in cartoes if 'amarelo' in (c['cartao'] or '').lower()])
+    vermelhos = stats_meta.get('cartoes_vermelhos') or len([c for c in cartoes if 'vermelho' in (c['cartao'] or '').lower()])
+    total_jogos = max(stats_meta.get('total_jogos', 0), len(partidas_ordenadas))
 
     # Vítimas mais frequentes
     vitimas = {}
@@ -1276,19 +1342,11 @@ def get_jogador_perfil():
 
     # Minutagem e faixas de gols
     faixas_minutos = {'0-15': 0, '16-30': 0, '31-45+': 0, '46-60': 0, '61-75': 0, '76-90+': 0}
-    tempos_gols = {'1T': 0, '2T': 0, 'Outros': 0}
+    tempos_gols = {'1T': stats_meta.get('gols_primeiro_tempo', 0), '2T': stats_meta.get('gols_segundo_tempo', 0), 'Outros': 0}
     for g in gols:
         m_raw = str(g.get('minuto') or '')
         m_num = re.search(r'(\d+)', m_raw)
         minuto = int(m_num.group(1)) if m_num else None
-        tempo = str(g.get('tempo') or '')
-        if '1' in tempo or (minuto and minuto <= 45 and not '2' in tempo):
-            tempos_gols['1T'] += 1
-        elif '2' in tempo or (minuto and minuto > 45):
-            tempos_gols['2T'] += 1
-        else:
-            tempos_gols['Outros'] += 1
-
         if minuto is not None:
             if minuto <= 15: faixas_minutos['0-15'] += 1
             elif minuto <= 30: faixas_minutos['16-30'] += 1
@@ -1327,57 +1385,50 @@ def get_jogador_perfil():
             "clubes": sorted(list(v["clubes"]))
         })
 
-
-    # Anos
     anos = [p['ano'] for p in partidas_ordenadas if p['ano']]
-    ano_min = min(anos) if anos else None
-    ano_max = max(anos) if anos else None
-
-    # Metadados e Assistencias consolidadas (Tabela jogadores com OGol ID e jogadores_resumo)
-    c.execute("""
-        SELECT ogol_id, nome_exibicao, nome_completo, posicao, total_assistencias
-        FROM jogadores
-        WHERE LOWER(nome_exibicao) = LOWER(?) OR LOWER(nome_completo) = LOWER(?) OR LOWER(apelido) = LOWER(?)
-        LIMIT 1
-    """, (nome_canonico, nome_canonico, nome))
-    row_jog = c.fetchone()
-
-    ogol_id = None
-    posicao = None
-    total_ass = 0
-    if row_jog:
-        row_dict = dict(row_jog)
-        ogol_id = row_dict.get('ogol_id')
-        posicao = row_dict.get('posicao')
-        total_ass = row_dict.get('total_assistencias') or 0
-    else:
-        # Fallback para jogadores_resumo
-        c.execute("SELECT total_assistencias FROM jogadores_resumo WHERE LOWER(nome) = LOWER(?) LIMIT 1", (nome_canonico,))
-        row_res = c.fetchone()
-        if row_res and row_res['total_assistencias']:
-            total_ass = row_res['total_assistencias']
+    ano_min = stats_meta.get('ano_inicio') or (min(anos) if anos else None)
+    ano_max = stats_meta.get('ano_fim') or (max(anos) if anos else None)
 
     conn.close()
 
+    total_gols_final = stats_meta.get('total_gols') or len(gols)
+    total_assists_final = stats_meta.get('total_assistencias') or 0
+
     return jsonify({
-        "nome": nome_canonico,
-        "ogol_id": ogol_id,
-        "posicao": posicao,
+        "id_jogador": target_id,
+        "nome": nome_exib,
+        "ogol_id": stats_meta.get('ogol_id'),
+        "cbf_id": stats_meta.get('cbf_id'),
+        "posicao": stats_meta.get('posicao') or "Atacante",
+        "clubes": [cb.strip() for cb in (stats_meta.get('clubes') or '').split(',') if cb.strip()],
         "clube_filtro": clube_filtro,
         "resumo": {
-            "total_gols": len(gols),
+            "total_gols": total_gols_final,
+            "total_assistencias": total_assists_final,
+            "participacoes_gols": stats_meta.get('participacoes_gols') or (total_gols_final + total_assists_final),
             "gols_normais": gols_normais,
             "gols_penalti": gols_penalti,
             "gols_falta": gols_falta,
-            "gols_contra": gols_contra,
+            "gols_decisivos_80mais": stats_meta.get('gols_decisivos_80mais', 0),
+            "hat_tricks": stats_meta.get('hat_tricks', 0),
+            "dobletes": stats_meta.get('dobletes', 0),
             "amarelos": amarelos,
             "vermelhos": vermelhos,
             "jogos_registrados": total_jogos,
-            "media_gols": round(len(gols) / total_jogos, 2) if total_jogos > 0 else 0,
+            "aproveitamento_pontos": stats_meta.get('aproveitamento_pontos', 0.0),
+            "jogos_titular": stats_meta.get('jogos_titular', 0),
+            "jogos_reserva": stats_meta.get('jogos_reserva', 0),
+            "jogos_capitao": stats_meta.get('jogos_capitao', 0),
+            "chutes_ao_gol": stats_meta.get('chutes_ao_gol', 0),
+            "finalizacoes_totais": stats_meta.get('finalizacoes_totais', 0),
+            "pontaria_chutes_pct": stats_meta.get('pontaria_chutes_pct', 0.0),
+            "penaltis_cobrados": stats_meta.get('penaltis_cobrados', 0),
+            "penaltis_perdidos": stats_meta.get('penaltis_perdidos', 0),
+            "maior_vitima_clube": stats_meta.get('maior_vitima_clube') or (top_vitimas[0]['clube'] if top_vitimas else None),
+            "estadio_favorito": stats_meta.get('estadio_favorito'),
+            "media_gols": round(total_gols_final / max(total_jogos, 1), 2),
             "ano_min": ano_min,
-            "ano_max": ano_max,
-            "assistencias": total_ass,
-            "nota_assistencias": "Passes a gol oficiais registrados via OGol e scouts da CBF pós-2014."
+            "ano_max": ano_max
         },
         "top_vitimas": top_vitimas,
         "historico_clubes": historico_clubes,
