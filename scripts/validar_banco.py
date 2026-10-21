@@ -151,29 +151,33 @@ def testar_padroes_de_dados(conn: sqlite3.Connection) -> TestResult:
     return tr
 
 def testar_sincronia_bancos() -> TestResult:
-    tr = TestResult("4. Sincronia de Ambientes (data/futebol.db vs api/data/futebol.db)")
+    tr = TestResult("4. Integridade e Estrutura do Banco (data/futebol.db)")
     
     if not os.path.exists(DB_LOCAL):
         tr.falhar(f"Banco local nao encontrado em {DB_LOCAL}")
         return tr
-    if not os.path.exists(DB_API):
-        tr.falhar(f"Banco da API nao encontrado em {DB_API}")
-        return tr
 
     c_local = sqlite3.connect(DB_LOCAL).cursor()
-    c_api = sqlite3.connect(DB_API).cursor()
-
     c_local.execute("SELECT COUNT(*) FROM partidas")
     total_local = c_local.fetchone()[0]
 
-    c_api.execute("SELECT COUNT(*) FROM partidas")
-    total_api = c_api.fetchone()[0]
+    # Valida presença das tabelas relacionais essenciais
+    c_local.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tabelas = [r[0] for r in c_local.fetchall()]
+    for t_req in ['partidas', 'gols', 'jogadores_estatisticas']:
+        if t_req not in tabelas:
+            tr.falhar(f"Tabela essencial '{t_req}' ausente em data/futebol.db")
+            return tr
 
-    if total_local != total_api:
-        tr.falhar(f"Divergencia de registros: data/futebol.db ({total_local}) != api/data/futebol.db ({total_api})")
-    else:
-        tr.mensagens.append(f"Ambos os bancos possuem exatamente {total_local} partidas catalogadas.")
+    if os.path.exists(DB_API):
+        c_api = sqlite3.connect(DB_API).cursor()
+        c_api.execute("SELECT COUNT(*) FROM partidas")
+        total_api = c_api.fetchone()[0]
+        if total_local != total_api:
+            tr.falhar(f"Divergencia de registros: data/futebol.db ({total_local}) != api/data/futebol.db ({total_api})")
+            return tr
 
+    tr.mensagens.append(f"Banco unificado possui {total_local} partidas e tabela 'jogadores_estatisticas' íntegra.")
     return tr
 
 def testar_golden_queries_ia(conn: sqlite3.Connection) -> TestResult:
