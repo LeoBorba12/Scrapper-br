@@ -3,6 +3,8 @@ import sys
 import os
 import time
 import shutil
+import urllib.parse
+import urllib.request
 
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -14,6 +16,23 @@ DB_LOCAL = os.path.join(BASE_DIR, "data", "futebol.db")
 DB_API = os.path.join(BASE_DIR, "api", "data", "futebol.db")
 PY_BIN = sys.executable or ("python3" if sys.platform != "win32" else "python")
 MAX_DB_SIZE_MB = 94.0  # Trava estrita de segurança: garante deploy estável na Vercel (<250MB uncompressed / <50MB zip) e GitHub (<100MB)
+
+TELEGRAM_TOKEN = "8544666739:AAFS7bfEADGbQ8UtchY2LMBHzI7BPnkGPxw"
+TELEGRAM_CHAT_ID = "1797566691"
+
+def notificar_telegram(mensagem: str):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = urllib.parse.urlencode({
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": mensagem,
+        "parse_mode": "Markdown"
+    }).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=payload, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as response:
+            pass
+    except Exception as e:
+        safe_print(f"[Telegram Aviso] Falha ao enviar notificação: {e}")
 
 BLOCOS = [
     # =========================================================================
@@ -230,7 +249,13 @@ def executar_ciclo(ciclo_num=1):
         # 3. Validar integridade
         ok_val = run_cmd(f'"{PY_BIN}" scripts/validar_banco.py', "Validação 5/5")
         if not ok_val:
-            print(f"[FATAL] Banco falhou na validação de integridade no bloco {i}! Abortando commit.", flush=True)
+            safe_print(f"[FATAL] Banco falhou na validação de integridade no bloco {i}! Abortando commit.")
+            msg_erro = (
+                f"🚨 *ALERTA CRÍTICO: Falha no Scrapper-BR*\n\n"
+                f"O Bloco {i} ({bloco['desc']}) falhou na validação de integridade!\n"
+                f"O processo foi pausado para evitar corrupção do banco."
+            )
+            notificar_telegram(msg_erro)
             sys.exit(1)
 
         # 4. Compactação com VACUUM e Verificação de Teto Vercel/GitHub
@@ -248,6 +273,12 @@ def executar_ciclo(ciclo_num=1):
             safe_print(f"\n[TRAVA DE SEGURANÇA VERCEL & GITHUB ATIVADA]")
             safe_print(f"O banco atingiu {tamanho_mb:.2f} MB, atingindo o teto estrito de segurança de 94 MB.")
             safe_print("Interrompendo novas adições para garantir integridade e deploy 100% estável na Vercel e GitHub.")
+            msg_teto = (
+                f"🛑 *AVISO: Teto de Segurança Atingido!*\n\n"
+                f"O banco atingiu {tamanho_mb:.2f} MB (limite estrito de 94 MB).\n"
+                f"Novas adições foram suspensas para proteger os deploys na Vercel e GitHub."
+            )
+            notificar_telegram(msg_teto)
             return False
 
         # 5. Sincronizar api/data/futebol.db
@@ -261,8 +292,20 @@ def executar_ciclo(ciclo_num=1):
         run_cmd("git push origin main", "Git push")
 
         print(f"\n[SUCESSO] Bloco {i}/{len(BLOCOS)} concluído e commitado com sucesso!\n", flush=True)
+
+        # 7. Notificação Telegram de sucesso
+        msg_sucesso = (
+            f"⚽ *Scrapper-BR | Bloco Atualizado!*\n\n"
+            f"📌 *Bloco {i}/{len(BLOCOS)}*: {bloco['desc']}\n"
+            f"💾 *Tamanho do Banco*: {tamanho_mb:.2f} MB\n"
+            f"🚀 *Commit & Push*: Realizado com sucesso na branch `main`.\n"
+            f"⏱️ Continuando para o próximo bloco..."
+        )
+        notificar_telegram(msg_sucesso)
+
         time.sleep(2)
 
+    notificar_telegram(f"🏆 *Scrapper-BR | Todos os {len(BLOCOS)} blocos do Ciclo {ciclo_num} foram finalizados com 100% de sucesso!*")
     return True
 
 def processar_fila_continua():
