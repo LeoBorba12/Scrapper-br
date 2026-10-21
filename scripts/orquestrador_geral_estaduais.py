@@ -13,43 +13,126 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_LOCAL = os.path.join(BASE_DIR, "data", "futebol.db")
 DB_API = os.path.join(BASE_DIR, "api", "data", "futebol.db")
 PY_BIN = sys.executable or ("python3" if sys.platform != "win32" else "python")
+MAX_DB_SIZE_MB = 94.0  # Trava estrita de segurança para garantir deploy estável na Vercel (<250MB uncompressed/<50MB zip) e GitHub (<100MB)
 
 BLOCOS = [
-    # Bloco 2: Paulistão 2010-2013
-    {
-        "torneios": ["paulista"],
-        "anos": [2010, 2011, 2012, 2013],
-        "desc": "Paulistão 2010-2013 (Neymar no Santos, Lucas no SPFC)"
-    },
-    # Bloco 3: Careca anos 80 no SPFC
-    {
-        "torneios": ["paulista"],
-        "anos": [1983, 1984, 1985, 1986, 1987],
-        "desc": "Paulistão 1983-1987 (Careca bicampeão no São Paulo)"
-    },
-    # Bloco 4: Careca anos 70/80 no Guarani
-    {
-        "torneios": ["paulista"],
-        "anos": [1978, 1979, 1980, 1981, 1982],
-        "desc": "Paulistão 1978-1982 (Careca no Guarani)"
-    },
-    # Bloco 5: Ademir da Guia anos 70 no Palmeiras
-    {
-        "torneios": ["paulista"],
-        "anos": [1971, 1972, 1973, 1974, 1975, 1976, 1977],
-        "desc": "Paulistão 1971-1977 (Ademir da Guia multicampeão pelo Palmeiras)"
-    },
-    # Bloco 6: Carioca 2010-2013
+    # 1. Carioca Anos 2000 (Romário no Vasco e Flu, Petkovic no Fla, Dodô no Botafogo)
     {
         "torneios": ["carioca"],
-        "anos": [2010, 2011, 2012, 2013],
-        "desc": "Carioca 2010-2013 (Fred no Fluminense, Loco Abreu no Botafogo)"
+        "anos": [2005, 2006, 2007, 2008, 2009],
+        "desc": "Carioca 2005-2009 (Romário milésimo gol, Dodô artilheiro)"
     },
-    # Bloco 7: Copa do Nordeste e Paranaense 2020-2023
     {
-        "torneios": ["nordeste", "paranaense"],
-        "anos": [2020, 2021, 2022, 2023],
-        "desc": "Copa do Nordeste e Paranaense 2020-2023"
+        "torneios": ["carioca"],
+        "anos": [2000, 2001, 2002, 2003, 2004],
+        "desc": "Carioca 2000-2004 (Romário, Petkovic, Edmundo)"
+    },
+    # 2. Carioca Anos 90 (Túlio Maravilha no Botafogo, Romário no Flamengo, Edmundo no Vasco)
+    {
+        "torneios": ["carioca"],
+        "anos": [1995, 1996, 1997, 1998, 1999],
+        "desc": "Carioca 1995-1999 (Romário no Fla, Edmundo no Vasco, Túlio no Botafogo)"
+    },
+    {
+        "torneios": ["carioca"],
+        "anos": [1990, 1991, 1992, 1993, 1994],
+        "desc": "Carioca 1990-1994 (Bebeto, Renato Gaúcho, Gaúcho no Fla)"
+    },
+    # 3. Carioca Anos 80 (Zico no Flamengo, Roberto Dinamite no Vasco)
+    {
+        "torneios": ["carioca"],
+        "anos": [1985, 1986, 1987, 1988, 1989],
+        "desc": "Carioca 1985-1989 (Zico, Roberto Dinamite, Bebeto)"
+    },
+    {
+        "torneios": ["carioca"],
+        "anos": [1980, 1981, 1982, 1983, 1984],
+        "desc": "Carioca 1980-1984 (Era de ouro do Flamengo de Zico e Vasco de Dinamite)"
+    },
+    # 4. Carioca Anos 70
+    {
+        "torneios": ["carioca"],
+        "anos": [1975, 1976, 1977, 1978, 1979],
+        "desc": "Carioca 1975-1979 (Início de Zico e Dinamite)"
+    },
+    {
+        "torneios": ["carioca"],
+        "anos": [1970, 1971, 1972, 1973, 1974],
+        "desc": "Carioca 1970-1974"
+    },
+    # 5. Paulistão Histórico (Pelé no Santos, Rivellino no Corinthians, Ademir da Guia no Palmeiras)
+    {
+        "torneios": ["paulista"],
+        "anos": [1965, 1966, 1967, 1968, 1969, 1970],
+        "desc": "Paulistão 1965-1970 (Pelé no Santos, Ademir no Palmeiras)"
+    },
+    {
+        "torneios": ["paulista"],
+        "anos": [1958, 1959, 1960, 1961, 1962, 1963, 1964],
+        "desc": "Paulistão 1958-1964 (Recorde de Pelé de 58 gols em 1958)"
+    },
+    {
+        "torneios": ["paulista"],
+        "anos": [1950, 1951, 1952, 1953, 1954, 1955, 1956, 1957],
+        "desc": "Paulistão 1950-1957"
+    },
+    # 6. Campeonato Mineiro (Reinaldo no Galo, Tostão no Cruzeiro)
+    {
+        "torneios": ["mineiro"],
+        "anos": [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013],
+        "desc": "Mineiro 2000-2013 (Alex no Cruzeiro, Diego Tardelli no Galo)"
+    },
+    {
+        "torneios": ["mineiro"],
+        "anos": [1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999],
+        "desc": "Mineiro 1990-1999 (Ronaldo Fenômeno no Cruzeiro)"
+    },
+    {
+        "torneios": ["mineiro"],
+        "anos": [1975, 1976, 1977, 1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989],
+        "desc": "Mineiro 1975-1989 (Reinaldo no Atlético-MG)"
+    },
+    {
+        "torneios": ["mineiro"],
+        "anos": [1965, 1966, 1967, 1968, 1969, 1970, 1971, 1972, 1973, 1974],
+        "desc": "Mineiro 1965-1974 (Tostão e Dirceu Lopes no Cruzeiro)"
+    },
+    # 7. Campeonato Gaúcho (Renato Gaúcho no Grêmio, Falcão no Inter)
+    {
+        "torneios": ["gaucho"],
+        "anos": [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013],
+        "desc": "Gaúcho 2000-2013 (Ronaldinho no Grêmio, Fernandão no Inter)"
+    },
+    {
+        "torneios": ["gaucho"],
+        "anos": [1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999],
+        "desc": "Gaúcho 1990-1999 (Paulo Nunes e Jardel no Grêmio)"
+    },
+    {
+        "torneios": ["gaucho"],
+        "anos": [1975, 1976, 1977, 1978, 1979, 1980, 1981, 1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989],
+        "desc": "Gaúcho 1975-1989 (Renato Gaúcho no Grêmio, Falcão no Inter)"
+    },
+    {
+        "torneios": ["gaucho"],
+        "anos": [1965, 1966, 1967, 1968, 1969, 1970, 1971, 1972, 1973, 1974],
+        "desc": "Gaúcho 1965-1974"
+    },
+    # 8. Demais Estaduais e Regionais
+    {
+        "torneios": ["nordeste"],
+        "anos": [1997, 1998, 1999, 2000, 2001, 2002, 2003, 2010, 2013, 2014, 2015, 2016, 2017, 2018, 2019],
+        "desc": "Copa do Nordeste 1997-2019"
+    },
+    {
+        "torneios": ["paranaense"],
+        "anos": [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019],
+        "desc": "Paranaense 2000-2019"
+    },
+    {
+        "torneios": ["catarinense", "baiano", "pernambucano", "goiano", "cearense"],
+        "anos": [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025],
+        "desc": "Catarinense, Baiano, Pernambucano, Goiano, Cearense (2014-2025)"
     }
 ]
 
@@ -110,11 +193,22 @@ def processar_fila():
             print(f"[FATAL] Banco falhou na validação de integridade no bloco {i}! Abortando commit.", flush=True)
             sys.exit(1)
 
-        # 4. Checar tamanho do banco
+        # 4. Compactação com VACUUM e Verificação de Teto Vercel/GitHub
+        try:
+            import sqlite3
+            c_vac = sqlite3.connect(DB_LOCAL)
+            c_vac.execute("VACUUM")
+            c_vac.close()
+        except Exception:
+            pass
+
         tamanho_mb = os.path.getsize(DB_LOCAL) / (1024 * 1024)
-        print(f"[INFO] Tamanho do banco data/futebol.db: {tamanho_mb:.2f} MB", flush=True)
-        if tamanho_mb > 95.0:
-            print(f"[ALERTA CRÍTICO] Tamanho do banco ({tamanho_mb:.2f} MB) próximo do limite de 100MB!", flush=True)
+        safe_print(f"[INFO] Tamanho do banco data/futebol.db após VACUUM: {tamanho_mb:.2f} MB")
+        if tamanho_mb >= MAX_DB_SIZE_MB:
+            safe_print(f"\n[TRAVA DE SEGURANÇA VERCEL & GITHUB ATIVADA]")
+            safe_print(f"O banco atingiu {tamanho_mb:.2f} MB, atingindo o teto de segurança de 94 MB.")
+            safe_print("Interrompendo novas adições para garantir integridade e deploy 100% estável na Vercel e GitHub.")
+            break
 
         # 5. Sincronizar api/data/futebol.db
         safe_copy_db(DB_LOCAL, DB_API)
