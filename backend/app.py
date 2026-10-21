@@ -78,7 +78,10 @@ def find_db_path(filename):
 DB_FUTEBOL = find_db_path('futebol.db')
 DB_CLIMA = find_db_path('clima.db')
 
-SECRET_KEY = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+# Chave de assinatura JWT consistente para ambiente serverless (Vercel).
+# Garante que múltiplos contêineres/lambdas compartilhem a mesma assinatura criptográfica.
+# Evita desconexões aleatórias ao alternar abas ou fazer requisições concorrentes.
+SECRET_KEY = os.environ.get('SECRET_KEY') or "futstats-jwt-secret-stable-auth-2026-production-sig-key-vercel"
 INVITE_CODE = os.environ.get('INVITE_CODE', 'FUTSTATS-2026')
 ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'LB')
 # Defina ADMIN_PASSWORD_HASH nas variáveis de ambiente da Vercel (gerado via hash_senha)

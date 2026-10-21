@@ -8,6 +8,9 @@
       "maxDuration": 30
     }
   },
+  "env": {
+    "SECRET_KEY": "futstats-jwt-secret-stable-auth-2026-production-sig-key-vercel"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

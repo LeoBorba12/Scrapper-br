@@ -16,7 +16,14 @@ export default function App() {
   const [viewTheme, setViewTheme] = useState('sooma'); // 'sooma' (referência Outcrowd) | 'classic' (Soft UI)
 
   // ==================== AUTH STATE ====================
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('futstats_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [authChecking, setAuthChecking] = useState(true);
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'registro'
   const [authLoading, setAuthLoading] = useState(false);
@@ -130,8 +137,12 @@ export default function App() {
     }
     const res = await fetch(url, { ...options, headers });
     if (res.status === 401) {
-      localStorage.removeItem('futstats_auth_token');
-      setCurrentUser(null);
+      // Apenas desloga o usuário se o endpoint de validação de sessão falhar
+      if (url.includes('/api/auth/me')) {
+        localStorage.removeItem('futstats_auth_token');
+        localStorage.removeItem('futstats_auth_user');
+        setCurrentUser(null);
+      }
       throw new Error('Sessão expirada. Faça login novamente.');
     }
     return res;
@@ -168,8 +179,11 @@ export default function App() {
       .then(d => {
         if (d.user) {
           setCurrentUser(d.user);
+          localStorage.setItem('futstats_auth_user', JSON.stringify(d.user));
         } else {
           localStorage.removeItem('futstats_auth_token');
+          localStorage.removeItem('futstats_auth_user');
+          setCurrentUser(null);
         }
         setAuthChecking(false);
       })
@@ -206,6 +220,7 @@ export default function App() {
       })
       .then(d => {
         localStorage.setItem('futstats_auth_token', d.token);
+        localStorage.setItem('futstats_auth_user', JSON.stringify(d.user));
         setCurrentUser(d.user);
         setAuthLoading(false);
       })
@@ -245,6 +260,7 @@ export default function App() {
       })
       .then(d => {
         localStorage.setItem('futstats_auth_token', d.token);
+        localStorage.setItem('futstats_auth_user', JSON.stringify(d.user));
         setCurrentUser(d.user);
         setAuthLoading(false);
       })
@@ -257,6 +273,7 @@ export default function App() {
   // Logout handler
   const handleLogout = () => {
     localStorage.removeItem('futstats_auth_token');
+    localStorage.removeItem('futstats_auth_user');
     setCurrentUser(null);
     setLoginPassword('');
   };
