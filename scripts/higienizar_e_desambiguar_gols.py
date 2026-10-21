@@ -196,6 +196,105 @@ def higienizar_gols():
     n_marcelinho = c.rowcount
     print(f"  -> Marcelinho Carioca: {n_marcelinho} gols unificados.")
 
+    # F) Romário (unificar grafias 'Romario' e 'Romário')
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Romário'
+        WHERE atleta IN ('Romario', 'Romário')
+          AND (clube IN ('Vasco', 'Flamengo', 'Fluminense', 'América-RJ', 'PSV', 'Barcelona', 'Valencia', 'Al-Sadd', 'Miami FC', 'Adelaide United')
+               OR id_partida IN (SELECT id_partida FROM partidas WHERE campeonato LIKE '%Brasileir%'))
+    """)
+    n_romario = c.rowcount
+    print(f"  -> Romário: {n_romario} gols unificados.")
+
+    # G) Luís Fabiano
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Luís Fabiano'
+        WHERE atleta IN ('Luis Fabiano', 'Luís Fabiano')
+          AND (clube IN ('São Paulo', 'Ponte Preta', 'Vasco', 'Sevilla', 'Porto', 'Rennes', 'Tianjin Quanjian')
+               OR id_partida IN (SELECT id_partida FROM partidas WHERE campeonato LIKE '%Brasileir%'))
+    """)
+    n_lfabiano = c.rowcount
+    print(f"  -> Luís Fabiano: {n_lfabiano} gols unificados.")
+
+    # H) Edmundo
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Edmundo'
+        WHERE atleta LIKE 'Edmundo%' AND atleta NOT LIKE '%Carrillo%'
+    """)
+    n_edmundo = c.rowcount
+    print(f"  -> Edmundo: {n_edmundo} gols unificados.")
+
+    # I) Reinaldo (Rei do Galo vs Atacante anos 2000 vs Lateral)
+    # 1. Reinaldo (Rei do Galo): Atlético-MG (1973-1985), Cruzeiro (1986), Santos (1987)
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Reinaldo (Atlético-MG)'
+        WHERE atleta = 'Reinaldo'
+          AND clube = 'Atlético-MG'
+          AND id_partida IN (SELECT id_partida FROM partidas WHERE ano BETWEEN 1973 AND 1988)
+    """)
+    n_rei_galo = c.rowcount
+    print(f"  -> Reinaldo (Atlético-MG / Rei do Galo): {n_rei_galo} gols desambiguados.")
+
+    # 2. Reinaldo (Lateral): SPFC, Chapecoense, Ponte Preta, Grêmio (2013 em diante)
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Reinaldo (Lateral)'
+        WHERE atleta = 'Reinaldo'
+          AND clube IN ('São Paulo', 'Ponte Preta', 'Chapecoense', 'Grêmio', 'Mirassol')
+          AND id_partida IN (SELECT id_partida FROM partidas WHERE ano >= 2013)
+    """)
+    n_rei_lat = c.rowcount
+    print(f"  -> Reinaldo (Lateral): {n_rei_lat} gols desambiguados.")
+
+    # 3. Reinaldo (Atacante anos 2000): Flamengo, SPFC, Santos, Botafogo, Grêmio, Figueirense, Bahia, Paraná (1999-2012)
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Reinaldo (Atacante)'
+        WHERE atleta = 'Reinaldo'
+          AND clube IN ('Flamengo', 'São Paulo', 'Santos', 'Botafogo', 'Grêmio', 'Figueirense', 'Bahia', 'Paraná', 'Guarani', 'Criciúma', 'Brasiliense')
+          AND id_partida IN (SELECT id_partida FROM partidas WHERE ano BETWEEN 1999 AND 2012)
+    """)
+    n_rei_ata = c.rowcount
+    print(f"  -> Reinaldo (Atacante): {n_rei_ata} gols desambiguados.")
+
+    # J) Washington (Coração Valente vs Casal 20 vs Washington Silva)
+    # 1. Washington (Coração Valente): Paraná, Ponte Preta, Athletico-PR, Fluminense, São Paulo, Ceará (1998-2012)
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Washington (Coração Valente)'
+        WHERE atleta = 'Washington'
+          AND clube IN ('Paraná', 'Ponte Preta', 'Athletico-PR', 'Atlético-PR', 'Fluminense', 'São Paulo', 'Ceará')
+          AND id_partida IN (SELECT id_partida FROM partidas WHERE ano >= 1998)
+    """)
+    n_wash_cv = c.rowcount
+    print(f"  -> Washington (Coração Valente): {n_wash_cv} gols desambiguados.")
+
+    # 2. Washington (Casal 20): Athletico-PR, Fluminense, Corinthians, Botafogo, Guarani (1980-1993)
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Washington (Casal 20)'
+        WHERE atleta = 'Washington'
+          AND clube IN ('Athletico-PR', 'Atlético-PR', 'Fluminense', 'Corinthians', 'Botafogo', 'Guarani', 'Vitória', 'Galícia')
+          AND id_partida IN (SELECT id_partida FROM partidas WHERE ano BETWEEN 1980 AND 1993)
+    """)
+    n_wash_c20 = c.rowcount
+    print(f"  -> Washington (Casal 20): {n_wash_c20} gols desambiguados.")
+
+    # 3. Washington Mascarenhas (Palmeiras, Sport, Portuguesa nos anos 2005-2009)
+    c.execute("""
+        UPDATE gols
+        SET atleta = 'Washington Mascarenhas'
+        WHERE atleta = 'Washington'
+          AND clube IN ('Palmeiras', 'Sport', 'Portuguesa', 'Vitória')
+          AND id_partida IN (SELECT id_partida FROM partidas WHERE ano BETWEEN 2005 AND 2012)
+    """)
+    n_wash_masc = c.rowcount
+    print(f"  -> Washington Mascarenhas: {n_wash_masc} gols desambiguados.")
+
     conn.commit()
 
     # 5. RECONSTRUIR JOGADORES_RESUMO E SINCRONIZAR

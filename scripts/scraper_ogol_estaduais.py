@@ -198,6 +198,17 @@ MAPA_CLUBES = {
 
 # Normalização Canônica de Jogadores para evitar fragmentação
 MAPA_JOGADORES = {
+    # Normalização de Craques Históricos
+    "marcelo carioca": "Marcelinho Carioca",
+    "marcelinho carioca": "Marcelinho Carioca",
+    "ademir da guia": "Ademir da Guia",
+    "antonio de oliveira filho": "Careca",
+    "antônio de oliveira filho": "Careca",
+    "careca": "Careca",
+    "tulio maravilha": "Túlio Maravilha",
+    "túlio maravilha": "Túlio Maravilha",
+    "túlio": "Túlio Maravilha",
+    "tulio": "Túlio Maravilha",
     "gabriel barbosa almeida": "Gabriel Barbosa",
     "gabriel barbosa": "Gabriel Barbosa",
     "gabigol": "Gabriel Barbosa",
@@ -428,28 +439,94 @@ def extrair_detalhes_jogo_ogol(link_jogo: str) -> Optional[Dict]:
     data_m = re.search(r'/(\d{4}-\d{2}-\d{2})-', link_limpo)
     data_iso = data_m.group(1) if data_m else None
 
-    # Gols
-    # No OGol:
-    # 'match-header-scorers right' corresponde ao Mandante (home)
-    # 'match-header-scorers left' corresponde ao Visitante (away)
+    # Fallback para times e placar no corpo do HTML se o título falhar
+    if not home_name:
+        m_home = re.search(r'<div class="match-header-team right">.*?<div class="match-header-team-name">\s*<a[^>]*>([^<]+)', html, flags=re.DOTALL)
+        if m_home:
+            home_name = normalizar_clube(m_home.group(1).strip())
+        else:
+            h_alt = re.findall(r'<div class="match-header-team right">.*?<a[^>]*title="([^"]+)"', html, flags=re.DOTALL)
+            if h_alt:
+                home_name = normalizar_clube(h_alt[0].strip())
+
+    if not away_name:
+        m_away = re.search(r'<div class="match-header-team left">.*?<div class="match-header-team-name">\s*<a[^>]*>([^<]+)', html, flags=re.DOTALL)
+        if m_away:
+            away_name = normalizar_clube(m_away.group(1).strip())
+        else:
+            a_alt = re.findall(r'<div class="match-header-team left">.*?<a[^>]*title="([^"]+)"', html, flags=re.DOTALL)
+            if a_alt:
+                away_name = normalizar_clube(a_alt[0].strip())
+
+    if not placar or placar == "0x0":
+        m_num = re.search(r'>\s*(\d+)\s*-\s*(\d+)\s*<', html)
+        if m_num:
+            placar = f"{m_num.group(1)}x{m_num.group(2)}"
+
+    # Gols (Suporte a múltiplos gols por jogador e layouts moderno e clássico)
     gols = []
     scorers_home = re.findall(r'<div class="match-header-scorers right">(.*?)</div>', html, re.S)
     scorers_away = re.findall(r'<div class="match-header-scorers left">(.*?)</div>', html, re.S)
 
     def parse_scorers(bloco, clube_alvo):
-        itens = re.findall(r'<a[^>]+href="/jogador/([^/]+)/(\d+)"[^>]*>(.*?)</a>\s*<span class="time">\s*([^<]+)</span>', bloco)
         res = []
-        for slug_atleta, ogol_id, nome_atleta, min_str in itens:
-            minuto, tempo, tipo = parse_ogol_minuto(min_str)
-            atleta_canonico = normalizar_jogador(nome_atleta.strip())
-            res.append({
-                "atleta": atleta_canonico,
-                "ogol_id": ogol_id,
-                "clube": clube_alvo,
-                "minuto": minuto,
-                "tempo": tempo,
-                "tipo_de_gol": tipo
-            })
+        # Layout clássico: <a ...>Atleta</a> <span class="time"> 18' (pen.) 42'</span>
+        itens = re.findall(r'<a[^>]+href="/jogador/([^/]+)/(\d+)"[^>]*>(.*?)</a>\s*<span class="time">\s*([^<]+)</span>', bloco)
+        if itens:
+            for slug_atleta, ogol_id, nome_atleta, min_raw in itens:
+                atleta_canonico = normalizar_jogador(nome_atleta.strip())
+                minutos_encontrados = re.findall(r'(\d+)[\'’]?(?:\s*\(([^)]+)\))?', min_raw)
+                if minutos_encontrados:
+                    for m_num, m_obs in minutos_encontrados:
+                        tipo = "Normal"
+                        obs_lower = (m_obs or "").lower()
+                        if "pen" in obs_lower:
+                            tipo = "Pênalti"
+                        elif "g.c" in obs_lower or "contra" in obs_lower or "o.g" in obs_lower:
+                            tipo = "Gol Contra"
+                        elif "falta" in obs_lower:
+                            tipo = "Falta"
+                        base_num = int(m_num) if m_num.isdigit() else 0
+                        tempo = "1T" if base_num <= 45 else "2T"
+                        res.append({
+                            "atleta": atleta_canonico,
+                            "ogol_id": ogol_id,
+                            "clube": clube_alvo,
+                            "minuto": m_num,
+                            "tempo": tempo,
+                            "tipo_de_gol": tipo
+                        })
+                else:
+                    minuto, tempo, tipo = parse_ogol_minuto(min_raw)
+                    res.append({
+                        "atleta": atleta_canonico,
+                        "ogol_id": ogol_id,
+                        "clube": clube_alvo,
+                        "minuto": minuto,
+                        "tempo": tempo,
+                        "tipo_de_gol": tipo
+                    })
+            return res
+
+        # Layout moderno: <div class="match-header-scorer">
+        items_mod = re.findall(r'<div class="match-header-scorer">(.*?)</div>', bloco, flags=re.DOTALL)
+        for item in items_mod:
+            p_m = re.search(r'<a[^>]*href="/jogador/[^/]+/(\d+)"[^>]*>(.*?)</a>', item)
+            m_m = re.search(r'<span class="match-header-scorer-minute">(.*?)</span>', item)
+            atleta_bruto = p_m.group(2).strip() if p_m else ""
+            ogol_id = p_m.group(1).strip() if p_m else ""
+            atleta = normalizar_jogador(atleta_bruto)
+            min_raw = m_m.group(1).strip() if m_m else "0"
+            minuto, tempo, tipo = parse_ogol_minuto(min_raw)
+            if atleta:
+                res.append({
+                    "atleta": atleta,
+                    "ogol_id": ogol_id,
+                    "clube": clube_alvo,
+                    "minuto": minuto,
+                    "tempo": tempo,
+                    "tipo_de_gol": tipo
+                })
         return res
 
     if scorers_home and home_name:
@@ -696,6 +773,19 @@ TORNEIOS_CONFIG = {
     }
 }
 
+def safe_copy_db(src: str, dst: str):
+    import subprocess
+    for attempt in range(3):
+        try:
+            shutil.copyfile(src, dst)
+            return True
+        except Exception:
+            time.sleep(1)
+            res = subprocess.run(f'powershell -Command "Copy-Item -Path \'{src}\' -Destination \'{dst}\' -Force"', shell=True, capture_output=True)
+            if res.returncode == 0:
+                return True
+    return False
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Pipeline OGol Estaduais & Regionais")
@@ -726,5 +816,5 @@ if __name__ == "__main__":
     except ImportError:
         from scripts.unificar_e_reconstruir_craques import unificar_banco
     unificar_banco(DB_LOCAL)
-    shutil.copy2(DB_LOCAL, DB_API)
+    safe_copy_db(DB_LOCAL, DB_API)
     print("[OK] Sincronização entre data/futebol.db e api/data/futebol.db finalizada.")
