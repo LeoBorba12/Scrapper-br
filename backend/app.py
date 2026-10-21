@@ -1097,6 +1097,26 @@ def buscar_jogadores():
     conn.close()
     return jsonify(resultados)
 
+@app.route('/api/debug/db')
+def debug_db():
+    candidates = [
+        os.path.join(ROOT_DIR, 'data', 'futebol.db'),
+        os.path.join(BASE_DIR, '..', 'data', 'futebol.db'),
+        os.path.join(BASE_DIR, 'data', 'futebol.db'),
+        os.path.join('/var/task/data', 'futebol.db'),
+        os.path.join('/var/task/api/data', 'futebol.db'),
+        os.path.join(os.getcwd(), 'data', 'futebol.db'),
+    ]
+    res = {
+        'cwd': os.getcwd(),
+        'file': __file__,
+        'root_dir': ROOT_DIR,
+        'base_dir': BASE_DIR,
+        'db_futebol': DB_FUTEBOL,
+        'candidates': {c: os.path.exists(c) for c in candidates}
+    }
+    return jsonify(res)
+
 @app.route('/api/jogadores/ranking', methods=['GET'])
 @require_auth
 def get_jogadores_ranking():
