@@ -21,6 +21,19 @@ HEADERS = {
 }
 
 EDICOES_BRASILEIRAO = {
+    2026: "210277",
+    2025: "194851",
+    2024: "184443",
+    2023: "172507",
+    2022: "162047",
+    2021: "154298",
+    2020: "142460",
+    2019: "131709",
+    2018: "122072",
+    2017: "104349",
+    2016: "96361",
+    2015: "79735",
+    2014: "67145",
     2013: "56933",
     2012: "42483",
     2011: "21248",
@@ -39,7 +52,31 @@ EDICOES_BRASILEIRAO = {
     1998: "2507",
     1997: "2508",
     1996: "2509",
-    1995: "2639"
+    1995: "2639",
+    1994: "2643",
+    1993: "2649",
+    1992: "2650",
+    1991: "2651",
+    1990: "2674",
+    1989: "2676",
+    1988: "2700",
+    1987: "3335",
+    1986: "3387",
+    1985: "3512",
+    1984: "3530",
+    1983: "3643",
+    1982: "3663",
+    1981: "3822",
+    1980: "3827",
+    1979: "3866",
+    1978: "3903",
+    1977: "3985",
+    1976: "4002",
+    1975: "2491",
+    1974: "2483",
+    1973: "2482",
+    1972: "2481",
+    1971: "2477",
 }
 
 # Mapa de Clubes Canônicos do Brasileirão
@@ -469,6 +506,22 @@ def executar_pipeline_brasileirao(anos_alvo: List[int]):
 
     conn.close()
 
+def safe_copy_db(src: str, dst: str):
+    import subprocess
+    for attempt in range(3):
+        try:
+            shutil.copyfile(src, dst)
+            return True
+        except Exception:
+            time.sleep(1)
+            if sys.platform == "win32":
+                res = subprocess.run(f'powershell -Command "Copy-Item -Path \'{src}\' -Destination \'{dst}\' -Force"', shell=True, capture_output=True)
+            else:
+                res = subprocess.run(f'cp -f "{src}" "{dst}"', shell=True, capture_output=True)
+            if res.returncode == 0:
+                return True
+    return False
+
     # Reconcilia craques e sincroniza ambos os bancos
     print("\n[+] Reconciliando estatísticas canônicas de jogadores_resumo...")
     try:
@@ -476,7 +529,7 @@ def executar_pipeline_brasileirao(anos_alvo: List[int]):
     except ImportError:
         from unificar_e_reconstruir_craques import unificar_banco
     unificar_banco(DB_LOCAL)
-    shutil.copy2(DB_LOCAL, DB_API)
+    safe_copy_db(DB_LOCAL, DB_API)
     print(f"[OK] Sincronização entre {DB_LOCAL} e {DB_API} finalizada.")
 
 if __name__ == "__main__":
