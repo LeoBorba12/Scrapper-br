@@ -511,12 +511,23 @@ export default function App() {
     if (activeTab === 'aovivo') {
       setAovivoLoading(true);
       fetch(`/api/brasileirao/aovivo?serie=${aovivoSerie}`)
-        .then(r => r.json())
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
         .then(d => {
-          setAovivoData(d);
+          setAovivoData(d || {});
           setAovivoLoading(false);
         })
-        .catch(() => setAovivoLoading(false));
+        .catch((err) => {
+          console.error('[AoVivo Fetch Error]', err);
+          setAovivoData({
+            error: 'Não foi possível carregar os dados ao vivo no momento.',
+            tabela: [],
+            jogos_rodada: []
+          });
+          setAovivoLoading(false);
+        });
     }
   }, [activeTab, aovivoSerie]);
 
@@ -3789,124 +3800,168 @@ export default function App() {
 
           {/* CONTEÚDO PRINCIPAL: TABELA + JOGOS DA RODADA */}
           {!aovivoLoading && aovivoData && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px', alignItems: 'flex-start' }}>
-              
-              {/* COLUNA ESQUERDA: TABELA DE CLASSIFICAÇÃO */}
-              <div className="soft-card" style={{ padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
-                    Classificação • {aovivoData.edicao}
-                  </h3>
-                  <span className="badge badge-blue">
-                    {aovivoData.tabela.length} Clubes
-                  </span>
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>#</th>
-                        <th style={{ padding: '8px' }}>Clube</th>
-                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>P</th>
-                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>J</th>
-                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>V</th>
-                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>SG</th>
-                        <th style={{ padding: '8px 4px', textAlign: 'center' }}>%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {aovivoData.tabela.map((t) => (
-                        <tr 
-                          key={t.posicao} 
-                          style={{ 
-                            borderBottom: '1px solid var(--border)',
-                            backgroundColor: t.posicao <= 4 ? 'rgba(16, 185, 129, 0.04)' : (t.posicao >= 17 ? 'rgba(239, 68, 68, 0.04)' : 'transparent')
-                          }}
-                        >
-                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: '700', color: t.posicao <= 4 ? '#10B981' : (t.posicao >= 17 ? '#EF4444' : 'var(--text-muted)') }}>
-                            {t.posicao}º
-                          </td>
-                          <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {t.escudo ? (
-                              <img src={t.escudo} alt={t.clube} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
-                            ) : null}
-                            <strong style={{ color: 'var(--text-main)' }}>{t.clube}</strong>
-                          </td>
-                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: '700', color: '#0369A1' }}>
-                            {t.pontos}
-                          </td>
-                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center' }}>{t.jogos}</td>
-                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: '#15803D' }}>{t.vitorias}</td>
-                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: t.saldo_gols >= 0 ? '#15803D' : '#DC2626' }}>
-                            {t.saldo_gols > 0 ? `+${t.saldo_gols}` : t.saldo_gols}
-                          </td>
-                          <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                            {t.aproveitamento}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* COLUNA DIREITA: JOGOS DA RODADA ATUAL */}
-              <div className="soft-card" style={{ padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
-                    Jogos da {aovivoData.rodada_atual}ª Rodada
-                  </h3>
-                  <span className="badge badge-green">Ao Vivo / Recentes</span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {aovivoData.jogos_rodada.map((j) => (
-                    <div 
-                      key={j.id} 
-                      className="soft-card" 
-                      style={{ padding: '14px', border: '1px solid var(--border)' }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                        <span>{j.data} • {j.hora}</span>
-                        <span style={{ fontWeight: '600', color: j.status === 'live' ? '#EF4444' : '#64748B' }}>
-                          {j.status_label || (j.comecou ? 'ENCERRADO' : 'AGENDADO')}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
-                        {/* Mandante */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start' }}>
-                          {j.mandante.escudo && (
-                            <img src={j.mandante.escudo} alt={j.mandante.nome} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                          )}
-                          <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{j.mandante.nome}</span>
-                        </div>
-
-                        {/* Placar */}
-                        <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: '700', padding: '0 10px', color: '#0369A1' }}>
-                          {j.comecou ? `${j.mandante.placar ?? 0} × ${j.visitante.placar ?? 0}` : 'vs'}
-                        </div>
-
-                        {/* Visitante */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
-                          <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{j.visitante.nome}</span>
-                          {j.visitante.escudo && (
-                            <img src={j.visitante.escudo} alt={j.visitante.nome} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                          )}
-                        </div>
-                      </div>
-
-                      {j.estadio && (
-                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>
-                          📍 {j.estadio}
-                        </div>
-                      )}
+            <div>
+              {/* ALERTA DE ERRO / AVISO SE HOUVER */}
+              {aovivoData.error && (
+                <div className="soft-card" style={{ padding: '20px', marginBottom: '24px', borderLeft: '4px solid #F59E0B', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <AlertCircle size={24} color="#F59E0B" />
+                    <div>
+                      <strong style={{ color: 'var(--text-main)', fontSize: '0.95rem' }}>Aviso de Conexão em Tempo Real</strong>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>{aovivoData.error}</p>
                     </div>
-                  ))}
+                  </div>
+                  <button 
+                    className="btn-secondary" 
+                    onClick={() => {
+                      setAovivoLoading(true);
+                      fetch(`/api/brasileirao/aovivo?serie=${aovivoSerie}`)
+                        .then(r => r.json())
+                        .then(d => { setAovivoData(d || {}); setAovivoLoading(false); })
+                        .catch(() => setAovivoLoading(false));
+                    }}
+                    style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                  >
+                    Tentar Novamente
+                  </button>
                 </div>
-              </div>
+              )}
 
+              {/* SE NÃO HOUVER DADOS DISPONÍVEIS PARA A SÉRIE (ex: Série C ou D fora de temporada) */}
+              {!aovivoData.error && (!aovivoData.tabela || aovivoData.tabela.length === 0) && (!aovivoData.jogos_rodada || aovivoData.jogos_rodada.length === 0) && (
+                <div className="soft-card" style={{ padding: '40px 20px', textAlign: 'center', marginBottom: '24px' }}>
+                  <Trophy size={40} color="#94A3B8" style={{ margin: '0 auto 12px' }} />
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-main)' }}>
+                    Série {aovivoSerie.toUpperCase()} - Fora de Temporada ou Aguardando Início
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: '500px', margin: '8px auto 0' }}>
+                    Esta divisão do Campeonato Brasileiro não possui partidas ativas ou tabela publicada no momento pela fonte oficial.
+                  </p>
+                </div>
+              )}
+
+              {/* SE HOUVER DADOS: TABELA E RODADA */}
+              {((aovivoData.tabela && aovivoData.tabela.length > 0) || (aovivoData.jogos_rodada && aovivoData.jogos_rodada.length > 0)) && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px', alignItems: 'flex-start' }}>
+                  
+                  {/* COLUNA ESQUERDA: TABELA DE CLASSIFICAÇÃO */}
+                  <div className="soft-card" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
+                        Classificação • {aovivoData.edicao || `Brasileirão Série ${aovivoSerie.toUpperCase()}`}
+                      </h3>
+                      <span className="badge badge-blue">
+                        {(aovivoData.tabela || []).length} Clubes
+                      </span>
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                            <th style={{ padding: '8px 4px', textAlign: 'center' }}>#</th>
+                            <th style={{ padding: '8px' }}>Clube</th>
+                            <th style={{ padding: '8px 4px', textAlign: 'center' }}>P</th>
+                            <th style={{ padding: '8px 4px', textAlign: 'center' }}>J</th>
+                            <th style={{ padding: '8px 4px', textAlign: 'center' }}>V</th>
+                            <th style={{ padding: '8px 4px', textAlign: 'center' }}>SG</th>
+                            <th style={{ padding: '8px 4px', textAlign: 'center' }}>%</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(aovivoData.tabela || []).map((t, idx) => (
+                            <tr 
+                              key={t.posicao || idx} 
+                              style={{ 
+                                borderBottom: '1px solid var(--border)',
+                                backgroundColor: (t.posicao <= 4) ? 'rgba(16, 185, 129, 0.04)' : (t.posicao >= 17 ? 'rgba(239, 68, 68, 0.04)' : 'transparent')
+                              }}
+                            >
+                              <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: '700', color: t.posicao <= 4 ? '#10B981' : (t.posicao >= 17 ? '#EF4444' : 'var(--text-muted)') }}>
+                                {t.posicao || idx + 1}º
+                              </td>
+                              <td style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {t.escudo ? (
+                                  <img src={t.escudo} alt={t.clube || ''} style={{ width: '20px', height: '20px', objectFit: 'contain' }} />
+                                ) : null}
+                                <strong style={{ color: 'var(--text-main)' }}>{t.clube || 'A definir'}</strong>
+                              </td>
+                              <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: '700', color: '#0369A1' }}>
+                                {t.pontos ?? 0}
+                              </td>
+                              <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center' }}>{t.jogos ?? 0}</td>
+                              <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: '#15803D' }}>{t.vitorias ?? 0}</td>
+                              <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: (t.saldo_gols ?? 0) >= 0 ? '#15803D' : '#DC2626' }}>
+                                {(t.saldo_gols ?? 0) > 0 ? `+${t.saldo_gols}` : (t.saldo_gols ?? 0)}
+                              </td>
+                              <td className="font-mono" style={{ padding: '8px 4px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                {t.aproveitamento ?? 0}%
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* COLUNA DIREITA: JOGOS DA RODADA ATUAL */}
+                  <div className="soft-card" style={{ padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '600' }}>
+                        Jogos da {aovivoData.rodada_atual || 1}ª Rodada
+                      </h3>
+                      <span className="badge badge-green">Ao Vivo / Recentes</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {(aovivoData.jogos_rodada || []).map((j, idx) => (
+                        <div 
+                          key={j.id || idx} 
+                          className="soft-card" 
+                          style={{ padding: '14px', border: '1px solid var(--border)' }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                            <span>{j.data || 'Data a confirmar'} {j.hora ? `• ${j.hora}` : ''}</span>
+                            <span style={{ fontWeight: '600', color: j.status === 'live' ? '#EF4444' : '#64748B' }}>
+                              {j.status_label || (j.comecou ? 'ENCERRADO' : 'AGENDADO')}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
+                            {/* Mandante */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start' }}>
+                              {j.mandante?.escudo && (
+                                <img src={j.mandante.escudo} alt={j.mandante?.nome || ''} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                              )}
+                              <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{j.mandante?.nome || 'Mandante'}</span>
+                            </div>
+
+                            {/* Placar */}
+                            <div className="font-mono" style={{ fontSize: '1.2rem', fontWeight: '700', padding: '0 10px', color: '#0369A1' }}>
+                              {j.comecou ? `${j.mandante?.placar ?? 0} × ${j.visitante?.placar ?? 0}` : 'vs'}
+                            </div>
+
+                            {/* Visitante */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                              <span style={{ fontWeight: '600', fontSize: '0.9rem' }}>{j.visitante?.nome || 'Visitante'}</span>
+                              {j.visitante?.escudo && (
+                                <img src={j.visitante.escudo} alt={j.visitante?.nome || ''} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                              )}
+                            </div>
+                          </div>
+
+                          {j.estadio && (
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>
+                              📍 {j.estadio}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
           )}
         </section>

@@ -1694,13 +1694,23 @@ def get_brasileirao_aovivo():
 
         match = re.search(r'const\s+classificacao\s*=\s*(\{.+?\});', html)
         if not match:
-            return jsonify({"error": "Não foi possível extrair os dados da competição no momento."}), 502
+            return jsonify({
+                "serie": serie.upper(),
+                "edicao": f"Brasileirão Série {serie.upper()}",
+                "rodada_atual": 1,
+                "total_rodadas": 38,
+                "tabela": [],
+                "jogos_rodada": [],
+                "aviso": "Tabela ou rodada ainda não iniciada para esta série."
+            }), 200
 
         raw_data = json.loads(match.group(1))
 
         # 1. Normalizar Tabela de Classificação
         tabela = []
-        for item in raw_data.get('classificacao', []):
+        for item in (raw_data.get('classificacao') or []):
+            if not isinstance(item, dict):
+                continue
             tabela.append({
                 "posicao": item.get('ordem'),
                 "clube": item.get('nome_popular'),
@@ -1716,19 +1726,26 @@ def get_brasileirao_aovivo():
                 "saldo_gols": item.get('saldo_gols'),
                 "aproveitamento": item.get('aproveitamento'),
                 "variacao": item.get('variacao'),
-                "ultimos_jogos": item.get('ultimos_jogos', []),
+                "ultimos_jogos": item.get('ultimos_jogos') or [],
                 "faixa_cor": item.get('faixa_classificacao_cor')
             })
 
         # 2. Normalizar Rodada Atual e Próximos Jogos
-        rodada_meta = raw_data.get('rodada', {})
+        rodada_raw = raw_data.get('rodada')
+        rodada_meta = rodada_raw if isinstance(rodada_raw, dict) else {}
+        edicao_raw = raw_data.get('edicao')
+        edicao_meta = edicao_raw if isinstance(edicao_raw, dict) else {}
+
         jogos_rodada = []
-        for j in raw_data.get('lista_jogos', []):
-            equipes = j.get('equipes', {})
-            mand = equipes.get('mandante', {})
-            vis = equipes.get('visitante', {})
-            transmissao = j.get('transmissao', {})
-            broadcast = transmissao.get('broadcast', {})
+        for j in (raw_data.get('lista_jogos') or []):
+            if not isinstance(j, dict):
+                continue
+            equipes = j.get('equipes') if isinstance(j.get('equipes'), dict) else {}
+            mand = equipes.get('mandante') if isinstance(equipes.get('mandante'), dict) else {}
+            vis = equipes.get('visitante') if isinstance(equipes.get('visitante'), dict) else {}
+            transmissao = j.get('transmissao') if isinstance(j.get('transmissao'), dict) else {}
+            broadcast = transmissao.get('broadcast') if isinstance(transmissao.get('broadcast'), dict) else {}
+            sede = j.get('sede') if isinstance(j.get('sede'), dict) else {}
 
             jogos_rodada.append({
                 "id": j.get('id'),
@@ -1737,26 +1754,26 @@ def get_brasileirao_aovivo():
                 "comecou": j.get('jogo_ja_comecou', False),
                 "status": broadcast.get('id', 'SCHEDULED'),
                 "status_label": broadcast.get('label') or transmissao.get('label') or '',
-                "estadio": (j.get('sede') or {}).get('nome_popular') or '',
+                "estadio": sede.get('nome_popular') or '',
                 "mandante": {
-                    "nome": mand.get('nome_popular'),
-                    "sigla": mand.get('sigla'),
-                    "escudo": mand.get('escudo'),
+                    "nome": mand.get('nome_popular') or 'A definir',
+                    "sigla": mand.get('sigla') or '???',
+                    "escudo": mand.get('escudo') or '',
                     "placar": j.get('placar_oficial_mandante')
                 },
                 "visitante": {
-                    "nome": vis.get('nome_popular'),
-                    "sigla": vis.get('sigla'),
-                    "escudo": vis.get('escudo'),
+                    "nome": vis.get('nome_popular') or 'A definir',
+                    "sigla": vis.get('sigla') or '???',
+                    "escudo": vis.get('escudo') or '',
                     "placar": j.get('placar_oficial_visitante')
                 }
             })
 
         resultado = {
             "serie": serie.upper(),
-            "edicao": raw_data.get('edicao', {}).get('nome') or f"Brasileirão Série {serie.upper()}",
-            "rodada_atual": rodada_meta.get('numero', 1),
-            "total_rodadas": rodada_meta.get('total', 38),
+            "edicao": edicao_meta.get('nome') or f"Brasileirão Série {serie.upper()}",
+            "rodada_atual": rodada_meta.get('atual') or rodada_meta.get('numero') or 1,
+            "total_rodadas": rodada_meta.get('ultima') or rodada_meta.get('total') or 38,
             "tabela": tabela,
             "jogos_rodada": jogos_rodada
         }
@@ -1766,7 +1783,15 @@ def get_brasileirao_aovivo():
         return jsonify(resultado)
 
     except Exception as e:
-        return jsonify({"error": f"Falha ao carregar dados ao vivo: {str(e)}"}), 500
+        return jsonify({
+            "serie": serie.upper(),
+            "edicao": f"Brasileirão Série {serie.upper()}",
+            "rodada_atual": 1,
+            "total_rodadas": 38,
+            "tabela": [],
+            "jogos_rodada": [],
+            "error": f"Dados em tempo real temporariamente indisponíveis: {str(e)}"
+        }), 200
 
 @app.route('/api/odds/zebras', methods=['GET'])
 def get_maiores_zebras():
