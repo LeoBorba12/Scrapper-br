@@ -1,7 +1,7 @@
 # 📋 HANDOFF DO PROJETO: SCRAPPER-BR / GUIA PROFISSIONAL
 
-> **Data de atualização:** 2026-10-19 23:58  
-> **Status do repositório:** Estável, 5/5 testes de integridade passando, bancos sincronizados.
+> **Data de atualização:** 2026-10-21 14:40  
+> **Status do repositório:** Estável, 5/5 testes de integridade passando, bancos sincronizados, Brasileirão (1995-2025) 100% preenchido.
 
 ---
 
@@ -53,18 +53,24 @@ Plataforma analítica e gerador de insights estatísticos e conteúdo viral sobr
 - **`frontend/src/utils/cardGenerator.js`:** Motor em canvas para exportar cards visuais 1200x675 e 1080x1350 com escudos, estatísticas e tipografia de impacto.
 
 ### Dados, Scrapers e Validação
-- **`scripts/scraper_ogol_estaduais.py`:** Pipeline principal de extração e enriquecimento do OGol:
-  - Cache local idempotente em `data/cache_ogol_estaduais/` (>3.200 jogos baixados).
-  - Normalização canônica de nomes de clubes (`MAPA_CLUBES`) e jogadores (`MAPA_JOGADORES`).
-  - Extração de minuto exato, tempo (1T/2T) e tipo de gol (Normal, Pênalti, Gol Contra, Falta).
-  - Suporte integrado a 11 torneios: Paulista, Carioca, Mineiro, Gaúcho, Copa do Nordeste, Paranaense, Catarinense, Baiano, Pernambucano, Goiano e Cearense.
-- **`scripts/unificar_e_reconstruir_craques.py`:** Consolidação canônica de gols e partidas na tabela `jogadores_resumo` para Gabriel Barbosa, Pedro, Hulk, Germán Cano, Raphael Veiga, Dudu e Arrascaeta.
+- **`scripts/scraper_ogol_brasileirao.py`:** Pipeline especializado para o Brasileirão Série A (1995–2013 e anos modernos):
+  - Suporta os layouts moderno e clássico do OGol (`match-header-team-name`, `span.time`, extração de minutos múltiplos por jogador, pênaltis e gols contra).
+  - Preenchimento total do hiato histórico de 2003 a 2013 e da década de 1990 (1995 a 2000, incluindo a Copa João Havelange).
+  - Mais de 17.000 gols detalhados inseridos no banco.
+- **`scripts/higienizar_e_desambiguar_gols.py`:**
+  - Desagrupamento de gols com múltiplos autores na mesma linha (`X 19' e Y 79'`).
+  - Expansão de multiplicadores (`(2)`, `(3)`, `(4)`), recuperando mais de 1.000 gols reais (Pelé, Coutinho, Zico, etc.).
+  - Higienização de minutos e pênaltis embutidos em strings de nomes de atletas.
+  - Desambiguação de homônimos históricos (*Serginho Chulapa*, *Dario Dadá Maravilha*, *Careca Bianchezi* separado de *Careca SPFC/Guarani*).
+- **`scripts/scraper_ogol_estaduais.py`:** Pipeline principal de extração e enriquecimento dos Estaduais e Copas Regionais:
+  - Cache local idempotente em `data/cache_ogol_estaduais/`.
+  - Normalização canônica de nomes de clubes e jogadores.
+  - Suporte a 11 torneios estaduais e regionais.
 - **`scripts/validar_banco.py`:** Suíte com 5 testes automatizados (Chaves Estrangeiras, Sanidade de Placares, Padrão de Datas ISO, Sincronia entre Bancos e Golden Queries analíticas).
 - **`data/futebol.db` & `api/data/futebol.db`:**
   - Total atual: **87.941 partidas** catalogadas.
-  - Década completa dos 4 grandes estaduais (**2014 a 2025**) 100% preenchida com gols detalhados e estádios (+9.600 gols catalogados).
-  - Copa do Nordeste e Campeonato Paranaense (2024 e 2025) já enriquecidos.
-  - Tamanho atual: **78,23 MB** (abaixo do teto de 100 MB do GitHub).
+  - Brasileirão com 30 anos consecutivos detalhados (1995–2025).
+  - Tamanho atual: **81,44 MB** (seguro abaixo do limite de 100 MB do GitHub).
 
 ---
 
