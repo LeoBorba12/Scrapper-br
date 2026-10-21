@@ -17,8 +17,22 @@ DB_API = os.path.join(BASE_DIR, "api", "data", "futebol.db")
 PY_BIN = sys.executable or ("python3" if sys.platform != "win32" else "python")
 MAX_DB_SIZE_MB = 94.0  # Trava estrita de segurança: garante deploy estável na Vercel (<250MB uncompressed / <50MB zip) e GitHub (<100MB)
 
-TELEGRAM_TOKEN = "8544666739:AAFS7bfEADGbQ8UtchY2LMBHzI7BPnkGPxw"
-TELEGRAM_CHAT_ID = "1797566691"
+def carregar_env():
+    env_file = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip().strip("'").strip('"'))
+        except Exception:
+            pass
+
+carregar_env()
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 def notificar_telegram(mensagem: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"

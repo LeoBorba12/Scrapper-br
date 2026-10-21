@@ -21,8 +21,23 @@ import urllib.parse
 import urllib.request
 import subprocess
 
-TELEGRAM_TOKEN = "8544666739:AAFS7bfEADGbQ8UtchY2LMBHzI7BPnkGPxw"
-TELEGRAM_CHAT_ID = "1797566691"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def carregar_env():
+    env_file = os.path.join(BASE_DIR, ".env")
+    if os.path.exists(env_file):
+        try:
+            with open(env_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        os.environ.setdefault(k.strip(), v.strip().strip("'").strip('"'))
+        except Exception:
+            pass
+
+carregar_env()
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 COOLDOWN_ALERTAS_SEG = 900  # 15 minutos entre alertas para não floodar
 ultimo_alerta_ts = 0
