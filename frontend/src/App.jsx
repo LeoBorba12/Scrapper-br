@@ -56,6 +56,9 @@ export default function App() {
   const [destaques, setDestaques] = useState(null);
   const [destaquesLoading, setDestaquesLoading] = useState(false);
   const [playerClubeFiltro, setPlayerClubeFiltro] = useState('');
+  const [activeRankingTab, setActiveRankingTab] = useState('gols'); // 'gols' | 'assistencias' | 'clutch' | 'participacoes' | 'aproveitamento'
+  const [rankingData, setRankingData] = useState([]);
+  const [rankingLoading, setRankingLoading] = useState(false);
 
   // Tab 3: Oráculo & IA Analista state
   const [oraculoPrompt, setOraculoPrompt] = useState('');
@@ -367,18 +370,20 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [playerSearch]);
 
-  // Carregar perfil completo do jogador via apiFetch
-  const carregarPerfilJogador = (nome, clube = '') => {
-    if (!nome) return;
+  // Carregar perfil completo do jogador via apiFetch (suporta nome ou id_jogador)
+  const carregarPerfilJogador = (nome, clube = '', idJogador = null) => {
+    if (!nome && !idJogador) return;
     setProfileLoading(true);
-    setSelectedPlayer(nome);
+    setSelectedPlayer(nome || `Atleta #${idJogador}`);
     setPlayerClubeFiltro(clube);
     setPlayerSuggestions([]);
 
-    let url = `/api/jogadores/perfil?nome=${encodeURIComponent(nome)}`;
-    if (clube) {
-      url += `&clube=${encodeURIComponent(clube)}`;
-    }
+    let url = `/api/jogadores/perfil?`;
+    const params = [];
+    if (idJogador) params.push(`id=${encodeURIComponent(idJogador)}`);
+    if (nome) params.push(`nome=${encodeURIComponent(nome)}`);
+    if (clube) params.push(`clube=${encodeURIComponent(clube)}`);
+    url += params.join('&');
 
     apiFetch(url)
       .then(r => r.json())
@@ -388,6 +393,26 @@ export default function App() {
       })
       .catch(() => setProfileLoading(false));
   };
+
+  // Carregar ranking analítico por categoria
+  const carregarRanking = (tipo = 'gols') => {
+    setActiveRankingTab(tipo);
+    setRankingLoading(true);
+    apiFetch(`/api/jogadores/ranking?tipo=${tipo}&limit=15`)
+      .then(r => r.json())
+      .then(d => {
+        setRankingData(Array.isArray(d) ? d : []);
+        setRankingLoading(false);
+      })
+      .catch(() => setRankingLoading(false));
+  };
+
+  // Buscar ranking inicial ao abrir a aba de jogadores
+  useEffect(() => {
+    if (activeTab === 'jogadores' && rankingData.length === 0 && currentUser) {
+      carregarRanking('gols');
+    }
+  }, [activeTab, rankingData.length, currentUser]);
 
   // Enviar pergunta ao Oráculo via apiFetch
   const enviarPerguntaOraculo = (perguntaTexto) => {
@@ -1981,7 +2006,7 @@ export default function App() {
                   {playerSuggestions.map((s, idx) => (
                     <div 
                       key={idx}
-                      onClick={() => carregarPerfilJogador(s.nome)}
+                      onClick={() => carregarPerfilJogador(s.nome, '', s.id_jogador)}
                       style={{ 
                         padding: '12px 16px', 
                         borderBottom: '1px solid var(--border)', 
@@ -1996,6 +2021,11 @@ export default function App() {
                     >
                       <div>
                         <strong style={{ fontSize: '0.98rem', color: 'var(--text-main)' }}>{s.nome}</strong>
+                        {s.posicao && (
+                          <span className="badge font-mono" style={{ marginLeft: '8px', fontSize: '0.7rem', padding: '2px 6px' }}>
+                            {s.posicao}
+                          </span>
+                        )}
                         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
                           {s.clubes?.slice(0, 4).map((c, i) => (
                             <span key={i} className="badge badge-blue" style={{ fontSize: '0.72rem' }}>{c}</span>
@@ -2011,6 +2041,9 @@ export default function App() {
                       <div style={{ display: 'flex', gap: '14px', alignItems: 'center', fontSize: '0.85rem' }}>
                         {s.gols > 0 && (
                           <span style={{ color: '#15803D', fontWeight: '600' }}>⚽ {s.gols} gols</span>
+                        )}
+                        {s.assistencias > 0 && (
+                          <span style={{ color: '#0284C7', fontWeight: '600' }}>🎯 {s.assistencias} ast</span>
                         )}
                         {(s.amarelos > 0 || s.vermelhos > 0) && (
                           <span>
@@ -2100,12 +2133,19 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button 
+                      className="btn-secondary" 
+                      style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+                      onClick={() => setPlayerProfile(null)}
+                    >
+                      ← Voltar aos Rankings
+                    </button>
                     {playerClubeFiltro && (
                       <button 
                         className="btn-secondary" 
                         style={{ padding: '8px 12px', fontSize: '0.82rem' }}
-                        onClick={() => carregarPerfilJogador(playerProfile.nome, '')}
+                        onClick={() => carregarPerfilJogador(playerProfile.nome, '', playerProfile.id_jogador)}
                       >
                         Limpar Filtro ({playerClubeFiltro})
                       </button>
@@ -2118,8 +2158,9 @@ export default function App() {
                         const txt = `📊 RAIO-X DO CRAQUE: ${playerProfile.nome}\n\n` +
                           `⚽ Gols: ${playerProfile.resumo.total_gols} (${playerProfile.resumo.media_gols} por jogo)\n` +
                           `🎯 Assistências: ${playerProfile.resumo.assistencias ?? 0}\n` +
-                          `🟨 Cartões Amarelos: ${playerProfile.resumo.amarelos}\n` +
-                          `🟥 Cartões Vermelhos: ${playerProfile.resumo.vermelhos}\n` +
+                          `🔥 Gols nos Minutos Finais (80'+): ${playerProfile.resumo.gols_decisivos_80mais ?? 0}\n` +
+                          `📈 Aproveitamento em Campo: ${playerProfile.resumo.aproveitamento_pontos ?? 0}%\n` +
+                          `🟨 Amarelos: ${playerProfile.resumo.amarelos} | 🟥 Vermelhos: ${playerProfile.resumo.vermelhos}\n` +
                           `🏟️ Jogos Catalogados: ${playerProfile.resumo.jogos_registrados} (${playerProfile.resumo.ano_min}-${playerProfile.resumo.ano_max})\n` +
                           `🎯 Maior Vítima: ${topV}\n\n` +
                           `#Futebol #Dados #Estatisticas #FutStats`;
@@ -2132,8 +2173,8 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 5 CARDS DE MÉTRICAS PRINCIPAIS */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px', marginTop: '22px' }}>
+                {/* LINHA 1: MÉTRICAS BÁSICAS E PARTICIPAÇÕES */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px', marginTop: '22px' }}>
                   {/* CARD GOLS */}
                   <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #10B981' }}>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>⚽ Gols Marcados</div>
@@ -2144,6 +2185,39 @@ export default function App() {
                       <span>Normais: {playerProfile.resumo.gols_normais}</span>
                       {playerProfile.resumo.gols_penalti > 0 && <span>• Pên: {playerProfile.resumo.gols_penalti}</span>}
                       {playerProfile.resumo.gols_falta > 0 && <span>• Falta: {playerProfile.resumo.gols_falta}</span>}
+                    </div>
+                  </div>
+
+                  {/* CARD ASSISTÊNCIAS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #0284C7' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎯 Assistências</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0284C7', margin: '4px 0' }}>
+                      {playerProfile.resumo.total_assistencias ?? playerProfile.resumo.assistencias ?? 0}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      Passes para gol catalogados
+                    </div>
+                  </div>
+
+                  {/* CARD PARTICIPAÇÕES GOLS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #8B5CF6' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🤝 Participações em Gol</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#7C3AED', margin: '4px 0' }}>
+                      {playerProfile.resumo.participacoes_gols ?? (playerProfile.resumo.total_gols + (playerProfile.resumo.total_assistencias || 0))}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      Gols + Assistências
+                    </div>
+                  </div>
+
+                  {/* CARD JOGOS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #6366F1' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🏟️ Jogos Catalogados</div>
+                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#4F46E5', margin: '4px 0' }}>
+                      {playerProfile.resumo.jogos_registrados}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Média: {playerProfile.resumo.media_gols} gols/jogo
                     </div>
                   </div>
 
@@ -2168,26 +2242,66 @@ export default function App() {
                       Expulsões diretas / 2º amarelo
                     </div>
                   </div>
+                </div>
 
-                  {/* CARD ASSISTÊNCIAS */}
-                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #0284C7' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎯 Assistências</div>
-                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#0284C7', margin: '4px 0' }}>
-                      {playerProfile.resumo.assistencias ?? 0}
+                {/* LINHA 2: MÉTRICAS AVANÇADAS & DECISÃO */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px', marginTop: '14px' }}>
+                  {/* CARD GOLS DECISIVOS (CLUTCH 80'+) */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #F97316' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🔥 Gols Decisivos (80'+)</div>
+                    <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#EA580C', margin: '4px 0' }}>
+                      {playerProfile.resumo.gols_decisivos_80mais ?? 0}
                     </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }} title={playerProfile.resumo.nota_assistencias}>
-                      Passes para gol (OGol / CBF)
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Gols marcados após o minuto 80
                     </div>
                   </div>
 
-                  {/* CARD JOGOS */}
-                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #6366F1' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🏟️ Jogos Catalogados</div>
-                    <div className="font-mono" style={{ fontSize: '2.2rem', fontWeight: '700', color: '#4F46E5', margin: '4px 0' }}>
-                      {playerProfile.resumo.jogos_registrados}
+                  {/* CARD APROVEITAMENTO COLETIVO */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #3B82F6' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>📈 Aproveitamento em Campo</div>
+                    <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#2563EB', margin: '4px 0' }}>
+                      {playerProfile.resumo.aproveitamento_pontos ? `${playerProfile.resumo.aproveitamento_pontos}%` : 'N/D'}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      Média: {playerProfile.resumo.media_gols} gols/jogo
+                      {playerProfile.resumo.jogos_titular > 0 ? `Titular: ${playerProfile.resumo.jogos_titular}j` : ''} 
+                      {playerProfile.resumo.jogos_reserva > 0 ? ` • Banco: ${playerProfile.resumo.jogos_reserva}j` : ''}
+                      {playerProfile.resumo.jogos_capitao > 0 ? ` • C: ${playerProfile.resumo.jogos_capitao}j` : ''}
+                    </div>
+                  </div>
+
+                  {/* CARD PÊNALTIS */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #10B981' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎯 Eficiência em Pênaltis</div>
+                    <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#059669', margin: '4px 0' }}>
+                      {playerProfile.resumo.gols_penalti ?? 0}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {playerProfile.resumo.penaltis_perdidos > 0 
+                        ? `${playerProfile.resumo.penaltis_perdidos} perdidos` 
+                        : (playerProfile.resumo.gols_penalti > 0 ? '100% de conversão' : 'Sem cobranças registradas')}
+                    </div>
+                  </div>
+
+                  {/* CARD ALVO & PALCO */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #8B5CF6' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🏟️ Alvo & Palco Favoritos</div>
+                    <div style={{ fontSize: '0.98rem', fontWeight: '700', color: 'var(--text-main)', margin: '6px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      🎯 {playerProfile.resumo.maior_vitima_clube || 'Vários clubes'}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      🏟️ {playerProfile.resumo.estadio_favorito || 'Estádios diversos'}
+                    </div>
+                  </div>
+
+                  {/* CARD GRANDES ATUAÇÕES */}
+                  <div className="soft-card" style={{ padding: '16px', textAlign: 'center', borderTop: '3px solid #EC4899' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🎩 Grandes Atuações</div>
+                    <div className="font-mono" style={{ fontSize: '1.25rem', fontWeight: '700', color: '#DB2777', margin: '6px 0' }}>
+                      {playerProfile.resumo.hat_tricks ?? 0} Hat-tricks
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      ⚽⚽ {playerProfile.resumo.dobletes ?? 0} Dobletes (2 gols)
                     </div>
                   </div>
                 </div>
@@ -2196,7 +2310,7 @@ export default function App() {
                 <div style={{ marginTop: '16px', padding: '10px 14px', backgroundColor: 'var(--surface-hover)', borderRadius: '8px', fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle size={15} color="#87CEEB" />
                   <span>
-                    <strong>Metodologia Oficial:</strong> {playerProfile.resumo.nota_assistencias}
+                    <strong>Estatísticas Integradas:</strong> Dossiê consolidado com identificador único (#ID {playerProfile.id_jogador || 'N/A'}), partidas de súmulas oficiais CBF e histórico internacional.
                   </span>
                 </div>
               </div>
@@ -2463,12 +2577,176 @@ export default function App() {
           {/* ESTADO INICIAL / LEADERBOARDS QUANDO NENHUM JOGADOR ESTIVER SELECIONADO */}
           {!playerProfile && (
             <div>
+              {/* RANKINGS ANALÍTICOS DINÂMICOS */}
+              <div className="soft-card" style={{ padding: '22px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '18px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Award size={22} color="#10B981" /> Rankings Históricos do Futebol Brasileiro
+                    </h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '2px' }}>
+                      Selecione uma dimensão analítica para explorar os líderes com IDs e estatísticas consolidadas:
+                    </p>
+                  </div>
+
+                  {/* PILLS SELETORAS DE CATEGORIA */}
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[
+                      { id: 'gols', label: '⚽ Artilheiros', icon: Trophy, color: '#10B981' },
+                      { id: 'assistencias', label: '🎯 Garçons (Assistências)', icon: Sparkles, color: '#0284C7' },
+                      { id: 'clutch', label: '🔥 Gols Clutch (80\'+)', icon: Flame, color: '#EA580C' },
+                      { id: 'participacoes', label: '🤝 Participações em Gol', icon: Award, color: '#7C3AED' },
+                      { id: 'aproveitamento', label: '📈 Aproveitamento %', icon: BarChart3, color: '#2563EB' }
+                    ].map(tab => {
+                      const isActive = activeRankingTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => carregarRanking(tab.id)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '8px 14px',
+                            borderRadius: '20px',
+                            fontSize: '0.82rem',
+                            fontWeight: isActive ? '700' : '500',
+                            border: isActive ? `1.5px solid ${tab.color}` : '1px solid var(--border)',
+                            backgroundColor: isActive ? 'var(--surface-hover)' : 'transparent',
+                            color: isActive ? tab.color : 'var(--text-muted)',
+                            cursor: 'pointer',
+                            transition: 'all 150ms'
+                          }}
+                        >
+                          <tab.icon size={15} color={isActive ? tab.color : 'var(--text-muted)'} />
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* TABELA DE RANKING SELECIONADO */}
+                {rankingLoading ? (
+                  <div style={{ padding: '40px', textAlign: 'center' }}>
+                    <RefreshCw size={24} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 8px' }} />
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Carregando ranking oficial...</p>
+                  </div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                          <th style={{ padding: '10px 8px', width: '60px', textAlign: 'center' }}>Pos</th>
+                          <th style={{ padding: '10px 8px' }}>Atleta & Posição</th>
+                          <th style={{ padding: '10px 8px' }}>Clubes Principais</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Jogos</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            {activeRankingTab === 'gols' && '⚽ Gols'}
+                            {activeRankingTab === 'assistencias' && '🎯 Assistências'}
+                            {activeRankingTab === 'clutch' && '🔥 Gols Clutch (80\'+)'}
+                            {activeRankingTab === 'participacoes' && '🤝 Gols + Assist.'}
+                            {activeRankingTab === 'aproveitamento' && '📈 Aproveitamento'}
+                          </th>
+                          <th style={{ padding: '10px 8px' }}>Maior Vítima / Palco</th>
+                          <th style={{ padding: '10px 8px', textAlign: 'right' }}>Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rankingData.map((atleta, idx) => {
+                          const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}º`;
+                          return (
+                            <tr 
+                              key={atleta.id_jogador || idx}
+                              style={{ 
+                                borderBottom: '1px solid var(--border)',
+                                cursor: 'pointer',
+                                transition: 'background-color 150ms'
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
+                              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                              onClick={() => carregarPerfilJogador(atleta.nome, '', atleta.id_jogador)}
+                            >
+                              <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700', fontSize: '0.95rem' }}>
+                                {medal}
+                              </td>
+                              <td style={{ padding: '10px 8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <strong style={{ fontSize: '0.92rem', color: 'var(--text-main)' }}>{atleta.nome}</strong>
+                                  {atleta.posicao && (
+                                    <span className="badge font-mono" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>
+                                      {atleta.posicao}
+                                    </span>
+                                  )}
+                                  {atleta.id_jogador && (
+                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-subtle)' }}>
+                                      #{atleta.id_jogador}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 8px' }}>
+                                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                  {atleta.clubes?.slice(0, 3).map((clb, ci) => (
+                                    <span key={ci} className="badge badge-blue" style={{ fontSize: '0.7rem' }}>{clb}</span>
+                                  ))}
+                                  {atleta.clubes?.length > 3 && (
+                                    <span className="badge" style={{ fontSize: '0.68rem', backgroundColor: 'var(--surface-hover)' }}>
+                                      +{atleta.clubes.length - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center' }}>
+                                {atleta.jogos}
+                              </td>
+                              <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700', fontSize: '1rem' }}>
+                                {activeRankingTab === 'gols' && (
+                                  <span style={{ color: '#15803D' }}>⚽ {atleta.gols}</span>
+                                )}
+                                {activeRankingTab === 'assistencias' && (
+                                  <span style={{ color: '#0284C7' }}>🎯 {atleta.assistencias}</span>
+                                )}
+                                {activeRankingTab === 'clutch' && (
+                                  <span style={{ color: '#EA580C' }}>🔥 {atleta.gols_clutch}</span>
+                                )}
+                                {activeRankingTab === 'participacoes' && (
+                                  <span style={{ color: '#7C3AED' }}>🤝 {atleta.participacoes_gols}</span>
+                                )}
+                                {activeRankingTab === 'aproveitamento' && (
+                                  <span style={{ color: '#2563EB' }}>📈 {atleta.aproveitamento_pontos}%</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '10px 8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                {atleta.maior_vitima_clube ? `🎯 Vítima: ${atleta.maior_vitima_clube}` : (atleta.estadio_favorito ? `🏟️ ${atleta.estadio_favorito}` : '-')}
+                              </td>
+                              <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                                <button
+                                  className="btn-secondary"
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', borderRadius: '12px' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    carregarPerfilJogador(atleta.nome, '', atleta.id_jogador);
+                                  }}
+                                >
+                                  Ver Raio-X →
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
               <div style={{ marginBottom: '16px' }}>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: '600' }}>
-                  Rankings Históricos & Destaques Nacionais
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>
+                  Resumos Históricos de Cartões & Disciplina
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  Clique em qualquer jogador para abrir o dossiê completo de estatísticas da carreira.
+                  Destaques acumulados de cartões e artilharia em todas as competições.
                 </p>
               </div>
 
