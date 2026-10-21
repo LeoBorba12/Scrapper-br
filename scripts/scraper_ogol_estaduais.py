@@ -781,7 +781,10 @@ def safe_copy_db(src: str, dst: str):
             return True
         except Exception:
             time.sleep(1)
-            res = subprocess.run(f'powershell -Command "Copy-Item -Path \'{src}\' -Destination \'{dst}\' -Force"', shell=True, capture_output=True)
+            if sys.platform == "win32":
+                res = subprocess.run(f'powershell -Command "Copy-Item -Path \'{src}\' -Destination \'{dst}\' -Force"', shell=True, capture_output=True)
+            else:
+                res = subprocess.run(f'cp -f "{src}" "{dst}"', shell=True, capture_output=True)
             if res.returncode == 0:
                 return True
     return False

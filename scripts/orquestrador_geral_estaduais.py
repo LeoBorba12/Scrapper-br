@@ -4,17 +4,17 @@ import os
 import time
 import shutil
 
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_LOCAL = os.path.join(BASE_DIR, "data", "futebol.db")
 DB_API = os.path.join(BASE_DIR, "api", "data", "futebol.db")
+PY_BIN = sys.executable or ("python3" if sys.platform != "win32" else "python")
 
 BLOCOS = [
-    # Bloco 1: Marcelinho Carioca Paulistão anos 90/2000 restantes
-    {
-        "torneios": ["paulista"],
-        "anos": [1994, 1996, 1998, 2000, 2002, 2003],
-        "desc": "Paulistão 1994-2003 (Marcelinho Carioca e Careca 1997)"
-    },
     # Bloco 2: Paulistão 2010-2013
     {
         "torneios": ["paulista"],
@@ -53,26 +53,36 @@ BLOCOS = [
     }
 ]
 
+def safe_print(text):
+    try:
+        print(text, flush=True)
+    except Exception:
+        clean = text.encode("ascii", errors="replace").decode("ascii")
+        print(clean, flush=True)
+
 def safe_copy_db(src: str, dst: str):
-    import subprocess
     for attempt in range(3):
         try:
             shutil.copyfile(src, dst)
             return True
         except Exception:
             time.sleep(1)
-            res = subprocess.run(f'powershell -Command "Copy-Item -Path \'{src}\' -Destination \'{dst}\' -Force"', shell=True, capture_output=True)
+            if sys.platform == "win32":
+                res = subprocess.run(f'powershell -Command "Copy-Item -Path \'{src}\' -Destination \'{dst}\' -Force"', shell=True, capture_output=True)
+            else:
+                res = subprocess.run(f'cp -f "{src}" "{dst}"', shell=True, capture_output=True)
             if res.returncode == 0:
                 return True
     return False
 
 def run_cmd(cmd, desc=""):
-    print(f"\n[RUN] {desc} -> {' '.join(cmd) if isinstance(cmd, list) else cmd}", flush=True)
+    safe_print(f"\n[RUN] {desc} -> {' '.join(cmd) if isinstance(cmd, list) else cmd}")
     res = subprocess.run(cmd, cwd=BASE_DIR, shell=True, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if res.returncode != 0:
-        print(f"[ERRO]: {res.stderr}\n{res.stdout}", flush=True)
+        safe_print(f"[ERRO]: {res.stderr}\n{res.stdout}")
     else:
-        print(res.stdout[-400:] if len(res.stdout) > 400 else res.stdout, flush=True)
+        out = res.stdout[-400:] if len(res.stdout) > 400 else res.stdout
+        safe_print(out)
     return res.returncode == 0
 
 def processar_fila():
@@ -86,16 +96,16 @@ def processar_fila():
         anos_str = " ".join(str(a) for a in bloco["anos"])
         
         # 1. Executa scraper
-        cmd_scrape = f"python scripts/scraper_ogol_estaduais.py --torneios {torneios_str} --anos {anos_str}"
+        cmd_scrape = f'"{PY_BIN}" scripts/scraper_ogol_estaduais.py --torneios {torneios_str} --anos {anos_str}'
         ok = run_cmd(cmd_scrape, f"Scraping {bloco['desc']}")
         if not ok:
             print(f"[AVISO] Scraping falhou para o bloco {i}, tentando seguir para validação...", flush=True)
 
         # 2. Higienizar e desambiguar
-        run_cmd("python scripts/higienizar_e_desambiguar_gols.py", "Higienização e Desambiguação")
+        run_cmd(f'"{PY_BIN}" scripts/higienizar_e_desambiguar_gols.py', "Higienização e Desambiguação")
 
         # 3. Validar integridade
-        ok_val = run_cmd("python scripts/validar_banco.py", "Validação 5/5")
+        ok_val = run_cmd(f'"{PY_BIN}" scripts/validar_banco.py', "Validação 5/5")
         if not ok_val:
             print(f"[FATAL] Banco falhou na validação de integridade no bloco {i}! Abortando commit.", flush=True)
             sys.exit(1)
