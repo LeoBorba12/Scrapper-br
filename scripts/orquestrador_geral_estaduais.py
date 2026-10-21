@@ -295,12 +295,8 @@ def executar_ciclo(ciclo_num=1):
             notificar_telegram(msg_teto)
             return False
 
-        # 5. Sincronizar api/data/futebol.db
-        safe_copy_db(DB_LOCAL, DB_API)
-        print(f"[OK] Banco sincronizado com api/data/futebol.db", flush=True)
-
-        # 6. Git commit e push automático do bloco
-        run_cmd("git add data/futebol.db api/data/futebol.db", "Git add")
+        # 5. Git commit e push automático do bloco (usando unicamente data/futebol.db para evitar duplicar tamanho na Vercel)
+        run_cmd("git add data/futebol.db", "Git add")
         msg_commit = f"feat(historico): enriquecer gols e estadios de {bloco['desc']}"
         run_cmd(f'git commit -m "{msg_commit}"', "Git commit")
         run_cmd("git push origin main", "Git push")

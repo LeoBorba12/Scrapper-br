@@ -65,9 +65,9 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 FRONTEND_DIST = os.path.join(ROOT_DIR, 'frontend', 'dist')
 def find_db_path(filename):
     candidates = [
-        os.path.join(ROOT_DIR, 'api', 'data', filename),
         os.path.join(ROOT_DIR, 'data', filename),
         os.path.join(BASE_DIR, 'data', filename),
+        os.path.join(ROOT_DIR, 'api', 'data', filename),
         os.path.join(BASE_DIR, '..', 'api', 'data', filename),
     ]
     for c in candidates:
