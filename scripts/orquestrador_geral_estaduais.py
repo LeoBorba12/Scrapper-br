@@ -293,15 +293,37 @@ def executar_ciclo(ciclo_num=1):
 
         print(f"\n[SUCESSO] Bloco {i}/{len(BLOCOS)} concluído e commitado com sucesso!\n", flush=True)
 
-        # 7. Notificação Telegram de sucesso
+        # 7. Notificação Telegram de sucesso com telemetria de RAM
+        ram_info = ""
+        avail_ram = 0
+        if os.path.exists("/proc/meminfo"):
+            try:
+                with open("/proc/meminfo") as mf:
+                    d_m = {l.split(":")[0].strip(): int(l.split(":")[1].strip().split()[0]) // 1024 for l in mf if ":" in l}
+                    avail_ram = d_m.get("MemAvailable", 0)
+                    total_ram = d_m.get("MemTotal", 0)
+                    ram_info = f"\n🧠 *RAM da VM*: {avail_ram} MB livres / {total_ram} MB"
+            except Exception:
+                pass
+
         msg_sucesso = (
             f"⚽ *Scrapper-BR | Bloco Atualizado!*\n\n"
             f"📌 *Bloco {i}/{len(BLOCOS)}*: {bloco['desc']}\n"
-            f"💾 *Tamanho do Banco*: {tamanho_mb:.2f} MB\n"
+            f"💾 *Tamanho do Banco*: {tamanho_mb:.2f} MB{ram_info}\n"
             f"🚀 *Commit & Push*: Realizado com sucesso na branch `main`.\n"
             f"⏱️ Continuando para o próximo bloco..."
         )
         notificar_telegram(msg_sucesso)
+
+        # Checagem preventiva de travamento: se RAM < 110 MB, pausa e alerta
+        if 0 < avail_ram < 110:
+            msg_ram_crit = (
+                f"⚠️ *ALERTA PREVENTIVO DA VM*\n\n"
+                f"Memória RAM disponível baixa: *{avail_ram} MB*.\n"
+                f"Pausando 30 segundos preventivamente para evitar travamento da máquina..."
+            )
+            notificar_telegram(msg_ram_crit)
+            time.sleep(30)
 
         time.sleep(2)
 
