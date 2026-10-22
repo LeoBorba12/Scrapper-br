@@ -1120,13 +1120,16 @@ def debug_db():
 @app.route('/api/jogadores/ranking', methods=['GET'])
 @require_auth
 def get_jogadores_ranking():
-    tipo = request.args.get('tipo', 'gols').strip() # 'gols', 'assistencias', 'clutch', 'participacoes', 'aproveitamento'
+    tipo = request.args.get('tipo', 'gols').strip() # 'gols', 'carreira', 'assistencias', 'clutch', 'participacoes', 'aproveitamento'
     limit = min(request.args.get('limit', 20, type=int), 50)
     conn = get_db()
     c = conn.cursor()
     
     where_extra = "WHERE total_gols > 0"
-    if tipo == 'assistencias':
+    if tipo == 'carreira':
+        order_col = "gols_carreira_oficiais DESC, jogos_carreira_oficiais ASC"
+        where_extra = "WHERE gols_carreira_oficiais > 0"
+    elif tipo == 'assistencias':
         order_col = "total_assistencias DESC, total_gols DESC"
         where_extra = "WHERE total_assistencias > 0"
     elif tipo == 'clutch':
@@ -1145,7 +1148,10 @@ def get_jogadores_ranking():
         SELECT id_jogador, ogol_id, nome_exibicao as nome, posicao, clubes,
                total_jogos as jogos, total_gols as gols, total_assistencias as assistencias,
                participacoes_gols, gols_decisivos_80mais as gols_clutch,
-               maior_vitima_clube, estadio_favorito, aproveitamento_pontos
+               maior_vitima_clube, estadio_favorito, aproveitamento_pontos,
+               COALESCE(gols_carreira_oficiais, 0) as gols_carreira,
+               COALESCE(jogos_carreira_oficiais, 0) as jogos_carreira,
+               COALESCE(assistencias_carreira_oficiais, 0) as assistencias_carreira
         FROM jogadores_estatisticas
         {where_extra}
         ORDER BY {order_col}
@@ -1450,6 +1456,12 @@ def get_jogador_perfil():
             "media_gols": round(total_gols_final / max(total_jogos, 1), 2),
             "ano_min": ano_min,
             "ano_max": ano_max
+        },
+        "carreira_oficial": {
+            "gols": stats_meta.get('gols_carreira_oficiais') or 0,
+            "jogos": stats_meta.get('jogos_carreira_oficiais') or 0,
+            "assistencias": stats_meta.get('assistencias_carreira_oficiais') or 0,
+            "clubes": json.loads(stats_meta['detalhe_carreira_clubes']) if stats_meta.get('detalhe_carreira_clubes') else []
         },
         "top_vitimas": top_vitimas,
         "historico_clubes": historico_clubes,

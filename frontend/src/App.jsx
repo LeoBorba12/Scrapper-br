@@ -2173,6 +2173,61 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* BANNER 100% CARREIRA OFICIAL (OGOL / CBF / FIFA) */}
+                {playerProfile.carreira_oficial?.gols > 0 && (
+                  <div className="soft-card" style={{ padding: '18px 22px', marginTop: '20px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(16, 185, 129, 0.08) 100%)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ fontSize: '2rem' }}>👑</div>
+                        <div>
+                          <div style={{ fontWeight: '700', fontSize: '1.08rem', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            Totais Oficiais da Carreira (100% Homologado OGol / CBF / FIFA)
+                            <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>100% Completo</span>
+                          </div>
+                          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            Soma agregada de todas as competições oficiais (Estaduais, Nacionais, Copas e Seleção).
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div className="font-mono" style={{ fontSize: '1.8rem', fontWeight: '800', color: '#15803D' }}>
+                            {playerProfile.carreira_oficial.gols}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Gols Oficiais</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div className="font-mono" style={{ fontSize: '1.8rem', fontWeight: '800', color: '#4F46E5' }}>
+                            {playerProfile.carreira_oficial.jogos}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Jogos Oficiais</div>
+                        </div>
+                        {playerProfile.carreira_oficial.assistencias > 0 && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div className="font-mono" style={{ fontSize: '1.8rem', fontWeight: '800', color: '#0284C7' }}>
+                              {playerProfile.carreira_oficial.assistencias}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Assistências</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* LISTA DE CLUBES DA CARREIRA OFICIAL */}
+                    {playerProfile.carreira_oficial.clubes?.length > 0 && (
+                      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(245, 158, 11, 0.2)', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: '600' }}>Clubes na Carreira:</span>
+                        {playerProfile.carreira_oficial.clubes.map((c, ci) => (
+                          <span key={ci} className="badge" style={{ fontSize: '0.72rem', backgroundColor: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                            <strong>{c.clube}</strong> {c.periodo ? `(${c.periodo})` : ''}: <span style={{ color: '#15803D', fontWeight: '700' }}>{c.gols}g</span> / {c.jogos}j
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* LINHA 1: MÉTRICAS BÁSICAS E PARTICIPAÇÕES */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '14px', marginTop: '22px' }}>
                   {/* CARD GOLS */}
@@ -2592,7 +2647,8 @@ export default function App() {
                   {/* PILLS SELETORAS DE CATEGORIA */}
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {[
-                      { id: 'gols', label: '⚽ Artilheiros', icon: Trophy, color: '#10B981' },
+                      { id: 'carreira', label: '👑 Oficiais da Carreira (100%)', icon: Award, color: '#D97706' },
+                      { id: 'gols', label: '⚽ Artilheiros (Nacional)', icon: Trophy, color: '#10B981' },
                       { id: 'assistencias', label: '🎯 Garçons (Assistências)', icon: Sparkles, color: '#0284C7' },
                       { id: 'clutch', label: '🔥 Gols Clutch (80\'+)', icon: Flame, color: '#EA580C' },
                       { id: 'participacoes', label: '🤝 Participações em Gol', icon: Award, color: '#7C3AED' },
@@ -2640,8 +2696,11 @@ export default function App() {
                           <th style={{ padding: '10px 8px', width: '60px', textAlign: 'center' }}>Pos</th>
                           <th style={{ padding: '10px 8px' }}>Atleta & Posição</th>
                           <th style={{ padding: '10px 8px' }}>Clubes Principais</th>
-                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>Jogos</th>
                           <th style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            {activeRankingTab === 'carreira' ? 'Jogos Carreira' : 'Jogos BD'}
+                          </th>
+                          <th style={{ padding: '10px 8px', textAlign: 'center' }}>
+                            {activeRankingTab === 'carreira' && '👑 Gols Totais da Carreira'}
                             {activeRankingTab === 'gols' && '⚽ Gols'}
                             {activeRankingTab === 'assistencias' && '🎯 Assistências'}
                             {activeRankingTab === 'clutch' && '🔥 Gols Clutch (80\'+)'}
@@ -2698,9 +2757,15 @@ export default function App() {
                                 </div>
                               </td>
                               <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center' }}>
-                                {atleta.jogos}
+                                {activeRankingTab === 'carreira' ? (atleta.jogos_carreira || atleta.jogos) : atleta.jogos}
                               </td>
                               <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700', fontSize: '1rem' }}>
+                                {activeRankingTab === 'carreira' && (
+                                  <div>
+                                    <span style={{ color: '#D97706', fontSize: '1.05rem' }}>👑 {atleta.gols_carreira || atleta.gols}</span>
+                                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>100% oficial</div>
+                                  </div>
+                                )}
                                 {activeRankingTab === 'gols' && (
                                   <span style={{ color: '#15803D' }}>⚽ {atleta.gols}</span>
                                 )}
