@@ -263,6 +263,11 @@ def executar_ciclo(ciclo_num=1):
         # 3. Validar integridade
         ok_val = run_cmd(f'"{PY_BIN}" scripts/validar_banco.py', "Validação 5/5")
         if not ok_val:
+            # Retry com pequena pausa para evitar falsos positivos por lock
+            time.sleep(3)
+            ok_val = run_cmd(f'"{PY_BIN}" scripts/validar_banco.py', "Validação 5/5 (Retry)")
+
+        if not ok_val:
             safe_print(f"[FATAL] Banco falhou na validação de integridade no bloco {i}! Abortando commit.")
             msg_erro = (
                 f"🚨 *ALERTA CRÍTICO: Falha no Scrapper-BR*\n\n"
@@ -275,7 +280,8 @@ def executar_ciclo(ciclo_num=1):
         # 4. Compactação com VACUUM e Verificação de Teto Vercel/GitHub
         try:
             import sqlite3
-            c_vac = sqlite3.connect(DB_LOCAL)
+            c_vac = sqlite3.connect(DB_LOCAL, timeout=60.0)
+            c_vac.execute("PRAGMA busy_timeout = 60000;")
             c_vac.execute("VACUUM")
             c_vac.close()
         except Exception:
@@ -295,10 +301,11 @@ def executar_ciclo(ciclo_num=1):
             notificar_telegram(msg_teto)
             return False
 
-        # 5. Git commit e push automático do bloco (usando unicamente data/futebol.db para evitar duplicar tamanho na Vercel)
+        # 5. Git commit e push automático do bloco (com rebase prévio para evitar rejeição)
         run_cmd("git add data/futebol.db", "Git add")
         msg_commit = f"feat(historico): enriquecer gols e estadios de {bloco['desc']}"
         run_cmd(f'git commit -m "{msg_commit}"', "Git commit")
+        run_cmd("git pull --rebase origin main", "Git pull rebase")
         run_cmd("git push origin main", "Git push")
 
         print(f"\n[SUCESSO] Bloco {i}/{len(BLOCOS)} concluído e commitado com sucesso!\n", flush=True)
