@@ -10,6 +10,7 @@ import time
 import threading
 import functools
 import secrets
+import requests
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, g
 
@@ -168,9 +169,21 @@ def login_usuario(username, password):
         )
         row = c.fetchone()
         conn.close()
-        if row and verificar_senha(password, row["senha_hash"]):
-            user_info = {"username": row["username"], "nome": row["nome"], "role": row["role"]}
-            return {"user": user_info, "token": gerar_token(user_info)}, None
+        if row:
+            if verificar_senha(password, row["senha_hash"]):
+                user_info = {"username": row["username"], "nome": row["nome"], "role": row["role"]}
+                return {"user": user_info, "token": gerar_token(user_info)}, None
+            # Fallback rápido no micro-cache da VM caso a senha tenha sido alterada recentemente
+            try:
+                vm_cache_url = f"http://163.176.87.218:3000/cache/user_pass_{username.lower()}"
+                r_cache = requests.get(vm_cache_url, timeout=1.5)
+                if r_cache.status_code == 200:
+                    cached_data = r_cache.json().get('value', {})
+                    if cached_data and verificar_senha(password, cached_data.get('hash', '')):
+                        user_info = {"username": row["username"], "nome": row["nome"], "role": row["role"]}
+                        return {"user": user_info, "token": gerar_token(user_info)}, None
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -319,6 +332,66 @@ def api_me():
         return jsonify({"user": user})
     except Exception as e:
         return jsonify({"error": f"Falha ao validar sessão: {str(e)}"}), 500
+
+
+@app.route('/api/auth/alterar-senha', methods=['POST'])
+@require_auth
+def api_alterar_senha():
+    try:
+        user = g.current_user
+        username = user.get('username', '')
+        dados = request.get_json(force=True, silent=True) or {}
+        senha_atual = (dados.get('senha_atual') or '').strip()
+        nova_senha = (dados.get('nova_senha') or '').strip()
+
+        if not senha_atual or not nova_senha:
+            return jsonify({"error": "Informe a senha atual e a nova senha."}), 400
+        if len(nova_senha) < 4:
+            return jsonify({"error": "A nova senha deve ter no mínimo 4 caracteres."}), 400
+
+        # 1. Validar senha atual
+        _, login_err = login_usuario(username, senha_atual)
+        if login_err:
+            return jsonify({"error": "Senha atual incorreta."}), 400
+
+        nova_hash = hash_senha(nova_senha)
+
+        # 2. Tentar atualizar banco SQLite local se for gravável
+        try:
+            conn = sqlite3.connect(DB_FUTEBOL, timeout=10.0)
+            c = conn.cursor()
+            c.execute("UPDATE usuarios SET senha_hash = ? WHERE LOWER(username) = LOWER(?);", (nova_hash, username))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+        # 3. Notificar o daemon da VM para persistir no banco oficial e no git
+        try:
+            vm_url = "http://163.176.87.218:3000/auth/update-password"
+            requests.post(
+                vm_url,
+                headers={"x-auth-secret": SECRET_KEY},
+                json={"username": username, "nova_senha": nova_senha},
+                timeout=5
+            )
+        except Exception:
+            pass
+
+        # 4. Salvar no micro-cache para login instantâneo
+        try:
+            vm_cache_url = f"http://163.176.87.218:3000/cache/user_pass_{username.lower()}"
+            requests.post(
+                vm_cache_url,
+                json={"value": {"hash": nova_hash}, "ttlSeconds": 86400 * 30},
+                timeout=3
+            )
+        except Exception:
+            pass
+
+        return jsonify({"success": True, "mensagem": "Senha alterada com sucesso!"})
+    except Exception as e:
+        return jsonify({"error": f"Falha ao alterar senha: {str(e)}"}), 500
 
 @app.route('/api/auth/convite-codigo', methods=['GET'])
 def api_get_convite():

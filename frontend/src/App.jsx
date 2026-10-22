@@ -36,6 +36,15 @@ export default function App() {
   const [regCodigoConvite, setRegCodigoConvite] = useState('');
   const [conviteCopiado, setConviteCopiado] = useState(false);
 
+  // Modal Alterar Senha
+  const [showTrocarSenhaModal, setShowTrocarSenhaModal] = useState(false);
+  const [senhaAtual, setSenhaAtual] = useState('');
+  const [novaSenha, setNovaSenha] = useState('');
+  const [confirmarNovaSenha, setConfirmarNovaSenha] = useState('');
+  const [trocarSenhaLoading, setTrocarSenhaLoading] = useState(false);
+  const [trocarSenhaError, setTrocarSenhaError] = useState(null);
+  const [trocarSenhaSuccess, setTrocarSenhaSuccess] = useState(null);
+
   // Overview
   const [overview, setOverview] = useState(null);
 
@@ -280,6 +289,49 @@ export default function App() {
     localStorage.removeItem('futstats_auth_user');
     setCurrentUser(null);
     setLoginPassword('');
+  };
+
+  const handleAlterarSenha = async (e) => {
+    e.preventDefault();
+    setTrocarSenhaError(null);
+    setTrocarSenhaSuccess(null);
+
+    if (novaSenha !== confirmarNovaSenha) {
+      setTrocarSenhaError('A nova senha e a confirmação não coincidem.');
+      return;
+    }
+    if (novaSenha.length < 4) {
+      setTrocarSenhaError('A nova senha deve ter no mínimo 4 caracteres.');
+      return;
+    }
+
+    setTrocarSenhaLoading(true);
+    try {
+      const res = await apiFetch('/api/auth/alterar-senha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senha_atual: senhaAtual,
+          nova_senha: novaSenha
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao alterar senha.');
+      }
+      setTrocarSenhaSuccess('Senha alterada com sucesso!');
+      setSenhaAtual('');
+      setNovaSenha('');
+      setConfirmarNovaSenha('');
+      setTimeout(() => {
+        setShowTrocarSenhaModal(false);
+        setTrocarSenhaSuccess(null);
+      }, 1500);
+    } catch (err) {
+      setTrocarSenhaError(err.message);
+    } finally {
+      setTrocarSenhaLoading(false);
+    }
   };
 
   // Busca o código de convite da API restrita a admins em vez de expor no bundle JS
@@ -1618,30 +1670,79 @@ export default function App() {
                 alignItems: 'center',
                 gap: '8px',
                 backgroundColor: '#FFFFFF',
-                padding: '4px 14px 4px 5px',
+                padding: '4px 12px 4px 5px',
                 borderRadius: '9999px',
                 boxShadow: '0 4px 16px -2px rgba(100, 90, 130, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.9)',
-                cursor: 'pointer'
+                border: '1px solid rgba(255, 255, 255, 0.9)'
               }}
-              onClick={handleLogout}
-              title="Clique para sair"
             >
               <img
                 src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
                 alt="Avatar"
                 style={{
-                  width: '30px',
-                  height: '30px',
+                  width: '28px',
+                  height: '28px',
                   borderRadius: '50%',
                   objectFit: 'cover'
                 }}
               />
-              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#1B1E26' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1B1E26' }}>
                 {currentUser?.nome || 'LB'}
               </span>
-              <LogOut size={13} color="#9095A2" />
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6366F1', backgroundColor: '#EEF2FF', padding: '2px 8px', borderRadius: '9999px', textTransform: 'capitalize' }}>
+                {currentUser?.role || 'moderador'}
+              </span>
             </div>
+
+            {/* Botão Trocar Senha */}
+            <button
+              onClick={() => {
+                setShowTrocarSenhaModal(true);
+                setTrocarSenhaError(null);
+                setTrocarSenhaSuccess(null);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                backgroundColor: '#FFFFFF',
+                color: '#4B5262',
+                border: '1px solid rgba(0,0,0,0.06)',
+                borderRadius: '9999px',
+                padding: '7px 13px',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              }}
+              title="Alterar minha senha"
+            >
+              <Key size={13} color="#6366F1" />
+              <span>Trocar Senha</span>
+            </button>
+
+            {/* Botão Sair */}
+            <button
+              onClick={handleLogout}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                backgroundColor: '#FFFFFF',
+                color: '#EF4444',
+                border: '1px solid rgba(239, 68, 68, 0.15)',
+                borderRadius: '9999px',
+                padding: '7px 12px',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              }}
+              title="Desconectar do painel"
+            >
+              <LogOut size={13} color="#EF4444" />
+              <span>Sair</span>
+            </button>
           </div>
         </header>
 
@@ -4356,6 +4457,172 @@ export default function App() {
           {overview?.total_partidas?.toLocaleString('pt-BR') || '55.395'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '42.138'} gols catalogados • 12 capitais climáticas
         </div>
       </footer>
+
+
+      {/* MODAL ALTERAR SENHA */}
+      {showTrocarSenhaModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(18, 20, 26, 0.5)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !trocarSenhaLoading) {
+              setShowTrocarSenhaModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              padding: '28px',
+              width: '100%',
+              maxWidth: '420px',
+              boxShadow: '0 25px 60px -15px rgba(20, 15, 45, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              position: 'relative'
+            }}
+          >
+            {/* Header Modal */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Key size={20} color="#6366F1" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#12141A' }}>Alterar Senha</h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#6B7280' }}>
+                    Usuário logado: <strong style={{ color: '#111827' }}>{currentUser?.username || 'LB'}</strong>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !trocarSenhaLoading && setShowTrocarSenhaModal(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#9CA3AF',
+                  padding: '6px',
+                  borderRadius: '50%'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Mensagem de Erro */}
+            {trocarSenhaError && (
+              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '12px', padding: '10px 14px', fontSize: '0.82rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertCircle size={16} />
+                <span>{trocarSenhaError}</span>
+              </div>
+            )}
+
+            {/* Mensagem de Sucesso */}
+            {trocarSenhaSuccess && (
+              <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', color: '#065F46', borderRadius: '12px', padding: '10px 14px', fontSize: '0.82rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Check size={16} />
+                <span>{trocarSenhaSuccess}</span>
+              </div>
+            )}
+
+            {/* Formulário */}
+            <form onSubmit={handleAlterarSenha} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4B5262', marginBottom: '5px' }}>
+                  Senha Atual
+                </label>
+                <input
+                  type="password"
+                  className="soft-input font-mono"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={trocarSenhaLoading}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4B5262', marginBottom: '5px' }}>
+                  Nova Senha
+                </label>
+                <input
+                  type="password"
+                  className="soft-input font-mono"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                  placeholder="Mínimo 4 caracteres"
+                  required
+                  disabled={trocarSenhaLoading}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4B5262', marginBottom: '5px' }}>
+                  Confirmar Nova Senha
+                </label>
+                <input
+                  type="password"
+                  className="soft-input font-mono"
+                  value={confirmarNovaSenha}
+                  onChange={(e) => setConfirmarNovaSenha(e.target.value)}
+                  placeholder="Repita a nova senha"
+                  required
+                  disabled={trocarSenhaLoading}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTrocarSenhaModal(false)}
+                  disabled={trocarSenhaLoading}
+                  style={{
+                    flex: 1,
+                    height: '44px',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    backgroundColor: '#F3F4F6',
+                    color: '#4B5262',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={trocarSenhaLoading}
+                  style={{
+                    flex: 1.6,
+                    height: '44px',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {trocarSenhaLoading ? <RefreshCw size={16} className="animate-spin" /> : <Lock size={16} />}
+                  <span>{trocarSenhaLoading ? 'Salvando...' : 'Salvar Nova Senha'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       </main>
     </div>
