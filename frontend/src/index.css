@@ -1,3 +1,5 @@
+@import './tokens.css';
+
 :root {
   --font-system: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -209,4 +211,99 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-subtle);
+}
+
+
+/* ==========================================================================
+   ESTILOS EDITORIAL & PROTAGONISTA (HANDOFF 2026)
+   ========================================================================== */
+
+
+.font-editorial {
+  font-family: var(--font-editorial);
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.font-ui {
+  font-family: var(--font-ui);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Painéis Editoriais com Filetes e Sem Sombras Pesadas */
+.editorial-panel {
+  background-color: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  transition: border-color 180ms ease;
+}
+
+.editorial-raised {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+}
+
+/* Tabelas Editoriais de Alta Densidade (13-14px) */
+.editorial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.editorial-table th {
+  font-family: var(--font-ui);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--surface-raised);
+  text-align: left;
+}
+
+.editorial-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.editorial-table tr:hover td {
+  background-color: var(--surface-raised);
+}
+
+/* Badges e Pílulas Editoriais */
+.pill-olive {
+  background-color: var(--positive-bg);
+  color: var(--positive);
+  border: 1px solid var(--positive);
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+.pill-neutral {
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+}
+
+/* Composição Especial do Protagonista */
+.protagonista-card {
+  background-color: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-profile);
+  box-shadow: var(--shadow-editorial);
+  overflow: hidden;
 }

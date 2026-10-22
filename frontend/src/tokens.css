@@ -1,0 +1,69 @@
+/* ==========================================================================
+   FUTSTATS TOKENS DE DESIGN — EDITORIAL & PROTAGONISTA
+   Paletas Areia (Light) e Carvão Quente (Dark), Tipografia e Escalas
+   ========================================================================== */
+
+:root, [data-theme="light"], .theme-areia {
+  color-scheme: light;
+  --surface-page: #F1E8DE;
+  --surface-panel: #FCF9F5;
+  --surface-raised: #E9DFD2;
+  --surface-sidebar: #E9DFD2;
+  --text-primary: #302E28;
+  --text-secondary: #756B5D;
+  --text-muted: #8A8072;
+  --border-subtle: #D6C9B9;
+  --border-strong: #B8A894;
+  --accent: #606E43;
+  --accent-hover: #4F5C35;
+  --accent-foreground: #FFFFFF;
+  --accent-soft: #DEE2CE;
+  --positive: #586B3B;
+  --positive-bg: #DFE6D1;
+  --negative: #916346;
+  --negative-bg: #EFDFD2;
+  --focus-ring: #606E43;
+
+  --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-editorial: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --radius-profile: 20px;
+  --content-max: 1440px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  --shadow-editorial: 0 1px 3px rgba(48, 46, 40, 0.05), 0 4px 12px rgba(48, 46, 40, 0.03);
+}
+
+[data-theme="dark"], .dark, .theme-carvao {
+  color-scheme: dark;
+  --surface-page: #1B1A17;
+  --surface-panel: #22211D;
+  --surface-raised: #2B2923;
+  --surface-sidebar: #201F1A;
+  --text-primary: #EAE5DA;
+  --text-secondary: #B0A99B;
+  --text-muted: #7E776A;
+  --border-subtle: #413D34;
+  --border-strong: #5A5447;
+  --accent: #B5BE93;
+  --accent-hover: #C5CDA7;
+  --accent-foreground: #202419;
+  --accent-soft: #353B2A;
+  --positive: #B7C59C;
+  --positive-bg: #333D2A;
+  --negative: #D5AB93;
+  --negative-bg: #433128;
+  --focus-ring: #B5BE93;
+
+  --shadow-editorial: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+}

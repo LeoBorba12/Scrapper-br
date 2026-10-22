@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import { baixarCardSocialPNG } from './utils/cardGenerator';
 import SoomaFutStatsView from './SoomaFutStatsView';
+import AppShell from './components/AppShell';
+import EditorialClubes from './components/EditorialClubes';
+import ProtagonistaAtleta from './components/ProtagonistaAtleta';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -1184,618 +1187,59 @@ export default function App() {
 
   // ==================== DASHBOARD AUTENTICADA (SOOMA EXPERIENCE INTEGRADA) ====================
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        width: '100%',
-        background: 'linear-gradient(135deg, #FBF9FF 0%, #F5F1FB 45%, #FDEEE9 100%)',
-        color: '#15171C',
-        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-        display: 'flex',
-        padding: '18px 24px 28px 20px',
-        boxSizing: 'border-box',
-        overflowX: 'hidden'
+    <AppShell
+      activeTab={activeTab}
+      onNavigateTab={setActiveTab}
+      darkMode={darkMode}
+      onToggleTheme={() => setDarkMode(!darkMode)}
+      currentUser={currentUser}
+      onOpenTrocarSenha={() => {
+        setShowTrocarSenhaModal(true);
+        setTrocarSenhaError(null);
+        setTrocarSenhaSuccess(null);
       }}
+      onLogout={handleLogout}
+      onCopiarConvite={copiarConviteEquipe}
+      conviteCopiado={conviteCopiado}
     >
-      {/* ================= BARRA LATERAL (DOCK COMPACTO OUTGROWD) ================= */}
-      <aside
-        style={{
-          width: '74px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '20px',
-          flexShrink: 0,
-          paddingTop: '6px'
-        }}
-      >
-        {/* LOGO PILL SOOMA */}
-        <div
-          style={{
-            backgroundColor: '#12141A',
-            color: '#FFFFFF',
-            width: '56px',
-            height: '42px',
-            borderRadius: '21px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '0.85rem',
-            letterSpacing: '-0.02em',
-            boxShadow: '0 8px 20px -4px rgba(18, 20, 26, 0.35)',
-            cursor: 'pointer'
+      {/* ================= PILOTO 1: CLUBES NO MODELO EDITORIAL ================= */}
+      {activeTab === 'times' && (
+        <EditorialClubes
+          timesAnalise={timesAnalise}
+          timesLoading={timesLoading}
+          timesRecorte={timesRecorte}
+          setTimesRecorte={(r) => {
+            setTimesRecorte(r);
+            carregarAnaliseTimes(r, timesCampeonato);
           }}
-          title="FutStats by Sooma"
-          onClick={() => setActiveTab('overview')}
-        >
-          Sooma
-        </div>
-
-        {/* ITENS DE NAVEGAÇÃO VERTICAL */}
-        <nav
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '14px'
+          timesCampeonato={timesCampeonato}
+          setTimesCampeonato={(c) => {
+            setTimesCampeonato(c);
+            carregarAnaliseTimes(timesRecorte, c);
           }}
-        >
-          {/* Home / Overview */}
-          <button
-            onClick={() => setActiveTab('overview')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'overview' ? '#12141A' : 'transparent',
-                color: activeTab === 'overview' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'overview' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <Flame size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'overview' ? '#12141A' : '#9499A8' }}>
-              Home
-            </span>
-          </button>
+          timesSearch={timesSearch}
+          setTimesSearch={setTimesSearch}
+          onRecarregar={carregarAnaliseTimes}
+        />
+      )}
 
-          {/* Confrontos H2H */}
-          <button
-            onClick={() => setActiveTab('h2h')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'h2h' ? '#12141A' : 'transparent',
-                color: activeTab === 'h2h' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'h2h' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <Swords size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'h2h' ? '#12141A' : '#9499A8' }}>
-              H2H
-            </span>
-          </button>
+      {/* ================= PILOTO 2: ATLETAS NO MODELO PROTAGONISTA ================= */}
+      {activeTab === 'jogadores' && (
+        <ProtagonistaAtleta
+          playerSearch={playerSearch}
+          setPlayerSearch={setPlayerSearch}
+          searchSuggestions={playerSuggestions}
+          selectedPlayer={selectedPlayer}
+          setSelectedPlayer={setSelectedPlayer}
+          playerProfile={playerProfile}
+          profileLoading={profileLoading}
+          rankingType={activeRankingTab}
+          setRankingType={(tipo) => carregarRanking(tipo)}
+          topPlayers={rankingData}
+          onCarregarPerfilPorId={(id, nome) => carregarPerfilJogador(nome, '', id)}
+        />
+      )}
 
-          
-          {/* Times & Análise Recente */}
-          <button
-            onClick={() => { setActiveTab('times'); if (timesAnalise.length === 0) carregarAnaliseTimes(); }}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'times' ? '#12141A' : 'transparent',
-                color: activeTab === 'times' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'times' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <BarChart3 size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'times' ? '#12141A' : '#9499A8' }}>
-              Times
-            </span>
-          </button>
-
-          {/* Jogadores */}
-          <button
-            onClick={() => setActiveTab('jogadores')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'jogadores' ? '#12141A' : 'transparent',
-                color: activeTab === 'jogadores' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'jogadores' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <User size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'jogadores' ? '#12141A' : '#9499A8' }}>
-              Atletas
-            </span>
-          </button>
-
-          {/* Oráculo & IA */}
-          <button
-            onClick={() => setActiveTab('oraculo')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'oraculo' ? '#12141A' : 'transparent',
-                color: activeTab === 'oraculo' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'oraculo' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <Brain size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'oraculo' ? '#12141A' : '#9499A8' }}>
-              Oráculo
-            </span>
-          </button>
-
-          {/* Explorador de Jogos */}
-          <button
-            onClick={() => setActiveTab('playground')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'playground' ? '#12141A' : 'transparent',
-                color: activeTab === 'playground' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'playground' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <Search size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'playground' ? '#12141A' : '#9499A8' }}>
-              Jogos
-            </span>
-          </button>
-
-          {/* Clima */}
-          <button
-            onClick={() => setActiveTab('clima')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'clima' ? '#12141A' : 'transparent',
-                color: activeTab === 'clima' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'clima' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <CloudRain size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'clima' ? '#12141A' : '#9499A8' }}>
-              Clima
-            </span>
-          </button>
-
-          {/* Apito */}
-          <button
-            onClick={() => setActiveTab('arbitros')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '#12141A' : 'transparent',
-                color: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <ShieldAlert size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: (activeTab === 'arbitros' || activeTab === 'arbitragem') ? '#12141A' : '#9499A8' }}>
-              Apito
-            </span>
-          </button>
-
-          {/* Social Tweets */}
-          <button
-            onClick={() => setActiveTab('tweets')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'tweets' ? '#12141A' : 'transparent',
-                color: activeTab === 'tweets' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'tweets' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <Sparkles size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'tweets' ? '#12141A' : '#9499A8' }}>
-              Social
-            </span>
-          </button>
-
-          {/* Tabela Ao Vivo */}
-          <button
-            onClick={() => setActiveTab('aovivo')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: activeTab === 'aovivo' ? '#12141A' : 'transparent',
-                color: activeTab === 'aovivo' ? '#FFFFFF' : '#8A8F9E',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 200ms ease',
-                boxShadow: activeTab === 'aovivo' ? '0 6px 16px -2px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              <Trophy size={20} strokeWidth={2.2} />
-            </div>
-            <span style={{ fontSize: '0.66rem', fontWeight: 600, color: activeTab === 'aovivo' ? '#12141A' : '#9499A8' }}>
-              Ao Vivo
-            </span>
-          </button>
-        </nav>
-      </aside>
-
-      {/* ================= CORPO PRINCIPAL ================= */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, paddingLeft: '16px' }}>
-        
-        {/* CABEÇALHO SUPERIOR (USUÁRIO + AÇÕES SOOMA) */}
-        <header
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}
-        >
-          {/* Status Badge */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span 
-              style={{
-                backgroundColor: '#FFFFFF',
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                color: '#111318',
-                boxShadow: '0 4px 14px -2px rgba(100, 90, 130, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.9)'
-              }}
-            >
-              ⚽ {overview?.total_partidas ? `${overview.total_partidas.toLocaleString('pt-BR')} Partidas` : '55.395 Jogos'}
-            </span>
-            <span 
-              style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                color: '#059669',
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                fontSize: '0.75rem',
-                fontWeight: 700
-              }}
-            >
-              ● Sistema Conectado
-            </span>
-          </div>
-
-          {/* Controles da Direita */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {currentUser.role === 'admin' && (
-              <button
-                onClick={copiarConviteEquipe}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  color: '#12141A',
-                  border: '1px solid rgba(0,0,0,0.06)',
-                  borderRadius: '9999px',
-                  padding: '7px 14px',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 14px -2px rgba(100, 90, 130, 0.08)'
-                }}
-              >
-                {conviteCopiado ? <Check size={14} color="#10B981" /> : <UserPlus size={14} />}
-                {conviteCopiado ? 'Convite Copiado!' : 'Convidar'}
-              </button>
-            )}
-
-            {/* User Profile Pill */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: '#FFFFFF',
-                padding: '4px 12px 4px 5px',
-                borderRadius: '9999px',
-                boxShadow: '0 4px 16px -2px rgba(100, 90, 130, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.9)'
-              }}
-            >
-              <img
-                src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=120&q=80"
-                alt="Avatar"
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-              />
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1B1E26' }}>
-                {currentUser?.nome || 'LB'}
-              </span>
-              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6366F1', backgroundColor: '#EEF2FF', padding: '2px 8px', borderRadius: '9999px', textTransform: 'capitalize' }}>
-                {currentUser?.role || 'moderador'}
-              </span>
-            </div>
-
-            {/* Botão Trocar Senha */}
-            <button
-              onClick={() => {
-                setShowTrocarSenhaModal(true);
-                setTrocarSenhaError(null);
-                setTrocarSenhaSuccess(null);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                backgroundColor: '#FFFFFF',
-                color: '#4B5262',
-                border: '1px solid rgba(0,0,0,0.06)',
-                borderRadius: '9999px',
-                padding: '7px 13px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-              }}
-              title="Alterar minha senha"
-            >
-              <Key size={13} color="#6366F1" />
-              <span>Trocar Senha</span>
-            </button>
-
-            {/* Botão Sair */}
-            <button
-              onClick={handleLogout}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                backgroundColor: '#FFFFFF',
-                color: '#EF4444',
-                border: '1px solid rgba(239, 68, 68, 0.15)',
-                borderRadius: '9999px',
-                padding: '7px 12px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-              }}
-              title="Desconectar do painel"
-            >
-              <LogOut size={13} color="#EF4444" />
-              <span>Sair</span>
-            </button>
-          </div>
-        </header>
-
-        {/* ================= SELETOR HORIZONTAL DE SUB-ABAS (ESTILO PILL OUTGROWD) ================= */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            backgroundColor: 'rgba(255, 255, 255, 0.65)',
-            backdropFilter: 'blur(12px)',
-            padding: '6px',
-            borderRadius: '9999px',
-            boxShadow: '0 4px 18px -4px rgba(100, 85, 140, 0.06)',
-            marginBottom: '26px',
-            border: '1px solid rgba(255, 255, 255, 0.95)',
-            overflowX: 'auto'
-          }}
-        >
-          {[
-            { id: 'overview', label: 'Home Overview' },
-            { id: 'h2h', label: 'Raio-X de Confrontos' },
-            { id: 'jogadores', label: 'Atletas & Estatísticas' },
-            { id: 'oraculo', label: 'Oráculo & IA' },
-            { id: 'playground', label: 'Explorador de Jogos' },
-            { id: 'clima', label: 'Futebol x Clima' },
-            { id: 'arbitros', label: 'Raio-X do Apito' },
-            { id: 'tweets', label: 'Gerador Social' },
-            { id: 'aovivo', label: 'Tabela & Ao Vivo' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '7px 18px',
-                borderRadius: '9999px',
-                border: 'none',
-                backgroundColor: activeTab === tab.id ? '#12141A' : 'transparent',
-                color: activeTab === tab.id ? '#FFFFFF' : '#6B7280',
-                fontWeight: 700,
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 160ms ease',
-                boxShadow: activeTab === tab.id ? '0 4px 12px rgba(18, 20, 26, 0.25)' : 'none'
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ================= VIEW 1: HOME OVERVIEW (HERO CARDS DA REFERÊNCIA) ================= */}
         {activeTab === 'overview' && (
           <SoomaFutStatsView
             currentUser={currentUser}
@@ -4624,7 +4068,6 @@ export default function App() {
         </div>
       )}
 
-      </main>
-    </div>
+      </AppShell>
   );
 }
