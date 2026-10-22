@@ -423,5 +423,18 @@ def main():
 
     safe_print(f"\n[Fim] Enriquecimento concluído! {sucessos} atletas atualizados com 100% de gols da carreira.")
 
+    # Auto-commit e push para disparar deploy automático na Vercel
+    if sucessos > 0 and not args.nome:
+        try:
+            import subprocess
+            safe_print("[Git Auto-Sync] Enviando alterações para GitHub para disparar deploy na Vercel...")
+            subprocess.run(["git", "add", "data/futebol.db"], cwd=BASE_DIR, check=True)
+            subprocess.run(["git", "commit", "-m", f"feat(ogol): enriquecer carreira oficial de {sucessos} atletas (auto-sync Vercel)"], cwd=BASE_DIR, check=True)
+            subprocess.run(["git", "pull", "--rebase", "origin", "main"], cwd=BASE_DIR, check=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=BASE_DIR, check=True)
+            safe_print("[Git Auto-Sync] Sincronização concluída com sucesso! Vercel iniciou o deploy automático.")
+        except Exception as e:
+            safe_print(f"[Git Auto-Sync Aviso] Falha ao enviar commit: {e}")
+
 if __name__ == '__main__':
     main()

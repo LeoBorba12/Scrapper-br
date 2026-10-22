@@ -56,9 +56,10 @@ export default function App() {
   const [destaques, setDestaques] = useState(null);
   const [destaquesLoading, setDestaquesLoading] = useState(false);
   const [playerClubeFiltro, setPlayerClubeFiltro] = useState('');
-  const [activeRankingTab, setActiveRankingTab] = useState('gols'); // 'gols' | 'assistencias' | 'clutch' | 'participacoes' | 'aproveitamento'
+  const [activeRankingTab, setActiveRankingTab] = useState('carreira'); // 'carreira' | 'gols' | 'assistencias' | 'clutch' | 'participacoes' | 'aproveitamento'
   const [rankingData, setRankingData] = useState([]);
   const [rankingLoading, setRankingLoading] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(new Date());
 
   // Tab 3: Oráculo & IA Analista state
   const [oraculoPrompt, setOraculoPrompt] = useState('');
@@ -395,7 +396,7 @@ export default function App() {
   };
 
   // Carregar ranking analítico por categoria
-  const carregarRanking = (tipo = 'gols') => {
+  const carregarRanking = (tipo = 'carreira') => {
     setActiveRankingTab(tipo);
     setRankingLoading(true);
     apiFetch(`/api/jogadores/ranking?tipo=${tipo}&limit=15`)
@@ -403,6 +404,7 @@ export default function App() {
       .then(d => {
         setRankingData(Array.isArray(d) ? d : []);
         setRankingLoading(false);
+        setLastSyncTime(new Date());
       })
       .catch(() => setRankingLoading(false));
   };
@@ -410,9 +412,29 @@ export default function App() {
   // Buscar ranking inicial ao abrir a aba de jogadores
   useEffect(() => {
     if (activeTab === 'jogadores' && rankingData.length === 0 && currentUser) {
-      carregarRanking('gols');
+      carregarRanking('carreira');
     }
   }, [activeTab, rankingData.length, currentUser]);
+
+  // Auto-refresh inteligente: recarrega dados a cada 5 min ou quando o usuário volta à janela
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeTab === 'jogadores' && currentUser) {
+        carregarRanking(activeRankingTab);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    const interval = setInterval(() => {
+      if (activeTab === 'jogadores' && currentUser && !document.hidden) {
+        carregarRanking(activeRankingTab);
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [activeTab, activeRankingTab, currentUser]);
 
   // Enviar pergunta ao Oráculo via apiFetch
   const enviarPerguntaOraculo = (perguntaTexto) => {
@@ -2636,9 +2658,24 @@ export default function App() {
               <div className="soft-card" style={{ padding: '22px', marginBottom: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '18px' }}>
                   <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Award size={22} color="#10B981" /> Rankings Históricos do Futebol Brasileiro
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Award size={22} color="#10B981" /> Rankings Históricos do Futebol Brasileiro
+                      </h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="badge font-mono" style={{ fontSize: '0.72rem', backgroundColor: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                          Sincronizado: {lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button
+                          onClick={() => carregarRanking(activeRankingTab)}
+                          className="btn-secondary"
+                          style={{ padding: '3px 8px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '12px' }}
+                          title="Atualizar ranking agora com os dados mais recentes da nuvem"
+                        >
+                          <RefreshCw size={11} className={rankingLoading ? "animate-spin" : ""} /> Atualizar
+                        </button>
+                      </div>
+                    </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '2px' }}>
                       Selecione uma dimensão analítica para explorar os líderes com IDs e estatísticas consolidadas:
                     </p>
