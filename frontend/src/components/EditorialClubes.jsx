@@ -92,7 +92,7 @@ export default function EditorialClubes({
         </p>
       </div>
 
-      {/* ================= BARRA DE CONTROLES & FILTROS ================= */}
+      {/* ================= BARRA DE CONTROLES & FILTROS (LOTE 2: RESPONSIVO) ================= */}
       <div 
         className="editorial-panel" 
         style={{ 
@@ -113,37 +113,41 @@ export default function EditorialClubes({
                 key={r}
                 onClick={() => setTimesRecorte(r)}
                 style={{
-                  padding: '5px 12px',
+                  padding: '7px 14px',
+                  minHeight: '38px',
                   borderRadius: 'var(--radius-control)',
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   fontWeight: 600,
                   border: '1px solid var(--border-subtle)',
                   backgroundColor: timesRecorte === r ? 'var(--accent)' : 'var(--surface-raised)',
                   color: timesRecorte === r ? 'var(--accent-foreground)' : 'var(--text-primary)',
                   cursor: 'pointer'
                 }}
+                aria-label={`Filtrar pelos últimos ${r} jogos`}
               >
                 Últimos {r}
               </button>
             ))}
           </div>
 
-          <div style={{ height: '18px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
+          <div style={{ height: '20px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
           {/* Filtro de Torneio */}
           <select
             value={timesCampeonato}
             onChange={e => setTimesCampeonato(e.target.value)}
             style={{
-              padding: '6px 12px',
+              padding: '8px 12px',
+              minHeight: '38px',
               borderRadius: 'var(--radius-control)',
               border: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--surface-raised)',
               color: 'var(--text-primary)',
-              fontSize: '0.8rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
               cursor: 'pointer'
             }}
+            aria-label="Selecionar campeonato para análise de clubes"
           >
             <option value="">Geral Recente (Todas Competições)</option>
             <option value="Campeonato Brasileiro">Brasileirão Série A</option>
@@ -155,24 +159,27 @@ export default function EditorialClubes({
           </select>
         </div>
 
-        {/* Busca e Atualizar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+        {/* Busca e Atualizar (Lote 2: Input Flexível) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto', justifyContent: 'flex-end', minWidth: '220px' }}>
+          <div style={{ position: 'relative', flex: '1 1 140px', maxWidth: '240px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-muted)' }} />
             <input
               type="text"
               value={timesSearch}
               onChange={e => setTimesSearch(e.target.value)}
               placeholder="Filtrar clube..."
               style={{
-                padding: '6px 10px 6px 30px',
+                width: '100%',
+                padding: '8px 10px 8px 30px',
+                minHeight: '38px',
                 borderRadius: 'var(--radius-control)',
                 border: '1px solid var(--border-subtle)',
                 backgroundColor: 'var(--surface-raised)',
                 color: 'var(--text-primary)',
-                fontSize: '0.8rem',
-                width: '180px'
+                fontSize: '0.82rem',
+                boxSizing: 'border-box'
               }}
+              aria-label="Filtrar clube na tabela"
             />
           </div>
 
@@ -183,17 +190,20 @@ export default function EditorialClubes({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 14px',
+              padding: '8px 16px',
+              minHeight: '38px',
               borderRadius: 'var(--radius-control)',
               backgroundColor: 'var(--accent)',
               color: 'var(--accent-foreground)',
               border: 'none',
-              fontSize: '0.8rem',
+              fontSize: '0.82rem',
               fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
             }}
+            aria-label="Atualizar dados de rendimento dos clubes"
           >
-            <RefreshCw size={13} className={timesLoading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={timesLoading ? 'animate-spin' : ''} />
             <span>{timesLoading ? 'Carregando...' : 'Atualizar'}</span>
           </button>
         </div>
@@ -323,6 +333,11 @@ export default function EditorialClubes({
                     <tr 
                       onClick={() => setExpandedClube(isExpanded ? null : clube.nome)}
                       style={{ cursor: 'pointer', backgroundColor: isExpanded ? 'var(--surface-raised)' : 'transparent' }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setExpandedClube(isExpanded ? null : clube.nome); }}
+                      aria-expanded={isExpanded}
+                      aria-label={`Detalhes de ${clube.nome}`}
                     >
                       <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
                         {idx + 1}
@@ -352,14 +367,14 @@ export default function EditorialClubes({
                                 key={i}
                                 style={{
                                   display: 'inline-block',
-                                  width: '18px',
-                                  height: '18px',
+                                  width: '20px',
+                                  height: '20px',
                                   borderRadius: '3px',
                                   backgroundColor: bg,
                                   color: fg,
-                                  fontSize: '0.68rem',
+                                  fontSize: '0.7rem',
                                   fontWeight: 700,
-                                  lineHeight: '18px',
+                                  lineHeight: '20px',
                                   textAlign: 'center'
                                 }}
                               >
@@ -403,7 +418,7 @@ export default function EditorialClubes({
                       <tr>
                         <td colSpan={12} style={{ backgroundColor: 'var(--surface-panel)', padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                 Histórico recente dos jogos de {clube.nome} na amostra:
                               </span>

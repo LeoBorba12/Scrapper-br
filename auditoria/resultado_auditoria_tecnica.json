@@ -1,0 +1,84 @@
+{
+  "testes_executados": [
+    {
+      "nome": "Clubes - 10 jogos",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Clubes - Série A 5 jogos",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Rankings - Carreira 100%",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Rankings - Gols Base",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Busca - Gabi",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Perfil - Gabigol (ID 7)",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Perfil - Hulk (ID 9)",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Perfil - Inexistente (ID 999999)",
+      "status": "PASS",
+      "detalhes": "Status: 200"
+    },
+    {
+      "nome": "Preservação de Estado no Retorno",
+      "status": "PASS",
+      "detalhes": "Botão de retorno em ProtagonistaAtleta.jsx:243 limpa apenas selectedPlayer mantendo activeRankingTab e busca."
+    },
+    {
+      "nome": "Contraste Areia Texto",
+      "status": "PASS",
+      "detalhes": "11.21:1"
+    },
+    {
+      "nome": "Contraste Areia Acento",
+      "status": "PASS",
+      "detalhes": "4.55:1"
+    },
+    {
+      "nome": "Contraste Carvão Texto",
+      "status": "PASS",
+      "detalhes": "13.85:1"
+    },
+    {
+      "nome": "Contraste Carvão Acento",
+      "status": "PASS",
+      "detalhes": "8.91:1"
+    }
+  ],
+  "achados_confirmados": [],
+  "suspeitas": [],
+  "recomendacoes": [
+    {
+      "id": "UI-003",
+      "arquivo": "frontend/src/components/EditorialClubes.jsx",
+      "linha": 174,
+      "categoria": "Responsividade",
+      "severidade": "P3",
+      "problema": "Campo de busca de clube com largura fixa em 180px pode quebrar em telas estreitas (390px).",
+      "impacto": "Em telas mobile de 390px, controles podem quebrar a barra em várias linhas.",
+      "recomendacao": "Adicionar flex: 1 com minWidth: 140px ou max-width responsivo."
+    }
+  ],
+  "nao_testados": []
+}

@@ -64,11 +64,23 @@ export default function AppShell({
             gap: '16px'
           }}
         >
-          {/* Marca Editorial */}
+          {/* Marca Editorial com Semântica Acessível de Botão (A11Y-001) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div
+            <button
               onClick={() => onNavigateTab('overview')}
-              style={{ cursor: 'pointer', display: 'flex', alignItems: 'baseline', gap: '8px' }}
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '8px',
+                background: 'none',
+                border: 'none',
+                padding: '6px 8px',
+                margin: '-6px -8px',
+                borderRadius: 'var(--radius-control)',
+                textAlign: 'left'
+              }}
+              aria-label="FutStats Home - Voltar ao Panorama Geral"
             >
               <span 
                 className="font-editorial" 
@@ -92,7 +104,7 @@ export default function AppShell({
               >
                 Edição 2026
               </span>
-            </div>
+            </button>
             
             <div style={{ height: '18px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
@@ -101,7 +113,7 @@ export default function AppShell({
             </div>
           </div>
 
-          {/* Controles de Conta e Tema */}
+          {/* Controles de Conta e Tema (Alvos de Toque Confortáveis - UX-001) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {/* Seletor de Tema Areia / Carvão */}
             <button
@@ -110,18 +122,20 @@ export default function AppShell({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 12px',
+                padding: '8px 14px',
+                minHeight: '38px',
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: 'var(--surface-raised)',
                 border: '1px solid var(--border-subtle)',
                 color: 'var(--text-primary)',
-                fontSize: '0.78rem',
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: 'pointer'
               }}
+              aria-label={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Carvão'}
               title={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Carvão'}
             >
-              {darkMode ? <Sun size={13} color="var(--accent)" /> : <Moon size={13} color="var(--accent)" />}
+              {darkMode ? <Sun size={14} color="var(--accent)" /> : <Moon size={14} color="var(--accent)" />}
               <span>{darkMode ? 'Carvão' : 'Areia'}</span>
             </button>
 
@@ -133,18 +147,20 @@ export default function AppShell({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '6px 12px',
+                  padding: '8px 14px',
+                  minHeight: '38px',
                   borderRadius: 'var(--radius-control)',
                   backgroundColor: 'var(--surface-raised)',
                   border: '1px solid var(--border-subtle)',
                   color: 'var(--text-primary)',
-                  fontSize: '0.78rem',
+                  fontSize: '0.8rem',
                   fontWeight: 600,
                   cursor: 'pointer'
                 }}
+                aria-label="Copiar link ou código de convite para equipe"
                 title="Copiar código ou link de convite"
               >
-                {conviteCopiado ? <Check size={13} color="var(--positive)" /> : <UserPlus size={13} />}
+                {conviteCopiado ? <Check size={14} color="var(--positive)" /> : <UserPlus size={14} />}
                 <span>{conviteCopiado ? 'Copiado!' : 'Convidar'}</span>
               </button>
             )}
@@ -155,7 +171,8 @@ export default function AppShell({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '4px 10px 4px 5px',
+                padding: '5px 12px 5px 6px',
+                minHeight: '38px',
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: 'var(--surface-raised)',
                 border: '1px solid var(--border-subtle)'
@@ -163,8 +180,8 @@ export default function AppShell({
             >
               <div
                 style={{
-                  width: '26px',
-                  height: '26px',
+                  width: '28px',
+                  height: '28px',
                   borderRadius: '50%',
                   backgroundColor: 'var(--accent)',
                   color: 'var(--accent-foreground)',
@@ -178,7 +195,7 @@ export default function AppShell({
                 {(currentUser?.username || 'LB').slice(0, 2).toUpperCase()}
               </div>
 
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {currentUser?.username || 'LB'}
               </span>
 
@@ -188,7 +205,7 @@ export default function AppShell({
                   fontWeight: 600, 
                   color: 'var(--accent)', 
                   backgroundColor: 'var(--accent-soft)', 
-                  padding: '1px 6px', 
+                  padding: '2px 6px', 
                   borderRadius: '4px',
                   textTransform: 'uppercase'
                 }}
@@ -203,19 +220,21 @@ export default function AppShell({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '6px 10px',
+                gap: '6px',
+                padding: '8px 12px',
+                minHeight: '38px',
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: 'var(--surface-raised)',
                 border: '1px solid var(--border-subtle)',
                 color: 'var(--text-secondary)',
-                fontSize: '0.78rem',
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: 'pointer'
               }}
+              aria-label="Abrir modal para trocar senha"
               title="Trocar minha senha"
             >
-              <Key size={13} />
+              <Key size={14} />
               <span>Senha</span>
             </button>
 
@@ -225,19 +244,21 @@ export default function AppShell({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '6px 10px',
+                gap: '6px',
+                padding: '8px 12px',
+                minHeight: '38px',
                 borderRadius: 'var(--radius-control)',
                 backgroundColor: 'var(--surface-raised)',
                 border: '1px solid var(--border-subtle)',
                 color: 'var(--negative)',
-                fontSize: '0.78rem',
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 cursor: 'pointer'
               }}
+              aria-label="Encerrar sessão"
               title="Encerrar sessão"
             >
-              <LogOut size={13} />
+              <LogOut size={14} />
             </button>
           </div>
         </div>
@@ -249,6 +270,7 @@ export default function AppShell({
             backgroundColor: 'var(--surface-panel)',
             overflowX: 'auto'
           }}
+          aria-label="Navegação Principal do FutStats"
         >
           <div
             style={{
@@ -269,7 +291,8 @@ export default function AppShell({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '7px',
-                    padding: '10px 14px',
+                    padding: '12px 14px',
+                    minHeight: '44px',
                     border: 'none',
                     borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
                     backgroundColor: 'transparent',
@@ -280,13 +303,14 @@ export default function AppShell({
                     whiteSpace: 'nowrap',
                     transition: 'color 150ms ease, border-color 150ms ease'
                   }}
+                  aria-current={active ? 'page' : undefined}
                 >
                   <span>{item.label}</span>
                   {item.badge && (
                     <span 
                       style={{ 
                         fontSize: '0.64rem', 
-                        padding: '1px 5px', 
+                        padding: '2px 6px', 
                         borderRadius: '3px',
                         backgroundColor: active ? 'var(--accent-soft)' : 'var(--surface-raised)',
                         color: active ? 'var(--accent)' : 'var(--text-muted)',

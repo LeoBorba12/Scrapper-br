@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, Award, Trophy, User, Calendar, Shield, MapPin, 
   ArrowLeft, Clock, Target, Flame, Activity, ChevronRight,
-  ExternalLink, BarChart2
+  ChevronLeft, ExternalLink, BarChart2
 } from 'lucide-react';
 
 export default function ProtagonistaAtleta({
@@ -20,6 +20,12 @@ export default function ProtagonistaAtleta({
   onCarregarPerfilPorId
 }) {
   const [subTab, setSubTab] = useState('partidas'); // 'partidas' | 'temporadas' | 'torneios' | 'vitimas'
+  const [partidasPage, setPartidasPage] = useState(1);
+
+  // Reset de página ao alternar atleta
+  useEffect(() => {
+    setPartidasPage(1);
+  }, [playerProfile?.id_jogador, selectedPlayer]);
 
   // ==================== VISÃO 1: ENTRADA / ÍNDICE DE ATLETAS ====================
   if (!selectedPlayer && !playerProfile) {
@@ -48,12 +54,18 @@ export default function ProtagonistaAtleta({
           </p>
         </div>
 
-        {/* Barra de Busca de Atleta com Autocomplete */}
+        {/* Barra de Busca de Atleta com Autocomplete (Lote 1 & 2) */}
         <div className="editorial-panel" style={{ padding: '16px 20px', position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Search size={18} color="var(--accent)" />
+            <Search size={18} color="var(--accent)" aria-hidden="true" />
             <input
               type="text"
+              id="busca-atleta-input"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={Boolean(searchSuggestions && searchSuggestions.length > 0)}
+              aria-controls="autocomplete-atleta-list"
+              aria-label="Buscar jogador pelo nome"
               value={playerSearch}
               onChange={e => setPlayerSearch(e.target.value)}
               placeholder="Digite o nome do jogador (ex: Gabigol, Hulk, Rogério Ceni, Pelé, Zico)..."
@@ -64,22 +76,39 @@ export default function ProtagonistaAtleta({
                 color: 'var(--text-primary)',
                 fontSize: '0.95rem',
                 outline: 'none',
-                fontFamily: 'var(--font-ui)'
+                fontFamily: 'var(--font-ui)',
+                minHeight: '38px'
               }}
             />
             {playerSearch && (
               <button 
+                type="button"
                 onClick={() => setPlayerSearch('')}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}
+                aria-label="Limpar campo de busca de atleta"
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-muted)', 
+                  cursor: 'pointer', 
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  minHeight: '38px',
+                  padding: '4px 10px',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}
               >
                 Limpar
               </button>
             )}
           </div>
 
-          {/* Sugestões de Autocomplete */}
+          {/* Sugestões de Autocomplete com ARIA Listbox & navegação por teclado */}
           {searchSuggestions && searchSuggestions.length > 0 && (
             <div 
+              id="autocomplete-atleta-list"
+              role="listbox"
+              aria-label="Sugestões de jogadores correspondentes"
               style={{
                 position: 'absolute',
                 top: '100%',
@@ -97,16 +126,26 @@ export default function ProtagonistaAtleta({
             >
               {searchSuggestions.map((item, idx) => (
                 <div
-                  key={idx}
+                  key={item.id_jogador || idx}
+                  role="option"
+                  tabIndex={0}
+                  aria-selected={false}
                   onClick={() => onCarregarPerfilPorId(item.id_jogador, item.atleta)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onCarregarPerfilPorId(item.id_jogador, item.atleta);
+                    }
+                  }}
                   style={{
-                    padding: '10px 16px',
+                    padding: '12px 16px',
                     borderBottom: '1px solid var(--border-subtle)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    fontSize: '0.85rem'
+                    fontSize: '0.85rem',
+                    minHeight: '44px'
                   }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--surface-raised)'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -138,17 +177,22 @@ export default function ProtagonistaAtleta({
           ].map(r => (
             <button
               key={r.id}
+              type="button"
+              aria-label={`Visualizar ranking por ${r.label}`}
               onClick={() => setRankingType(r.id)}
               style={{
-                padding: '7px 14px',
+                padding: '8px 16px',
+                minHeight: '40px',
                 borderRadius: 'var(--radius-control)',
-                fontSize: '0.8rem',
+                fontSize: '0.82rem',
                 fontWeight: 600,
                 border: '1px solid var(--border-subtle)',
                 backgroundColor: rankingType === r.id ? 'var(--accent)' : 'var(--surface-raised)',
                 color: rankingType === r.id ? 'var(--accent-foreground)' : 'var(--text-primary)',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center'
               }}
             >
               {r.label}
@@ -239,24 +283,27 @@ export default function ProtagonistaAtleta({
       {/* Botão de Retorno */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button
+          type="button"
+          aria-label="Voltar para a lista e rankings de atletas"
           onClick={() => {
             setSelectedPlayer(null);
           }}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '8px',
             backgroundColor: 'var(--surface-raised)',
             border: '1px solid var(--border-subtle)',
             borderRadius: 'var(--radius-control)',
-            padding: '7px 14px',
+            padding: '8px 16px',
+            minHeight: '40px',
             color: 'var(--text-primary)',
-            fontSize: '0.82rem',
+            fontSize: '0.84rem',
             fontWeight: 600,
             cursor: 'pointer'
           }}
         >
-          <ArrowLeft size={14} />
+          <ArrowLeft size={15} aria-hidden="true" />
           <span>Voltar para Lista & Rankings</span>
         </button>
 
@@ -515,26 +562,32 @@ export default function ProtagonistaAtleta({
 
           {/* ================= LINHA INFERIOR: ABAS DE EVIDÊNCIAS E PARTIDAS ================= */}
           <div className="editorial-panel" style={{ overflow: 'hidden' }}>
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', overflowX: 'auto' }}>
+            <div role="tablist" aria-label="Estatísticas detalhadas do atleta" style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', overflowX: 'auto' }}>
               {[
-                { id: 'partidas', label: `Últimas Partidas (${(atleta.partidas || []).length})` },
+                { id: 'partidas', label: `Partidas Catalogadas (${(atleta.partidas || []).length})` },
                 { id: 'temporadas', label: `Por Temporada (${(atleta.historico_temporadas || []).length})` },
                 { id: 'torneios', label: `Competições (${(atleta.historico_torneios || []).length})` },
                 { id: 'vitimas', label: `Clubes Vítimas (${(atleta.top_vitimas || []).length})` }
               ].map(tb => (
                 <button
                   key={tb.id}
+                  role="tab"
+                  type="button"
+                  aria-selected={subTab === tb.id}
                   onClick={() => setSubTab(tb.id)}
                   style={{
-                    padding: '12px 18px',
+                    padding: '12px 20px',
+                    minHeight: '44px',
                     border: 'none',
                     borderBottom: subTab === tb.id ? '2px solid var(--accent)' : '2px solid transparent',
                     backgroundColor: subTab === tb.id ? 'var(--surface-panel)' : 'transparent',
                     color: subTab === tb.id ? 'var(--text-primary)' : 'var(--text-secondary)',
                     fontWeight: subTab === tb.id ? 700 : 500,
-                    fontSize: '0.82rem',
+                    fontSize: '0.84rem',
                     cursor: 'pointer',
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center'
                   }}
                 >
                   {tb.label}
@@ -543,43 +596,125 @@ export default function ProtagonistaAtleta({
             </div>
 
             <div style={{ padding: '16px' }}>
-              {/* Sub-aba Partidas */}
-              {subTab === 'partidas' && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="editorial-table">
-                    <thead>
-                      <tr>
-                        <th>Data</th>
-                        <th>Competição</th>
-                        <th>Partida</th>
-                        <th style={{ textAlign: 'center' }}>Placar</th>
-                        <th style={{ textAlign: 'center' }}>Condição</th>
-                        <th>Estádio</th>
-                        <th style={{ textAlign: 'center' }}>Gols</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(atleta.partidas || []).slice(0, 50).map((pt, k) => (
-                        <tr key={pt.id_partida || k}>
-                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.data || pt.ano}</td>
-                          <td style={{ fontSize: '0.8rem' }}>{pt.campeonato}</td>
-                          <td style={{ fontWeight: 600 }}>{pt.mandante} × {pt.visitante}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700 }}>{pt.placar}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <span className={pt.escalacao?.titular ? 'pill-olive' : 'pill-neutral'}>
-                              {pt.escalacao?.titular ? 'Titular' : 'Reserva'}
-                            </span>
-                          </td>
-                          <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.estadio || 'N/I'}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: (pt.gols || []).length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
-                            {(pt.gols || []).length > 0 ? `⚽ ${(pt.gols || []).length}` : '—'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              {/* Sub-aba Partidas com Paginação Robusta (Lote 3) */}
+              {subTab === 'partidas' && (() => {
+                const totalPartidas = (atleta.partidas || []).length;
+                const pageSize = 25;
+                const totalPages = Math.ceil(totalPartidas / pageSize) || 1;
+                const paginadas = (atleta.partidas || []).slice((partidasPage - 1) * pageSize, partidasPage * pageSize);
+
+                return (
+                  <div>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="editorial-table">
+                        <thead>
+                          <tr>
+                            <th>Data</th>
+                            <th>Competição</th>
+                            <th>Partida</th>
+                            <th style={{ textAlign: 'center' }}>Placar</th>
+                            <th style={{ textAlign: 'center' }}>Condição</th>
+                            <th>Estádio</th>
+                            <th style={{ textAlign: 'center' }}>Gols</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginadas.map((pt, k) => (
+                            <tr key={pt.id_partida || k}>
+                              <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.data || pt.ano}</td>
+                              <td style={{ fontSize: '0.8rem' }}>{pt.campeonato}</td>
+                              <td style={{ fontWeight: 600 }}>{pt.mandante} × {pt.visitante}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 700 }}>{pt.placar}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span className={pt.escalacao?.titular ? 'pill-olive' : 'pill-neutral'}>
+                                  {pt.escalacao?.titular ? 'Titular' : 'Reserva'}
+                                </span>
+                              </td>
+                              <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.estadio || 'N/I'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, color: (pt.gols || []).length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                                {(pt.gols || []).length > 0 ? `⚽ ${(pt.gols || []).length}` : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Barra de Controles de Paginação */}
+                    {totalPages > 1 && (
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between', 
+                          padding: '14px 4px 6px 4px', 
+                          borderTop: '1px solid var(--border-subtle)', 
+                          marginTop: '12px', 
+                          flexWrap: 'wrap', 
+                          gap: '12px' 
+                        }}
+                      >
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          Exibindo <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>{Math.min(1 + (partidasPage - 1) * pageSize, totalPartidas)}</strong>–<strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>{Math.min(partidasPage * pageSize, totalPartidas)}</strong> de <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>{totalPartidas}</strong> partidas
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setPartidasPage(p => Math.max(1, p - 1))}
+                            disabled={partidasPage <= 1}
+                            aria-label="Página anterior de partidas"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              minHeight: '38px',
+                              borderRadius: 'var(--radius-control)',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: partidasPage <= 1 ? 'var(--surface-raised)' : 'var(--surface-panel)',
+                              color: partidasPage <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                              cursor: partidasPage <= 1 ? 'not-allowed' : 'pointer',
+                              fontSize: '0.82rem',
+                              fontWeight: 600,
+                              opacity: partidasPage <= 1 ? 0.6 : 1
+                            }}
+                          >
+                            <ChevronLeft size={15} aria-hidden="true" />
+                            <span>Anterior</span>
+                          </button>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', padding: '0 6px' }}>
+                            Página <span className="tabular-nums font-mono" style={{ color: 'var(--text-primary)' }}>{partidasPage}</span> de <span className="tabular-nums font-mono" style={{ color: 'var(--text-primary)' }}>{totalPages}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setPartidasPage(p => Math.min(totalPages, p + 1))}
+                            disabled={partidasPage >= totalPages}
+                            aria-label="Próxima página de partidas"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 14px',
+                              minHeight: '38px',
+                              borderRadius: 'var(--radius-control)',
+                              border: '1px solid var(--border-subtle)',
+                              backgroundColor: partidasPage >= totalPages ? 'var(--surface-raised)' : 'var(--surface-panel)',
+                              color: partidasPage >= totalPages ? 'var(--text-muted)' : 'var(--text-primary)',
+                              cursor: partidasPage >= totalPages ? 'not-allowed' : 'pointer',
+                              fontSize: '0.82rem',
+                              fontWeight: 600,
+                              opacity: partidasPage >= totalPages ? 0.6 : 1
+                            }}
+                          >
+                            <span>Próxima</span>
+                            <ChevronRight size={15} aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Sub-aba Temporadas */}
               {subTab === 'temporadas' && (
