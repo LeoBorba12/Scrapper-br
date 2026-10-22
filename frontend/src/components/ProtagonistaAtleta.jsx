@@ -130,11 +130,11 @@ export default function ProtagonistaAtleta({
                   role="option"
                   tabIndex={0}
                   aria-selected={false}
-                  onClick={() => onCarregarPerfilPorId(item.id_jogador, item.atleta)}
+                  onClick={() => onCarregarPerfilPorId(item.id_jogador, item.atleta || item.nome)}
                   onKeyDown={e => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      onCarregarPerfilPorId(item.id_jogador, item.atleta);
+                      onCarregarPerfilPorId(item.id_jogador, item.atleta || item.nome);
                     }
                   }}
                   style={{
@@ -151,13 +151,13 @@ export default function ProtagonistaAtleta({
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>{item.atleta}</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>{item.atleta || item.nome}</strong>
                     {item.posicao && (
                       <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>{item.posicao}</span>
                     )}
                   </div>
                   <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                    {item.clubes_recentes || 'Ver perfil'} • <span className="tabular-nums font-mono">ID {item.id_jogador}</span>
+                    {item.clubes_recentes || (Array.isArray(item.clubes) ? item.clubes.slice(0, 3).join(', ') : (item.clubes || 'Ver perfil'))} • <span className="tabular-nums font-mono">ID {item.id_jogador}</span>
                   </div>
                 </div>
               ))}
@@ -219,42 +219,65 @@ export default function ProtagonistaAtleta({
                 <th>Posição</th>
                 <th>Clubes Principais</th>
                 <th style={{ textAlign: 'center' }}>
-                  {rankingType === 'carreira' ? 'Gols Oficiais Carreira' : rankingType === 'assistencias' ? 'Assistências' : rankingType === 'aproveitamento' ? 'Aproveitamento %' : 'Total de Gols'}
+                  {rankingType === 'carreira' ? 'Gols Oficiais Carreira' : rankingType === 'assistencias' ? 'Assistências' : rankingType === 'aproveitamento' ? 'Aproveitamento %' : rankingType === "clutch" ? "Gols Decisivos (80+')" : rankingType === 'participacoes' ? 'Participações Diretas' : 'Total de Gols'}
                 </th>
-                <th style={{ textAlign: 'center' }}>Jogos</th>
+                <th style={{ textAlign: 'center' }}>
+                  {rankingType === 'carreira' ? 'Jogos Oficiais' : 'Jogos'}
+                </th>
                 <th style={{ width: '60px' }}></th>
               </tr>
             </thead>
             <tbody>
-              {(topPlayers || []).map((p, idx) => (
-                <tr 
-                  key={p.id_jogador || idx}
-                  onClick={() => onCarregarPerfilPorId(p.id_jogador, p.atleta)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                    {idx + 1}
-                  </td>
-                  <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {p.atleta}
-                  </td>
-                  <td>
-                    <span className="pill-neutral">{p.posicao || 'Atacante'}</span>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                    {p.clubes || p.clube || 'N/I'}
-                  </td>
-                  <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>
-                    {rankingType === 'aproveitamento' ? `${p.total}%` : p.total}
-                  </td>
-                  <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    {p.jogos || '-'}
-                  </td>
-                  <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                    <ChevronRight size={15} />
-                  </td>
-                </tr>
-              ))}
+              {(topPlayers || []).map((p, idx) => {
+                const nomeAtleta = p.atleta || p.nome || 'Atleta';
+                const clubesTexto = p.clubes_formatado || (Array.isArray(p.clubes) ? p.clubes.slice(0, 4).join(', ') : (p.clubes || p.clube || '—'));
+                
+                let valor = p.total;
+                if (valor === undefined || valor === null) {
+                  if (rankingType === 'carreira') valor = p.gols_carreira ?? p.gols ?? 0;
+                  else if (rankingType === 'assistencias') valor = p.assistencias ?? 0;
+                  else if (rankingType === 'clutch') valor = p.gols_clutch ?? 0;
+                  else if (rankingType === 'participacoes') valor = p.participacoes_gols ?? 0;
+                  else if (rankingType === 'aproveitamento') valor = `${p.aproveitamento_pontos ?? 0}%`;
+                  else valor = p.gols ?? 0;
+                } else if (rankingType === 'aproveitamento' && !String(valor).includes('%')) {
+                  valor = `${valor}%`;
+                }
+
+                const totalJogos = rankingType === 'carreira' 
+                  ? (p.jogos_carreira || p.jogos_exibicao || p.jogos || '—')
+                  : (p.jogos_exibicao || p.jogos || '—');
+
+                return (
+                  <tr 
+                    key={p.id_jogador || idx}
+                    onClick={() => onCarregarPerfilPorId(p.id_jogador, nomeAtleta)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      {idx + 1}
+                    </td>
+                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {nomeAtleta}
+                    </td>
+                    <td>
+                      <span className="pill-neutral">{p.posicao || '—'}</span>
+                    </td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                      {clubesTexto}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>
+                      {valor}
+                    </td>
+                    <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      {totalJogos}
+                    </td>
+                    <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <ChevronRight size={15} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

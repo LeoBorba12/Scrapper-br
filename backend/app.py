@@ -650,6 +650,7 @@ def get_times_analise_recente():
         
         resultados_times.append({
             "clube": clube,
+            "nome": clube,
             "jogos": total_j,
             "vitorias": vitorias,
             "empates": empates,
@@ -657,8 +658,11 @@ def get_times_analise_recente():
             "pontos": pontos,
             "aproveitamento": aproveitamento,
             "sequencia": sequencia,
+            "forma_recente": sequencia,
             "gols_pro": gols_pro,
+            "gols_marcados": gols_pro,
             "gols_contra": gols_contra,
+            "gols_sofridos": gols_contra,
             "saldo_gols": saldo,
             "media_gols_pro": round(gols_pro / total_j, 2),
             "media_gols_contra": round(gols_contra / total_j, 2),
@@ -680,7 +684,8 @@ def get_times_analise_recente():
                 "vitorias": fora_vit,
                 "aproveitamento": round((fora_vit * 3 / (fora_jogos * 3)) * 100, 1) if fora_jogos > 0 else 0
             },
-            "partidas_recentes": historico_recente
+            "partidas_recentes": historico_recente,
+            "ultimos_jogos": historico_recente
         })
         
     resultados_times.sort(key=lambda x: (x['aproveitamento'], x['saldo_gols'], x['gols_pro']), reverse=True)
@@ -1153,11 +1158,14 @@ def buscar_jogadores():
     
     resultados = []
     for r in rows:
+        clubes_lista = [cb.strip() for cb in (r["clubes"] or "").split(',') if cb.strip()]
         resultados.append({
             "id_jogador": r["id_jogador"],
             "ogol_id": r["ogol_id"],
             "nome": r["atleta"],
+            "atleta": r["atleta"],
             "posicao": r["posicao"],
+            "clubes_recentes": ', '.join(clubes_lista[:3]) if clubes_lista else 'Sem clube registrado',
             "clubes": [cb.strip() for cb in (r["clubes"] or "").split(',') if cb.strip()],
             "gols": r["gols"] or 0,
             "assistencias": r["assistencias"] or 0,
@@ -1232,7 +1240,28 @@ def get_jogadores_ranking():
     """
     rows = [dict(r) for r in c.execute(sql, (limit,)).fetchall()]
     for r in rows:
-        r['clubes'] = [cb.strip() for cb in (r.get('clubes') or '').split(',') if cb.strip()]
+        r['atleta'] = r.get('nome')
+        r['clubes_lista'] = [cb.strip() for cb in (r.get('clubes') or '').split(',') if cb.strip()]
+        r['clubes'] = r['clubes_lista']
+        r['clubes_formatado'] = ', '.join(r['clubes_lista'][:4]) if r['clubes_lista'] else 'N/I'
+        if tipo == 'carreira':
+            r['total'] = r.get('gols_carreira', 0)
+            r['jogos_exibicao'] = r.get('jogos_carreira', r.get('jogos', 0))
+        elif tipo == 'assistencias':
+            r['total'] = r.get('assistencias', 0)
+            r['jogos_exibicao'] = r.get('jogos', 0)
+        elif tipo == 'clutch':
+            r['total'] = r.get('gols_clutch', 0)
+            r['jogos_exibicao'] = r.get('jogos', 0)
+        elif tipo == 'participacoes':
+            r['total'] = r.get('participacoes_gols', 0)
+            r['jogos_exibicao'] = r.get('jogos', 0)
+        elif tipo == 'aproveitamento':
+            r['total'] = r.get('aproveitamento_pontos', 0)
+            r['jogos_exibicao'] = r.get('jogos', 0)
+        else:
+            r['total'] = r.get('gols', 0)
+            r['jogos_exibicao'] = r.get('jogos', 0)
     conn.close()
     return jsonify(rows)
 

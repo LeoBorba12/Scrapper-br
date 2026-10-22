@@ -19,16 +19,24 @@ export default function EditorialClubes({
   const [sortAsc, setSortAsc] = useState(false);
   const [expandedClube, setExpandedClube] = useState(null);
 
-  // Ordenação e Filtragem
+  // Ordenação e Filtragem resiliente (compatível com clube e nome)
   const clubesFiltrados = useMemo(() => {
     let lista = (timesAnalise || []).filter(t => {
       if (!timesSearch) return true;
-      return (t.nome || '').toLowerCase().includes(timesSearch.toLowerCase());
+      const nome = t.clube || t.nome || '';
+      return nome.toLowerCase().includes(timesSearch.toLowerCase());
     });
 
     lista.sort((a, b) => {
-      let valA = a[sortBy] ?? 0;
-      let valB = b[sortBy] ?? 0;
+      const getVal = (item, key) => {
+        if (key === 'nome' || key === 'clube') return item.clube || item.nome || '';
+        if (key === 'gols_marcados' || key === 'gols_pro') return item.gols_pro ?? item.gols_marcados ?? 0;
+        if (key === 'gols_sofridos' || key === 'gols_contra') return item.gols_contra ?? item.gols_sofridos ?? 0;
+        if (key === 'saldo_gols') return item.saldo_gols ?? ((item.gols_pro ?? item.gols_marcados ?? 0) - (item.gols_contra ?? item.gols_sofridos ?? 0));
+        return item[key] ?? 0;
+      };
+      let valA = getVal(a, sortBy);
+      let valB = getVal(b, sortBy);
       if (typeof valA === 'string') {
         return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
       }
@@ -43,7 +51,7 @@ export default function EditorialClubes({
     if (!timesAnalise || timesAnalise.length === 0) return null;
     const total = timesAnalise.length;
     const mediaAprov = timesAnalise.reduce((acc, t) => acc + (t.aproveitamento || 0), 0) / total;
-    const totalGolsMarcados = timesAnalise.reduce((acc, t) => acc + (t.gols_marcados || 0), 0);
+    const totalGolsMarcados = timesAnalise.reduce((acc, t) => acc + (t.gols_pro ?? t.gols_marcados ?? 0), 0);
     const totalJogos = timesAnalise.reduce((acc, t) => acc + (t.jogos || 0), 0);
     const mediaGolsJogo = totalJogos > 0 ? (totalGolsMarcados / totalJogos) : 0;
     const mediaBtts = timesAnalise.reduce((acc, t) => acc + (t.btts_pct || 0), 0) / total;
@@ -325,19 +333,25 @@ export default function EditorialClubes({
             </thead>
             <tbody>
               {clubesFiltrados.map((clube, idx) => {
-                const isExpanded = expandedClube === clube.nome;
+                const nomeClube = clube.clube || clube.nome || 'Clube';
+                const isExpanded = expandedClube === nomeClube;
                 const aprov = (clube.aproveitamento || 0).toFixed(1);
+                const forma = clube.sequencia || clube.forma_recente || [];
+                const gp = clube.gols_pro ?? clube.gols_marcados ?? 0;
+                const gc = clube.gols_contra ?? clube.gols_sofridos ?? 0;
+                const sg = clube.saldo_gols ?? (gp - gc);
+                const partidasRec = clube.partidas_recentes || clube.ultimos_jogos || [];
 
                 return (
-                  <React.Fragment key={clube.nome || idx}>
+                  <React.Fragment key={nomeClube || idx}>
                     <tr 
-                      onClick={() => setExpandedClube(isExpanded ? null : clube.nome)}
+                      onClick={() => setExpandedClube(isExpanded ? null : nomeClube)}
                       style={{ cursor: 'pointer', backgroundColor: isExpanded ? 'var(--surface-raised)' : 'transparent' }}
                       role="button"
                       tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') setExpandedClube(isExpanded ? null : clube.nome); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setExpandedClube(isExpanded ? null : nomeClube); }}
                       aria-expanded={isExpanded}
-                      aria-label={`Detalhes de ${clube.nome}`}
+                      aria-label={`Detalhes de ${nomeClube}`}
                     >
                       <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
                         {idx + 1}
@@ -345,7 +359,7 @@ export default function EditorialClubes({
 
                       <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span>{clube.nome}</span>
+                          <span>{nomeClube}</span>
                         </div>
                       </td>
 
@@ -357,7 +371,7 @@ export default function EditorialClubes({
 
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                          {(clube.forma_recente || []).slice(-5).map((res, i) => {
+                          {forma.slice(-5).map((res, i) => {
                             let bg = 'var(--surface-raised)';
                             let fg = 'var(--text-secondary)';
                             if (res === 'V') { bg = 'var(--positive-bg)'; fg = 'var(--positive)'; }
@@ -385,10 +399,10 @@ export default function EditorialClubes({
                         </div>
                       </td>
 
-                      <td style={{ textAlign: 'center' }}>{clube.gols_marcados}</td>
-                      <td style={{ textAlign: 'center' }}>{clube.gols_sofridos}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, color: (clube.saldo_gols || 0) >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
-                        {clube.saldo_gols > 0 ? `+${clube.saldo_gols}` : clube.saldo_gols}
+                      <td style={{ textAlign: 'center' }}>{gp}</td>
+                      <td style={{ textAlign: 'center' }}>{gc}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600, color: sg >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
+                        {sg > 0 ? `+${sg}` : sg}
                       </td>
 
                       <td>
@@ -420,7 +434,7 @@ export default function EditorialClubes({
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
                               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                Histórico recente dos jogos de {clube.nome} na amostra:
+                                Histórico recente dos jogos de {nomeClube} na amostra:
                               </span>
                               <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
                                 Casa: {clube.casa?.aproveitamento || 0}% ({clube.casa?.vitorias || 0}V em {clube.casa?.jogos || 0}J) • Fora: {clube.fora?.aproveitamento || 0}%
@@ -428,7 +442,7 @@ export default function EditorialClubes({
                             </div>
 
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px' }}>
-                              {(clube.ultimos_jogos || []).map((j, k) => (
+                              {partidasRec.map((j, k) => (
                                 <div
                                   key={k}
                                   style={{
@@ -441,7 +455,7 @@ export default function EditorialClubes({
                                 >
                                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
                                     <span>{j.data || 'Data N/I'}</span>
-                                    <span>{j.mando === 'C' ? 'Em Casa' : 'Fora'}</span>
+                                    <span>{j.mando === 'Casa' || j.mando === 'C' ? 'Em Casa' : 'Fora'}</span>
                                   </div>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontWeight: 600 }}>
                                     <span>{j.adversario}</span>
