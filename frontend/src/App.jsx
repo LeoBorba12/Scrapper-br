@@ -28,7 +28,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'registro'
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
-  const [loginUsername, setLoginUsername] = useState('LB');
+  const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [regNome, setRegNome] = useState('');
   const [regUsername, setRegUsername] = useState('');
@@ -1011,21 +1011,21 @@ export default function App() {
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '6px' }}>
-                  Enter Email / Username
+                  Usuário / Login
                 </label>
                 <input 
                   type="text" 
                   className="soft-input font-mono"
                   value={loginUsername}
                   onChange={e => setLoginUsername(e.target.value)}
-                  placeholder="LB"
+                  placeholder="Seu usuário (ex: LB, thbreda)"
                   required
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '6px' }}>
-                  Enter Password
+                  Senha
                 </label>
                 <input 
                   type="password" 
