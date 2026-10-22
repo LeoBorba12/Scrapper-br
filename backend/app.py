@@ -2011,6 +2011,74 @@ def get_maiores_zebras():
     api_cache.set("api_odds_zebras", zebras, ttl=3600)
     return jsonify(zebras)
 
+
+@app.route('/api/odds/analise-mercados', methods=['GET'])
+@require_auth
+def get_analise_mercados_odds():
+    """
+    Retorna painel analítico de probabilidades e odds de mercados esportivos:
+    Over/Under 1.5 e 2.5, Ambas Marcam (BTTS), Handicap Asiático e Médias de Cartões/Árbitro.
+    """
+    campeonato = request.args.get('campeonato', '').strip()
+    ano = request.args.get('ano', type=int)
+    filtro_mercado = request.args.get('mercado', 'todos').strip()
+    limit = min(request.args.get('limit', 40, type=int), 100)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    where_clauses = ["o.odd_over_2_5 IS NOT NULL"]
+    params = []
+
+    if ano:
+        where_clauses.append("p.ano = ?")
+        params.append(ano)
+    else:
+        where_clauses.append("p.ano >= 2024")
+
+    if campeonato:
+        where_clauses.append("p.campeonato LIKE ?")
+        params.append(f"%{campeonato}%")
+
+    if filtro_mercado == 'over_2_5':
+        where_clauses.append("o.prob_over_2_5 >= 0.55")
+        order_by = "o.prob_over_2_5 DESC"
+    elif filtro_mercado == 'btts':
+        where_clauses.append("o.prob_btts_sim >= 0.52")
+        order_by = "o.prob_btts_sim DESC"
+    elif filtro_mercado == 'zebras':
+        where_clauses.append("o.status_zebra LIKE '%Zebra%'")
+        order_by = "p.data DESC"
+    else:
+        order_by = "p.data DESC, p.id_partida DESC"
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
+        SELECT 
+            p.id_partida, p.ano, p.data, p.campeonato, p.mandante, p.visitante,
+            p.placar, p.vencedor, p.estadio, p.arbitro,
+            o.odd_mandante, o.odd_empate, o.odd_visitante,
+            o.odd_over_2_5, o.odd_under_2_5, o.odd_over_1_5, o.odd_under_1_5,
+            o.odd_btts_sim, o.odd_btts_nao,
+            o.prob_over_2_5, o.prob_btts_sim,
+            o.linha_handicap, o.odd_handicap_mandante, o.odd_handicap_visitante,
+            o.media_cartoes_esperada, o.status_zebra
+        FROM partidas p
+        JOIN odds_partidas o ON p.id_partida = o.id_partida
+        WHERE {where_sql}
+        ORDER BY {order_by}
+        LIMIT ?;
+    """
+    params.append(limit)
+    rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    conn.close()
+
+    return jsonify({
+        "total": len(rows),
+        "filtro_mercado": filtro_mercado,
+        "partidas": rows
+    })
+
 @app.route('/api/ia/diagnostico', methods=['GET'])
 @require_admin
 def ia_diagnostico():
