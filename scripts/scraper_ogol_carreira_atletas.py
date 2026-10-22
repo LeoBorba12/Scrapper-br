@@ -279,14 +279,18 @@ def extrair_tabela_carreira(html: str) -> dict:
     return None
 
 def processar_atleta(conn, atleta_id: int, nome: str, ogol_id: int = None, forcar: bool = False) -> bool:
-    """Enriquece um atleta com dados de carreira oficial do OGol."""
-    c = conn.cursor()
-    
+    """Enriquece um atleta com dados de carreira oficial do OGol (com retry resiliente contra database locks)."""
     # Verificar se já possui dados consolidados (se não estiver forçando)
     if not forcar:
-        ja_tem = c.execute("SELECT gols_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = ?;", (atleta_id,)).fetchone()
-        if ja_tem and ja_tem[0] and ja_tem[0] > 0:
-            return False
+        for _ in range(5):
+            try:
+                c = conn.cursor()
+                ja_tem = c.execute("SELECT gols_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = ?;", (atleta_id,)).fetchone()
+                if ja_tem and ja_tem[0] and ja_tem[0] > 0:
+                    return False
+                break
+            except sqlite3.OperationalError:
+                time.sleep(1.5)
 
     path, oid_encontrado = buscar_ogol_path(nome, ogol_id)
     if not path:
@@ -323,27 +327,33 @@ def processar_atleta(conn, atleta_id: int, nome: str, ogol_id: int = None, forca
     if not stats:
         return False
 
-    # Atualizar o banco de dados
+    # Atualizar o banco de dados com retry contra locks concorrentes
     novo_ogol_id = oid_encontrado or ogol_id
     clubes_json = json.dumps(stats["clubes"], ensure_ascii=False)
 
-    c.execute("""
-        UPDATE jogadores_estatisticas
-        SET gols_carreira_oficiais = ?,
-            jogos_carreira_oficiais = ?,
-            assistencias_carreira_oficiais = ?,
-            detalhe_carreira_clubes = ?,
-            ogol_id = COALESCE(ogol_id, ?)
-        WHERE id_jogador = ?;
-    """, (
-        stats["total_gols"],
-        stats["total_jogos"],
-        stats["total_assistencias"],
-        clubes_json,
-        novo_ogol_id,
-        atleta_id
-    ))
-    conn.commit()
+    for retry in range(5):
+        try:
+            c = conn.cursor()
+            c.execute("""
+                UPDATE jogadores_estatisticas
+                SET gols_carreira_oficiais = ?,
+                    jogos_carreira_oficiais = ?,
+                    assistencias_carreira_oficiais = ?,
+                    detalhe_carreira_clubes = ?,
+                    ogol_id = COALESCE(ogol_id, ?)
+                WHERE id_jogador = ?;
+            """, (
+                stats["total_gols"],
+                stats["total_jogos"],
+                stats["total_assistencias"],
+                clubes_json,
+                novo_ogol_id,
+                atleta_id
+            ))
+            conn.commit()
+            break
+        except sqlite3.OperationalError:
+            time.sleep(2.0)
 
     safe_print(f"  [OK] {nome}: {stats['total_gols']} gols em {stats['total_jogos']} jogos oficiais ({len(stats['clubes'])} clubes)")
     return True
@@ -356,8 +366,9 @@ def main():
     parser.add_argument("--forcar", action="store_true", help="Atualizar mesmo que já possua dados preenchidos")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=60.0)
     conn.execute("PRAGMA journal_mode = DELETE;")
+    conn.execute("PRAGMA busy_timeout = 60000;")
     c = conn.cursor()
 
     if args.nome:
@@ -397,7 +408,10 @@ def main():
         if processar_atleta(conn, aid, nome, oid, forcar=args.forcar):
             sucessos += 1
 
-    conn.execute("VACUUM;")
+    try:
+        conn.execute("VACUUM;")
+    except sqlite3.OperationalError:
+        pass
     conn.close()
 
     # Sincronizar com api/data/futebol.db se existir
