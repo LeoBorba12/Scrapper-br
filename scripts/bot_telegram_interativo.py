@@ -213,6 +213,65 @@ def responder_pergunta_banco(pergunta: str) -> str:
         f"🤖 Entendido! Recebi sua pergunta: *\"{pergunta_clean}\"*.\n\n"
         "💡 _Dica: Para análises profundas com raciocínio de IA, certifique-se de que a `GEMINI_API_KEY` está ativa no `.env`. Enquanto isso, você pode perguntar sobre clubes, artilheiros ou usar `/status` e `/ultimos`._"
     )
+
+def obter_status_sniper() -> str:
+    """Coleta o status em tempo real do OCI Sniper na VM."""
+    sniper_log_path = "/home/opc/sniper.log"
+    sucesso_log_path = "/home/opc/sucesso.log"
+    
+    # 1. Verificar se houve sucesso
+    if os.path.exists(sucesso_log_path):
+        return (
+            "🎉 *SUCESSO ABSOLUTO! A MÁQUINA AMPERE FOI CAPTURADA!* 🎉\n\n"
+            "A VM da Oracle Cloud foi provisionada com sucesso!\n"
+            "Verifique o console da Oracle Cloud para os detalhes de IP e acesso."
+        )
+
+    # 2. Verificar se o processo sniper.sh está rodando
+    ativo = False
+    pid = "N/D"
+    try:
+        res = subprocess.run(["ps", "aux"], capture_output=True, text=True)
+        for line in res.stdout.splitlines():
+            if "sniper.sh" in line and "grep" not in line:
+                ativo = True
+                parts = line.split()
+                if len(parts) > 1:
+                    pid = parts[1]
+                break
+    except Exception:
+        pass
+
+    # 3. Ler as últimas linhas do sniper.log
+    ultima_tentativa = "Nenhum registro encontrado"
+    if os.path.exists(sniper_log_path):
+        try:
+            with open(sniper_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                linhas = f.readlines()
+                for l in reversed(linhas):
+                    l_str = l.strip()
+                    if "Tentativa #" in l_str or "Rate limit" in l_str:
+                        ultima_tentativa = l_str
+                        break
+        except Exception:
+            pass
+
+    status_icone = "🟢 *Ativo e Caçando 24/7*" if ativo else "🔴 *Inativo / Parado*"
+
+    return (
+        f"🎯 *STATUS DO OCI SNIPER (ORACLE CLOUD)*\n\n"
+        f"• Estado: {status_icone} (PID `{pid}`)\n"
+        f"• Datacenter: `SA-SAOPAULO-1 (São Paulo)`\n\n"
+        f"🎯 *Alvos Monitorados:*\n"
+        f"1. 🥇 4 OCPUs / 24 GB RAM (Teto Máximo Grátis)\n"
+        f"2. 🥈 2 OCPUs / 12 GB RAM\n"
+        f"3. 🥉 1 OCPU / 6 GB RAM (Alta Chance)\n\n"
+        f"🕒 *Último Registro do Sniper:*\n"
+        f"`{ultima_tentativa}`\n\n"
+        f"💡 _O sniper tenta os 3 alvos a cada ~60s com jitter automático e avisará você imediatamente no Telegram assim que a máquina for provisionada._"
+    )
+
+def obter_status_sistema() -> str:
     ram_avail, ram_total, swap_free, swap_total = 0, 0, 0, 0
     if os.path.exists("/proc/meminfo"):
         try:
@@ -283,6 +342,7 @@ def tratar_comando(chat_id: str, texto: str):
             f"Bem-vindo ao canal de controle e inteligência do *Scrapper-BR*.\n\n"
             f"Comandos disponíveis:\n"
             f"💬 *Fazer Pergunta:* Envie qualquer pergunta em texto comum (ex: _'quantos jogos do Flamengo temos?'_ ou _'quem é o maior artilheiro?'_)\n"
+            f"🎯 `/sniper` - Exibe o status da caça à VM da Oracle Cloud (24GB/12GB/6GB)\n"
             f"📊 `/status` - Exibe a saúde da VM e métricas de infraestrutura\n"
             f"🕒 `/ultimos` - Exibe os últimos 5 jogos adicionados pelo scraping\n"
             f"📥 `/banco` - Baixa o banco SQLite compactado (`futebol.db.zip` ~17MB)\n"
@@ -290,6 +350,9 @@ def tratar_comando(chat_id: str, texto: str):
             f"❓ `/ajuda` - Exibe esta mensagem\n"
         )
         notificar(chat_id, msg)
+
+    elif cmd == "/sniper":
+        notificar(chat_id, obter_status_sniper())
 
     elif cmd in ("/status", "/saude"):
         notificar(chat_id, obter_status_sistema())
