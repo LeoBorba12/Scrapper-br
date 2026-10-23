@@ -9,13 +9,14 @@ import {
 } from 'lucide-react';
 import { baixarCardSocialPNG } from './utils/cardGenerator';
 import SoomaFutStatsView from './SoomaFutStatsView';
+import HomeMatchdayView from './components/HomeMatchdayView';
 import AppShell from './components/AppShell';
 import EditorialClubes from './components/EditorialClubes';
 import ProtagonistaAtleta from './components/ProtagonistaAtleta';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('h2h'); // 'h2h', 'jogadores', 'oraculo', 'playground', 'clima', 'arbitragem', 'tweets'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' (Matchday Cockpit), 'h2h', 'jogadores', etc.
   const [viewTheme, setViewTheme] = useState('sooma'); // 'sooma' (referência Outcrowd) | 'classic' (Soft UI)
 
   // ==================== AUTH STATE ====================
@@ -1241,7 +1242,7 @@ export default function App() {
       )}
 
         {activeTab === 'overview' && (
-          <SoomaFutStatsView
+          <HomeMatchdayView
             currentUser={currentUser}
             overview={overview}
             onNavigateTab={(t) => setActiveTab(t)}
@@ -1249,6 +1250,7 @@ export default function App() {
             onSelectJogador={(p) => { setSelectedPlayer(p); setActiveTab('jogadores'); }}
             onRunOraculo={(text) => { setOraculoPrompt(text); setActiveTab('oraculo'); }}
             onLogout={handleLogout}
+            apiFetch={apiFetch}
           />
         )}
 

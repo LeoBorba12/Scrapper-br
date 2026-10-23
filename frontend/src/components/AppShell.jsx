@@ -18,7 +18,7 @@ export default function AppShell({
   children
 }) {
   const navItems = [
-    { id: 'overview', label: 'Panorama', icon: Trophy },
+    { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
     { id: 'times', label: 'Clubes', icon: BarChart3, badge: 'Editorial' },
     { id: 'jogadores', label: 'Atletas', icon: Award, badge: 'Protagonista' },
     { id: 'h2h', label: 'Confrontos', icon: Swords },

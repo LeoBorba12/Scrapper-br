@@ -27,3 +27,6 @@ data/cache_ogol_*
 data/resultados_ogol_*
 data/.backfill_checkpoint.json
 scratch/
+
+data/cache_rankinghistorico/
+

@@ -11,6 +11,7 @@ import threading
 import functools
 import secrets
 import requests
+import datetime
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, g
 
@@ -468,6 +469,331 @@ def get_overview():
     }
     api_cache.set("api_overview", data, ttl=3600)
     return jsonify(data)
+
+@app.route('/api/home/cockpit', methods=['GET'])
+def get_home_cockpit():
+    MESES_PT = {
+        '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
+        '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
+        '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+    }
+
+    raw_date = request.args.get('date', '').strip()
+    target_date = ''
+    if raw_date:
+        parts = raw_date.split('-')
+        if len(parts) >= 2:
+            m, d = parts[-2], parts[-1]
+            if len(m) == 2 and len(d) == 2 and m.isdigit() and d.isdigit():
+                target_date = f"{m}-{d}"
+    
+    if not target_date:
+        target_date = datetime.date.today().strftime('%m-%d')
+
+    cache_key = f"cockpit_{target_date}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    m_code, d_code = target_date.split('-')
+    data_formatada = f"{int(d_code)} de {MESES_PT.get(m_code, 'Outubro')}"
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # 1. NESTE DIA NA HISTÓRIA
+    c.execute("""
+        SELECT id_partida, ano, data, mandante, visitante, gols_mandante, gols_visitante, placar, campeonato, estadio, fase, publico
+        FROM partidas
+        WHERE strftime('%m-%d', data) = ?
+    """, (target_date,))
+    rows_neste_dia = c.fetchall()
+
+    big_clubs = {'Flamengo', 'Palmeiras', 'Corinthians', 'São Paulo', 'Santos', 'Grêmio', 'Internacional', 'Vasco', 'Fluminense', 'Botafogo', 'Cruzeiro', 'Atlético-MG', 'Bahia', 'Athletico-PR'}
+
+    scored_jogos = []
+    for r in rows_neste_dia:
+        p = dict(r)
+        gm = p['gols_mandante'] if p['gols_mandante'] is not None else 0
+        gv = p['gols_visitante'] if p['gols_visitante'] is not None else 0
+        m = p['mandante'] or ''
+        v = p['visitante'] or ''
+        is_m_big = m in big_clubs
+        is_v_big = v in big_clubs
+        is_classico = is_m_big and is_v_big
+
+        score = (gm + gv) * 3
+        if is_classico:
+            score += 70
+        elif is_m_big or is_v_big:
+            score += 20
+        fase_str = str(p['fase'] or '').lower()
+        if any(k in fase_str for k in ['final', 'semi', 'decisão', 'oitavas', 'quartas']):
+            score += 25
+        if p['publico'] and p['publico'] > 30000:
+            score += 20
+
+        scored_jogos.append((score, {
+            'id_partida': p['id_partida'],
+            'ano': p['ano'],
+            'data': p['data'],
+            'mandante': m,
+            'visitante': v,
+            'gols_mandante': gm,
+            'gols_visitante': gv,
+            'placar': f"{gm} x {gv}",
+            'campeonato': p['campeonato'],
+            'estadio': p['estadio'] or 'Estádio Histórico',
+            'fase': p['fase'] or 'Fase Única',
+            'is_classico': is_classico,
+            'publico': p['publico']
+        }))
+
+    scored_jogos.sort(key=lambda x: x[0], reverse=True)
+    neste_dia = [item[1] for item in scored_jogos[:12]]
+
+    # 2. TABUS E DESTAQUES H2H (CONFRONTOS HISTÓRICOS)
+    classicos_definidos = [
+        ('Palmeiras', 'Santos', 'Clássico da Saudade', 'São Paulo'),
+        ('Flamengo', 'Vasco', 'Clássico dos Milhões', 'Rio de Janeiro'),
+        ('Corinthians', 'São Paulo', 'Majestoso', 'São Paulo'),
+        ('Grêmio', 'Internacional', 'Gre-Nal', 'Rio Grande do Sul'),
+        ('Atlético-MG', 'Cruzeiro', 'Clássico Mineiro', 'Minas Gerais'),
+        ('Flamengo', 'Atlético-MG', 'Duelo Histórico', 'Nacional'),
+        ('Corinthians', 'Palmeiras', 'Derby Paulista', 'São Paulo'),
+        ('Botafogo', 'Fluminense', 'Clássico Vovô', 'Rio de Janeiro'),
+        ('São Paulo', 'Santos', 'San-São', 'São Paulo'),
+        ('Flamengo', 'Fluminense', 'Fla-Flu', 'Rio de Janeiro'),
+        ('Bahia', 'Vitória', 'Ba-Vi', 'Bahia'),
+        ('Cruzeiro', 'Grêmio', 'Duelo de Gigantes', 'Nacional')
+    ]
+
+    tabus_destaques = []
+    for c1, c2, apelido, regiao in classicos_definidos:
+        c.execute("""
+            SELECT data, mandante, visitante, gols_mandante, gols_visitante, campeonato
+            FROM partidas
+            WHERE ((mandante = ? AND visitante = ?) OR (mandante = ? AND visitante = ?))
+              AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
+            ORDER BY data DESC, id_partida DESC
+        """, (c1, c2, c2, c1))
+        p_rows = c.fetchall()
+        if not p_rows:
+            continue
+        total = len(p_rows)
+        vit1 = 0
+        vit2 = 0
+        emp = 0
+        gols1 = 0
+        gols2 = 0
+
+        # Identificar invencibilidade ativa a partir do jogo mais recente
+        last_loss_c1_idx = None
+        last_loss_c2_idx = None
+
+        for idx, r in enumerate(p_rows):
+            gm = r['gols_mandante']
+            gv = r['gols_visitante']
+            m = r['mandante']
+            g1 = gm if m == c1 else gv
+            g2 = gv if m == c1 else gm
+
+            gols1 += g1
+            gols2 += g2
+
+            if g1 > g2:
+                vit1 += 1
+                if last_loss_c1_idx is None and last_loss_c2_idx is not None:
+                    pass
+            elif g2 > g1:
+                vit2 += 1
+            else:
+                emp += 1
+
+            if g1 < g2 and last_loss_c1_idx is None:
+                last_loss_c1_idx = idx
+            if g2 < g1 and last_loss_c2_idx is None:
+                last_loss_c2_idx = idx
+
+        c1_unbeaten = last_loss_c1_idx if last_loss_c1_idx is not None else total
+        c2_unbeaten = last_loss_c2_idx if last_loss_c2_idx is not None else total
+
+        streak_team = None
+        streak_count = 0
+        if c1_unbeaten > c2_unbeaten and c1_unbeaten > 0:
+            streak_team = c1
+            streak_count = c1_unbeaten
+        elif c2_unbeaten > c1_unbeaten and c2_unbeaten > 0:
+            streak_team = c2
+            streak_count = c2_unbeaten
+
+        ult = p_rows[0]
+        ult_info = {
+            'data': ult['data'],
+            'mandante': ult['mandante'],
+            'visitante': ult['visitante'],
+            'placar': f"{ult['gols_mandante']} x {ult['gols_visitante']}",
+            'campeonato': ult['campeonato']
+        }
+
+        # Manchete editorial automática e categorização
+        if streak_team and streak_count >= 3:
+            adv = c2 if streak_team == c1 else c1
+            tag = 'Tabu Ativo'
+            manchete = f"{streak_team} não perde para o {adv} há {streak_count} jogos consecutivos."
+        elif abs(vit1 - vit2) >= 15:
+            maior = c1 if vit1 > vit2 else c2
+            menor = c2 if vit1 > vit2 else c1
+            dif = abs(vit1 - vit2)
+            tag = 'Supremacia'
+            manchete = f"{maior} sustenta hegemonia de +{dif} vitórias no retrospecto contra o {menor}."
+        elif abs(vit1 - vit2) <= 3:
+            tag = 'Equilíbrio Histórico'
+            manchete = f"Rivalidade milimétrica com apenas {abs(vit1 - vit2)} vitória(s) de diferença em {total} jogos."
+        else:
+            maior = c1 if vit1 > vit2 else c2
+            menor = c2 if vit1 > vit2 else c1
+            dif = abs(vit1 - vit2)
+            tag = 'Vantagem Histórica'
+            manchete = f"{maior} lidera o histórico com folga de {dif} vitórias a mais sobre o {menor}."
+
+        tabus_destaques.append({
+            'clube1': c1,
+            'clube2': c2,
+            'apelido': apelido,
+            'regiao': regiao,
+            'total_jogos': total,
+            'vit_clube1': vit1,
+            'vit_clube2': vit2,
+            'empates': emp,
+            'gols_clube1': gols1,
+            'gols_clube2': gols2,
+            'tag': tag,
+            'manchete': manchete,
+            'streak_team': streak_team,
+            'streak_count': streak_count,
+            'ultimo_jogo': ult_info
+        })
+
+    # 3. RANKING HISTÓRICO GERAL
+    c.execute("""
+        WITH mandantes AS (
+            SELECT mandante AS clube,
+                   COUNT(*) AS j,
+                   SUM(CASE WHEN gols_mandante > gols_visitante THEN 1 ELSE 0 END) AS v,
+                   SUM(CASE WHEN gols_mandante = gols_visitante THEN 1 ELSE 0 END) AS e,
+                   SUM(CASE WHEN gols_mandante < gols_visitante THEN 1 ELSE 0 END) AS d,
+                   SUM(COALESCE(gols_mandante, 0)) AS gp,
+                   SUM(COALESCE(gols_visitante, 0)) AS gc
+            FROM partidas
+            WHERE mandante IS NOT NULL AND mandante != ''
+            GROUP BY mandante
+        ),
+        visitantes AS (
+            SELECT visitante AS clube,
+                   COUNT(*) AS j,
+                   SUM(CASE WHEN gols_visitante > gols_mandante THEN 1 ELSE 0 END) AS v,
+                   SUM(CASE WHEN gols_visitante = gols_mandante THEN 1 ELSE 0 END) AS e,
+                   SUM(CASE WHEN gols_visitante < gols_mandante THEN 1 ELSE 0 END) AS d,
+                   SUM(COALESCE(gols_visitante, 0)) AS gp,
+                   SUM(COALESCE(gols_mandante, 0)) AS gc
+            FROM partidas
+            WHERE visitante IS NOT NULL AND visitante != ''
+            GROUP BY visitante
+        ),
+        combinado AS (
+            SELECT * FROM mandantes
+            UNION ALL
+            SELECT * FROM visitantes
+        )
+        SELECT clube,
+               SUM(j) AS jogos,
+               SUM(v) AS vitorias,
+               SUM(e) AS empates,
+               SUM(d) AS derrotas,
+               SUM(gp) AS gp,
+               SUM(gc) AS gc,
+               (SUM(gp) - SUM(gc)) AS sg,
+               (SUM(v) * 3 + SUM(e)) AS pontos,
+               ROUND((CAST(SUM(v) * 3 + SUM(e) AS FLOAT) / (SUM(j) * 3)) * 100, 1) AS aproveitamento
+        FROM combinado
+        GROUP BY clube
+        HAVING jogos >= 50
+        ORDER BY pontos DESC
+        LIMIT 20;
+    """)
+    ranking_rows = c.fetchall()
+    ranking_historico = []
+    for pos, r in enumerate(ranking_rows, 1):
+        item = dict(r)
+        item['posicao'] = pos
+        ranking_historico.append(item)
+
+    # 3.1 RANKING PONDERADO RECALIBRADO (Mundial 280, Libertadores 250, Brasileirão 170, CDB 130)
+    c.execute("""
+        SELECT posicao, clube, uf, pontos, titulos, campanhas
+        FROM ranking_ponderado
+        ORDER BY pontos DESC
+        LIMIT 25;
+    """)
+    ranking_ponderado = [dict(r) for r in c.fetchall()]
+
+    # 4. TICKER DE JOGOS RECENTES
+    c.execute("""
+        SELECT id_partida, data, horario, mandante, visitante, gols_mandante, gols_visitante, placar, campeonato, estadio
+        FROM partidas
+        WHERE data IS NOT NULL AND data != '' AND data != '0000-00-00'
+        ORDER BY data DESC, id_partida DESC
+        LIMIT 25;
+    """)
+    ticker_jogos = []
+    for r in c.fetchall():
+        p = dict(r)
+        gm = p['gols_mandante']
+        gv = p['gols_visitante']
+        finalizado = gm is not None and gv is not None
+        
+        # Formatar data dd/mm
+        dt_str = p['data']
+        dt_fmt = dt_str
+        try:
+            dt_parts = dt_str.split('-')
+            if len(dt_parts) == 3:
+                dia = int(dt_parts[2])
+                mes = MESES_PT.get(dt_parts[1], '')[:3]
+                dt_fmt = f"{dia} {mes}"
+        except Exception:
+            pass
+
+        ticker_jogos.append({
+            'id_partida': p['id_partida'],
+            'data': p['data'],
+            'data_formatada': dt_fmt,
+            'horario': p['horario'] or '',
+            'mandante': p['mandante'],
+            'visitante': p['visitante'],
+            'gols_mandante': gm,
+            'gols_visitante': gv,
+            'placar': f"{gm} x {gv}" if finalizado else 'vs',
+            'finalizado': finalizado,
+            'campeonato': p['campeonato'],
+            'estadio': p['estadio'] or ''
+        })
+
+    conn.close()
+
+    payload = {
+        'data_selecionada': target_date,
+        'data_formatada': data_formatada,
+        'neste_dia': neste_dia,
+        'tabus_destaques': tabus_destaques,
+        'ranking_historico': ranking_historico,
+        'ranking_ponderado': ranking_ponderado,
+        'ticker_jogos': ticker_jogos
+    }
+
+    api_cache.set(cache_key, payload, ttl=1800)
+    return jsonify(payload)
 
 @app.route('/api/clubes', methods=['GET'])
 def get_clubes():
