@@ -24,10 +24,20 @@ from datetime import datetime
 
 # Diretório base do projeto
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-DB_PATH = os.path.join(BASE_DIR, "banco_futebol.db")
+CANDIDATOS_DB = [
+    os.path.join(BASE_DIR, "data", "futebol.db"),
+    os.path.join(BASE_DIR, "api", "data", "futebol.db"),
+    os.path.join(BASE_DIR, "banco_futebol.db")
+]
 ENV_FILE = os.path.join(BASE_DIR, ".env")
 LOG_FILE = os.path.join(BASE_DIR, "guardiao_vm.log")
 SCRAPING_LOG = os.path.join(BASE_DIR, "scraping.log")
+
+def resolver_db_path():
+    for p in CANDIDATOS_DB:
+        if os.path.exists(p):
+            return p
+    return CANDIDATOS_DB[0]
 
 # Limites rígidos de segurança
 MAX_DB_SIZE_MB = 94.0
@@ -163,17 +173,18 @@ def auditar_banco_dados():
         "alerta_tamanho": False,
         "erro": None
     }
-    if not os.path.exists(DB_PATH):
-        relatorio["erro"] = "Arquivo banco_futebol.db não encontrado!"
+    db_path = resolver_db_path()
+    if not os.path.exists(db_path):
+        relatorio["erro"] = f"Arquivo de banco não encontrado em {db_path}!"
         return relatorio
 
-    tamanho_mb = os.path.getsize(DB_PATH) / (1024 * 1024)
+    tamanho_mb = os.path.getsize(db_path) / (1024 * 1024)
     relatorio["tamanho_mb"] = round(tamanho_mb, 2)
     if tamanho_mb > MAX_DB_SIZE_MB:
         relatorio["alerta_tamanho"] = True
 
     try:
-        conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True, timeout=10)
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=10)
         c = conn.cursor()
         c.execute("PRAGMA integrity_check;")
         res = c.fetchone()
