@@ -22,24 +22,25 @@
   --sooma-shadow: 0 16px 40px -12px rgba(110, 95, 145, 0.08);
   --sooma-shadow-float: 0 20px 48px -10px rgba(80, 60, 120, 0.12);
 
-  --bg: #F8FAFC;
-  --surface: #FFFFFF;
-  --surface-hover: #F1F5F9;
-  --surface-active: #E2E8F0;
-  --border: rgba(0, 0, 0, 0.08);
-  --border-focus: #87CEEB;
+  /* Tokens base vinculados aos tokens editoriais */
+  --bg: var(--surface-page);
+  --surface: var(--surface-card);
+  --surface-hover: var(--surface-card-hover);
+  --surface-active: var(--surface-raised);
+  --border: var(--border-subtle);
+  --border-focus: var(--accent);
 
-  --text-main: #1E293B;
-  --text-muted: #64748B;
-  --text-subtle: #94A3B8;
+  --text-main: var(--text-primary);
+  --text-muted: var(--text-muted);
+  --text-subtle: var(--text-secondary);
 
   --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.06);
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.05);
+  --shadow-card: var(--shadow-editorial);
   --shadow-lift: 0 8px 24px rgba(0, 0, 0, 0.09);
 
-  --radius-sm: 10px;
-  --radius-md: 20px;
-  --radius-lg: 30px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --radius-pill: 9999px;
 
   --transition-fast: 200ms ease-out;
@@ -47,20 +48,16 @@
 }
 
 .dark {
-  --bg: #0B1120;
-  --surface: #1E293B;
-  --surface-hover: #26334D;
-  --surface-active: #2E3E5C;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-focus: #87CEEB;
+  --bg: var(--surface-page);
+  --surface: var(--surface-card);
+  --surface-hover: var(--surface-card-hover);
+  --surface-active: var(--surface-raised);
+  --border: var(--border-subtle);
+  --border-focus: var(--accent);
 
-  --text-main: #F8FAFC;
-  --text-muted: #94A3B8;
-  --text-subtle: #64748B;
-
-  --shadow-soft: 0 2px 14px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lift: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --text-main: var(--text-primary);
+  --text-muted: var(--text-muted);
+  --text-subtle: var(--text-secondary);
 }
 
 * {
@@ -70,10 +67,9 @@
 }
 
 body {
-  font-family: var(--font-system);
-  background: linear-gradient(135deg, #FBF9FF 0%, #F5F1FB 45%, #FDEEE9 100%);
-  background-attachment: fixed;
-  color: #12141A;
+  font-family: var(--font-ui);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
   min-height: 100dvh;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -84,41 +80,39 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Card e containers Sooma / Outcrowd */
+/* Card e containers compatíveis com Areia e Carvão */
 .soft-card {
-  background-color: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 26px;
-  box-shadow: 0 16px 40px -12px rgba(100, 85, 140, 0.08);
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-editorial);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 
 .soft-card:hover {
-  box-shadow: 0 20px 48px -10px rgba(80, 60, 120, 0.12);
+  border-color: var(--border-strong);
 }
 
-/* Botões Sooma High Fidelity */
+/* Botões do Sistema */
 .btn-primary {
-  background-color: #11141A;
-  color: #FFFFFF;
+  background-color: var(--accent);
+  color: var(--accent-foreground);
   font-weight: 600;
-  border-radius: 9999px;
-  padding: 10px 22px;
+  border-radius: var(--radius-control);
+  padding: 9px 18px;
   border: 1px solid transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 6px 18px -2px rgba(17, 20, 26, 0.25);
   transition: transform var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-primary:hover {
-  background-color: #222631;
+  background-color: var(--accent-hover);
   transform: translateY(-1px);
-  box-shadow: 0 8px 24px -2px rgba(17, 20, 26, 0.35);
 }
 
 .btn-primary:active {
@@ -126,13 +120,12 @@ body {
 }
 
 .btn-secondary {
-  background-color: #FFFFFF;
-  color: #12141A;
+  background-color: var(--surface-raised);
+  color: var(--text-primary);
   font-weight: 600;
-  border-radius: 9999px;
-  padding: 10px 20px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 4px 14px -2px rgba(100, 90, 130, 0.06);
+  border-radius: var(--radius-control);
+  padding: 9px 18px;
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -142,29 +135,29 @@ body {
 }
 
 .btn-secondary:hover {
-  background-color: #F8F9FD;
-  border-color: rgba(0, 0, 0, 0.12);
+  background-color: var(--surface-card-hover);
+  border-color: var(--border-strong);
   transform: translateY(-1px);
 }
 
 /* Inputs Curvados com Alta Fidelidade */
 .soft-input {
   width: 100%;
-  background-color: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 18px;
-  padding: 12px 18px;
-  color: #12141A;
-  font-family: var(--font-system);
-  font-size: 0.95rem;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
   outline: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .soft-input:focus {
-  border-color: #11141A;
-  box-shadow: 0 0 0 3px rgba(17, 20, 26, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* Badges e tags */

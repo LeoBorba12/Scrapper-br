@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, RefreshCw, Search, ChevronDown, ChevronUp, 
-  ArrowUpDown, Shield, TrendingUp, Filter, Info
+  ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles
 } from 'lucide-react';
+import { ClubEvolutionChart } from './charts';
 
 export default function EditorialClubes({
   timesAnalise,
@@ -18,6 +19,7 @@ export default function EditorialClubes({
   const [sortBy, setSortBy] = useState('aproveitamento');
   const [sortAsc, setSortAsc] = useState(false);
   const [expandedClube, setExpandedClube] = useState(null);
+  const [clubeEvolucao, setClubeEvolucao] = useState('Flamengo');
 
   // Ordenação e Filtragem resiliente (compatível com clube e nome)
   const clubesFiltrados = useMemo(() => {
@@ -276,6 +278,13 @@ export default function EditorialClubes({
         </div>
       )}
 
+      {/* ================= GRÁFICO DE EVOLUÇÃO HISTÓRICA DO CLUBE ================= */}
+      <ClubEvolutionChart
+        clubeNome={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
+        partidas={[]}
+        altura={230}
+      />
+
       {/* ================= TABELA ANALÍTICA PRINCIPAL ================= */}
       <div className="editorial-panel" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -345,7 +354,10 @@ export default function EditorialClubes({
                 return (
                   <React.Fragment key={nomeClube || idx}>
                     <tr 
-                      onClick={() => setExpandedClube(isExpanded ? null : nomeClube)}
+                      onClick={() => {
+                        setExpandedClube(isExpanded ? null : nomeClube);
+                        setClubeEvolucao(nomeClube);
+                      }}
                       style={{ cursor: 'pointer', backgroundColor: isExpanded ? 'var(--surface-raised)' : 'transparent' }}
                       role="button"
                       tabIndex={0}

@@ -13,6 +13,8 @@ import HomeMatchdayView from './components/HomeMatchdayView';
 import AppShell from './components/AppShell';
 import EditorialClubes from './components/EditorialClubes';
 import ProtagonistaAtleta from './components/ProtagonistaAtleta';
+import BettingHubView from './components/BettingHubView';
+import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -1254,6 +1256,16 @@ export default function App() {
           />
         )}
 
+        {/* ABA: BETTING HUB & APOSTAS ESPORTIVAS */}
+        {activeTab === 'apostas' && (
+          <BettingHubView
+            currentUser={currentUser}
+            apiFetch={apiFetch}
+            onNavigateTab={(t) => setActiveTab(t)}
+            onSelectH2H={(c1, c2) => { setClube1(c1); setClube2(c2); setActiveTab('h2h'); }}
+          />
+        )}
+
       {/* ABA 1: RAIO-X H2H */}
       {activeTab === 'h2h' && (
         <section>
@@ -1405,6 +1417,17 @@ export default function App() {
                   </div>
                 </div>
               )}
+
+              {/* GRÁFICO COMPARATIVO H2H POR COMPETIÇÃO (BARRAS DUPLAS) */}
+              <div style={{ marginBottom: '24px' }}>
+                <H2HCompetitionDualBarChart
+                  clube1={h2hData.clube1}
+                  clube2={h2hData.clube2}
+                  partidas={h2hData.partidas || []}
+                  cor1="#0369A1"
+                  cor2="#BE185D"
+                />
+              </div>
 
               {/* MAIORES GOLEADAS */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '24px' }}>
@@ -3616,7 +3639,7 @@ export default function App() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <span className="badge badge-blue">Template: Raio-X Pré-Jogo</span>
                   </div>
-                  <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--bg)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--surface-raised)', color: 'var(--text-primary)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
                     {`🔥 HISTÓRICO DO CLÁSSICO: ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
                      `Em ${h2hData.total_jogos} jogos oficiais catalogados:\n\n` +
                      `🟢 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
@@ -3650,7 +3673,7 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <span className="badge badge-green">Template: Curiosidade Clima</span>
                 </div>
-                <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--bg)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--surface-raised)', color: 'var(--text-primary)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
                   {`🌧️ O gramado molhado realmente gera mais gols no futebol brasileiro?\n\n` +
                    `Analisamos mais de 7.000 jogos entre 2015 e 2024 cruzando com estações meteorológicas:\n\n` +
                    `☔ Jogos com chuva: 2.37 gols por partida\n` +
@@ -3895,9 +3918,9 @@ export default function App() {
       )}
 
       {/* FOOTER */}
-      <footer style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', color: '#8A8F9E', flexWrap: 'wrap', gap: '12px' }}>
+      <footer style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          FutStats & Clima • Feito com <strong style={{ color: '#12141A' }}>Outcrowd Experience</strong>
+          FutStats & Clima • Feito com <strong style={{ color: 'var(--text-primary)' }}>Arquitetura Editorial 2026</strong>
         </div>
         <div className="font-mono">
           {overview?.total_partidas?.toLocaleString('pt-BR') || '55.395'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '42.138'} gols catalogados • 12 capitais climáticas
@@ -3927,26 +3950,26 @@ export default function App() {
         >
           <div
             style={{
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--surface-card)',
               borderRadius: '24px',
               padding: '28px',
               width: '100%',
               maxWidth: '420px',
-              boxShadow: '0 25px 60px -15px rgba(20, 15, 45, 0.25)',
-              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: 'var(--shadow-editorial)',
+              border: '1px solid var(--border-subtle)',
               position: 'relative'
             }}
           >
             {/* Header Modal */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Key size={20} color="#6366F1" />
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'var(--surface-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Key size={20} color="var(--accent)" />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#12141A' }}>Alterar Senha</h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#6B7280' }}>
-                    Usuário logado: <strong style={{ color: '#111827' }}>{currentUser?.username || 'LB'}</strong>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Alterar Senha</h3>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    Usuário logado: <strong style={{ color: 'var(--text-primary)' }}>{currentUser?.username || 'LB'}</strong>
                   </p>
                 </div>
               </div>

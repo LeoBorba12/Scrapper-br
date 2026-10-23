@@ -7,6 +7,8 @@
   color-scheme: light;
   --surface-page: #F1E8DE;
   --surface-panel: #FCF9F5;
+  --surface-card: #FFFFFF;
+  --surface-card-hover: #F8F5EE;
   --surface-raised: #E9DFD2;
   --surface-sidebar: #E9DFD2;
   --text-primary: #302E28;
@@ -48,6 +50,8 @@
   color-scheme: dark;
   --surface-page: #1B1A17;
   --surface-panel: #22211D;
+  --surface-card: #22211D;
+  --surface-card-hover: #2B2923;
   --surface-raised: #2B2923;
   --surface-sidebar: #201F1A;
   --text-primary: #EAE5DA;

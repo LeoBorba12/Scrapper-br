@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Trophy, CloudRain, Swords, BarChart3, Bot, Search,
   Calendar, Award, Key, LogOut, UserPlus, Check, Sun, Moon,
-  ShieldCheck, ArrowRight
+  ShieldCheck, ArrowRight, TrendingUp
 } from 'lucide-react';
 
 export default function AppShell({
@@ -19,6 +19,7 @@ export default function AppShell({
 }) {
   const navItems = [
     { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
+    { id: 'apostas', label: 'Apostas', icon: TrendingUp, badge: 'Odds & Mercados' },
     { id: 'times', label: 'Clubes', icon: BarChart3, badge: 'Editorial' },
     { id: 'jogadores', label: 'Atletas', icon: Award, badge: 'Protagonista' },
     { id: 'h2h', label: 'Confrontos', icon: Swords },

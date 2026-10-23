@@ -1,5 +1,6 @@
 import re
 import os
+import math
 import sqlite3
 import sys
 import hmac
@@ -2404,6 +2405,682 @@ def get_analise_mercados_odds():
         "filtro_mercado": filtro_mercado,
         "partidas": rows
     })
+
+# ==============================================================================
+# MÓDULO AVANÇADO DE APOSTAS & ODDS (PROBABILIDADES, POISSON, +EV, RAIO-X & JOGADORES)
+# ==============================================================================
+
+def _calc_poisson_bivariate(lambda_h, lambda_a, max_goals=6):
+    """Calcula distribuição bivariada de Poisson para probabilidades de 1X2, Over/Under e BTTS."""
+    lh = max(0.25, min(lambda_h, 4.5))
+    la = max(0.25, min(lambda_a, 4.5))
+    matrix = [[0.0]*(max_goals+1) for _ in range(max_goals+1)]
+    for i in range(max_goals+1):
+        p_i = (math.exp(-lh) * (lh**i)) / math.factorial(i)
+        for j in range(max_goals+1):
+            p_j = (math.exp(-la) * (la**j)) / math.factorial(j)
+            matrix[i][j] = p_i * p_j
+
+    p_home = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i > j)
+    p_draw = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i == j)
+    p_away = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i < j)
+    total_1x2 = p_home + p_draw + p_away
+    if total_1x2 > 0:
+        p_home /= total_1x2
+        p_draw /= total_1x2
+        p_away /= total_1x2
+
+    p_over15 = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i + j > 1)
+    p_over25 = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i + j > 2)
+    p_over35 = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i + j > 3)
+    p_btts = sum(matrix[i][j] for i in range(1, max_goals+1) for j in range(1, max_goals+1))
+
+    scores = []
+    for i in range(4):
+        for j in range(4):
+            scores.append({'placar': f"{i}x{j}", 'prob': round(matrix[i][j] * 100, 1)})
+    scores.sort(key=lambda x: x['prob'], reverse=True)
+
+    return {
+        'prob_mandante': round(p_home * 100, 1),
+        'prob_empate': round(p_draw * 100, 1),
+        'prob_visitante': round(p_away * 100, 1),
+        'prob_over_1_5': round(p_over15 * 100, 1),
+        'prob_under_1_5': round((1.0 - p_over15) * 100, 1),
+        'prob_over_2_5': round(p_over25 * 100, 1),
+        'prob_under_2_5': round((1.0 - p_over25) * 100, 1),
+        'prob_over_3_5': round(p_over35 * 100, 1),
+        'prob_btts_sim': round(p_btts * 100, 1),
+        'prob_btts_nao': round((1.0 - p_btts) * 100, 1),
+        'fair_odd_mandante': round(1.0 / p_home, 2) if p_home > 0.01 else 99.0,
+        'fair_odd_empate': round(1.0 / p_draw, 2) if p_draw > 0.01 else 99.0,
+        'fair_odd_visitante': round(1.0 / p_away, 2) if p_away > 0.01 else 99.0,
+        'fair_odd_over_1_5': round(1.0 / p_over15, 2) if p_over15 > 0.01 else 99.0,
+        'fair_odd_over_2_5': round(1.0 / p_over25, 2) if p_over25 > 0.01 else 99.0,
+        'fair_odd_btts_sim': round(1.0 / p_btts, 2) if p_btts > 0.01 else 99.0,
+        'top_placares': scores[:5]
+    }
+
+def _obter_medias_times_db(conn):
+    """Calcula médias empíricas de gols marcados/sofridos por time em casa e fora desde 2024."""
+    cached = api_cache.get("medias_times_apostas")
+    if cached:
+        return cached
+
+    c = conn.cursor()
+    c.execute("""
+        SELECT 
+            mandante as time_nome,
+            'casa' as local,
+            COUNT(*) as jogos,
+            AVG(gols_mandante) as media_gp,
+            AVG(gols_visitante) as media_gc,
+            AVG(CASE WHEN (gols_mandante + gols_visitante) > 2 THEN 1.0 ELSE 0.0 END) as pct_over_2_5,
+            AVG(CASE WHEN gols_mandante > 0 AND gols_visitante > 0 THEN 1.0 ELSE 0.0 END) as pct_btts
+        FROM partidas
+        WHERE ano >= 2024 AND gols_mandante IS NOT NULL
+        GROUP BY mandante
+        UNION ALL
+        SELECT 
+            visitante as time_nome,
+            'fora' as local,
+            COUNT(*) as jogos,
+            AVG(gols_visitante) as media_gp,
+            AVG(gols_mandante) as media_gc,
+            AVG(CASE WHEN (gols_mandante + gols_visitante) > 2 THEN 1.0 ELSE 0.0 END) as pct_over_2_5,
+            AVG(CASE WHEN gols_mandante > 0 AND gols_visitante > 0 THEN 1.0 ELSE 0.0 END) as pct_btts
+        FROM partidas
+        WHERE ano >= 2024 AND gols_mandante IS NOT NULL
+        GROUP BY visitante
+    """)
+    stats = {}
+    for r in c.fetchall():
+        stats[(r[0], r[1])] = {
+            'jogos': r[2],
+            'gp': float(r[3] or 1.35),
+            'gc': float(r[4] or 1.20),
+            'over25': float(r[5] or 0.45),
+            'btts': float(r[6] or 0.48)
+        }
+
+    api_cache.set("medias_times_apostas", stats, ttl=3600)
+    return stats
+
+
+@app.route('/api/apostas/hub', methods=['GET'])
+def get_apostas_hub():
+    """
+    Retorna jogos da rodada e do dia com probabilidades matemáticas completas (Poisson),
+    Odds Justas vs Odds de Mercado, cálculo de Valor Esperado (+EV) e tendências analíticas em tempo real.
+    """
+    campeonato = request.args.get('campeonato', '').strip()
+    ano = request.args.get('ano', type=int)
+    rodada = request.args.get('rodada', type=int)
+    filtro_mercado = request.args.get('mercado', 'todos').strip()
+    data_filtro = request.args.get('data', '').strip()
+    limit = min(request.args.get('limit', 35, type=int), 100)
+
+    cache_key = f"apostas_hub_{campeonato}_{ano}_{rodada}_{filtro_mercado}_{data_filtro}_{limit}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+    team_stats = _obter_medias_times_db(conn)
+
+    where_clauses = ["o.odd_mandante IS NOT NULL"]
+    params = []
+
+    if ano:
+        where_clauses.append("p.ano = ?")
+        params.append(ano)
+    else:
+        where_clauses.append("p.ano >= 2025")
+
+    if campeonato:
+        where_clauses.append("p.campeonato LIKE ?")
+        params.append(f"%{campeonato}%")
+
+    if rodada:
+        where_clauses.append("p.rodada = ?")
+        params.append(rodada)
+
+    if data_filtro:
+        where_clauses.append("p.data = ?")
+        params.append(data_filtro)
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
+        SELECT 
+            p.id_partida, p.ano, p.data, p.horario, p.campeonato, p.rodada,
+            p.mandante, p.visitante, p.placar, p.vencedor, p.estadio, p.cidade, p.arbitro,
+            p.gols_mandante, p.gols_visitante,
+            o.odd_mandante, o.odd_empate, o.odd_visitante,
+            o.odd_over_2_5, o.odd_under_2_5, o.odd_over_1_5, o.odd_under_1_5,
+            o.odd_btts_sim, o.odd_btts_nao,
+            o.prob_over_2_5, o.prob_btts_sim,
+            o.prob_mandante, o.prob_empate, o.prob_visitante,
+            o.linha_handicap, o.odd_handicap_mandante, o.odd_handicap_visitante,
+            o.media_cartoes_esperada, o.media_escanteios_esperada, o.status_zebra
+        FROM partidas p
+        JOIN odds_partidas o ON p.id_partida = o.id_partida
+        WHERE {where_sql}
+        ORDER BY p.data DESC, p.id_partida DESC
+        LIMIT ?;
+    """
+    params.append(limit)
+    rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    conn.close()
+
+    partidas_processadas = []
+    destaques_ev = []
+    tendencias_quentes = []
+
+    for r in rows:
+        m_casa = team_stats.get((r['mandante'], 'casa'), {'gp': 1.45, 'gc': 1.10, 'over25': 0.48, 'btts': 0.50})
+        m_fora = team_stats.get((r['visitante'], 'fora'), {'gp': 1.05, 'gc': 1.40, 'over25': 0.46, 'btts': 0.48})
+
+        lambda_h = max(0.40, (m_casa['gp'] + m_fora['gc']) / 2.0)
+        lambda_a = max(0.35, (m_fora['gp'] + m_casa['gc']) / 2.0)
+
+        calc = _calc_poisson_bivariate(lambda_h, lambda_a)
+
+        ev_mandante = round(((calc['prob_mandante'] / 100.0) * (r['odd_mandante'] or 0) - 1.0) * 100, 1) if r['odd_mandante'] else None
+        ev_empate = round(((calc['prob_empate'] / 100.0) * (r['odd_empate'] or 0) - 1.0) * 100, 1) if r['odd_empate'] else None
+        ev_visitante = round(((calc['prob_visitante'] / 100.0) * (r['odd_visitante'] or 0) - 1.0) * 100, 1) if r['odd_visitante'] else None
+        ev_over_2_5 = round(((calc['prob_over_2_5'] / 100.0) * (r['odd_over_2_5'] or 0) - 1.0) * 100, 1) if r['odd_over_2_5'] else None
+        ev_under_2_5 = round(((calc['prob_under_2_5'] / 100.0) * (r['odd_under_2_5'] or 0) - 1.0) * 100, 1) if r['odd_under_2_5'] else None
+        ev_btts_sim = round(((calc['prob_btts_sim'] / 100.0) * (r['odd_btts_sim'] or 0) - 1.0) * 100, 1) if r['odd_btts_sim'] else None
+
+        candidatos_ev = [
+            {'mercado': f"Vitória {r['mandante']}", 'tipo': '1X2 Mandante', 'odd': r['odd_mandante'], 'fair_odd': calc['fair_odd_mandante'], 'ev': ev_mandante, 'prob': calc['prob_mandante']},
+            {'mercado': "Empate", 'tipo': '1X2 Empate', 'odd': r['odd_empate'], 'fair_odd': calc['fair_odd_empate'], 'ev': ev_empate, 'prob': calc['prob_empate']},
+            {'mercado': f"Vitória {r['visitante']}", 'tipo': '1X2 Visitante', 'odd': r['odd_visitante'], 'fair_odd': calc['fair_odd_visitante'], 'ev': ev_visitante, 'prob': calc['prob_visitante']},
+            {'mercado': "Over 2.5 Gols", 'tipo': 'Gols Over 2.5', 'odd': r['odd_over_2_5'], 'fair_odd': calc['fair_odd_over_2_5'], 'ev': ev_over_2_5, 'prob': calc['prob_over_2_5']},
+            {'mercado': "Ambas Marcam (Sim)", 'tipo': 'BTTS Sim', 'odd': r['odd_btts_sim'], 'fair_odd': calc['fair_odd_btts_sim'], 'ev': ev_btts_sim, 'prob': calc['prob_btts_sim']},
+        ]
+        candidatos_validos = [c for c in candidatos_ev if c['ev'] is not None and c['odd'] and c['odd'] > 1.05]
+        melhor_aposta = max(candidatos_validos, key=lambda x: x['ev']) if candidatos_validos else None
+
+        tendencias_jogo = []
+        if m_casa['gp'] >= 1.70:
+            tendencias_jogo.append(f"{r['mandante']} com ataque forte: média de {m_casa['gp']:.1f} gols em casa")
+        if calc['prob_over_2_5'] >= 54.0:
+            tendencias_jogo.append(f"Alta probabilidade de Over 2.5 ({calc['prob_over_2_5']}%)")
+        if calc['prob_btts_sim'] >= 53.0:
+            tendencias_jogo.append(f"Tendência de Ambas Marcam Sim ({calc['prob_btts_sim']}%)")
+        if melhor_aposta and melhor_aposta['ev'] >= 4.0:
+            tendencias_jogo.append(f"Valor Detectado (+EV +{melhor_aposta['ev']}%): {melhor_aposta['mercado']} a {melhor_aposta['odd']}")
+        if r.get('status_zebra') and 'Zebra' in str(r.get('status_zebra')):
+            tendencias_jogo.append(f"Alerta de Zebra Potencial ({r['status_zebra']})")
+
+        partida_obj = {
+            **r,
+            'xg_mandante_estimado': round(lambda_h, 2),
+            'xg_visitante_estimado': round(lambda_a, 2),
+            'probabilidades': calc,
+            'ev': {
+                'mandante': ev_mandante,
+                'empate': ev_empate,
+                'visitante': ev_visitante,
+                'over_2_5': ev_over_2_5,
+                'under_2_5': ev_under_2_5,
+                'btts_sim': ev_btts_sim
+            },
+            'has_ev': bool(melhor_aposta and melhor_aposta['ev'] > 0),
+            'melhor_aposta': melhor_aposta if melhor_aposta and melhor_aposta['ev'] > 0 else None,
+            'tendencias': tendencias_jogo
+        }
+
+        # Filtro de mercado opcional
+        if filtro_mercado == 'over_2_5' and calc['prob_over_2_5'] < 50.0 and (not ev_over_2_5 or ev_over_2_5 <= 0):
+            continue
+        if filtro_mercado == 'btts' and calc['prob_btts_sim'] < 50.0 and (not ev_btts_sim or ev_btts_sim <= 0):
+            continue
+        if filtro_mercado == 'ev_plus' and not partida_obj['has_ev']:
+            continue
+        if filtro_mercado == 'zebras' and 'Zebra' not in str(r.get('status_zebra', '')):
+            continue
+
+        partidas_processadas.append(partida_obj)
+
+        if melhor_aposta and melhor_aposta['ev'] >= 5.0:
+            destaques_ev.append({
+                'id_partida': r['id_partida'],
+                'confronto': f"{r['mandante']} x {r['visitante']}",
+                'campeonato': r['campeonato'],
+                'data': r['data'],
+                'mercado': melhor_aposta['mercado'],
+                'odd_mercado': melhor_aposta['odd'],
+                'odd_justa': melhor_aposta['fair_odd'],
+                'probabilidade': melhor_aposta['prob'],
+                'ev': melhor_aposta['ev'],
+                'tipo': melhor_aposta['tipo']
+            })
+
+    destaques_ev.sort(key=lambda x: x['ev'], reverse=True)
+
+    # Tendências Quentes Globais Curadas
+    for p in partidas_processadas[:12]:
+        for t in p['tendencias'][:2]:
+            if t not in tendencias_quentes:
+                tendencias_quentes.append(t)
+
+    resumo = {
+        'total_jogos': len(partidas_processadas),
+        'total_com_ev': sum(1 for p in partidas_processadas if p['has_ev']),
+        'total_over_2_5_favoravel': sum(1 for p in partidas_processadas if p['probabilidades']['prob_over_2_5'] >= 52.0),
+        'total_btts_favoravel': sum(1 for p in partidas_processadas if p['probabilidades']['prob_btts_sim'] >= 52.0),
+        'filtro_mercado': filtro_mercado,
+        'destaques_ev': destaques_ev[:6],
+        'tendencias_quentes': tendencias_quentes[:8],
+        'partidas': partidas_processadas
+    }
+
+    api_cache.set(cache_key, resumo, ttl=900)
+    return jsonify(resumo)
+
+
+@app.route('/api/apostas/analise', methods=['GET'])
+@app.route('/api/apostas/analise_jogo', methods=['GET'])
+def get_apostas_analise_jogo():
+    """
+    Raio-X aprofundado do confronto para apostas:
+    Médias de gols (1º vs 2º tempo), minutagem típica, cartões e perfil do árbitro,
+    retrospecto recente de 5 e 10 jogos e matriz matemática de probabilidades.
+    """
+    id_partida = request.args.get('id_partida', type=int)
+    mandante = request.args.get('mandante', '').strip()
+    visitante = request.args.get('visitante', '').strip()
+
+    conn = get_db()
+    c = conn.cursor()
+
+    partida = None
+    if id_partida:
+        c.execute("""
+            SELECT p.*, o.odd_mandante, o.odd_empate, o.odd_visitante,
+                   o.odd_over_2_5, o.odd_under_2_5, o.odd_over_1_5, o.odd_under_1_5,
+                   o.odd_btts_sim, o.odd_btts_nao, o.status_zebra,
+                   o.media_cartoes_esperada, o.media_escanteios_esperada
+            FROM partidas p
+            LEFT JOIN odds_partidas o ON p.id_partida = o.id_partida
+            WHERE p.id_partida = ?
+        """, (id_partida,))
+        row = c.fetchone()
+        if row:
+            partida = dict(row)
+
+    if not partida and mandante and visitante:
+        c.execute("""
+            SELECT p.*, o.odd_mandante, o.odd_empate, o.odd_visitante,
+                   o.odd_over_2_5, o.odd_under_2_5, o.odd_over_1_5, o.odd_under_1_5,
+                   o.odd_btts_sim, o.odd_btts_nao, o.status_zebra,
+                   o.media_cartoes_esperada, o.media_escanteios_esperada
+            FROM partidas p
+            LEFT JOIN odds_partidas o ON p.id_partida = o.id_partida
+            WHERE (p.mandante = ? AND p.visitante = ?) OR (p.mandante = ? AND p.visitante = ?)
+            ORDER BY p.data DESC, p.id_partida DESC
+            LIMIT 1
+        """, (mandante, visitante, visitante, mandante))
+        row = c.fetchone()
+        if row:
+            partida = dict(row)
+
+    if not partida:
+        # Fallback para a partida com odds mais recente disponível
+        c.execute("""
+            SELECT p.*, o.odd_mandante, o.odd_empate, o.odd_visitante,
+                   o.odd_over_2_5, o.odd_under_2_5, o.odd_over_1_5, o.odd_under_1_5,
+                   o.odd_btts_sim, o.odd_btts_nao, o.status_zebra,
+                   o.media_cartoes_esperada, o.media_escanteios_esperada
+            FROM partidas p
+            JOIN odds_partidas o ON p.id_partida = o.id_partida
+            ORDER BY p.ano DESC, p.data DESC, p.id_partida DESC
+            LIMIT 1
+        """)
+        row = c.fetchone()
+        if row:
+            partida = dict(row)
+
+    if not partida:
+        conn.close()
+        return jsonify({"error": "Partida não encontrada para análise."}), 404
+
+    time_m = partida['mandante']
+    time_v = partida['visitante']
+
+    def extrair_forma_time(nome_time):
+        c.execute("""
+            SELECT id_partida, ano, data, campeonato, mandante, visitante, placar, vencedor,
+                   gols_mandante, gols_visitante,
+                   CASE WHEN mandante = ? THEN 'C' ELSE 'F' END as mando,
+                   CASE WHEN vencedor = ? THEN 'V' WHEN vencedor = 'Empate' THEN 'E' ELSE 'D' END as resultado
+            FROM partidas
+            WHERE (mandante = ? OR visitante = ?) AND gols_mandante IS NOT NULL
+            ORDER BY data DESC, id_partida DESC
+            LIMIT 10
+        """, (nome_time, nome_time, nome_time, nome_time))
+        jogos = [dict(r) for r in c.fetchall()]
+        
+        vitorias = sum(1 for j in jogos if j['resultado'] == 'V')
+        empates = sum(1 for j in jogos if j['resultado'] == 'E')
+        derrotas = sum(1 for j in jogos if j['resultado'] == 'D')
+        
+        gols_pro = sum(j['gols_mandante'] if j['mando'] == 'C' else j['gols_visitante'] for j in jogos)
+        gols_contra = sum(j['gols_visitante'] if j['mando'] == 'C' else j['gols_mandante'] for j in jogos)
+        clean_sheets = sum(1 for j in jogos if (j['mando'] == 'C' and j['gols_visitante'] == 0) or (j['mando'] == 'F' and j['gols_mandante'] == 0))
+        over_2_5 = sum(1 for j in jogos if (j['gols_mandante'] + j['gols_visitante']) > 2)
+        btts = sum(1 for j in jogos if j['gols_mandante'] > 0 and j['gols_visitante'] > 0)
+        
+        total = max(len(jogos), 1)
+        return {
+            'jogos_recentes': jogos,
+            'total_jogos': len(jogos),
+            'forma_string': [j['resultado'] for j in jogos[:5]],
+            'vitorias': vitorias,
+            'empates': empates,
+            'derrotas': derrotas,
+            'gols_pro': gols_pro,
+            'gols_contra': gols_contra,
+            'media_gp': round(gols_pro / total, 2),
+            'media_gc': round(gols_contra / total, 2),
+            'clean_sheets_pct': round((clean_sheets / total) * 100, 1),
+            'over_2_5_pct': round((over_2_5 / total) * 100, 1),
+            'btts_pct': round((btts / total) * 100, 1)
+        }
+
+    forma_mandante = extrair_forma_time(time_m)
+    forma_visitante = extrair_forma_time(time_v)
+
+    # Retrospecto H2H direto
+    c.execute("""
+        SELECT id_partida, ano, data, campeonato, mandante, visitante, placar, vencedor, gols_mandante, gols_visitante
+        FROM partidas
+        WHERE ((mandante = ? AND visitante = ?) OR (mandante = ? AND visitante = ?))
+          AND gols_mandante IS NOT NULL
+        ORDER BY data DESC, id_partida DESC
+        LIMIT 10
+    """, (time_m, time_v, time_v, time_m))
+    h2h_jogos = [dict(r) for r in c.fetchall()]
+    total_h2h = max(len(h2h_jogos), 1)
+    vitorias_m = sum(1 for j in h2h_jogos if j['vencedor'] == time_m)
+    vitorias_v = sum(1 for j in h2h_jogos if j['vencedor'] == time_v)
+    empates_h2h = sum(1 for j in h2h_jogos if j['vencedor'] == 'Empate')
+    gols_totais_h2h = sum(j['gols_mandante'] + j['gols_visitante'] for j in h2h_jogos)
+    over_25_h2h = sum(1 for j in h2h_jogos if (j['gols_mandante'] + j['gols_visitante']) > 2)
+    btts_h2h = sum(1 for j in h2h_jogos if j['gols_mandante'] > 0 and j['gols_visitante'] > 0)
+
+    # Análise de Minutagem e 1T vs 2T dos Clubes
+    def analisar_gols_tempo(nome_clube):
+        c.execute("""
+            SELECT 
+                CASE 
+                    WHEN tempo LIKE '%1T%' THEN '1T'
+                    WHEN tempo LIKE '%2T%' THEN '2T'
+                    ELSE 'Indefinido'
+                END as tempo_simplificado,
+                COUNT(*) as total
+            FROM gols
+            WHERE clube = ?
+            GROUP BY tempo_simplificado
+        """, (nome_clube,))
+        tempos = {r[0]: r[1] for r in c.fetchall()}
+        total_tempos = sum(tempos.values()) or 1
+        pct_1t = round((tempos.get('1T', 0) / total_tempos) * 100, 1)
+        pct_2t = round((tempos.get('2T', 0) / total_tempos) * 100, 1)
+
+        c.execute("""
+            SELECT 
+                CASE 
+                    WHEN CAST(minuto AS INTEGER) <= 15 THEN '0-15'
+                    WHEN CAST(minuto AS INTEGER) <= 30 THEN '16-30'
+                    WHEN CAST(minuto AS INTEGER) <= 45 THEN '31-45'
+                    WHEN CAST(minuto AS INTEGER) <= 60 THEN '46-60'
+                    WHEN CAST(minuto AS INTEGER) <= 75 THEN '61-75'
+                    ELSE '76-90+'
+                END as faixa,
+                COUNT(*) as total
+            FROM gols
+            WHERE clube = ? AND minuto != '' AND minuto != 'n/d'
+            GROUP BY faixa
+            ORDER BY faixa
+        """, (nome_clube,))
+        faixas = [{'faixa': r[0], 'gols': r[1]} for r in c.fetchall()]
+        return {
+            'pct_primeiro_tempo': pct_1t,
+            'pct_segundo_tempo': pct_2t,
+            'faixas_minutagem': faixas
+        }
+
+    tempo_mandante = analisar_gols_tempo(time_m)
+    tempo_visitante = analisar_gols_tempo(time_v)
+
+    # Análise do Árbitro
+    nome_arbitro = partida.get('arbitro') or 'Não informado'
+    arbitro_stats = {
+        'nome': nome_arbitro,
+        'jogos': 0,
+        'media_cartoes': 4.8,
+        'media_amarelos': 4.5,
+        'media_vermelhos': 0.3,
+        'perfil': 'Disciplinador Padrão',
+        'prob_over_4_5_cartoes': 58.2
+    }
+    if nome_arbitro and nome_arbitro != 'Não informado':
+        c.execute("""
+            SELECT 
+                COUNT(DISTINCT p.id_partida) as jogos,
+                COUNT(c.id_cartao) as total_cartoes,
+                SUM(CASE WHEN c.cartao LIKE '%Amarelo%' THEN 1 ELSE 0 END) as amarelos,
+                SUM(CASE WHEN c.cartao LIKE '%Vermelho%' THEN 1 ELSE 0 END) as vermelhos
+            FROM partidas p
+            JOIN cartoes c ON p.id_partida = c.id_partida
+            WHERE p.arbitro LIKE ?
+        """, (f"%{nome_arbitro}%",))
+        ref_row = c.fetchone()
+        if ref_row and ref_row['jogos'] and ref_row['jogos'] > 0:
+            j_arb = ref_row['jogos']
+            m_cart = round(ref_row['total_cartoes'] / j_arb, 2)
+            m_am = round((ref_row['amarelos'] or 0) / j_arb, 2)
+            m_vm = round((ref_row['vermelhos'] or 0) / j_arb, 2)
+            
+            perfil = 'Moderado'
+            if m_cart >= 5.5:
+                perfil = 'Altamente Rigoroso'
+            elif m_cart >= 4.8:
+                perfil = 'Rigoroso'
+            elif m_cart < 3.8:
+                perfil = 'Permissivo'
+
+            # Poisson para Over 4.5 cartões
+            l_cart = max(1.0, m_cart)
+            p_under_45 = sum((math.exp(-l_cart) * (l_cart**k)) / math.factorial(k) for k in range(5))
+            p_over_45 = round((1.0 - p_under_45) * 100, 1)
+
+            arbitro_stats = {
+                'nome': nome_arbitro,
+                'jogos': j_arb,
+                'media_cartoes': m_cart,
+                'media_amarelos': m_am,
+                'media_vermelhos': m_vm,
+                'perfil': perfil,
+                'prob_over_4_5_cartoes': p_over_45
+            }
+
+    conn.close()
+
+    # Cálculo Matemático Poisson com médias refinadas
+    lh = max(0.40, forma_mandante['media_gp'])
+    la = max(0.35, forma_visitante['media_gp'])
+    calc = _calc_poisson_bivariate(lh, la)
+
+    # Montagem de Insights Analíticos do Apostador
+    insights = []
+    if forma_mandante['clean_sheets_pct'] >= 40.0:
+        insights.append(f"Muralha Defensiva: {time_m} não sofreu gols em {forma_mandante['clean_sheets_pct']}% dos últimos jogos.")
+    if tempo_mandante['pct_segundo_tempo'] >= 60.0 or tempo_visitante['pct_segundo_tempo'] >= 60.0:
+        insights.append("Tendência no 2º Tempo: Mais de 60% dos gols deste confronto costumam sair na etapa final.")
+    if arbitro_stats['media_cartoes'] >= 5.0:
+        insights.append(f"Árbitro Disciplinador: {arbitro_stats['nome']} tem média de {arbitro_stats['media_cartoes']} cartões/jogo (probabilidade de Over 4.5 é de {arbitro_stats['prob_over_4_5_cartoes']}%).")
+    if calc['prob_over_2_5'] >= 55.0:
+        insights.append(f"Ataques Produtivos: Modelo matemático estima {calc['prob_over_2_5']}% de probabilidade de Over 2.5 gols.")
+    elif calc['prob_under_2_5'] >= 55.0:
+        insights.append(f"Jogo Truncado: Probabilidade de Under 2.5 gols é de {calc['prob_under_2_5']}%.")
+
+    return jsonify({
+        'partida': partida,
+        'probabilidades': calc,
+        'forma_recente': {
+            'mandante': forma_mandante,
+            'visitante': forma_visitante
+        },
+        'retrospecto_h2h': {
+            'jogos': h2h_jogos,
+            'total_jogos': len(h2h_jogos),
+            'vitorias_mandante': vitorias_m,
+            'vitorias_visitante': vitorias_v,
+            'empates': empates_h2h,
+            'media_gols': round(gols_totais_h2h / total_h2h, 2),
+            'over_2_5_pct': round((over_25_h2h / total_h2h) * 100, 1),
+            'btts_pct': round((btts_h2h / total_h2h) * 100, 1)
+        },
+        'analise_gols_tempo': {
+            'mandante': tempo_mandante,
+            'visitante': tempo_visitante
+        },
+        'arbitro': arbitro_stats,
+        'insights_apostador': insights
+    })
+
+
+@app.route('/api/apostas/jogadores', methods=['GET'])
+def get_apostas_jogadores():
+    """
+    Retorna estatísticas de finalizações, probabilidade de marcar gol a qualquer momento (Anytime Goalscorer),
+    probabilidade de cartões por jogo e odds implícitas justas.
+    """
+    clube = request.args.get('clube', '').strip()
+    posicao = request.args.get('posicao', '').strip()
+    busca = request.args.get('busca', '').strip()
+    ordenar = request.args.get('ordenar', 'prob_gol').strip()
+    limit = min(request.args.get('limit', 30, type=int), 100)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    where_clauses = ["total_jogos >= 5", "ano_fim >= 2023"]
+    params = []
+
+    if clube:
+        where_clauses.append("clubes LIKE ?")
+        params.append(f"%{clube}%")
+
+    if posicao:
+        where_clauses.append("posicao LIKE ?")
+        params.append(f"%{posicao}%")
+
+    if busca:
+        where_clauses.append("(nome_exibicao LIKE ? OR nome_completo LIKE ? OR apelido LIKE ?)")
+        params.extend([f"%{busca}%", f"%{busca}%", f"%{busca}%"])
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
+        SELECT 
+            id_jogador, ogol_id, cbf_id, nome_exibicao, apelido, posicao, clubes,
+            ano_inicio, ano_fim, total_jogos, jogos_titular, total_gols,
+            gols_primeiro_tempo, gols_segundo_tempo, gols_mandante, gols_visitante,
+            media_gols_por_jogo, chutes_ao_gol, finalizacoes_totais, pontaria_chutes_pct,
+            cartoes_amarelos, cartoes_vermelhos
+        FROM jogadores_estatisticas
+        WHERE {where_sql}
+        ORDER BY total_gols DESC
+        LIMIT 150;
+    """
+    rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    conn.close()
+
+    jogadores = []
+    for r in rows:
+        jogos = max(r['total_jogos'] or 1, 1)
+        gols = r['total_gols'] or 0
+
+        # Calibração Bayesiana de taxa de gols por partida (prior 0.22, peso 10)
+        taxa_gols_calibrada = min(0.72, max(0.06, (gols + 2.2) / (jogos + 10)))
+        p_gol = round((1.0 - math.exp(-taxa_gols_calibrada)) * 100, 1)
+        fair_odd_gol = round(100.0 / p_gol, 2) if p_gol > 0 else 99.0
+        odd_casa_estimada = round(fair_odd_gol * 0.90, 2)
+
+        # Chutes e Finalizações
+        chutes_totais = r['finalizacoes_totais'] or (gols * 4)
+        chutes_gol = r['chutes_ao_gol'] or (gols * 2)
+        media_chutes = round(chutes_totais / jogos, 2)
+        media_chutes_gol = round(chutes_gol / jogos, 2)
+
+        # Cartões e Disciplina
+        amarelos = r['cartoes_amarelos'] or 0
+        vermelhos = r['cartoes_vermelhos'] or 0
+        media_cartoes = round((amarelos + vermelhos * 2) / jogos, 2)
+        taxa_cartao = min(0.60, max(0.04, media_cartoes))
+        p_cartao = round((1.0 - math.exp(-taxa_cartao)) * 100, 1)
+        fair_odd_cartao = round(100.0 / p_cartao, 2) if p_cartao > 0 else 99.0
+
+        # Perfil do atleta no mercado de apostas
+        if p_gol >= 45.0:
+            perfil_aposta = 'Artilheiro Decisivo'
+        elif media_chutes >= 2.5:
+            perfil_aposta = 'Finalizador Frequente'
+        elif p_cartao >= 30.0:
+            perfil_aposta = 'Alvo Disciplinar'
+        else:
+            perfil_aposta = 'Regular'
+
+        jogadores.append({
+            'id_jogador': r['id_jogador'],
+            'nome': r['nome_exibicao'] or r['apelido'],
+            'posicao': r['posicao'] or 'Jogador',
+            'clube_atual': (r['clubes'] or '').split(',')[-1].strip(),
+            'total_jogos': jogos,
+            'total_gols': gols,
+            'media_gols_por_jogo': round(gols / jogos, 2),
+            'prob_marcar_gol': p_gol,
+            'odd_justa_gol': fair_odd_gol,
+            'odd_casa_estimada': odd_casa_estimada,
+            'chutes_totais': chutes_totais,
+            'chutes_ao_gol': chutes_gol,
+            'media_chutes': media_chutes,
+            'media_chutes_gol': media_chutes_gol,
+            'pontaria_pct': r['pontaria_chutes_pct'] or round((chutes_gol / max(chutes_totais, 1)) * 100, 1),
+            'cartoes_amarelos': amarelos,
+            'cartoes_vermelhos': vermelhos,
+            'media_cartoes': media_cartoes,
+            'prob_levar_cartao': p_cartao,
+            'odd_justa_cartao': fair_odd_cartao,
+            'perfil_aposta': perfil_aposta
+        })
+
+    if ordenar == 'chutes':
+        jogadores.sort(key=lambda x: x['media_chutes'], reverse=True)
+    elif ordenar == 'cartoes':
+        jogadores.sort(key=lambda x: x['prob_levar_cartao'], reverse=True)
+    elif ordenar == 'gols':
+        jogadores.sort(key=lambda x: x['total_gols'], reverse=True)
+    else:
+        jogadores.sort(key=lambda x: x['prob_marcar_gol'], reverse=True)
+
+    top_artilheiros = sorted(jogadores, key=lambda x: x['prob_marcar_gol'], reverse=True)[:5]
+    top_finalizadores = sorted(jogadores, key=lambda x: x['media_chutes'], reverse=True)[:5]
+    top_cartoes = sorted(jogadores, key=lambda x: x['prob_levar_cartao'], reverse=True)[:5]
+
+    return jsonify({
+        'total': len(jogadores),
+        'top_anytime_scorers': top_artilheiros,
+        'top_finalizadores': top_finalizadores,
+        'top_cartoes': top_cartoes,
+        'jogadores': jogadores[:limit]
+    })
+
 
 @app.route('/api/ia/diagnostico', methods=['GET'])
 @require_admin

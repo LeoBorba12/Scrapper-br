@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
 import { 
   Search, Award, Trophy, User, Calendar, Shield, MapPin, 
   ArrowLeft, Clock, Target, Flame, Activity, ChevronRight,
-  ChevronLeft, ExternalLink, BarChart2
+  ChevronLeft, ExternalLink, BarChart2, Zap
 } from 'lucide-react';
+import { RadarPentagonPES, AthleteCareerBarChart } from './charts';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -464,7 +464,25 @@ export default function ProtagonistaAtleta({
 
               <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
 
-              {/* Indicadores Confirmados (Substituição Ética ao Radar Fictício) */}
+              {/* Radar Pentagonal de Atributos estilo PES / Winning Eleven */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
+                    ⭐ Perfil Pentagonal de Atributos
+                  </span>
+                  <span className="pill-neutral" style={{ fontSize: '0.66rem' }}>Estilo PES / WE</span>
+                </div>
+                <RadarPentagonPES
+                  atleta={atleta}
+                  resumo={resumo}
+                  carreira={carreira}
+                  size={290}
+                />
+              </div>
+
+              <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
+
+              {/* Indicadores Confirmados */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{ backgroundColor: 'var(--surface-raised)', padding: '10px', borderRadius: 'var(--radius-control)' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Pontaria de Chutes</div>
@@ -741,33 +759,55 @@ export default function ProtagonistaAtleta({
 
               {/* Sub-aba Temporadas */}
               {subTab === 'temporadas' && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="editorial-table">
-                    <thead>
-                      <tr>
-                        <th>Ano</th>
-                        <th>Clubes</th>
-                        <th style={{ textAlign: 'center' }}>Jogos</th>
-                        <th style={{ textAlign: 'center' }}>Gols</th>
-                        <th style={{ textAlign: 'center' }}>Média Gols</th>
-                        <th style={{ textAlign: 'center' }}>Amarelos</th>
-                        <th style={{ textAlign: 'center' }}>Vermelhos</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(atleta.historico_temporadas || []).map((tp, k) => (
-                        <tr key={tp.ano || k}>
-                          <td style={{ fontWeight: 700 }}>{tp.ano}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
-                          <td style={{ textAlign: 'center' }}>{tp.jogos}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols}</td>
-                          <td style={{ textAlign: 'center' }}>{tp.media_gols}</td>
-                          <td style={{ textAlign: 'center' }}>{tp.amarelos}</td>
-                          <td style={{ textAlign: 'center' }}>{tp.vermelhos}</td>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Gráfico de Barras da Carreira de Atletas */}
+                  <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-control)', padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
+                          📊 Visualização Gráfica de Carreira
+                        </span>
+                        <h4 className="font-editorial" style={{ margin: '2px 0 0 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Produção de Gols por Ano de Atividade
+                        </h4>
+                      </div>
+                      <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>
+                        {(atleta.historico_temporadas || []).length} Temporadas
+                      </span>
+                    </div>
+
+                    <AthleteCareerBarChart temporadas={atleta.historico_temporadas || []} altura={220} />
+                  </div>
+
+                  {/* Tabela de Detalhamento por Temporada */}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="editorial-table">
+                      <thead>
+                        <tr>
+                          <th>Ano</th>
+                          <th>Clubes</th>
+                          <th style={{ textAlign: 'center' }}>Jogos</th>
+                          <th style={{ textAlign: 'center' }}>Gols</th>
+                          <th style={{ textAlign: 'center' }}>Média Gols</th>
+                          <th style={{ textAlign: 'center' }}>Amarelos</th>
+                          <th style={{ textAlign: 'center' }}>Vermelhos</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {(atleta.historico_temporadas || []).map((tp, k) => (
+                          <tr key={tp.ano || k}>
+                            <td style={{ fontWeight: 700 }}>{tp.ano}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
+                            <td style={{ textAlign: 'center' }}>{tp.jogos}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols}</td>
+                            <td style={{ textAlign: 'center' }}>{tp.media_gols}</td>
+                            <td style={{ textAlign: 'center' }}>{tp.amarelos}</td>
+                            <td style={{ textAlign: 'center' }}>{tp.vermelhos}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
