@@ -49,6 +49,7 @@ def carregar_diretrizes_governanca():
         except Exception:
             pass
     return "Você é o Guardião de Engenharia e Data Quality da infraestrutura FutStats."
+MAX_DB_SIZE_MB = 94.0
 MIN_AVAILABLE_RAM_MB = 150.0
 MIN_FREE_DISK_GB = 1.0
 INTERVALO_SEGUNDOS = 1200  # 20 minutos entre verificações
