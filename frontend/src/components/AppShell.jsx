@@ -116,10 +116,11 @@ export default function AppShell({
           </div>
 
           {/* Controles de Conta e Tema (Alvos de Toque Confortáveis - UX-001) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="app-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* Seletor de Tema Areia / Carvão */}
             <button
               onClick={onToggleTheme}
+              className="app-header-btn"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -137,14 +138,15 @@ export default function AppShell({
               aria-label={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Carvão'}
               title={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Carvão'}
             >
-              {darkMode ? <Sun size={14} color="var(--accent)" /> : <Moon size={14} color="var(--accent)" />}
-              <span>{darkMode ? 'Carvão' : 'Areia'}</span>
+              {darkMode ? <Sun size={15} color="var(--accent)" /> : <Moon size={15} color="var(--accent)" />}
+              <span className="app-header-btn-text">{darkMode ? 'Carvão' : 'Areia'}</span>
             </button>
 
             {/* Botão de Convite (Apenas Admin) */}
             {currentUser?.role === 'admin' && (
               <button
                 onClick={onCopiarConvite}
+                className="app-header-btn"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -162,13 +164,14 @@ export default function AppShell({
                 aria-label="Copiar link ou código de convite para equipe"
                 title="Copiar código ou link de convite"
               >
-                {conviteCopiado ? <Check size={14} color="var(--positive)" /> : <UserPlus size={14} />}
-                <span>{conviteCopiado ? 'Copiado!' : 'Convidar'}</span>
+                {conviteCopiado ? <Check size={15} color="var(--positive)" /> : <UserPlus size={15} />}
+                <span className="app-header-btn-text">{conviteCopiado ? 'Copiado!' : 'Convidar'}</span>
               </button>
             )}
 
             {/* Menu de Usuário */}
             <div
+              className="app-header-user-badge"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -179,6 +182,7 @@ export default function AppShell({
                 backgroundColor: 'var(--surface-raised)',
                 border: '1px solid var(--border-subtle)'
               }}
+              title={`Usuário: ${currentUser?.username || 'LB'} (${currentUser?.role || 'moderador'})`}
             >
               <div
                 style={{
@@ -191,17 +195,19 @@ export default function AppShell({
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '0.75rem',
-                  fontWeight: 700
+                  fontWeight: 700,
+                  flexShrink: 0
                 }}
               >
                 {(currentUser?.username || 'LB').slice(0, 2).toUpperCase()}
               </div>
 
-              <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              <span className="app-header-user-text" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {currentUser?.username || 'LB'}
               </span>
 
               <span 
+                className="app-header-user-text"
                 style={{ 
                   fontSize: '0.66rem', 
                   fontWeight: 600, 
@@ -219,6 +225,7 @@ export default function AppShell({
             {/* Botão Trocar Senha */}
             <button
               onClick={onOpenTrocarSenha}
+              className="app-header-btn"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -236,13 +243,14 @@ export default function AppShell({
               aria-label="Abrir modal para trocar senha"
               title="Trocar minha senha"
             >
-              <Key size={14} />
-              <span>Senha</span>
+              <Key size={15} />
+              <span className="app-header-btn-text">Senha</span>
             </button>
 
             {/* Botão Sair */}
             <button
               onClick={onLogout}
+              className="app-header-btn"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -260,7 +268,7 @@ export default function AppShell({
               aria-label="Encerrar sessão"
               title="Encerrar sessão"
             >
-              <LogOut size={14} />
+              <LogOut size={15} />
             </button>
           </div>
         </div>

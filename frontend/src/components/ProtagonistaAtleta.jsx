@@ -409,7 +409,16 @@ export default function ProtagonistaAtleta({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Botão de Retorno */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          width: '100%'
+        }}
+      >
         <button
           type="button"
           aria-label="Voltar para a lista e rankings de atletas"
@@ -449,10 +458,11 @@ export default function ProtagonistaAtleta({
         <>
           {/* ================= COMPOSIÇÃO PROTAGONISTA: 3 COLUNAS DESKTOP ================= */}
           <div 
+            className="protagonista-grid"
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', 
-              gap: '18px' 
+              gap: '18px',
+              width: '100%'
             }}
           >
             {/* ================= COLUNA 1: IDENTIDADE & IMAGEM (34%) ================= */}

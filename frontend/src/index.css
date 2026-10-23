@@ -66,6 +66,13 @@
   padding: 0;
 }
 
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+  width: 100%;
+}
+
 body {
   font-family: var(--font-ui);
   background-color: var(--surface-page);
@@ -74,6 +81,10 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+img, svg, canvas {
+  max-width: 100%;
 }
 
 .font-mono {
@@ -357,10 +368,19 @@ h3, .heading-md {
   line-height: 1.35;
 }
 
-/* Breakpoint 1024px: Cockpit Bento Grid colapsa para coluna única */
+/* Protagonista Grid Responsivo */
+.protagonista-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  width: 100%;
+}
+
+/* Breakpoint 1024px: Cockpit Bento Grid e Protagonista colapsam para coluna única */
 @media (max-width: 1024px) {
   .bento-container,
-  .cockpit-main-grid {
+  .cockpit-main-grid,
+  .protagonista-grid {
     grid-template-columns: 1fr !important;
   }
 }
@@ -373,7 +393,8 @@ h3, .heading-md {
   }
 
   .app-header-container {
-    padding: 10px 14px !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
   }
 
   .app-header-subtitle,
@@ -381,8 +402,31 @@ h3, .heading-md {
     display: none !important;
   }
 
+  /* Compactação de Controles do Header em Mobile */
+  .app-header-actions {
+    gap: 6px !important;
+  }
+
+  .app-header-btn-text,
+  .app-header-user-text {
+    display: none !important;
+  }
+
+  .app-header-btn {
+    padding: 6px 10px !important;
+    min-height: 36px !important;
+    min-width: 36px !important;
+    justify-content: center !important;
+  }
+
+  .app-header-user-badge {
+    padding: 4px !important;
+    min-height: 36px !important;
+    gap: 0 !important;
+  }
+
   .app-nav-container {
-    padding: 0 12px !important;
+    padding: 0 10px !important;
     gap: 2px !important;
   }
 
@@ -433,6 +477,20 @@ h3, .heading-md {
 @media (max-width: 480px) {
   .app-main-content {
     padding: 12px 8px 40px 8px !important;
+  }
+
+  .app-header-container {
+    padding: 6px 8px !important;
+  }
+
+  .app-header-actions {
+    gap: 4px !important;
+  }
+
+  .app-header-btn {
+    padding: 5px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
   }
 
   .soft-card,

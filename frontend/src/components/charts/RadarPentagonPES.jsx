@@ -182,10 +182,10 @@ export default function RadarPentagonPES({
       </div>
 
       <svg
-        width={size}
-        height={size}
+        width="100%"
+        height="auto"
         viewBox={`0 0 ${size} ${size}`}
-        style={{ overflow: 'visible' }}
+        style={{ maxWidth: `${size}px`, display: 'block', margin: '0 auto', overflow: 'visible' }}
       >
         <defs>
           {/* Gradiente PES translúcido harmônico */}
