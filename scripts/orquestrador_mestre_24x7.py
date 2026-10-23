@@ -138,7 +138,11 @@ def ciclo_mestre(numero_ciclo: int):
     # FASE A: MOTOR DE APOSTAS E MERCADOS (OVER/UNDER, BTTS, CARTÕES)
     # -------------------------------------------------------------
     safe_print("\n>>> [FASE A] Atualizando Inteligência de Apostas & Mercados <<<")
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "minerar_estatisticas_e_odds_vivas.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "minerar_odds_e_mercados.py")])
+    if numero_ciclo % 5 == 0:
+        safe_print("\n>>> [FASE A2] Enriquecendo Métricas Avançadas de Jogo (Chutes, Faltas, Escanteios) <<<")
+        executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "enriquecer_metricas_avancadas.py")])
 
     # -------------------------------------------------------------
     # FASE B: VARREDURA HISTÓRICA DE SÚMULAS (1 BLOCO POR CICLO)
