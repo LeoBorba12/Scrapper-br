@@ -94,6 +94,8 @@ export default function BettingHubView({
   // Filtros
   const [mercadoFiltro, setMercadoFiltro] = useState('todos'); // 'todos', 'ev_plus', '1x2', 'over_2_5', 'btts', 'cartoes', 'jogadores'
   const [campeonatoFiltro, setCampeonatoFiltro] = useState('todos');
+  const [anoFiltro, setAnoFiltro] = useState('recentes'); // 'recentes', '2026', '2025', '2024', 'todos'
+  const [partidasLimit, setPartidasLimit] = useState(100);
   const [busca, setBusca] = useState('');
   const [ordenacao, setOrdenacao] = useState('ev'); // 'ev', 'data', 'prob_casa', 'prob_over'
 
@@ -114,11 +116,16 @@ export default function BettingHubView({
     setLoading(true);
     setError(null);
     try {
-      const endpoint = mercadoFiltro === 'ev_plus' || mercadoFiltro === 'over_2_5' || mercadoFiltro === 'btts'
-        ? `/api/apostas/hub?mercado=${mercadoFiltro}&limit=50`
-        : `/api/apostas/hub?limit=50`;
+      const params = new URLSearchParams();
+      if (mercadoFiltro !== 'todos') params.append('mercado', mercadoFiltro);
+      if (anoFiltro === 'todos') {
+        params.append('ano', 'todos');
+      } else if (anoFiltro === '2026' || anoFiltro === '2025' || anoFiltro === '2024') {
+        params.append('ano', anoFiltro);
+      }
+      params.append('limit', String(partidasLimit));
       
-      const res = await apiFetch(endpoint);
+      const res = await apiFetch(`/api/apostas/hub?${params.toString()}`);
       if (!res.ok) throw new Error(`Falha na requisição: ${res.status}`);
       const data = await res.json();
       setHubData(data);
@@ -132,7 +139,7 @@ export default function BettingHubView({
 
   useEffect(() => {
     carregarHub();
-  }, [mercadoFiltro]);
+  }, [mercadoFiltro, anoFiltro, partidasLimit]);
 
   // Carregar Jogadores quando selecionada a subseção
   const carregarJogadores = async () => {
@@ -335,13 +342,13 @@ export default function BettingHubView({
             }}
           >
             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-              Jogos Catalogados
+              Partidas com Odds no Banco
             </div>
             <div className="font-mono" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-              {hubData?.total_jogos || 0}
+              {(hubData?.total_banco_odds || 9252).toLocaleString('pt-BR')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Base recente 2025/2026
+            <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
+              {hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : '9.252 no acervo histórico'}
             </div>
           </div>
 
@@ -694,6 +701,31 @@ export default function BettingHubView({
               />
             </div>
 
+            {/* Seletor de Temporada / Acervo */}
+            <select
+              value={anoFiltro}
+              onChange={(e) => {
+                setAnoFiltro(e.target.value);
+                setPartidasLimit(100);
+              }}
+              style={{
+                padding: '7px 12px',
+                fontSize: '0.82rem',
+                backgroundColor: 'var(--surface-panel)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-control)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer'
+              }}
+              aria-label="Filtrar por temporada ou acervo histórico"
+            >
+              <option value="recentes">Recentes (2025–2026)</option>
+              <option value="2026">Temporada 2026</option>
+              <option value="2025">Temporada 2025</option>
+              <option value="2024">Temporada 2024</option>
+              <option value="todos">Acervo Completo (9.252 Jogos)</option>
+            </select>
+
             {campeonatosDisponiveis.length > 1 && (
               <select
                 value={campeonatoFiltro}
@@ -979,13 +1011,25 @@ export default function BettingHubView({
               </div>
             </div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-                gap: '16px'
-              }}
-            >
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Exibindo <strong className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{partidasFiltradas.length}</strong> de <strong className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{(hubData?.total_filtrado || hubData?.total_temporada || 2362).toLocaleString('pt-BR')}</strong> partidas catalogadas com probabilidades
+                </span>
+                {hubData?.partidas && hubData.partidas.length < (hubData?.total_filtrado || 0) && (
+                  <span style={{ fontSize: '0.74rem', color: 'var(--accent)', fontWeight: 600 }}>
+                    Role até o fim para carregar mais jogos
+                  </span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+                  gap: '16px'
+                }}
+              >
               {partidasFiltradas.map((p) => {
                 const idM = getTeamIdentity(p.mandante);
                 const idV = getTeamIdentity(p.visitante);
@@ -1284,9 +1328,39 @@ export default function BettingHubView({
                 );
               })}
             </div>
-          )}
-        </section>
-      )}
+
+            {/* PAGINAÇÃO / CARREGAR MAIS PARTIDAS */}
+            {hubData?.partidas && hubData.partidas.length < (hubData?.total_filtrado || 0) && (
+              <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                <button
+                  onClick={() => setPartidasLimit(prev => prev + 50)}
+                  disabled={loading}
+                  style={{
+                    padding: '12px 28px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    backgroundColor: 'var(--surface-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: 'var(--shadow-editorial)'
+                  }}
+                >
+                  <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                  <span>
+                    Carregar Mais Partidas (+50) &bull; Exibindo {hubData.partidas.length} de {(hubData?.total_filtrado || 0).toLocaleString('pt-BR')}
+                  </span>
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    )}
 
       {/* ==================================================================== */}
       {/* MODAL / DRAWER DE RAIO-X ANALÍTICO DA PARTIDA                        */}

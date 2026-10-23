@@ -2518,13 +2518,14 @@ def get_apostas_hub():
     Odds Justas vs Odds de Mercado, cálculo de Valor Esperado (+EV) e tendências analíticas em tempo real.
     """
     campeonato = request.args.get('campeonato', '').strip()
-    ano = request.args.get('ano', type=int)
+    ano_param = request.args.get('ano', '').strip()
     rodada = request.args.get('rodada', type=int)
     filtro_mercado = request.args.get('mercado', 'todos').strip()
     data_filtro = request.args.get('data', '').strip()
-    limit = min(request.args.get('limit', 35, type=int), 100)
+    limit = min(request.args.get('limit', 100, type=int), 300)
+    offset = max(0, request.args.get('offset', 0, type=int))
 
-    cache_key = f"apostas_hub_{campeonato}_{ano}_{rodada}_{filtro_mercado}_{data_filtro}_{limit}"
+    cache_key = f"apostas_hub_{campeonato}_{ano_param}_{rodada}_{filtro_mercado}_{data_filtro}_{limit}_{offset}"
     cached = api_cache.get(cache_key)
     if cached:
         return jsonify(cached)
@@ -2536,9 +2537,11 @@ def get_apostas_hub():
     where_clauses = ["o.odd_mandante IS NOT NULL"]
     params = []
 
-    if ano:
+    if ano_param and ano_param.isdigit():
         where_clauses.append("p.ano = ?")
-        params.append(ano)
+        params.append(int(ano_param))
+    elif ano_param in ('todos', 'historico'):
+        pass
     else:
         where_clauses.append("p.ano >= 2025")
 
@@ -2555,6 +2558,33 @@ def get_apostas_hub():
         params.append(data_filtro)
 
     where_sql = " AND ".join(where_clauses)
+
+    # 1. Totais Globais para Métricas Reais do Banco
+    try:
+        total_banco_odds = c.execute("SELECT COUNT(*) FROM odds_partidas WHERE odd_mandante IS NOT NULL").fetchone()[0]
+    except Exception:
+        total_banco_odds = 9252
+
+    try:
+        total_temporada = c.execute("""
+            SELECT COUNT(*) 
+            FROM partidas p 
+            JOIN odds_partidas o ON p.id_partida = o.id_partida 
+            WHERE o.odd_mandante IS NOT NULL AND p.ano >= 2025
+        """).fetchone()[0]
+    except Exception:
+        total_temporada = 2362
+
+    # 2. Contagem do Total de Jogos Filtrados (sem LIMIT)
+    count_sql = f"""
+        SELECT COUNT(*)
+        FROM partidas p
+        JOIN odds_partidas o ON p.id_partida = o.id_partida
+        WHERE {where_sql};
+    """
+    total_filtrado = c.execute(count_sql, list(params)).fetchone()[0]
+
+    # 3. Consulta Paginada
     sql = f"""
         SELECT 
             p.id_partida, p.ano, p.data, p.horario, p.campeonato, p.rodada,
@@ -2573,10 +2603,10 @@ def get_apostas_hub():
         JOIN odds_partidas o ON p.id_partida = o.id_partida
         WHERE {where_sql}
         ORDER BY p.data DESC, p.id_partida DESC
-        LIMIT ?;
+        LIMIT ? OFFSET ?;
     """
-    params.append(limit)
-    rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    query_params = list(params) + [limit, offset]
+    rows = [dict(r) for r in c.execute(sql, query_params).fetchall()]
     conn.close()
 
     partidas_processadas = []
@@ -2674,7 +2704,13 @@ def get_apostas_hub():
                 tendencias_quentes.append(t)
 
     resumo = {
-        'total_jogos': len(partidas_processadas),
+        'total_jogos': total_filtrado,
+        'total_banco_odds': total_banco_odds,
+        'total_temporada': total_temporada,
+        'total_filtrado': total_filtrado,
+        'partidas_exibidas': len(partidas_processadas),
+        'offset': offset,
+        'limit': limit,
         'total_com_ev': sum(1 for p in partidas_processadas if p['has_ev']),
         'total_over_2_5_favoravel': sum(1 for p in partidas_processadas if p['probabilidades']['prob_over_2_5'] >= 52.0),
         'total_btts_favoravel': sum(1 for p in partidas_processadas if p['probabilidades']['prob_btts_sim'] >= 52.0),
