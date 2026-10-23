@@ -23,6 +23,7 @@ import {
   DollarSign,
   UserCheck
 } from 'lucide-react';
+import ClubBadge from './ClubBadge';
 
 // ============================================================================
 // CONFIGURAÇÕES VISUAIS & IDENTIDADE DOS CLUBES
@@ -452,23 +453,8 @@ export default function BettingHubView({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '4px',
-                          backgroundColor: idM.cor1,
-                          color: idM.text,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.66rem',
-                          fontWeight: 700
-                        }}
-                      >
-                        {idM.sigla}
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ClubBadge nome={p.mandante} size={22} />
                       <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {p.mandante}
                       </span>
@@ -476,26 +462,11 @@ export default function BettingHubView({
 
                     <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)', fontWeight: 600 }}>x</span>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {p.visitante}
                       </span>
-                      <span
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '4px',
-                          backgroundColor: idV.cor1,
-                          color: idV.text,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.66rem',
-                          fontWeight: 700
-                        }}
-                      >
-                        {idV.sigla}
-                      </span>
+                      <ClubBadge nome={p.visitante} size={22} />
                     </div>
                   </div>
 
@@ -1081,23 +1052,8 @@ export default function BettingHubView({
                         }}
                       >
                         {/* Mandante */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '6px',
-                              backgroundColor: idM.cor1,
-                              color: idM.text,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 700,
-                              fontSize: '0.74rem'
-                            }}
-                          >
-                            {idM.sigla}
-                          </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                          <ClubBadge nome={p.mandante} size={32} />
                           <div>
                             <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                               {p.mandante}
@@ -1127,7 +1083,7 @@ export default function BettingHubView({
                         </div>
 
                         {/* Visitante */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'flex-end', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'flex-end', textAlign: 'right' }}>
                           <div>
                             <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                               {p.visitante}
@@ -1136,22 +1092,7 @@ export default function BettingHubView({
                               xG est. {p.xg_visitante_estimado || '1.1'}
                             </div>
                           </div>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '6px',
-                              backgroundColor: idV.cor1,
-                              color: idV.text,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontWeight: 700,
-                              fontSize: '0.74rem'
-                            }}
-                          >
-                            {idV.sigla}
-                          </div>
+                          <ClubBadge nome={p.visitante} size={32} />
                         </div>
                       </div>
 

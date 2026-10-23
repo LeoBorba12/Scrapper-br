@@ -5,6 +5,7 @@ import {
   ChevronLeft, ExternalLink, BarChart2, Zap
 } from 'lucide-react';
 import { RadarPentagonPES, AthleteCareerBarChart } from './charts';
+import ClubBadge from './ClubBadge';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -531,8 +532,13 @@ export default function ProtagonistaAtleta({
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {(atleta.clubes || []).map((c, idx) => (
-                    <span key={idx} className="pill-neutral">
-                      {c}
+                    <span 
+                      key={idx} 
+                      className="pill-neutral"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px' }}
+                    >
+                      <ClubBadge nome={c} size={15} />
+                      <span>{c}</span>
                     </span>
                   ))}
                 </div>
@@ -892,7 +898,15 @@ export default function ProtagonistaAtleta({
                               <tr key={pt.id_partida || k}>
                                 <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.data || pt.ano}</td>
                                 <td style={{ fontSize: '0.8rem' }}>{pt.campeonato}</td>
-                                <td style={{ fontWeight: 600 }}>{pt.mandante} × {pt.visitante}</td>
+                                <td style={{ fontWeight: 600 }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                    <ClubBadge nome={pt.mandante} size={15} />
+                                    <span>{pt.mandante}</span>
+                                    <span style={{ color: 'var(--text-muted)', margin: '0 2px' }}>×</span>
+                                    <ClubBadge nome={pt.visitante} size={15} />
+                                    <span>{pt.visitante}</span>
+                                  </div>
+                                </td>
                                 <td style={{ textAlign: 'center', fontWeight: 700 }}>{pt.placar}</td>
                                 <td style={{ textAlign: 'center' }}>
                                   <span className={pt.escalacao?.titular ? 'pill-olive' : 'pill-neutral'}>
@@ -1108,7 +1122,10 @@ export default function ProtagonistaAtleta({
                             justifyContent: 'space-between'
                           }}
                         >
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{vt.clube}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ClubBadge nome={vt.clube} size={18} />
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{vt.clube}</span>
+                          </div>
                           <span className="pill-olive font-mono">{vt.gols} {vt.gols === 1 ? 'gol' : 'gols'}</span>
                         </div>
                       ))}

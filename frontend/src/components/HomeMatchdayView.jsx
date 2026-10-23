@@ -22,101 +22,13 @@ import {
   ChevronLeft,
   ChevronDown
 } from 'lucide-react';
+import ClubBadge from './ClubBadge';
 
 // ============================================================================
 // CONFIGURAÇÕES VISUAIS & IDENTIDADE DOS CLUBES BRASILEIROS
 // ============================================================================
-const CLUB_IDENTITIES = {
-  'Flamengo': { sigla: 'FLA', cor1: '#C62828', cor2: '#111111', text: '#FFFFFF' },
-  'Palmeiras': { sigla: 'PAL', cor1: '#006437', cor2: '#0B3B24', text: '#FFFFFF' },
-  'Corinthians': { sigla: 'COR', cor1: '#111111', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'São Paulo': { sigla: 'SAO', cor1: '#BA0C2F', cor2: '#111111', text: '#FFFFFF' },
-  'Santos': { sigla: 'SAN', cor1: '#FFFFFF', cor2: '#111111', text: '#111111' },
-  'Grêmio': { sigla: 'GRE', cor1: '#0D82CA', cor2: '#111111', text: '#FFFFFF' },
-  'Internacional': { sigla: 'INT', cor1: '#E50914', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Vasco': { sigla: 'VAS', cor1: '#111111', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Fluminense': { sigla: 'FLU', cor1: '#800020', cor2: '#006437', text: '#FFFFFF' },
-  'Botafogo': { sigla: 'BOT', cor1: '#111111', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Cruzeiro': { sigla: 'CRU', cor1: '#005CA9', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Atlético-MG': { sigla: 'CAM', cor1: '#111111', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Atlético': { sigla: 'CAM', cor1: '#111111', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Bahia': { sigla: 'BAH', cor1: '#0072CE', cor2: '#E50914', text: '#FFFFFF' },
-  'Vitória': { sigla: 'VIT', cor1: '#E50914', cor2: '#111111', text: '#FFFFFF' },
-  'Athletico-PR': { sigla: 'CAP', cor1: '#C8102E', cor2: '#111111', text: '#FFFFFF' },
-  'Athletico': { sigla: 'CAP', cor1: '#C8102E', cor2: '#111111', text: '#FFFFFF' },
-  'Coritiba': { sigla: 'CFC', cor1: '#005030', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Fortaleza': { sigla: 'FOR', cor1: '#15325E', cor2: '#C8102E', text: '#FFFFFF' },
-  'Ceará': { sigla: 'CSC', cor1: '#111111', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Sport': { sigla: 'SPT', cor1: '#C8102E', cor2: '#111111', text: '#FFFFFF' },
-  'Goiás': { sigla: 'GOI', cor1: '#005030', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'América Mineiro': { sigla: 'AME', cor1: '#006437', cor2: '#111111', text: '#FFFFFF' },
-  'Cuiabá': { sigla: 'CUI', cor1: '#006437', cor2: '#F59E0B', text: '#FFFFFF' },
-  'Criciúma': { sigla: 'CRI', cor1: '#F59E0B', cor2: '#111111', text: '#111111' },
-  'Bragantino': { sigla: 'RBB', cor1: '#E50914', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Red Bull Bragantino': { sigla: 'RBB', cor1: '#E50914', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Juventude': { sigla: 'JUV', cor1: '#006437', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Náutico': { sigla: 'NAU', cor1: '#E50914', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Londrina': { sigla: 'LEC', cor1: '#0D82CA', cor2: '#FFFFFF', text: '#FFFFFF' },
-  'Avaí': { sigla: 'AVA', cor1: '#0D82CA', cor2: '#FFFFFF', text: '#FFFFFF' }
-};
-
-// Renderizador visual de escudo/insígnia do clube em SVG
 const ClubShield = ({ name, size = 38 }) => {
-  const norm = Object.keys(CLUB_IDENTITIES).find(k => k.toLowerCase() === (name || '').toLowerCase());
-  const cfg = norm ? CLUB_IDENTITIES[norm] : {
-    sigla: (name || 'CLB').substring(0, 3).toUpperCase(),
-    cor1: '#1E293B',
-    cor2: '#334155',
-    text: '#FFFFFF'
-  };
-
-  const id = `shd-${(name || 'team').replace(/[^a-zA-Z0-9]/g, '')}-${size}`;
-
-  return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        minWidth: size,
-        minHeight: size,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.4))'
-      }}
-      title={name}
-    >
-      <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor={cfg.cor1} />
-            <stop offset="100%" stopColor={cfg.cor2} />
-          </linearGradient>
-        </defs>
-        {/* Formato clássico de escudo heráldico */}
-        <path
-          d="M 50,4 C 74,4 94,14 94,36 C 94,68 62,88 50,96 C 38,88 6,68 6,36 C 6,14 26,4 50,4 Z"
-          fill={`url(#${id})`}
-          stroke="rgba(255, 255, 255, 0.25)"
-          strokeWidth="3.5"
-        />
-        {/* Monograma ou Sigla central */}
-        <text
-          x="50"
-          y="56"
-          fill={cfg.text}
-          fontSize="24"
-          fontWeight="800"
-          fontFamily="Inter, system-ui, sans-serif"
-          textAnchor="middle"
-          letterSpacing="-0.04em"
-        >
-          {cfg.sigla}
-        </text>
-      </svg>
-    </div>
-  );
+  return <ClubBadge nome={name} size={size} />;
 };
 
 // Badges de Torneio elegantes e com alto contraste

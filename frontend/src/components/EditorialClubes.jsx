@@ -4,6 +4,7 @@ import {
   ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles
 } from 'lucide-react';
 import { ClubEvolutionChart } from './charts';
+import ClubBadge from './ClubBadge';
 
 export default function EditorialClubes({
   timesAnalise,
@@ -370,7 +371,8 @@ export default function EditorialClubes({
                       </td>
 
                       <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <ClubBadge nome={nomeClube} size={22} />
                           <span>{nomeClube}</span>
                         </div>
                       </td>
@@ -469,8 +471,11 @@ export default function EditorialClubes({
                                     <span>{j.data || 'Data N/I'}</span>
                                     <span>{j.mando === 'Casa' || j.mando === 'C' ? 'Em Casa' : 'Fora'}</span>
                                   </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', fontWeight: 600 }}>
-                                    <span>{j.adversario}</span>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontWeight: 600 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <ClubBadge nome={j.adversario} size={16} />
+                                      <span>{j.adversario}</span>
+                                    </div>
                                     <span 
                                       className="tabular-nums" 
                                       style={{ 
