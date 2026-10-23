@@ -182,12 +182,19 @@ def ciclo_mestre(numero_ciclo: int):
     # -------------------------------------------------------------
     # FASE D: PERSISTÊNCIA, GIT PULL/PUSH E TELEGRAM
     # -------------------------------------------------------------
-    safe_print("\n>>> [FASE D] Sincronização Git & Deploy <<<")
-    executar_comando(["git", "add", "data/futebol.db"])
-    commit_msg = f"feat(mestre): ciclo {numero_ciclo} - apostas, mercados e {bloco['desc'][:60]}"
-    executar_comando(["git", "commit", "-m", commit_msg])
-    executar_comando(["git", "pull", "--rebase", "origin", "main"])
-    executar_comando(["git", "push", "origin", "main"])
+    # Fazer push no Git apenas a cada 2 horas (ou a cada 15 ciclos) para respeitar
+    # o limite de 100 deploys diários da Vercel (máx. 12 deploys/dia com folga).
+    should_push = (numero_ciclo % 15 == 0)
+
+    if should_push:
+        safe_print("\n>>> [FASE D] Sincronização Git & Deploy (Janela de 2 Horas) <<<")
+        executar_comando(["git", "add", "data/futebol.db", "api/data/futebol.db"])
+        commit_msg = f"feat(mestre): ciclo {numero_ciclo} - apostas, mercados e {bloco['desc'][:60]}"
+        executar_comando(["git", "commit", "-m", commit_msg])
+        executar_comando(["git", "pull", "--rebase", "-X", "theirs", "origin", "main"])
+        executar_comando(["git", "push", "origin", "main"])
+    else:
+        safe_print(f"\n[INFO] Ciclo {numero_ciclo}: dados salvos localmente no SQLite. Próximo push Git agendado no ciclo {(numero_ciclo // 15 + 1) * 15}.")
 
     # Notificar Telegram
     notificar_telegram(
