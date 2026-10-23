@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { 
   Search, Award, Trophy, User, Calendar, Shield, MapPin, 
   ArrowLeft, Clock, Target, Flame, Activity, ChevronRight,
