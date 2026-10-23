@@ -19,10 +19,29 @@ export default function RadarPentagonPES({
 
   // Calcula atributos com base nos dados reais do atleta (escala 40 a 99 estilo PES)
   const calcAttributes = () => {
-    const totalGols = carreira.gols || resumo.total_gols || 0;
-    const totalJogos = carreira.jogos || resumo.jogos_registrados || 1;
+    // Paridade estrita de escopo para cálculo de atributos:
+    // Nunca misturar gols de carreira com jogos locais para cálculo de média
+    let totalGols = 0;
+    let totalJogos = 1;
+    if (carreira.gols != null && carreira.jogos != null && Number(carreira.jogos) > 0) {
+      totalGols = Number(carreira.gols);
+      totalJogos = Number(carreira.jogos);
+    } else {
+      totalGols = Number(resumo.total_gols || carreira.gols || 0);
+      totalJogos = Number(resumo.jogos_registrados || carreira.jogos || 1);
+    }
+
+    let mediaGols = totalJogos > 0 ? totalGols / totalJogos : 0;
+    // Guarda de sanidade: se gols/jogos > 2.0 em amostragem > 10 jogos, usar escopo local consistente
+    if (totalJogos > 10 && mediaGols > 2.0) {
+      if (resumo.total_gols && resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0) {
+        mediaGols = Number(resumo.total_gols) / Number(resumo.jogos_registrados);
+      } else {
+        mediaGols = Math.min(mediaGols, 1.4);
+      }
+    }
+
     const totalAssists = carreira.assistencias ?? resumo.total_assistencias ?? 0;
-    const mediaGols = totalJogos > 0 ? totalGols / totalJogos : 0;
     const pontaria = resumo.pontaria_chutes_pct ? Number(resumo.pontaria_chutes_pct) : 60;
     const amarelos = resumo.amarelos || 0;
     const vermelhos = resumo.vermelhos || 0;
@@ -169,11 +188,11 @@ export default function RadarPentagonPES({
         style={{ overflow: 'visible' }}
       >
         <defs>
-          {/* Gradiente PES translúcido neon */}
+          {/* Gradiente PES translúcido harmônico */}
           <linearGradient id="pesRadarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#C7FF00" stopOpacity="0.45" />
-            <stop offset="50%" stopColor="#00F0FF" stopOpacity="0.30" />
-            <stop offset="100%" stopColor="#B5BE93" stopOpacity="0.50" />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.45" />
+            <stop offset="50%" stopColor="var(--positive)" stopOpacity="0.30" />
+            <stop offset="100%" stopColor="var(--accent-hover)" stopOpacity="0.50" />
           </linearGradient>
 
           {/* Filtro Glow para o contorno do polígono */}
@@ -226,7 +245,7 @@ export default function RadarPentagonPES({
         <polygon
           points={playerPolygonPath}
           fill="url(#pesRadarGrad)"
-          stroke="#C7FF00"
+          stroke="var(--accent)"
           strokeWidth="2.5"
           filter="url(#pesRadarGlow)"
           style={{ transition: 'all 280ms ease' }}
@@ -249,7 +268,7 @@ export default function RadarPentagonPES({
                   cx={pt.x}
                   cy={pt.y}
                   r="9"
-                  fill="#FF13B1"
+                  fill="var(--accent)"
                   fillOpacity="0.35"
                 />
               )}
@@ -258,7 +277,7 @@ export default function RadarPentagonPES({
                 cx={pt.x}
                 cy={pt.y}
                 r={isHov ? 5 : 4}
-                fill={isHov ? '#FF13B1' : '#C7FF00'}
+                fill={isHov ? 'var(--accent-hover)' : 'var(--accent)'}
                 stroke="var(--surface-panel)"
                 strokeWidth="2"
               />
@@ -295,7 +314,7 @@ export default function RadarPentagonPES({
                 y={y + 11}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fill={isHov ? '#FF13B1' : 'var(--text-primary)'}
+                fill={isHov ? 'var(--accent)' : 'var(--text-primary)'}
                 fontSize="13"
                 fontWeight="800"
                 fontFamily="var(--font-mono)"

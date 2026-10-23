@@ -39,8 +39,16 @@ def resolver_db_path():
             return p
     return CANDIDATOS_DB[0]
 
-# Limites rígidos de segurança
-MAX_DB_SIZE_MB = 94.0
+GOVERNANCA_FILE = os.path.join(BASE_DIR, "docs", "GOVERNANCA_E_DIRETRIZES_VM.md")
+
+def carregar_diretrizes_governanca():
+    if os.path.exists(GOVERNANCA_FILE):
+        try:
+            with open(GOVERNANCA_FILE, "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return "Você é o Guardião de Engenharia e Data Quality da infraestrutura FutStats."
 MIN_AVAILABLE_RAM_MB = 150.0
 MIN_FREE_DISK_GB = 1.0
 INTERVALO_SEGUNDOS = 1200  # 20 minutos entre verificações
@@ -199,6 +207,26 @@ def auditar_banco_dados():
             c.execute("SELECT count(*) FROM gols_detalhados;")
             relatorio["total_gols"] = c.fetchone()[0]
 
+        # Auditoria de Sanidade Esportiva
+        try:
+            c.execute("SELECT count(*) FROM partidas WHERE gols_mandante > 15 OR gols_visitante > 15;")
+            relatorio["placares_anomalos"] = c.fetchone()[0]
+        except Exception:
+            relatorio["placares_anomalos"] = 0
+
+        try:
+            c.execute("SELECT count(*) FROM (SELECT data, time_mandante, time_visitante, campeonato, count(*) as c FROM partidas GROUP BY data, time_mandante, time_visitante, campeonato HAVING c > 1);")
+            relatorio["duplicatas_detectadas"] = c.fetchone()[0]
+        except Exception:
+            relatorio["duplicatas_detectadas"] = 0
+
+        # Fragmentação SQLite (páginas livres recuperáveis por VACUUM)
+        try:
+            c.execute("PRAGMA freelist_count;")
+            relatorio["freelist_paginas"] = c.fetchone()[0]
+        except Exception:
+            relatorio["freelist_paginas"] = 0
+
         conn.close()
     except Exception as e:
         relatorio["erro"] = str(e)
@@ -207,21 +235,26 @@ def auditar_banco_dados():
 
 
 def analisar_com_gemini(resumo_auditoria, gemini_key):
-    """Consulta o modelo Gemini 2.5 Flash via API REST para emitir parecer técnico."""
+    """Consulta o modelo Gemini 2.5 Flash via API REST com diretrizes de governança."""
     if not gemini_key:
         return None
     try:
+        diretrizes = carregar_diretrizes_governanca()
         prompt = (
-            "Você é o Guardião de Engenharia da VM do projeto FutStats. "
-            "Avalie o seguinte relatório de saúde operacional em JSON e retorne uma avaliação "
-            "sucinta (máximo 3 frases) com status (ESTÁVEL/ATENÇÃO/CRÍTICO) e se recomenda alguma ação preventiva:\n\n"
-            f"{json.dumps(resumo_auditoria, indent=2)}"
+            f"{diretrizes}\n\n"
+            "--- DADOS DA AUDITORIA ATUAL ---\n"
+            f"{json.dumps(resumo_auditoria, indent=2)}\n\n"
+            "Emita seu parecer técnico executivo (máximo 4 linhas) avaliando:\n"
+            "1. Status de risco (🟢 ESTÁVEL, 🟡 ATENÇÃO, 🔴 CRÍTICO)\n"
+            "2. Crescimento do banco em relação ao teto de 94 MB\n"
+            "3. Sanidade de partidas e duplicatas\n"
+            "4. Ação preventiva sugerida (ou 'Nenhuma ação necessária')"
         )
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 200}
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 250}
         }
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
         with urllib.request.urlopen(req, timeout=15) as resp:

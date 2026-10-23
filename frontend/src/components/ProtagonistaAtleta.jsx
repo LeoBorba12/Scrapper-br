@@ -223,7 +223,7 @@ export default function ProtagonistaAtleta({
                   {rankingType === 'carreira' ? 'Gols Oficiais Carreira' : rankingType === 'assistencias' ? 'Assistências' : rankingType === 'aproveitamento' ? 'Aproveitamento %' : rankingType === "clutch" ? "Gols Decisivos (80+')" : rankingType === 'participacoes' ? 'Participações Diretas' : 'Total de Gols'}
                 </th>
                 <th style={{ textAlign: 'center' }}>
-                  {rankingType === 'carreira' ? 'Jogos Oficiais' : 'Jogos'}
+                  {rankingType === 'carreira' ? 'Jogos Oficiais' : 'Jogos (Catálogo)'}
                 </th>
                 <th style={{ width: '60px' }}></th>
               </tr>
@@ -233,21 +233,68 @@ export default function ProtagonistaAtleta({
                 const nomeAtleta = p.atleta || p.nome || 'Atleta';
                 const clubesTexto = p.clubes_formatado || (Array.isArray(p.clubes) ? p.clubes.slice(0, 4).join(', ') : (p.clubes || p.clube || '—'));
                 
+                // Determinação de valor e escopo estrito
                 let valor = p.total;
+                let isCarreiraOficial = false;
+
                 if (valor === undefined || valor === null) {
-                  if (rankingType === 'carreira') valor = p.gols_carreira ?? p.gols ?? 0;
-                  else if (rankingType === 'assistencias') valor = p.assistencias ?? 0;
+                  if (rankingType === 'carreira') {
+                    if (p.gols_carreira != null && Number(p.gols_carreira) > 0) {
+                      valor = p.gols_carreira;
+                      isCarreiraOficial = true;
+                    } else {
+                      valor = p.gols ?? 0;
+                      isCarreiraOficial = false;
+                    }
+                  } else if (rankingType === 'assistencias') valor = p.assistencias ?? 0;
                   else if (rankingType === 'clutch') valor = p.gols_clutch ?? 0;
                   else if (rankingType === 'participacoes') valor = p.participacoes_gols ?? 0;
                   else if (rankingType === 'aproveitamento') valor = `${p.aproveitamento_pontos ?? 0}%`;
                   else valor = p.gols ?? 0;
+                } else if (rankingType === 'carreira') {
+                  isCarreiraOficial = Boolean(p.gols_carreira && Number(p.gols_carreira) > 0);
                 } else if (rankingType === 'aproveitamento' && !String(valor).includes('%')) {
                   valor = `${valor}%`;
                 }
 
-                const totalJogos = rankingType === 'carreira' 
-                  ? (p.jogos_carreira || p.jogos_exibicao || p.jogos || '—')
-                  : (p.jogos_exibicao || p.jogos || '—');
+                // Paridade estrita de escopo para jogos:
+                // Se os gols forem de Carreira Oficial (gols_carreira), os jogos DEVEM ser de Carreira Oficial (jogos_carreira).
+                // NUNCA fazer fallback silencioso de jogos de carreira para o número de jogos parciais da base local catalogada.
+                let jogosDisplay = null;
+                const numGols = Number(typeof valor === 'string' ? valor.replace('%', '') : valor) || 0;
+                let numJogosParaCheck = 0;
+                let flagEscopoMisto = false;
+
+                if (rankingType === 'carreira') {
+                  const jgCarreira = p.jogos_carreira != null && Number(p.jogos_carreira) > 0 ? Number(p.jogos_carreira) : null;
+                  const jgLocal = p.jogos != null && Number(p.jogos) > 0 ? Number(p.jogos) : (p.jogos_exibicao != null && Number(p.jogos_exibicao) > 0 ? Number(p.jogos_exibicao) : null);
+
+                  if (jgCarreira) {
+                    numJogosParaCheck = jgCarreira;
+                    jogosDisplay = <span className="font-mono">{jgCarreira}</span>;
+                  } else if (jgLocal) {
+                    // Jogos de carreira não disponíveis: exibir dado local com legenda EXPLÍCITA
+                    numJogosParaCheck = jgLocal;
+                    flagEscopoMisto = true;
+                    jogosDisplay = (
+                      <div style={{ lineHeight: 1.2 }}>
+                        <span className="font-mono">{jgLocal}</span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>
+                          no catálogo BR
+                        </span>
+                      </div>
+                    );
+                  } else {
+                    jogosDisplay = <span style={{ color: 'var(--text-muted)' }}>—</span>;
+                  }
+                } else {
+                  const jg = p.jogos ?? p.jogos_exibicao;
+                  numJogosParaCheck = Number(jg) || 0;
+                  jogosDisplay = jg != null ? <span className="font-mono">{jg}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>;
+                }
+
+                // Guarda de sanidade: se gols > 0 e jogos > 0 e (gols / jogos) > 2.0 em amostragem > 10 jogos
+                const mediaSuspeita = numGols > 0 && numJogosParaCheck > 10 && (numGols / numJogosParaCheck) > 2.0;
 
                 return (
                   <tr 
@@ -268,10 +315,30 @@ export default function ProtagonistaAtleta({
                       {clubesTexto}
                     </td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>
-                      {valor}
+                      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                        <span>{valor}</span>
+                        {rankingType === 'carreira' && !isCarreiraOficial && (
+                          <span className="pill-neutral" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>catálogo BR</span>
+                        )}
+                        {(mediaSuspeita || flagEscopoMisto) && (
+                          <span 
+                            title="Atenção de Escopo: Gols oficiais de toda a carreira exibidos com jogos do catálogo brasileiro."
+                            style={{ 
+                              fontSize: '0.64rem', 
+                              color: 'var(--negative)', 
+                              backgroundColor: 'var(--negative-bg)',
+                              borderRadius: '4px',
+                              padding: '1px 5px',
+                              fontWeight: 600
+                            }}
+                          >
+                            ⚠️ escopos mistos
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      {totalJogos}
+                      {jogosDisplay}
                     </td>
                     <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
                       <ChevronRight size={15} />
@@ -515,43 +582,146 @@ export default function ProtagonistaAtleta({
 
             {/* ================= COLUNA 3: MÉTRICAS OFICIAIS & TOTAIS (33%) ================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Painel 1: Totais da Carreira Oficial (OGol 100%) */}
-              <div className="editorial-panel" style={{ padding: '18px', backgroundColor: 'var(--surface-panel)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
-                    👑 Carreira Oficial Consolidada
-                  </span>
-                  <span className="pill-olive" style={{ fontSize: '0.64rem' }}>100% Homologado</span>
-                </div>
+              {/* Painel 1: Totais da Carreira Oficial (com Paridade Estrita de Escopo) */}
+              {(() => {
+                const golsCarreira = (carreira.gols !== undefined && carreira.gols !== null && Number(carreira.gols) > 0) ? Number(carreira.gols) : null;
+                const jogosCarreira = (carreira.jogos !== undefined && carreira.jogos !== null && Number(carreira.jogos) > 0) ? Number(carreira.jogos) : null;
+                const assistCarreira = carreira.assistencias !== undefined && carreira.assistencias !== null ? Number(carreira.assistencias) : null;
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Gols na Carreira</div>
-                    <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {carreira.gols || resumo.total_gols || 0}
+                const golsCatalogo = resumo.total_gols !== undefined && resumo.total_gols !== null ? Number(resumo.total_gols) : 0;
+                const jogosCatalogo = resumo.jogos_registrados !== undefined && resumo.jogos_registrados !== null ? Number(resumo.jogos_registrados) : 0;
+                const assistCatalogo = resumo.total_assistencias !== undefined && resumo.total_assistencias !== null ? Number(resumo.total_assistencias) : 0;
+
+                const temCarreira = golsCarreira !== null;
+                const escopoMisto = temCarreira && !jogosCarreira && jogosCatalogo > 0;
+                const ratioCarreiraLocal = (escopoMisto && jogosCatalogo > 10) ? (golsCarreira / jogosCatalogo) : 0;
+                const alertaSanidade = ratioCarreiraLocal > 2.0;
+
+                return (
+                  <div className="editorial-panel" style={{ padding: '18px', backgroundColor: 'var(--surface-panel)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
+                        👑 {temCarreira ? 'Carreira Oficial Consolidada' : 'Estatísticas do Atleta'}
+                      </span>
+                      <span className={temCarreira && jogosCarreira ? 'pill-olive' : 'pill-neutral'} style={{ fontSize: '0.64rem' }}>
+                        {temCarreira && jogosCarreira ? '100% Homologado' : temCarreira ? 'Gols Homologados' : 'Base Catalogada'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          {temCarreira ? 'Gols na Carreira' : 'Gols Registrados'}
+                        </div>
+                        <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {temCarreira ? golsCarreira : golsCatalogo}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          {temCarreira ? 'Jogos Oficiais' : 'Jogos Registrados'}
+                        </div>
+                        <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {temCarreira 
+                            ? (jogosCarreira ?? (
+                                jogosCatalogo > 0 ? (
+                                  <div style={{ lineHeight: 1.2 }}>
+                                    <span>{jogosCatalogo}</span>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 500, color: 'var(--text-muted)', display: 'block' }}>
+                                      no catálogo BR
+                                    </span>
+                                  </div>
+                                ) : '—'
+                              ))
+                            : jogosCatalogo
+                          }
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Média de Gols com Paridade Estrita */}
+                    <div style={{ marginTop: '8px', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      {temCarreira && jogosCarreira ? (
+                        <span>Média Oficial: <strong className="tabular-nums font-mono" style={{ color: 'var(--accent)' }}>{(golsCarreira / jogosCarreira).toFixed(2)}</strong> gols/jogo</span>
+                      ) : !temCarreira && jogosCatalogo > 0 ? (
+                        <span>Média no Catálogo: <strong className="tabular-nums font-mono" style={{ color: 'var(--accent)' }}>{(golsCatalogo / jogosCatalogo).toFixed(2)}</strong> gols/jogo</span>
+                      ) : null}
+                    </div>
+
+                    {/* Guarda de Sanidade: Alerta Explícito quando Escopos forem Misturados */}
+                    {(alertaSanidade || escopoMisto) && (
+                      <div 
+                        style={{ 
+                          marginTop: '10px', 
+                          padding: '8px 10px', 
+                          backgroundColor: 'var(--surface-raised)', 
+                          borderRadius: 'var(--radius-control)', 
+                          borderLeft: '3px solid var(--accent)', 
+                          fontSize: '0.72rem', 
+                          color: 'var(--text-secondary)', 
+                          lineHeight: 1.45 
+                        }}
+                      >
+                        <strong style={{ color: 'var(--text-primary)' }}>Nota de Paridade de Escopo:</strong> O total de <strong>{golsCarreira} gols</strong> reflete toda a carreira oficial do atleta. Como o total de jogos da carreira não está disponível na súmula oficial, exibe-se a amostragem de <strong>{jogosCatalogo} partidas</strong> registradas no catálogo brasileiro.
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                      <span>
+                        Assistências: <strong className="tabular-nums">{assistCarreira ?? (assistCatalogo > 0 ? `${assistCatalogo} (catálogo)` : '—')}</strong>
+                      </span>
+                      <span>
+                        Clubes: <strong className="tabular-nums">{carreira.clubes?.length || (atleta.clubes || []).length}</strong>
+                      </span>
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Jogos Oficiais</div>
-                    <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {carreira.jogos || resumo.jogos_registrados || 0}
-                    </div>
-                  </div>
-                </div>
+                );
+              })()}
 
-                <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
-                  <span>Assistências: <strong className="tabular-nums">{carreira.assistencias ?? resumo.total_assistencias ?? '—'}</strong></span>
-                  <span>Clubes: <strong className="tabular-nums">{carreira.clubes || (atleta.clubes || []).length}</strong></span>
-                </div>
-              </div>
-
-              {/* Painel 2: Detalhamento na Base Catalogada */}
+              {/* Painel 2: Detalhamento na Base Catalogada (com total_gols e jogos_registrados em destaque) */}
               <div className="editorial-panel" style={{ padding: '18px', flex: 1 }}>
-                <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
-                  Registros na Base de Partidas
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-secondary)' }}>
+                    Registros na Base de Partidas
+                  </span>
+                  <span className="pill-neutral" style={{ fontSize: '0.64rem' }}>Catálogo BR</span>
+                </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginTop: '12px' }}>
+                {/* Destaque Obrigatório de Escopo da Base Local */}
+                <div 
+                  style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(3, 1fr)', 
+                    gap: '8px', 
+                    marginTop: '12px', 
+                    marginBottom: '12px',
+                    paddingBottom: '12px', 
+                    borderBottom: '1px solid var(--border-subtle)' 
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Gols no Catálogo</span>
+                    <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+                      {resumo.total_gols ?? 0}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Jogos no Catálogo</span>
+                    <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {resumo.jogos_registrados ?? 0}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média Local</span>
+                    <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
+                      {resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0
+                        ? (Number(resumo.total_gols || 0) / Number(resumo.jogos_registrados)).toFixed(2)
+                        : (resumo.media_gols != null ? Number(resumo.media_gols).toFixed(2) : '—')}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Gols de Pênalti</span>
                     <div className="tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -582,7 +752,7 @@ export default function ProtagonistaAtleta({
 
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Cartões Amarelos</span>
-                    <div className="tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 700, color: '#D97706' }}>
+                    <div className="tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)' }}>
                       {resumo.amarelos || 0}
                     </div>
                   </div>

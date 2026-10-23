@@ -91,7 +91,128 @@ def gerar_zip_banco() -> str:
         z.write(DB_LOCAL, arcname="futebol.db")
     return zip_path
 
-def obter_status_sistema() -> str:
+def obter_ultimos_jogos() -> str:
+    """Retorna os últimos jogos inseridos na base."""
+    if not os.path.exists(DB_LOCAL):
+        return "❌ Banco de dados não encontrado."
+    try:
+        conn = sqlite3.connect(f"file:{DB_LOCAL}?mode=ro", uri=True)
+        c = conn.cursor()
+        c.execute("SELECT data, campeonato, time_mandante, gols_mandante, gols_visitante, time_visitante FROM partidas ORDER BY id DESC LIMIT 5;")
+        rows = c.fetchall()
+        conn.close()
+        if not rows:
+            return "Nenhuma partida encontrada."
+        linhas = ["🕒 *ÚLTIMAS PARTIDAS REGISTRADAS NA BASE:*\n"]
+        for r in rows:
+            dt, camp, mand, gm, gv, vis = r
+            linhas.append(f"• *{dt}* [{camp}]\n  *{mand}* {gm} x {gv} *{vis}*")
+        return "\n\n".join(linhas)
+    except Exception as e:
+        return f"❌ Erro ao consultar últimas partidas: {e}"
+
+def responder_pergunta_banco(pergunta: str) -> str:
+    """Responde a perguntas livres do moderador consultando o banco SQLite via IA ou SQL heurístico."""
+    pergunta_clean = pergunta.strip()
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+    # 1. Se houver chave Gemini, usar Text-to-SQL seguro
+    if gemini_key:
+        try:
+            schema_desc = (
+                "Tabelas disponíveis em SQLite:\n"
+                "1. partidas(id, data, ano, campeonato, time_mandante, time_visitante, gols_mandante, gols_visitante, estadio, arbitro, rodada)\n"
+                "2. gols_detalhados(id, partida_id, atleta, time, minuto, tipo_gol)\n"
+                "3. atletas(id, nome, posicao, clubes_recentes)\n"
+                "4. estatisticas_partida(partida_id, time, chutes, chutes_a_gol, faltas, escanteios, posse, amarelos, vermelhos)"
+            )
+            prompt = (
+                f"Você é o assistente de dados do projeto FutStats.\n{schema_desc}\n\n"
+                f"O moderador perguntou: \"{pergunta_clean}\"\n\n"
+                "Gere EXCLUSIVAMENTE uma query SQLite de leitura (SELECT) para responder à pergunta.\n"
+                "PROIBIDO: DROP, DELETE, INSERT, UPDATE, ALTER, ATTACH.\n"
+                "Retorne JSON estrito: {\"sql\": \"SELECT ...\"}"
+            )
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 200, "responseMimeType": "application/json"}
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                res_data = json.loads(resp.read().decode("utf-8"))
+                sql_json = json.loads(res_data["candidates"][0]["content"]["parts"][0]["text"])
+                sql_query = sql_json.get("sql", "").strip()
+
+            # Execução segura em modo somente leitura
+            if sql_query and sql_query.upper().startswith("SELECT"):
+                conn = sqlite3.connect(f"file:{DB_LOCAL}?mode=ro", uri=True, timeout=8)
+                c = conn.cursor()
+                c.execute(sql_query)
+                res_rows = c.fetchall()[:10]  # Limita a 10 linhas
+                conn.close()
+
+                # Formatação da resposta final pelo modelo
+                prompt_resp = (
+                    f"Pergunta do usuário: '{pergunta_clean}'\n"
+                    f"Query executada: `{sql_query}`\n"
+                    f"Resultados obtidos: {res_rows}\n\n"
+                    "Escreva uma resposta concisa, clara e amigável em Markdown para o Telegram resumindo os dados."
+                )
+                payload_resp = {
+                    "contents": [{"parts": [{"text": prompt_resp}]}],
+                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": 300}
+                }
+                req2 = urllib.request.Request(url, data=json.dumps(payload_resp).encode("utf-8"), headers=headers)
+                with urllib.request.urlopen(req2, timeout=12) as resp2:
+                    ans_data = json.loads(resp2.read().decode("utf-8"))
+                    return ans_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception as e:
+            print(f"[Bot IA Erro]: {e}", flush=True)
+
+    # 2. Fallback Heurístico direto no banco (sem depender de chave de IA)
+    p_lower = pergunta_clean.lower()
+    try:
+        conn = sqlite3.connect(f"file:{DB_LOCAL}?mode=ro", uri=True)
+        c = conn.cursor()
+
+        # Pergunta de contagem ou tamanho
+        if any(w in p_lower for w in ["quantos jogos", "total de partidas", "partidas catalogadas", "total de jogos"]):
+            c.execute("SELECT count(*) FROM partidas;")
+            total = c.fetchone()[0]
+            conn.close()
+            return f"⚽ Temos atualmente *{total:,}* partidas oficiais catalogadas no banco de dados."
+
+        if any(w in p_lower for w in ["gols", "artilheiro", "artilheiros", "mais gols"]):
+            c.execute("SELECT atleta, count(*) as total FROM gols_detalhados GROUP BY atleta ORDER BY total DESC LIMIT 5;")
+            rows = c.fetchall()
+            conn.close()
+            if rows:
+                txt = "👑 *TOP 5 ARTILHEIROS NO BANCO:*\n"
+                for i, (atleta, g) in enumerate(rows, 1):
+                    txt += f"{i}. *{atleta}*: {g} gols\n"
+                return txt
+
+        # Busca por clube específico
+        clubes_comuns = ["flamengo", "palmeiras", "corinthians", "são paulo", "sao paulo", "santos", "vasco", "fluminense", "botafogo", "grêmio", "gremio", "internacional", "cruzeiro", "atlético", "atletico", "bahia", "fortaleza", "sport", "vitória", "vitoria"]
+        for clube in clubes_comuns:
+            if clube in p_lower:
+                c.execute("SELECT count(*) FROM partidas WHERE time_mandante LIKE ? OR time_visitante LIKE ?;", (f"%{clube}%", f"%{clube}%"))
+                cnt = c.fetchone()[0]
+                c.execute("SELECT count(*) FROM partidas WHERE (time_mandante LIKE ? AND gols_mandante > gols_visitante) OR (time_visitante LIKE ? AND gols_visitante > gols_mandante);", (f"%{clube}%", f"%{clube}%"))
+                vitorias = c.fetchone()[0]
+                conn.close()
+                return f"🛡️ *Registros do {clube.title()}*:\n• Total de Partidas: *{cnt:,}*\n• Vitórias Registradas: *{vitorias:,}*"
+
+        conn.close()
+    except Exception as e:
+        return f"❌ Erro ao consultar base: {e}"
+
+    return (
+        f"🤖 Entendido! Recebi sua pergunta: *\"{pergunta_clean}\"*.\n\n"
+        "💡 _Dica: Para análises profundas com raciocínio de IA, certifique-se de que a `GEMINI_API_KEY` está ativa no `.env`. Enquanto isso, você pode perguntar sobre clubes, artilheiros ou usar `/status` e `/ultimos`._"
+    )
     ram_avail, ram_total, swap_free, swap_total = 0, 0, 0, 0
     if os.path.exists("/proc/meminfo"):
         try:
@@ -159,17 +280,22 @@ def tratar_comando(chat_id: str, texto: str):
     if cmd in ("/start", "/ajuda", "/help"):
         msg = (
             f"👋 *Olá, Moderador!*\n\n"
-            f"Bem-vindo ao canal de controle do *Scrapper-BR*.\n\n"
+            f"Bem-vindo ao canal de controle e inteligência do *Scrapper-BR*.\n\n"
             f"Comandos disponíveis:\n"
+            f"💬 *Fazer Pergunta:* Envie qualquer pergunta em texto comum (ex: _'quantos jogos do Flamengo temos?'_ ou _'quem é o maior artilheiro?'_)\n"
+            f"📊 `/status` - Exibe a saúde da VM e métricas de infraestrutura\n"
+            f"🕒 `/ultimos` - Exibe os últimos 5 jogos adicionados pelo scraping\n"
             f"📥 `/banco` - Baixa o banco SQLite compactado (`futebol.db.zip` ~17MB)\n"
-            f"📊 `/status` - Exibe a saúde da VM e o total de partidas/gols\n"
             f"🌐 `/dashboard` - Link direto do painel web na Vercel\n"
             f"❓ `/ajuda` - Exibe esta mensagem\n"
         )
         notificar(chat_id, msg)
 
-    elif cmd == "/status":
+    elif cmd in ("/status", "/saude"):
         notificar(chat_id, obter_status_sistema())
+
+    elif cmd == "/ultimos":
+        notificar(chat_id, obter_ultimos_jogos())
 
     elif cmd == "/dashboard":
         msg = (
@@ -197,8 +323,17 @@ def tratar_comando(chat_id: str, texto: str):
         except Exception as e:
             notificar(chat_id, f"❌ Erro ao compactar banco: {e}")
 
+    elif cmd == "/perguntar" or not cmd.startswith("/"):
+        pergunta = texto[len("/perguntar"):].strip() if cmd == "/perguntar" else texto.strip()
+        if not pergunta:
+            notificar(chat_id, "❓ Digite sua pergunta após `/perguntar` ou envie diretamente o texto.")
+            return
+        notificar(chat_id, "🔍 *Consultando base de dados...*")
+        resposta = responder_pergunta_banco(pergunta)
+        notificar(chat_id, resposta)
+
     else:
-        notificar(chat_id, "Comando não reconhecido. Digite `/ajuda` para ver os comandos.")
+        notificar(chat_id, "Comando não reconhecido. Digite `/ajuda` para ver os comandos ou faça sua pergunta diretamente.")
 
 def iniciar_polling():
     if not TOKEN:
