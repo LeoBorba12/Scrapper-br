@@ -270,7 +270,7 @@ export default function ClubEvolutionChart({
                   y1={paddingTop}
                   x2={pt.x}
                   y2={paddingTop + chartHeight}
-                  stroke="#FF13B1"
+                  stroke="var(--accent)"
                   strokeWidth="1.2"
                   strokeDasharray="3,3"
                 />
@@ -281,7 +281,7 @@ export default function ClubEvolutionChart({
                 cx={pt.x}
                 cy={pt.y}
                 r={isHov ? 6 : 4}
-                fill={isHov ? '#FF13B1' : 'var(--accent)'}
+                fill={isHov ? 'var(--accent-hover)' : 'var(--accent)'}
                 stroke="var(--surface-card)"
                 strokeWidth="2.5"
                 style={{ transition: 'all 150ms ease' }}
@@ -341,7 +341,7 @@ export default function ClubEvolutionChart({
               </div>
               <div>
                 <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>Aprov</span>
-                <div className="font-mono" style={{ fontWeight: 800, color: '#FF13B1' }}>{item.aproveitamento}%</div>
+                <div className="font-mono" style={{ fontWeight: 800, color: 'var(--positive)' }}>{item.aproveitamento}%</div>
               </div>
               <div>
                 <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>Pontos</span>

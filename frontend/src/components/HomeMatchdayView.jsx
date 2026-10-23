@@ -119,25 +119,25 @@ const ClubShield = ({ name, size = 38 }) => {
   );
 };
 
-// Badges de Torneio coloridos
+// Badges de Torneio elegantes e com alto contraste
 const getTournamentBadge = (camp) => {
   const c = (camp || '').toLowerCase();
   if (c.includes('libertadores')) {
-    return { label: 'Libertadores', bg: 'rgba(245, 158, 11, 0.15)', border: '#F59E0B', text: '#FBBF24' };
+    return { label: 'Libertadores', bg: 'var(--positive-bg)', border: 'var(--positive)', text: 'var(--positive)' };
   }
   if (c.includes('copa do brasil')) {
-    return { label: 'Copa do Brasil', bg: 'rgba(255, 19, 177, 0.15)', border: '#FF13B1', text: '#FF4BC4' };
+    return { label: 'Copa do Brasil', bg: 'var(--accent-soft)', border: 'var(--accent)', text: 'var(--accent)' };
   }
   if (c.includes('sul-americana') || c.includes('conmebol')) {
-    return { label: 'Sul-Americana', bg: 'rgba(0, 240, 255, 0.15)', border: '#00F0FF', text: '#38BDF8' };
+    return { label: 'Sul-Americana', bg: 'var(--surface-raised)', border: 'var(--border-strong)', text: 'var(--text-primary)' };
   }
   if (c.includes('série b')) {
-    return { label: 'Série B', bg: 'rgba(139, 92, 246, 0.15)', border: '#8B5CF6', text: '#A78BFA' };
+    return { label: 'Série B', bg: 'var(--surface-raised)', border: 'var(--border-subtle)', text: 'var(--text-secondary)' };
   }
   if (c.includes('paulista') || c.includes('carioca') || c.includes('gaúcho') || c.includes('mineiro')) {
-    return { label: 'Estadual', bg: 'rgba(156, 163, 175, 0.15)', border: '#6B7280', text: '#D1D5DB' };
+    return { label: 'Estadual', bg: 'var(--surface-raised)', border: 'var(--border-subtle)', text: 'var(--text-secondary)' };
   }
-  return { label: 'Brasileirão', bg: 'rgba(199, 255, 0, 0.15)', border: '#C7FF00', text: '#C7FF00' };
+  return { label: 'Brasileirão', bg: 'var(--positive-bg)', border: 'var(--positive)', text: 'var(--positive)' };
 };
 
 export default function HomeMatchdayView({
@@ -282,8 +282,8 @@ export default function HomeMatchdayView({
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: '#C7FF00',
-                boxShadow: '0 0 8px #C7FF00'
+                backgroundColor: 'var(--positive)',
+                boxShadow: '0 0 8px var(--positive)'
               }}
             />
             <span
@@ -330,7 +330,7 @@ export default function HomeMatchdayView({
                     transition: 'all 180ms ease'
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#FF13B1';
+                    e.currentTarget.style.borderColor = 'var(--accent)';
                     e.currentTarget.style.backgroundColor = 'var(--surface-card-hover)';
                   }}
                   onMouseLeave={(e) => {
@@ -345,7 +345,7 @@ export default function HomeMatchdayView({
                       fontWeight: 700,
                       backgroundColor: badge.bg,
                       color: badge.text,
-                      border: `1px solid ${badge.border}40`,
+                      border: `1px solid ${badge.border}`,
                       borderRadius: '9999px',
                       padding: '1px 6px'
                     }}
@@ -363,7 +363,7 @@ export default function HomeMatchdayView({
                         fontSize: '0.78rem',
                         fontWeight: 800,
                         fontFamily: 'monospace',
-                        color: jogo.finalizado ? '#C7FF00' : 'var(--text-muted)',
+                        color: jogo.finalizado ? 'var(--positive)' : 'var(--text-muted)',
                         padding: '0 3px'
                       }}
                     >
@@ -422,8 +422,8 @@ export default function HomeMatchdayView({
                 gap: '8px',
                 padding: '4px 12px',
                 borderRadius: '9999px',
-                backgroundColor: 'rgba(255, 19, 177, 0.12)',
-                border: '1px solid rgba(255, 19, 177, 0.35)',
+                backgroundColor: 'var(--accent-soft)',
+                border: '1px solid var(--accent)',
                 marginBottom: '12px'
               }}
             >
@@ -432,11 +432,11 @@ export default function HomeMatchdayView({
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: '#FF13B1',
-                  boxShadow: '0 0 6px #FF13B1'
+                  backgroundColor: 'var(--accent)',
+                  boxShadow: '0 0 6px var(--accent)'
                 }}
               />
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FF13B1', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.06em' }}>
                 MATCHDAY COCKPIT • HISTÓRICO TOTAL DESDE 1902
               </span>
             </div>
@@ -454,9 +454,9 @@ export default function HomeMatchdayView({
               A Memória e os Tabus do Futebol{' '}
               <span
                 style={{
-                  color: '#FF13B1',
+                  color: 'var(--accent)',
                   textDecoration: 'underline',
-                  textDecorationColor: 'rgba(255, 19, 177, 0.4)'
+                  textDecorationColor: 'var(--accent-soft)'
                 }}
               >
                 Brasileiro
@@ -483,7 +483,7 @@ export default function HomeMatchdayView({
                 gap: '8px'
               }}
             >
-              <Calendar size={15} color="#FF13B1" />
+              <Calendar size={15} color="var(--accent)" />
               <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {cockpitData?.data_formatada || '23 de Outubro'}
               </span>
@@ -511,7 +511,7 @@ export default function HomeMatchdayView({
               <button
                 onClick={() => carregarCockpit(selectedDate)}
                 style={{
-                  backgroundColor: isRefreshing ? '#FF13B1' : 'transparent',
+                  backgroundColor: isRefreshing ? 'var(--accent)' : 'transparent',
                   border: 'none',
                   color: 'var(--text-secondary)',
                   borderRadius: '9999px',
@@ -555,7 +555,7 @@ export default function HomeMatchdayView({
                   e.currentTarget.style.color = 'var(--text-primary)';
                 }}
               >
-                <Sparkles size={15} color="#FF13B1" />
+                <Sparkles size={15} color="var(--accent)" />
                 Perguntar à IA
               </button>
             )}
@@ -600,7 +600,7 @@ export default function HomeMatchdayView({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Swords size={20} color="#FF13B1" />
+                <Swords size={20} color="var(--accent)" />
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
                   Tabus e Confrontos Clássicos
                 </h2>
@@ -626,9 +626,9 @@ export default function HomeMatchdayView({
                     key={reg}
                     onClick={() => setFilterRegion(reg)}
                     style={{
-                      backgroundColor: filterRegion === reg ? '#FF13B1' : 'var(--surface-raised)',
-                      color: filterRegion === reg ? '#FFFFFF' : 'var(--text-secondary)',
-                      border: filterRegion === reg ? '1px solid #FF13B1' : '1px solid var(--border-subtle)',
+                      backgroundColor: filterRegion === reg ? 'var(--accent)' : 'var(--surface-raised)',
+                      color: filterRegion === reg ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+                      border: filterRegion === reg ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
                       borderRadius: '9999px',
                       padding: '4px 12px',
                       fontSize: '0.74rem',
@@ -666,7 +666,7 @@ export default function HomeMatchdayView({
                     key={`${item.clube1}-${item.clube2}-${idx}`}
                     style={{
                       backgroundColor: 'var(--surface-card)',
-                      border: isTabu ? '1px solid rgba(255, 19, 177, 0.45)' : '1px solid var(--border-subtle)',
+                      border: isTabu ? '1px solid var(--negative)' : '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-panel)',
                       padding: '20px',
                       boxShadow: 'var(--shadow-editorial)',
@@ -676,12 +676,12 @@ export default function HomeMatchdayView({
                       transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease'
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = isTabu ? '#FF13B1' : 'var(--border-strong)';
+                      e.currentTarget.style.borderColor = isTabu ? 'var(--negative)' : 'var(--border-strong)';
                       e.currentTarget.style.backgroundColor = 'var(--surface-card-hover)';
                       e.currentTarget.style.transform = 'translateY(-2px)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = isTabu ? 'rgba(255, 19, 177, 0.45)' : 'var(--border-subtle)';
+                      e.currentTarget.style.borderColor = isTabu ? 'var(--negative)' : 'var(--border-subtle)';
                       e.currentTarget.style.backgroundColor = 'var(--surface-card)';
                       e.currentTarget.style.transform = 'translateY(0)';
                     }}
@@ -713,12 +713,12 @@ export default function HomeMatchdayView({
                             fontSize: '0.68rem',
                             fontWeight: 700,
                             backgroundColor: isTabu
-                              ? 'rgba(255, 19, 177, 0.18)'
+                              ? 'var(--negative-bg)'
                               : isSupremacia
-                              ? 'rgba(199, 255, 0, 0.15)'
-                              : 'rgba(0, 240, 255, 0.15)',
-                            color: isTabu ? '#FF13B1' : isSupremacia ? '#606E43' : '#0284C7',
-                            border: `1px solid ${isTabu ? '#FF13B1' : isSupremacia ? '#C7FF00' : '#00F0FF'}50`,
+                              ? 'var(--positive-bg)'
+                              : 'var(--surface-raised)',
+                            color: isTabu ? 'var(--negative)' : isSupremacia ? 'var(--positive)' : 'var(--text-secondary)',
+                            border: `1px solid ${isTabu ? 'var(--negative)' : isSupremacia ? 'var(--positive)' : 'var(--border-subtle)'}`,
                             borderRadius: '9999px',
                             padding: '2px 8px'
                           }}
@@ -801,9 +801,9 @@ export default function HomeMatchdayView({
                         }}
                         title={`${item.clube1}: ${pct1}% | Empates: ${pctEmp}% | ${item.clube2}: ${pct2}%`}
                       >
-                        <div style={{ width: `${pct1}%`, backgroundColor: '#FF13B1' }} />
+                        <div style={{ width: `${pct1}%`, backgroundColor: 'var(--accent)' }} />
                         <div style={{ width: `${pctEmp}%`, backgroundColor: 'var(--border-strong)' }} />
-                        <div style={{ width: `${pct2}%`, backgroundColor: '#0284C7' }} />
+                        <div style={{ width: `${pct2}%`, backgroundColor: 'var(--text-secondary)' }} />
                       </div>
 
                       {/* Manchete Editorial Automática */}
@@ -850,8 +850,8 @@ export default function HomeMatchdayView({
                     <button
                       onClick={() => onSelectH2H && onSelectH2H(item.clube1, item.clube2)}
                       style={{
-                        backgroundColor: '#FF13B1',
-                        color: '#FFFFFF',
+                        backgroundColor: 'var(--accent)',
+                        color: 'var(--accent-foreground)',
                         border: 'none',
                         borderRadius: '9999px',
                         padding: '9px 16px',
@@ -866,11 +866,11 @@ export default function HomeMatchdayView({
                         transition: 'all 180ms ease'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FF4BC4';
+                        e.currentTarget.style.backgroundColor = 'var(--accent-hover)';
                         e.currentTarget.style.transform = 'scale(1.02)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#FF13B1';
+                        e.currentTarget.style.backgroundColor = 'var(--accent)';
                         e.currentTarget.style.transform = 'scale(1)';
                       }}
                     >
@@ -1072,7 +1072,7 @@ export default function HomeMatchdayView({
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
                         {m.estadio || m.fase || 'Partida Histórica'}
                       </span>
-                      <span style={{ color: '#FF13B1', fontWeight: 600 }}>Ver H2H →</span>
+                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Ver H2H →</span>
                     </div>
                   </div>
                 );
@@ -1099,7 +1099,7 @@ export default function HomeMatchdayView({
           <div style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Trophy size={20} color="#F59E0B" />
+                <Trophy size={20} color="var(--accent)" />
                 <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
                   Ranking Histórico
                 </h2>
@@ -1108,9 +1108,9 @@ export default function HomeMatchdayView({
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: 700,
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                  color: '#D97706',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  backgroundColor: 'var(--accent-soft)',
+                  color: 'var(--accent)',
+                  border: '1px solid var(--accent)',
                   borderRadius: '9999px',
                   padding: '2px 8px'
                 }}
@@ -1140,8 +1140,8 @@ export default function HomeMatchdayView({
               <button
                 onClick={() => setRankingMode('ponderado')}
                 style={{
-                  backgroundColor: rankingMode === 'ponderado' ? '#FF13B1' : 'transparent',
-                  color: rankingMode === 'ponderado' ? '#FFFFFF' : 'var(--text-secondary)',
+                  backgroundColor: rankingMode === 'ponderado' ? 'var(--accent)' : 'transparent',
+                  color: rankingMode === 'ponderado' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                   border: 'none',
                   borderRadius: '9999px',
                   padding: '6px 0',
@@ -1156,8 +1156,8 @@ export default function HomeMatchdayView({
               <button
                 onClick={() => setRankingMode('campo')}
                 style={{
-                  backgroundColor: rankingMode === 'campo' ? '#FF13B1' : 'transparent',
-                  color: rankingMode === 'campo' ? '#FFFFFF' : 'var(--text-secondary)',
+                  backgroundColor: rankingMode === 'campo' ? 'var(--accent)' : 'transparent',
+                  color: rankingMode === 'campo' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                   border: 'none',
                   borderRadius: '9999px',
                   padding: '6px 0',
@@ -1196,8 +1196,8 @@ export default function HomeMatchdayView({
                   key={tab.id}
                   onClick={() => setRankingTab(tab.id)}
                   style={{
-                    backgroundColor: rankingTab === tab.id ? '#FF13B1' : 'transparent',
-                    color: rankingTab === tab.id ? '#FFFFFF' : 'var(--text-secondary)',
+                    backgroundColor: rankingTab === tab.id ? 'var(--accent)' : 'transparent',
+                    color: rankingTab === tab.id ? 'var(--accent-foreground)' : 'var(--text-secondary)',
                     border: 'none',
                     borderRadius: '9999px',
                     padding: '5px 0',
@@ -1257,7 +1257,7 @@ export default function HomeMatchdayView({
             {rankingExibido.map((clube, idx) => {
               const pos = idx + 1;
               const isPodium = pos <= 3;
-              const podiumColor = pos === 1 ? '#D97706' : pos === 2 ? '#6B7280' : '#B45309';
+              const podiumColor = pos === 1 ? 'var(--accent)' : pos === 2 ? 'var(--text-secondary)' : 'var(--border-strong)';
 
               return (
                 <div
@@ -1320,7 +1320,7 @@ export default function HomeMatchdayView({
                         fontSize: '0.9rem',
                         fontWeight: 800,
                         fontFamily: 'monospace',
-                        color: rankingMode === 'ponderado' ? '#FF13B1' : 'var(--text-primary)'
+                        color: rankingMode === 'ponderado' ? 'var(--accent)' : 'var(--text-primary)'
                       }}
                     >
                       {rankingMode === 'ponderado' && `${(clube.pontos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pts`}

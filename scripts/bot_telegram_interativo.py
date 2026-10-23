@@ -133,7 +133,7 @@ def responder_pergunta_banco(pergunta: str) -> str:
                 "PROIBIDO: DROP, DELETE, INSERT, UPDATE, ALTER, ATTACH.\n"
                 "Retorne JSON estrito: {\"sql\": \"SELECT ...\"}"
             )
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}"
             headers = {"Content-Type": "application/json"}
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],

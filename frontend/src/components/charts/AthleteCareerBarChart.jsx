@@ -56,14 +56,13 @@ export default function AthleteCareerBarChart({
         >
           <defs>
             <linearGradient id="barCareerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#C7FF00" />
-              <stop offset="40%" stopColor="var(--accent)" />
+              <stop offset="0%" stopColor="var(--accent)" />
               <stop offset="100%" stopColor="var(--accent-hover)" />
             </linearGradient>
 
             <linearGradient id="barCareerGradHover" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#FF4BC4" />
-              <stop offset="100%" stopColor="#FF13B1" />
+              <stop offset="0%" stopColor="var(--positive)" />
+              <stop offset="100%" stopColor="var(--accent)" />
             </linearGradient>
           </defs>
 
@@ -152,7 +151,7 @@ export default function AthleteCareerBarChart({
                     fontSize="11"
                     fontWeight="800"
                     fontFamily="var(--font-mono)"
-                    fill={isHover ? '#FF13B1' : 'var(--text-primary)'}
+                    fill={isHover ? 'var(--accent)' : 'var(--text-primary)'}
                   >
                     {gols}
                   </text>
@@ -201,7 +200,7 @@ export default function AthleteCareerBarChart({
             }}
           >
             <div>
-              <span className="font-mono" style={{ fontWeight: 800, color: '#FF13B1' }}>
+              <span className="font-mono" style={{ fontWeight: 800, color: 'var(--accent)' }}>
                 Temporada {item.ano}
               </span>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>

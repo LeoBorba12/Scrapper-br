@@ -1,9 +1,17 @@
 # Ignorar scripts locais de raspagem e caches pesados
 scripts/
-data/raw_*
 *.log
 .env
 .env.local
 .git
 .github
 !requirements.txt
+
+# Ignorar acervos brutos e bancos redundantes na Vercel (economiza >220 MB de bundle)
+api/data/
+data/futebol_acervo.db
+data/clima.db
+data/*.json
+data/raw_*
+data/raw_*/**
+docs/

@@ -250,7 +250,7 @@ def analisar_com_gemini(resumo_auditoria, gemini_key):
             "3. Sanidade de partidas e duplicatas\n"
             "4. Ação preventiva sugerida (ou 'Nenhuma ação necessária')"
         )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
