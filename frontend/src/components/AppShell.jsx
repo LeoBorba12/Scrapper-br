@@ -55,6 +55,7 @@ export default function AppShell({
         }}
       >
         <div
+          className="app-header-container"
           style={{
             maxWidth: 'var(--content-max)',
             margin: '0 auto',
@@ -107,9 +108,9 @@ export default function AppShell({
               </span>
             </button>
             
-            <div style={{ height: '18px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
+            <div className="app-header-divider" style={{ height: '18px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
 
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+            <div className="app-header-subtitle" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
               Inteligência Histórica do Futebol Brasileiro
             </div>
           </div>
@@ -266,6 +267,7 @@ export default function AppShell({
 
         {/* ================= NAVEGAÇÃO PRINCIPAL UNIFICADA (UMA IDENTIDADE) ================= */}
         <nav
+          className="nav-scroll-touch"
           style={{
             borderTop: '1px solid var(--border-subtle)',
             backgroundColor: 'var(--surface-panel)',
@@ -274,6 +276,7 @@ export default function AppShell({
           aria-label="Navegação Principal do FutStats"
         >
           <div
+            className="app-nav-container"
             style={{
               maxWidth: 'var(--content-max)',
               margin: '0 auto',
@@ -330,6 +333,7 @@ export default function AppShell({
 
       {/* ================= CONTEÚDO DA PÁGINA ================= */}
       <main
+        className="app-main-content"
         style={{
           maxWidth: 'var(--content-max)',
           margin: '0 auto',

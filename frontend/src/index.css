@@ -300,3 +300,152 @@ body {
   box-shadow: var(--shadow-editorial);
   overflow: hidden;
 }
+
+/* ==========================================================================
+   RESPONSIVIDADE COMPLETA MOBILE & TABLET (BREAKPOINTS 1024px, 768px, 480px)
+   ========================================================================== */
+
+/* Rolagem touch suave para nav tabs e tabelas */
+.nav-scroll-touch {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nav-scroll-touch::-webkit-scrollbar {
+  display: none;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Grids utilitários responsivos */
+.grid-responsive-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.grid-responsive-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.grid-responsive-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+/* Fluid Headings com clamp() para evitar quebras abruptas em telas estreitas */
+h1, .heading-xl {
+  font-size: clamp(1.4rem, 4vw, 2.1rem);
+  line-height: 1.25;
+}
+
+h2, .heading-lg {
+  font-size: clamp(1.15rem, 3.2vw, 1.6rem);
+  line-height: 1.3;
+}
+
+h3, .heading-md {
+  font-size: clamp(1rem, 2.4vw, 1.3rem);
+  line-height: 1.35;
+}
+
+/* Breakpoint 1024px: Cockpit Bento Grid colapsa para coluna única */
+@media (max-width: 1024px) {
+  .bento-container,
+  .cockpit-main-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Breakpoint 768px: Tablets e Dispositivos Móveis */
+@media (max-width: 768px) {
+  /* Redução suave de espaçamento geral */
+  .app-main-content {
+    padding: 16px 12px 48px 12px !important;
+  }
+
+  .app-header-container {
+    padding: 10px 14px !important;
+  }
+
+  .app-header-subtitle,
+  .app-header-divider {
+    display: none !important;
+  }
+
+  .app-nav-container {
+    padding: 0 12px !important;
+    gap: 2px !important;
+  }
+
+  .app-nav-container button {
+    padding: 10px 10px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Compactação de cards e painéis */
+  .soft-card,
+  .editorial-panel,
+  .protagonista-card {
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Grids de 2, 3 e 4 colunas colapsam para 1 coluna */
+  .grid-responsive-2,
+  .grid-responsive-3,
+  .grid-responsive-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modais com ocupação confortável em tela cheia móvel */
+  .modal-dialog-content {
+    max-width: 95vw !important;
+    width: 95vw !important;
+    padding: 16px !important;
+    max-height: 92vh !important;
+  }
+
+  /* Ajuste de tabelas */
+  .editorial-table th,
+  .editorial-table td {
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  /* Botões e alvos de toque */
+  .btn-primary,
+  .btn-secondary {
+    padding: 8px 14px;
+    font-size: 0.84rem;
+  }
+}
+
+/* Breakpoint 480px: Telas Pequenas (Smartphones 360px - 440px) */
+@media (max-width: 480px) {
+  .app-main-content {
+    padding: 12px 8px 40px 8px !important;
+  }
+
+  .soft-card,
+  .editorial-panel,
+  .protagonista-card {
+    padding: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Tabelas mais compactas */
+  .editorial-table th,
+  .editorial-table td {
+    padding: 6px 8px;
+    font-size: 0.74rem;
+  }
+}

@@ -104,6 +104,40 @@ export default function ProtagonistaAtleta({
             )}
           </div>
 
+          {/* Atalhos Rápidos de Atletas Históricos */}
+          <div style={{ marginTop: '12px', display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Atalhos:</span>
+            {['Pelé', 'Zico', 'Gabigol', 'Hulk', 'Rogério Ceni', 'Romário', 'Roberto Dinamite', 'Arrascaeta'].map(nome => (
+              <button
+                key={nome}
+                type="button"
+                onClick={() => {
+                  setPlayerSearch(nome);
+                }}
+                style={{
+                  padding: '3px 9px',
+                  fontSize: '0.74rem',
+                  borderRadius: '9999px',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--surface-raised)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--accent)';
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                }}
+              >
+                {nome}
+              </button>
+            ))}
+          </div>
+
           {/* Sugestões de Autocomplete com ARIA Listbox & navegação por teclado */}
           {searchSuggestions && searchSuggestions.length > 0 && (
             <div 
@@ -358,7 +392,10 @@ export default function ProtagonistaAtleta({
   const resumo = atleta.resumo || {};
   const carreira = atleta.carreira_oficial || {};
   const minutos = atleta.distribuicao_minutos || {};
-  const maxMinGols = Math.max(...Object.values(minutos).map(Number), 1);
+  const maxMinGols = Math.max(
+    ...Object.values(minutos).map(v => Number(v) || 0),
+    1
+  );
 
   // Iniciais para fallback tipográfico
   const iniciais = (atleta.nome || selectedPlayer || 'A')
@@ -399,7 +436,7 @@ export default function ProtagonistaAtleta({
         </button>
 
         <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          Atleta ID: <strong className="font-mono">{atleta.id_jogador || '-'}</strong>
+          Atleta ID: <strong className="font-mono">{atleta.id_jogador || '—'}</strong>
           {atleta.ogol_id && ` • OGol ID: ${atleta.ogol_id}`}
         </div>
       </div>
@@ -414,7 +451,7 @@ export default function ProtagonistaAtleta({
           <div 
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', 
               gap: '18px' 
             }}
           >
@@ -425,9 +462,11 @@ export default function ProtagonistaAtleta({
                   <span className="pill-olive">
                     {atleta.posicao || 'Atacante'}
                   </span>
-                  <span className="font-mono tabular-nums" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--border-subtle)', lineHeight: 1 }}>
-                    #{resumo.camisa || '09'}
-                  </span>
+                  {resumo.camisa ? (
+                    <span className="font-mono tabular-nums" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--border-subtle)', lineHeight: 1 }}>
+                      #{resumo.camisa}
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Área da Imagem com dimensões reservadas (fallback para monograma neutro) */}
@@ -513,13 +552,14 @@ export default function ProtagonistaAtleta({
               {/* Gráfico de Barras Horizontais com as 6 faixas */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {Object.entries(minutos).map(([faixa, qtd]) => {
-                  const pct = Math.round((Number(qtd) / maxMinGols) * 100);
+                  const numQtd = Number(qtd) || 0;
+                  const pct = maxMinGols > 0 ? Math.min(100, Math.round((numQtd / maxMinGols) * 100)) : 0;
                   return (
                     <div key={faixa}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', marginBottom: '3px' }}>
                         <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>{faixa}'</span>
                         <span className="tabular-nums font-mono" style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {qtd} {qtd === 1 ? 'gol' : 'gols'}
+                          {numQtd} {numQtd === 1 ? 'gol' : 'gols'}
                         </span>
                       </div>
                       <div style={{ height: '8px', width: '100%', backgroundColor: 'var(--surface-raised)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -555,7 +595,7 @@ export default function ProtagonistaAtleta({
                 <div style={{ backgroundColor: 'var(--surface-raised)', padding: '10px', borderRadius: 'var(--radius-control)' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Pontaria de Chutes</div>
                   <div className="tabular-nums" style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {resumo.pontaria_chutes_pct ? `${resumo.pontaria_chutes_pct}%` : '62.5%'}
+                    {resumo.pontaria_chutes_pct != null ? `${resumo.pontaria_chutes_pct}%` : '—'}
                   </div>
                   <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Chutes no alvo confirmados</div>
                 </div>
@@ -573,7 +613,7 @@ export default function ProtagonistaAtleta({
                 <div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Aproveitamento com Atleta em Campo</div>
                   <div className="tabular-nums" style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {resumo.aproveitamento_pontos ? `${resumo.aproveitamento_pontos}%` : '—'}
+                    {resumo.aproveitamento_pontos != null ? `${resumo.aproveitamento_pontos}%` : '—'}
                   </div>
                 </div>
                 <Activity size={24} color="var(--accent)" />
@@ -691,7 +731,7 @@ export default function ProtagonistaAtleta({
                 <div 
                   style={{ 
                     display: 'grid', 
-                    gridTemplateColumns: 'repeat(3, 1fr)', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 80px), 1fr))', 
                     gap: '8px', 
                     marginTop: '12px', 
                     marginBottom: '12px',
@@ -716,7 +756,7 @@ export default function ProtagonistaAtleta({
                     <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
                       {resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0
                         ? (Number(resumo.total_gols || 0) / Number(resumo.jogos_registrados)).toFixed(2)
-                        : (resumo.media_gols != null ? Number(resumo.media_gols).toFixed(2) : '—')}
+                        : (resumo.media_gols != null && !isNaN(Number(resumo.media_gols)) ? Number(resumo.media_gols).toFixed(2) : '—')}
                     </div>
                   </div>
                 </div>
@@ -831,23 +871,31 @@ export default function ProtagonistaAtleta({
                           </tr>
                         </thead>
                         <tbody>
-                          {paginadas.map((pt, k) => (
-                            <tr key={pt.id_partida || k}>
-                              <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.data || pt.ano}</td>
-                              <td style={{ fontSize: '0.8rem' }}>{pt.campeonato}</td>
-                              <td style={{ fontWeight: 600 }}>{pt.mandante} × {pt.visitante}</td>
-                              <td style={{ textAlign: 'center', fontWeight: 700 }}>{pt.placar}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className={pt.escalacao?.titular ? 'pill-olive' : 'pill-neutral'}>
-                                  {pt.escalacao?.titular ? 'Titular' : 'Reserva'}
-                                </span>
-                              </td>
-                              <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.estadio || 'N/I'}</td>
-                              <td style={{ textAlign: 'center', fontWeight: 700, color: (pt.gols || []).length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
-                                {(pt.gols || []).length > 0 ? `⚽ ${(pt.gols || []).length}` : '—'}
+                          {paginadas.length === 0 ? (
+                            <tr>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '28px', color: 'var(--text-secondary)' }}>
+                                Nenhuma partida catalogada registrada para este atleta.
                               </td>
                             </tr>
-                          ))}
+                          ) : (
+                            paginadas.map((pt, k) => (
+                              <tr key={pt.id_partida || k}>
+                                <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.data || pt.ano}</td>
+                                <td style={{ fontSize: '0.8rem' }}>{pt.campeonato}</td>
+                                <td style={{ fontWeight: 600 }}>{pt.mandante} × {pt.visitante}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 700 }}>{pt.placar}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span className={pt.escalacao?.titular ? 'pill-olive' : 'pill-neutral'}>
+                                    {pt.escalacao?.titular ? 'Titular' : 'Reserva'}
+                                  </span>
+                                </td>
+                                <td style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{pt.estadio || 'N/I'}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 700, color: (pt.gols || []).length > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                                  {(pt.gols || []).length > 0 ? `⚽ ${(pt.gols || []).length}` : '—'}
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -965,17 +1013,25 @@ export default function ProtagonistaAtleta({
                         </tr>
                       </thead>
                       <tbody>
-                        {(atleta.historico_temporadas || []).map((tp, k) => (
-                          <tr key={tp.ano || k}>
-                            <td style={{ fontWeight: 700 }}>{tp.ano}</td>
-                            <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
-                            <td style={{ textAlign: 'center' }}>{tp.jogos}</td>
-                            <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols}</td>
-                            <td style={{ textAlign: 'center' }}>{tp.media_gols}</td>
-                            <td style={{ textAlign: 'center' }}>{tp.amarelos}</td>
-                            <td style={{ textAlign: 'center' }}>{tp.vermelhos}</td>
+                        {(atleta.historico_temporadas || []).length === 0 ? (
+                          <tr>
+                            <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
+                              Nenhuma temporada registrada no catálogo.
+                            </td>
                           </tr>
-                        ))}
+                        ) : (
+                          (atleta.historico_temporadas || []).map((tp, k) => (
+                            <tr key={tp.ano || k}>
+                              <td style={{ fontWeight: 700 }}>{tp.ano}</td>
+                              <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
+                              <td style={{ textAlign: 'center' }}>{tp.jogos ?? '—'}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols ?? '—'}</td>
+                              <td style={{ textAlign: 'center' }}>{tp.media_gols != null ? tp.media_gols : '—'}</td>
+                              <td style={{ textAlign: 'center' }}>{tp.amarelos ?? 0}</td>
+                              <td style={{ textAlign: 'center' }}>{tp.vermelhos ?? 0}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -997,16 +1053,24 @@ export default function ProtagonistaAtleta({
                       </tr>
                     </thead>
                     <tbody>
-                      {(atleta.historico_torneios || []).map((tr, k) => (
-                        <tr key={tr.campeonato || k}>
-                          <td style={{ fontWeight: 600 }}>{tr.campeonato}</td>
-                          <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{tr.ano_min} – {tr.ano_max}</td>
-                          <td style={{ textAlign: 'center' }}>{tr.jogos}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tr.gols}</td>
-                          <td style={{ textAlign: 'center' }}>{tr.amarelos}</td>
-                          <td style={{ textAlign: 'center' }}>{tr.vermelhos}</td>
+                      {(atleta.historico_torneios || []).length === 0 ? (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>
+                            Nenhuma competição registrada no catálogo.
+                          </td>
                         </tr>
-                      ))}
+                      ) : (
+                        (atleta.historico_torneios || []).map((tr, k) => (
+                          <tr key={tr.campeonato || k}>
+                            <td style={{ fontWeight: 600 }}>{tr.campeonato}</td>
+                            <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{tr.ano_min} – {tr.ano_max}</td>
+                            <td style={{ textAlign: 'center' }}>{tr.jogos ?? '—'}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tr.gols ?? '—'}</td>
+                            <td style={{ textAlign: 'center' }}>{tr.amarelos ?? 0}</td>
+                            <td style={{ textAlign: 'center' }}>{tr.vermelhos ?? 0}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1014,24 +1078,32 @@ export default function ProtagonistaAtleta({
 
               {/* Sub-aba Vítimas */}
               {subTab === 'vitimas' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
-                  {(atleta.top_vitimas || []).map((vt, k) => (
-                    <div 
-                      key={k} 
-                      style={{ 
-                        backgroundColor: 'var(--surface-raised)', 
-                        padding: '12px 14px', 
-                        borderRadius: 'var(--radius-control)',
-                        border: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{vt.clube}</span>
-                      <span className="pill-olive font-mono">{vt.gols} gols</span>
+                <div>
+                  {(atleta.top_vitimas || []).length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      Nenhuma vítima catalogada registrada para este atleta.
                     </div>
-                  ))}
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
+                      {atleta.top_vitimas.map((vt, k) => (
+                        <div 
+                          key={k} 
+                          style={{ 
+                            backgroundColor: 'var(--surface-raised)', 
+                            padding: '12px 14px', 
+                            borderRadius: 'var(--radius-control)',
+                            border: '1px solid var(--border-subtle)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{vt.clube}</span>
+                          <span className="pill-olive font-mono">{vt.gols} {vt.gols === 1 ? 'gol' : 'gols'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

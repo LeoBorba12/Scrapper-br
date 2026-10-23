@@ -2398,6 +2398,10 @@ def get_analise_mercados_odds():
     """
     params.append(limit)
     rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    try:
+        total_catalogo = c.execute("SELECT count(*) FROM odds_partidas;").fetchone()[0]
+    except Exception:
+        total_catalogo = len(rows)
     conn.close()
 
     return jsonify({
@@ -2562,7 +2566,9 @@ def get_apostas_hub():
             o.prob_over_2_5, o.prob_btts_sim,
             o.prob_mandante, o.prob_empate, o.prob_visitante,
             o.linha_handicap, o.odd_handicap_mandante, o.odd_handicap_visitante,
-            o.media_cartoes_esperada, o.media_escanteios_esperada, o.status_zebra
+            o.media_cartoes_esperada, o.media_escanteios_esperada, o.status_zebra,
+            o.prob_over_9_5_corners, o.prob_over_10_5_corners,
+            o.arbitro_rigor, o.arbitro_media_cartoes
         FROM partidas p
         JOIN odds_partidas o ON p.id_partida = o.id_partida
         WHERE {where_sql}

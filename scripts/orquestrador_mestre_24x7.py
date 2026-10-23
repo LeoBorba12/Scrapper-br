@@ -129,6 +129,15 @@ BLOCOS_HISTORICOS = [
     }
 ]
 
+# Estado do Relatório Consolidado de 3 em 3 Horas
+INTERVALO_NOTIFICACAO_SEGUNDOS = 3 * 3600  # 3 Horas (10.800s)
+ESTADO_NOTIFICACAO = {
+    "ultimo_envio": time.time(),
+    "ciclos_concluidos": 0,
+    "blocos_raspados": [],
+    "partidas_inicio": 0
+}
+
 def ciclo_mestre(numero_ciclo: int):
     safe_print(f"\n=======================================================")
     safe_print(f"   INICIANDO CICLO MESTRE {numero_ciclo} (APOSTAS + GOLS 24/7)   ")
@@ -192,7 +201,7 @@ def ciclo_mestre(numero_ciclo: int):
 
     if should_push:
         safe_print("\n>>> [FASE D] Sincronização Git & Deploy (Janela de 2 Horas) <<<")
-        executar_comando(["git", "add", "data/futebol.db", "api/data/futebol.db"])
+        executar_comando(["git", "add", "data/futebol.db"])
         commit_msg = f"feat(mestre): ciclo {numero_ciclo} - apostas, mercados e {bloco['desc'][:60]}"
         executar_comando(["git", "commit", "-m", commit_msg])
         executar_comando(["git", "pull", "--rebase", "-X", "theirs", "origin", "main"])
@@ -200,14 +209,52 @@ def ciclo_mestre(numero_ciclo: int):
     else:
         safe_print(f"\n[INFO] Ciclo {numero_ciclo}: dados salvos localmente no SQLite. Próximo push Git agendado no ciclo {(numero_ciclo // 15 + 1) * 15}.")
 
-    # Notificar Telegram
-    notificar_telegram(
-        f"⚽ *FutStats - Ciclo Mestre {numero_ciclo} Concluído!*\n"
-        f"📊 *Mercados Atualizados*: Over/Under 1.5, 2.5, BTTS e Cartões de Árbitros\n"
-        f"🏛️ *Varredura Histórica*: {bloco['desc']}\n"
-        f"💾 *Tamanho DB*: `{size_mb:.2f} MB` / limite 94 MB\n"
-        f"🚀 *Status*: Ativo 24/7 na Oracle Cloud VM"
-    )
+    # -------------------------------------------------------------
+    # REGRA DO TELEGRAM: NOTIFICAÇÃO CONSOLIDADA DE 3 EM 3 HORAS
+    # -------------------------------------------------------------
+    agora_ts = time.time()
+    ESTADO_NOTIFICACAO["ciclos_concluidos"] += 1
+    if bloco["desc"] not in ESTADO_NOTIFICACAO["blocos_raspados"]:
+        ESTADO_NOTIFICACAO["blocos_raspados"].append(bloco["desc"])
+
+    tempo_decorrido = agora_ts - ESTADO_NOTIFICACAO["ultimo_envio"]
+    restante_min = int((INTERVALO_NOTIFICACAO_SEGUNDOS - tempo_decorrido) / 60)
+
+    # Obter total de partidas atual
+    total_partidas_atual = 0
+    try:
+        conn = sqlite3.connect(f"file:{DB_LOCAL}?mode=ro", uri=True)
+        total_partidas_atual = conn.cursor().execute("SELECT count(*) FROM partidas").fetchone()[0]
+        conn.close()
+    except Exception:
+        pass
+
+    # Dispara apenas quando atingir a janela de 3 horas (10.800 segundos)
+    if tempo_decorrido >= INTERVALO_NOTIFICACAO_SEGUNDOS:
+        blocos_formatados = "\n".join([f"• {b}" for b in ESTADO_NOTIFICACAO["blocos_raspados"][:8]])
+        if len(ESTADO_NOTIFICACAO["blocos_raspados"]) > 8:
+            blocos_formatados += f"\n• ... e mais {len(ESTADO_NOTIFICACAO['blocos_raspados']) - 8} blocos históricos."
+
+        msg_digest = (
+            f"🕒 *[FutStats - Relatório Consolidado de 3 Horas]*\n"
+            f"📅 _{datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}_\n\n"
+            f"✅ *{ESTADO_NOTIFICACAO['ciclos_concluidos']} ciclos de mineração* executados com sucesso.\n\n"
+            f"📦 *Blocos Históricos Varridos no Período:*\n"
+            f"{blocos_formatados}\n\n"
+            f"📊 *Estado Geral do Acervo:*\n"
+            f"• Total de Partidas: *{total_partidas_atual:,}*\n"
+            f"• Tamanho do SQLite: `{size_mb:.2f} MB` / teto 94 MB\n"
+            f"• Modelagem: Odds, xCorners e Rigor de Árbitros ativos\n"
+            f"🚀 *Infraestrutura VM*: 🟢 100% Estável e Operante 24/7"
+        )
+        notificar_telegram(msg_digest)
+        safe_print(f"\n[TELEGRAM] Relatório consolidado de 3 horas enviado com sucesso!")
+        # Reset da janela de 3 horas
+        ESTADO_NOTIFICACAO["ultimo_envio"] = agora_ts
+        ESTADO_NOTIFICACAO["ciclos_concluidos"] = 0
+        ESTADO_NOTIFICACAO["blocos_raspados"].clear()
+    else:
+        safe_print(f"\n[TELEGRAM] Ciclo silencioso (silêncio inteligente ativo). Próximo resumo de 3 horas em ~{max(1, restante_min)} min.")
 
     safe_print(f"\n[OK] Ciclo Mestre {numero_ciclo} finalizado com sucesso!")
 

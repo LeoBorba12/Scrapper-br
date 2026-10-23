@@ -644,48 +644,65 @@ export default function HomeMatchdayView({
             </div>
 
             {/* Grid de Cards de Destaque H2H */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
-                gap: '16px'
-              }}
-            >
-              {tabusFiltrados.map((item, idx) => {
-                // Cálculo das proporções na barra H2H
-                const tot = item.total_jogos || 1;
-                const pct1 = Math.round((item.vit_clube1 / tot) * 100);
-                const pctEmp = Math.round((item.empates / tot) * 100);
-                const pct2 = Math.round((item.vit_clube2 / tot) * 100);
+            {tabusFiltrados.length === 0 ? (
+              <div 
+                style={{ 
+                  backgroundColor: 'var(--surface-card)', 
+                  border: '1px solid var(--border-subtle)', 
+                  borderRadius: 'var(--radius-panel)', 
+                  padding: '32px 20px', 
+                  textAlign: 'center', 
+                  color: 'var(--text-secondary)' 
+                }}
+              >
+                Nenhum clássico ou tabu catalogado para a região selecionada.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+                  gap: '16px'
+                }}
+              >
+                {tabusFiltrados.map((item, idx) => {
+                  // Cálculo das proporções na barra H2H com coerção estrita para evitar NaN
+                  const tot = Number(item.total_jogos) > 0 ? Number(item.total_jogos) : 1;
+                  const vit1 = Number(item.vit_clube1) || 0;
+                  const emp = Number(item.empates) || 0;
+                  const vit2 = Number(item.vit_clube2) || 0;
+                  const pct1 = Math.round((vit1 / tot) * 100);
+                  const pctEmp = Math.round((emp / tot) * 100);
+                  const pct2 = Math.round((vit2 / tot) * 100);
 
-                const isTabu = item.tag === 'Tabu Ativo';
-                const isSupremacia = item.tag === 'Supremacia';
+                  const isTabu = item.tag === 'Tabu Ativo';
+                  const isSupremacia = item.tag === 'Supremacia';
 
-                return (
-                  <div
-                    key={`${item.clube1}-${item.clube2}-${idx}`}
-                    style={{
-                      backgroundColor: 'var(--surface-card)',
-                      border: isTabu ? '1px solid var(--negative)' : '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-panel)',
-                      padding: '20px',
-                      boxShadow: 'var(--shadow-editorial)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = isTabu ? 'var(--negative)' : 'var(--border-strong)';
-                      e.currentTarget.style.backgroundColor = 'var(--surface-card-hover)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = isTabu ? 'var(--negative)' : 'var(--border-subtle)';
-                      e.currentTarget.style.backgroundColor = 'var(--surface-card)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                    }}
-                  >
+                  return (
+                    <div
+                      key={`${item.clube1}-${item.clube2}-${idx}`}
+                      style={{
+                        backgroundColor: 'var(--surface-card)',
+                        border: isTabu ? '1px solid var(--negative)' : '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-panel)',
+                        padding: '20px',
+                        boxShadow: 'var(--shadow-editorial)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = isTabu ? 'var(--negative)' : 'var(--border-strong)';
+                        e.currentTarget.style.backgroundColor = 'var(--surface-card-hover)';
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = isTabu ? 'var(--negative)' : 'var(--border-subtle)';
+                        e.currentTarget.style.backgroundColor = 'var(--surface-card)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
                     {/* Topo do Card: Apelido do Clássico e Badge de Categoria */}
                     <div>
                       <div
@@ -881,6 +898,7 @@ export default function HomeMatchdayView({
                 );
               })}
             </div>
+          )}
           </section>
 
           {/* ----------------------------------------------------------------
@@ -956,14 +974,29 @@ export default function HomeMatchdayView({
             </div>
 
             {/* Grid dos Jogos Marcantes neste dia */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '14px'
-              }}
-            >
-              {(cockpitData?.neste_dia || []).map((m) => {
+            {(!cockpitData?.neste_dia || cockpitData.neste_dia.length === 0) ? (
+              <div 
+                style={{ 
+                  backgroundColor: 'var(--surface-panel)', 
+                  border: '1px solid var(--border-subtle)', 
+                  borderRadius: '12px', 
+                  padding: '24px', 
+                  textAlign: 'center', 
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Nenhuma partida marcante catalogada para esta data específica.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+                  gap: '14px'
+                }}
+              >
+                {cockpitData.neste_dia.map((m) => {
                 const badge = getTournamentBadge(m.campeonato);
                 return (
                   <div
@@ -1078,6 +1111,7 @@ export default function HomeMatchdayView({
                 );
               })}
             </div>
+          )}
           </section>
         </div>
 
@@ -1177,7 +1211,7 @@ export default function HomeMatchdayView({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 70px), 1fr))',
                 gap: '4px',
                 backgroundColor: 'var(--surface-raised)',
                 border: '1px solid var(--border-subtle)',
@@ -1308,7 +1342,7 @@ export default function HomeMatchdayView({
                       <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
                         {rankingMode === 'ponderado' 
                           ? `${clube.titulos || 0} títulos • ${clube.campanhas || 0} edições`
-                          : `${clube.jogos} jogos • ${clube.vitorias}V`}
+                          : `${clube.jogos ?? 0} jogos • ${clube.vitorias ?? 0}V`}
                       </div>
                     </div>
                   </div>
@@ -1324,13 +1358,13 @@ export default function HomeMatchdayView({
                       }}
                     >
                       {rankingMode === 'ponderado' && `${(clube.pontos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} pts`}
-                      {rankingMode === 'campo' && rankingTab === 'pontos' && `${clube.pontos} pts`}
-                      {rankingMode === 'campo' && rankingTab === 'vitorias' && `${clube.vitorias} vit`}
-                      {rankingMode === 'campo' && rankingTab === 'aproveitamento' && `${clube.aproveitamento}%`}
-                      {rankingMode === 'campo' && rankingTab === 'gp' && `${clube.gp} gols`}
+                      {rankingMode === 'campo' && rankingTab === 'pontos' && `${clube.pontos ?? 0} pts`}
+                      {rankingMode === 'campo' && rankingTab === 'vitorias' && `${clube.vitorias ?? 0} vit`}
+                      {rankingMode === 'campo' && rankingTab === 'aproveitamento' && `${clube.aproveitamento ?? 0}%`}
+                      {rankingMode === 'campo' && rankingTab === 'gp' && `${clube.gp ?? 0} gols`}
                     </div>
                     <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
-                      {rankingMode === 'ponderado' ? (clube.uf || 'BR') : `SG: ${clube.sg > 0 ? `+${clube.sg}` : clube.sg}`}
+                      {rankingMode === 'ponderado' ? (clube.uf || 'BR') : `SG: ${(clube.sg ?? 0) > 0 ? `+${clube.sg}` : (clube.sg ?? 0)}`}
                     </div>
                   </div>
                 </div>

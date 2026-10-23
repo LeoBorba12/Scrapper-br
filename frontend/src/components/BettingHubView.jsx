@@ -73,6 +73,12 @@ const getTeamIdentity = (nome) => {
   };
 };
 
+const formatOdd = (val) => {
+  if (val === null || val === undefined) return '—';
+  const num = Number(val);
+  return isNaN(num) ? '—' : num.toFixed(2);
+};
+
 export default function BettingHubView({
   currentUser,
   apiFetch,
@@ -508,28 +514,28 @@ export default function BettingHubView({
                     <div>
                       <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>1 (Casa)</div>
                       <div className="font-mono" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                        {p.odd_mandante?.toFixed(2) || '—'}
+                        {formatOdd(p.odd_mandante)}
                       </div>
                       <div style={{ fontSize: '0.64rem', color: 'var(--accent)' }}>
-                        {p.probabilidades?.prob_mandante}%
+                        {p.probabilidades?.prob_mandante != null ? `${p.probabilidades.prob_mandante}%` : '—'}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>X (Empate)</div>
                       <div className="font-mono" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                        {p.odd_empate?.toFixed(2) || '—'}
+                        {formatOdd(p.odd_empate)}
                       </div>
                       <div style={{ fontSize: '0.64rem', color: 'var(--accent)' }}>
-                        {p.probabilidades?.prob_empate}%
+                        {p.probabilidades?.prob_empate != null ? `${p.probabilidades.prob_empate}%` : '—'}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>2 (Fora)</div>
                       <div className="font-mono" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                        {p.odd_visitante?.toFixed(2) || '—'}
+                        {formatOdd(p.odd_visitante)}
                       </div>
                       <div style={{ fontSize: '0.64rem', color: 'var(--accent)' }}>
-                        {p.probabilidades?.prob_visitante}%
+                        {p.probabilidades?.prob_visitante != null ? `${p.probabilidades.prob_visitante}%` : '—'}
                       </div>
                     </div>
                   </div>
@@ -870,7 +876,7 @@ export default function BettingHubView({
                         {j.nome}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
-                        {j.clube_atual || 'Brasileirão'} &bull; {j.total_gols} gols em {j.total_jogos}j
+                        {j.clube_atual || 'Brasileirão'} &bull; {j.total_gols ?? 0} gols em {j.total_jogos ?? 0}j
                       </div>
                     </div>
 
@@ -878,13 +884,13 @@ export default function BettingHubView({
                       <div>
                         <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Prob. Gol</div>
                         <div className="font-mono" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--accent)' }}>
-                          {j.prob_marcar_gol}%
+                          {j.prob_marcar_gol != null ? `${j.prob_marcar_gol}%` : '—'}
                         </div>
                       </div>
                       <div>
                         <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Odd Justa</div>
                         <div className="font-mono" style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {j.odd_justa_gol?.toFixed(2)}
+                          {formatOdd(j.odd_justa_gol)}
                         </div>
                       </div>
                     </div>
@@ -926,22 +932,22 @@ export default function BettingHubView({
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{j.clube_atual}</div>
                     </td>
                     <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{j.posicao}</td>
-                    <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center' }}>{j.total_jogos}</td>
-                    <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>{j.total_gols}</td>
+                    <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center' }}>{j.total_jogos ?? 0}</td>
+                    <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>{j.total_gols ?? 0}</td>
                     <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center' }}>
-                      {j.media_chutes_gol} <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>({j.pontaria_pct}%)</span>
+                      {j.media_chutes_gol ?? '—'} <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>({j.pontaria_pct != null ? `${j.pontaria_pct}%` : '—'})</span>
                     </td>
                     <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--accent)', fontWeight: 700 }}>
-                      {j.prob_marcar_gol}%
+                      {j.prob_marcar_gol != null ? `${j.prob_marcar_gol}%` : '—'}
                     </td>
                     <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600 }}>
-                      {j.odd_justa_gol?.toFixed(2)}
+                      {formatOdd(j.odd_justa_gol)}
                     </td>
                     <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--positive)', fontWeight: 700 }}>
-                      {j.odd_casa_estimada?.toFixed(2)}
+                      {formatOdd(j.odd_casa_estimada)}
                     </td>
                     <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center' }}>
-                      {j.prob_levar_cartao}% <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>(@{j.odd_justa_cartao?.toFixed(2)})</span>
+                      {j.prob_levar_cartao != null ? `${j.prob_levar_cartao}%` : '—'} <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>(@{formatOdd(j.odd_justa_cartao)})</span>
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                       <span
@@ -1005,7 +1011,7 @@ export default function BettingHubView({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
                 gap: '16px'
               }}
             >
@@ -1172,13 +1178,13 @@ export default function BettingHubView({
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                               <span>1</span>
-                              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{prob.prob_mandante}%</span>
+                              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{prob.prob_mandante != null ? `${prob.prob_mandante}%` : '—'}</span>
                             </div>
                             <div className="font-mono" style={{ fontSize: '0.94rem', fontWeight: 700, margin: '2px 0' }}>
-                              {p.odd_mandante?.toFixed(2) || '—'}
+                              {formatOdd(p.odd_mandante)}
                             </div>
                             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
-                              Justa: <span className="font-mono">@{prob.fair_odd_mandante?.toFixed(2)}</span>
+                              Justa: <span className="font-mono">@{formatOdd(prob.fair_odd_mandante)}</span>
                             </div>
                           </div>
 
@@ -1193,13 +1199,13 @@ export default function BettingHubView({
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                               <span>X</span>
-                              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{prob.prob_empate}%</span>
+                              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{prob.prob_empate != null ? `${prob.prob_empate}%` : '—'}</span>
                             </div>
                             <div className="font-mono" style={{ fontSize: '0.94rem', fontWeight: 700, margin: '2px 0' }}>
-                              {p.odd_empate?.toFixed(2) || '—'}
+                              {formatOdd(p.odd_empate)}
                             </div>
                             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
-                              Justa: <span className="font-mono">@{prob.fair_odd_empate?.toFixed(2)}</span>
+                              Justa: <span className="font-mono">@{formatOdd(prob.fair_odd_empate)}</span>
                             </div>
                           </div>
 
@@ -1214,13 +1220,13 @@ export default function BettingHubView({
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                               <span>2</span>
-                              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{prob.prob_visitante}%</span>
+                              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{prob.prob_visitante != null ? `${prob.prob_visitante}%` : '—'}</span>
                             </div>
                             <div className="font-mono" style={{ fontSize: '0.94rem', fontWeight: 700, margin: '2px 0' }}>
-                              {p.odd_visitante?.toFixed(2) || '—'}
+                              {formatOdd(p.odd_visitante)}
                             </div>
                             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
-                              Justa: <span className="font-mono">@{prob.fair_odd_visitante?.toFixed(2)}</span>
+                              Justa: <span className="font-mono">@{formatOdd(prob.fair_odd_visitante)}</span>
                             </div>
                           </div>
                         </div>
@@ -1246,15 +1252,15 @@ export default function BettingHubView({
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                             <span>Over 2.5 Gols</span>
                             <span style={{ fontWeight: 700, color: prob.prob_over_2_5 >= 50 ? 'var(--positive)' : 'var(--text-secondary)' }}>
-                              {prob.prob_over_2_5}%
+                              {prob.prob_over_2_5 != null ? `${prob.prob_over_2_5}%` : '—'}
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '2px' }}>
                             <span className="font-mono" style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                              Odd {p.odd_over_2_5?.toFixed(2) || '—'}
+                              Odd {formatOdd(p.odd_over_2_5)}
                             </span>
                             <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
-                              Justa: @{prob.fair_odd_over_2_5?.toFixed(2)}
+                              Justa: @{formatOdd(prob.fair_odd_over_2_5)}
                             </span>
                           </div>
                         </div>
@@ -1270,15 +1276,15 @@ export default function BettingHubView({
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                             <span>Ambas Marcam (Sim)</span>
                             <span style={{ fontWeight: 700, color: prob.prob_btts_sim >= 50 ? 'var(--positive)' : 'var(--text-secondary)' }}>
-                              {prob.prob_btts_sim}%
+                              {prob.prob_btts_sim != null ? `${prob.prob_btts_sim}%` : '—'}
                             </span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '2px' }}>
                             <span className="font-mono" style={{ fontSize: '0.88rem', fontWeight: 700 }}>
-                              Odd {p.odd_btts_sim?.toFixed(2) || '—'}
+                              Odd {formatOdd(p.odd_btts_sim)}
                             </span>
                             <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
-                              Justa: @{prob.fair_odd_btts_sim?.toFixed(2)}
+                              Justa: @{formatOdd(prob.fair_odd_btts_sim)}
                             </span>
                           </div>
                         </div>
@@ -1364,6 +1370,7 @@ export default function BettingHubView({
           }}
         >
           <div
+            className="modal-dialog-content"
             style={{
               backgroundColor: 'var(--surface-panel)',
               border: '1px solid var(--border-subtle)',
@@ -1481,7 +1488,7 @@ export default function BettingHubView({
                   <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
                     Forma Recente nos Últimos 10 Jogos
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
                     {/* Mandante */}
                     <div
                       style={{
@@ -1516,10 +1523,10 @@ export default function BettingHubView({
                         ))}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                        <div>Média Gols Pró: <strong>{analisePartida.forma_recente?.mandante?.media_gp}</strong></div>
-                        <div>Média Gols Contra: <strong>{analisePartida.forma_recente?.mandante?.media_gc}</strong></div>
-                        <div>Clean Sheets: <strong>{analisePartida.forma_recente?.mandante?.clean_sheets_pct}%</strong></div>
-                        <div>Over 2.5: <strong>{analisePartida.forma_recente?.mandante?.over_2_5_pct}%</strong></div>
+                        <div>Média Gols Pró: <strong>{analisePartida.forma_recente?.mandante?.media_gp ?? '—'}</strong></div>
+                        <div>Média Gols Contra: <strong>{analisePartida.forma_recente?.mandante?.media_gc ?? '—'}</strong></div>
+                        <div>Clean Sheets: <strong>{analisePartida.forma_recente?.mandante?.clean_sheets_pct != null ? `${analisePartida.forma_recente?.mandante?.clean_sheets_pct}%` : '—'}</strong></div>
+                        <div>Over 2.5: <strong>{analisePartida.forma_recente?.mandante?.over_2_5_pct != null ? `${analisePartida.forma_recente?.mandante?.over_2_5_pct}%` : '—'}</strong></div>
                       </div>
                     </div>
 
@@ -1557,10 +1564,10 @@ export default function BettingHubView({
                         ))}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                        <div>Média Gols Pró: <strong>{analisePartida.forma_recente?.visitante?.media_gp}</strong></div>
-                        <div>Média Gols Contra: <strong>{analisePartida.forma_recente?.visitante?.media_gc}</strong></div>
-                        <div>Clean Sheets: <strong>{analisePartida.forma_recente?.visitante?.clean_sheets_pct}%</strong></div>
-                        <div>Over 2.5: <strong>{analisePartida.forma_recente?.visitante?.over_2_5_pct}%</strong></div>
+                        <div>Média Gols Pró: <strong>{analisePartida.forma_recente?.visitante?.media_gp ?? '—'}</strong></div>
+                        <div>Média Gols Contra: <strong>{analisePartida.forma_recente?.visitante?.media_gc ?? '—'}</strong></div>
+                        <div>Clean Sheets: <strong>{analisePartida.forma_recente?.visitante?.clean_sheets_pct != null ? `${analisePartida.forma_recente?.visitante?.clean_sheets_pct}%` : '—'}</strong></div>
+                        <div>Over 2.5: <strong>{analisePartida.forma_recente?.visitante?.over_2_5_pct != null ? `${analisePartida.forma_recente?.visitante?.over_2_5_pct}%` : '—'}</strong></div>
                       </div>
                     </div>
                   </div>
@@ -1571,7 +1578,7 @@ export default function BettingHubView({
                   <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
                     Distribuição dos Gols por Tempo de Jogo
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '14px' }}>
                     <div
                       style={{
                         backgroundColor: 'var(--surface-raised)',
@@ -1584,8 +1591,8 @@ export default function BettingHubView({
                         {analisePartida.partida?.mandante}
                       </div>
                       <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem' }}>
-                        <div>1º Tempo: <strong className="font-mono">{analisePartida.analise_gols_tempo?.mandante?.pct_primeiro_tempo}%</strong></div>
-                        <div>2º Tempo: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{analisePartida.analise_gols_tempo?.mandante?.pct_segundo_tempo}%</strong></div>
+                        <div>1º Tempo: <strong className="font-mono">{analisePartida.analise_gols_tempo?.mandante?.pct_primeiro_tempo != null ? `${analisePartida.analise_gols_tempo?.mandante?.pct_primeiro_tempo}%` : '—'}</strong></div>
+                        <div>2º Tempo: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{analisePartida.analise_gols_tempo?.mandante?.pct_segundo_tempo != null ? `${analisePartida.analise_gols_tempo?.mandante?.pct_segundo_tempo}%` : '—'}</strong></div>
                       </div>
                     </div>
 
@@ -1601,8 +1608,8 @@ export default function BettingHubView({
                         {analisePartida.partida?.visitante}
                       </div>
                       <div style={{ display: 'flex', gap: '10px', fontSize: '0.8rem' }}>
-                        <div>1º Tempo: <strong className="font-mono">{analisePartida.analise_gols_tempo?.visitante?.pct_primeiro_tempo}%</strong></div>
-                        <div>2º Tempo: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{analisePartida.analise_gols_tempo?.visitante?.pct_segundo_tempo}%</strong></div>
+                        <div>1º Tempo: <strong className="font-mono">{analisePartida.analise_gols_tempo?.visitante?.pct_primeiro_tempo != null ? `${analisePartida.analise_gols_tempo?.visitante?.pct_primeiro_tempo}%` : '—'}</strong></div>
+                        <div>2º Tempo: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{analisePartida.analise_gols_tempo?.visitante?.pct_segundo_tempo != null ? `${analisePartida.analise_gols_tempo?.visitante?.pct_segundo_tempo}%` : '—'}</strong></div>
                       </div>
                     </div>
                   </div>
@@ -1631,7 +1638,7 @@ export default function BettingHubView({
                         {analisePartida.arbitro.nome}
                       </div>
                       <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                        Perfil: <strong>{analisePartida.arbitro.perfil}</strong> ({analisePartida.arbitro.jogos} jogos catalogados)
+                        Perfil: <strong>{analisePartida.arbitro.perfil || 'Equilibrado'}</strong> ({analisePartida.arbitro.jogos ?? 0} jogos catalogados)
                       </div>
                     </div>
 
@@ -1639,13 +1646,13 @@ export default function BettingHubView({
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média Cartões</div>
                         <div className="font-mono" style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                          {analisePartida.arbitro.media_cartoes}
+                          {analisePartida.arbitro.media_cartoes ?? '—'}
                         </div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Prob. Over 4.5</div>
                         <div className="font-mono" style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--accent)' }}>
-                          {analisePartida.arbitro.prob_over_4_5_cartoes}%
+                          {analisePartida.arbitro.prob_over_4_5_cartoes != null ? `${analisePartida.arbitro.prob_over_4_5_cartoes}%` : '—'}
                         </div>
                       </div>
                     </div>
