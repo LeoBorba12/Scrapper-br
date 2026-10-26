@@ -840,22 +840,48 @@ export default function ProtagonistaAtleta({
           </div>
 
           {/* ================= SEÇÃO DE MAPEAMENTO ESPACIAL (PITCH & GOAL MOUTH) ================= */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '18px' }}>
-            <div className="editorial-panel" style={{ padding: '18px' }}>
-              <SpatialPitchMap
-                shotmap={atleta.shotmap || []}
-                heatmap={atleta.heatmap || []}
-                posicao={atleta.posicao}
-                resumo={resumo}
-              />
+          {((atleta.shotmap && atleta.shotmap.length > 0) || (atleta.heatmap && atleta.heatmap.length > 0)) ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '18px' }}>
+              <div className="editorial-panel" style={{ padding: '18px' }}>
+                <SpatialPitchMap
+                  shotmap={atleta.shotmap || []}
+                  heatmap={atleta.heatmap || []}
+                  posicao={atleta.posicao}
+                  resumo={resumo}
+                />
+              </div>
+              <div className="editorial-panel" style={{ padding: '18px' }}>
+                <GoalMouthMap
+                  shotmap={atleta.shotmap || []}
+                  posicao={atleta.posicao}
+                />
+              </div>
             </div>
-            <div className="editorial-panel" style={{ padding: '18px' }}>
-              <GoalMouthMap
-                shotmap={atleta.shotmap || []}
-                posicao={atleta.posicao}
-              />
+          ) : (
+            <div className="editorial-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: 'var(--surface-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', border: '1px solid var(--border-subtle)' }}>
+                  📡
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Telemetria Ótica & Coordenadas Espaciais (GPS)
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Mapas de calor e baliza ótica requerem dados de sensores em tempo real. Para este atleta, consulte as evidências de minutagem cronológica e histórico por clube abaixo.
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="badge" style={{ fontSize: '0.68rem', backgroundColor: 'var(--surface-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                  {resumo.total_gols || 0} Gols em Súmulas Oficiais
+                </span>
+                <span className="badge" style={{ fontSize: '0.68rem', backgroundColor: 'var(--surface-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                  {resumo.jogos_registrados || 0} Partidas Catalogadas
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ================= LINHA INFERIOR: ABAS DE EVIDÊNCIAS E PARTIDAS ================= */}
           <div className="editorial-panel" style={{ overflow: 'hidden' }}>

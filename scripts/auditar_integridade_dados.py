@@ -164,6 +164,70 @@ def auditar_e_reparar_dados():
         "detalhes": f"{duplicatas} confrontos possuem mais de um registro na mesma data."
     })
 
+    # Regra 9: Gols com clube invertido em partidas onde o time fez 0 gols (Auto-reparo)
+    c.execute("""
+        SELECT COUNT(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE ((g.clube = p.mandante AND p.gols_mandante = 0 AND p.gols_visitante > 0)
+            OR (g.clube = p.visitante AND p.gols_visitante = 0 AND p.gols_mandante > 0))
+          AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%');
+    """)
+    gols_invertidos = c.fetchone()[0]
+    reparados_gols_inv = 0
+    if gols_invertidos > 0:
+        c.execute("""
+            UPDATE gols
+            SET clube = (SELECT p.visitante FROM partidas p WHERE p.id_partida = gols.id_partida)
+            WHERE id_gol IN (
+                SELECT g.id_gol FROM gols g JOIN partidas p ON g.id_partida = p.id_partida
+                WHERE g.clube = p.mandante AND p.gols_mandante = 0 AND p.gols_visitante > 0
+                  AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+            );
+        """)
+        reparados_gols_inv += c.rowcount
+        c.execute("""
+            UPDATE gols
+            SET clube = (SELECT p.mandante FROM partidas p WHERE p.id_partida = gols.id_partida)
+            WHERE id_gol IN (
+                SELECT g.id_gol FROM gols g JOIN partidas p ON g.id_partida = p.id_partida
+                WHERE g.clube = p.visitante AND p.gols_visitante = 0 AND p.gols_mandante > 0
+                  AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+            );
+        """)
+        reparados_gols_inv += c.rowcount
+        conn.commit()
+
+    relatorio["regras"].append({
+        "regra": "Gols Atribuídos a Times com Placar Zero (Clube Invertido)",
+        "status": "CORRIGIDO" if reparados_gols_inv > 0 else ("OK" if gols_invertidos == 0 else "FALHA"),
+        "ocorrencias": gols_invertidos,
+        "reparados": reparados_gols_inv
+    })
+
+    # Regra 10: Jogadores com posição indefinida (Auto-inferência)
+    c.execute("""
+        SELECT COUNT(*) FROM jogadores_estatisticas 
+        WHERE (posicao IS NULL OR posicao = '') AND total_gols >= 3;
+    """)
+    artilheiros_sem_pos = c.fetchone()[0]
+    reparados_pos = 0
+    if artilheiros_sem_pos > 0:
+        c.execute("""
+            UPDATE jogadores_estatisticas
+            SET posicao = 'Atacante'
+            WHERE (posicao IS NULL OR posicao = '') AND total_gols >= 3;
+        """)
+        reparados_pos = c.rowcount
+        conn.commit()
+
+    relatorio["regras"].append({
+        "regra": "Atletas Artilheiros sem Posição Tática no Perfil",
+        "status": "CORRIGIDO" if reparados_pos > 0 else ("OK" if artilheiros_sem_pos == 0 else "FALHA"),
+        "ocorrencias": artilheiros_sem_pos,
+        "reparados": reparados_pos
+    })
+
     # Regra 8: Consistência de soma de partidas por temporada recente
     c.execute("""
         SELECT ano, COUNT(*) FROM partidas WHERE ano >= 2024 GROUP BY ano ORDER BY ano DESC;

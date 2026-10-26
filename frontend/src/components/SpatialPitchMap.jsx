@@ -18,43 +18,16 @@ export default function SpatialPitchMap({
   // 1. FALLBACK INTELIGENTE (Caso a rota ainda não retorne dados do scraper)
   // ============================================================================
   const dadosEspaciais = useMemo(() => {
-    const temChutesReais = Array.isArray(shotmap) && shotmap.length > 0;
-    const temCalorReal = Array.isArray(heatmap) && heatmap.length > 0;
+    const chutesValidos = Array.isArray(shotmap) ? shotmap.filter(s => s && s.x_origem != null) : [];
+    const calorValido = Array.isArray(heatmap) ? heatmap.filter(h => h && h.x != null) : [];
 
-    if (temChutesReais || temCalorReal) {
-      return { chutes: shotmap, calor: heatmap, isSimulado: false };
-    }
-
-    // Gera distribuição tática coerente com a posição do atleta enquanto o banco sincroniza
-    const isDef = (posicao || '').toLowerCase().includes('def') || (posicao || '').toLowerCase().includes('zag');
-    const isMeia = (posicao || '').toLowerCase().includes('mei') || (posicao || '').toLowerCase().includes('vol');
-
-    const calorSimulado = isDef
-      ? [
-          { x: 22, y: 35 }, { x: 25, y: 48 }, { x: 28, y: 55 }, { x: 32, y: 42 },
-          { x: 35, y: 62 }, { x: 18, y: 50 }, { x: 40, y: 30 }, { x: 24, y: 46 }
-        ]
-      : isMeia
-      ? [
-          { x: 52, y: 48 }, { x: 58, y: 35 }, { x: 64, y: 62 }, { x: 48, y: 52 },
-          { x: 68, y: 44 }, { x: 72, y: 30 }, { x: 55, y: 50 }, { x: 62, y: 49 }
-        ]
-      : [
-          { x: 76, y: 48 }, { x: 82, y: 38 }, { x: 85, y: 54 }, { x: 88, y: 46 },
-          { x: 72, y: 28 }, { x: 79, y: 66 }, { x: 91, y: 50 }, { x: 84, y: 49 }
-        ];
-
-    const chutesSimulados = [
-      { id_evento: 1, x_origem: 88, y_origem: 48, xg: 0.42, resultado: 'goal', minuto: 83, situacao: 'regular', parte_corpo: 'Pé Direito' },
-      { id_evento: 2, x_origem: 84, y_origem: 39, xg: 0.24, resultado: 'save', minuto: 34, situacao: 'assisted', parte_corpo: 'Pé Direito' },
-      { id_evento: 3, x_origem: 91, y_origem: 53, xg: 0.58, resultado: 'goal', minuto: 61, situacao: 'regular', parte_corpo: 'Cabeça' },
-      { id_evento: 4, x_origem: 77, y_origem: 62, xg: 0.08, resultado: 'miss', minuto: 19, situacao: 'free-kick', parte_corpo: 'Pé Esquerdo' },
-      { id_evento: 5, x_origem: 81, y_origem: 45, xg: 0.16, resultado: 'block', minuto: 72, situacao: 'regular', parte_corpo: 'Pé Direito' },
-      { id_evento: 6, x_origem: 89, y_origem: 50, xg: 0.76, resultado: 'goal', minuto: 45, situacao: 'penalty', parte_corpo: 'Pé Direito' }
-    ];
-
-    return { chutes: chutesSimulados, calor: calorSimulado, isSimulado: true };
-  }, [shotmap, heatmap, posicao]);
+    return {
+      chutes: chutesValidos,
+      calor: calorValido,
+      isSimulado: false,
+      temDados: chutesValidos.length > 0 || calorValido.length > 0
+    };
+  }, [shotmap, heatmap]);
 
   // ============================================================================
   // 2. CÁLCULO DA GRADE DE DENSIDADE (BINNING 12x8 PARA O HEATMAP)

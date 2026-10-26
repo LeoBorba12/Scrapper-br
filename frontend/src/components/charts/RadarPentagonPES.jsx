@@ -47,59 +47,89 @@ export default function RadarPentagonPES({
     const vermelhos = resumo.vermelhos || 0;
     const clutch = resumo.gols_decisivos_80mais || 0;
     const pos = (atleta?.posicao || '').toLowerCase();
+    const isAtacante = pos.includes('atacante') || pos.includes('centroavante') || pos.includes('ponta') || mediaGols > 0.3 || totalGols > 30;
+    const isMeia = pos.includes('meia') || pos.includes('meio') || pos.includes('armador');
+    const isDefensor = pos.includes('zagueiro') || pos.includes('lateral') || pos.includes('defensor') || pos.includes('volante');
+    const isGoleiro = pos.includes('goleiro');
 
-    // 1. Ataque
-    let atk = 70;
-    if (pos.includes('atacante') || pos.includes('centroavante') || pos.includes('ponta')) {
-      atk = 80 + Math.min(18, Math.round(mediaGols * 22) + (clutch > 3 ? 4 : 1));
-    } else if (pos.includes('meia') || pos.includes('meio')) {
-      atk = 75 + Math.min(18, Math.round(mediaGols * 18) + (totalAssists > 20 ? 6 : 2));
-    } else if (pos.includes('zagueiro') || pos.includes('goleiro') || pos.includes('lateral')) {
-      atk = 52 + Math.min(25, Math.round(mediaGols * 30));
+    // 1. Ataque (40 a 99)
+    let atk = 65;
+    if (isAtacante) {
+      atk = 82 + Math.min(16, Math.round(mediaGols * 22) + (clutch > 3 ? 3 : 0));
+    } else if (isMeia) {
+      atk = 74 + Math.min(18, Math.round(mediaGols * 18) + (totalAssists > 20 ? 5 : 2));
+    } else if (isDefensor) {
+      atk = 48 + Math.min(22, Math.round(mediaGols * 25));
+    } else if (isGoleiro) {
+      atk = 40;
     } else {
-      atk = 68 + Math.min(24, Math.round(mediaGols * 20));
+      atk = 60 + Math.min(25, Math.round(mediaGols * 22));
     }
 
-    // 2. Finalização
-    let fin = 65;
-    if (totalGols > 100) fin += 15;
-    else if (totalGols > 50) fin += 10;
-    else if (totalGols > 20) fin += 5;
-    fin += Math.round((pontaria - 50) * 0.35);
-    if (mediaGols > 0.5) fin += 8;
-    else if (mediaGols > 0.35) fin += 4;
-
-    // 3. Criação / Passe
-    let cri = 65;
-    if (totalAssists > 50) cri += 22;
-    else if (totalAssists > 25) cri += 15;
-    else if (totalAssists > 10) cri += 8;
-    if (pos.includes('meia')) cri += 10;
-    if (pos.includes('ponta')) cri += 6;
-
-    // 4. Físico / Presença
-    let fis = 70;
-    if (totalJogos > 400) fis += 22;
-    else if (totalJogos > 250) fis += 16;
-    else if (totalJogos > 150) fis += 10;
-    else if (totalJogos > 60) fis += 5;
-    if (resumo.jogos_titular && resumo.jogos_titular > 100) fis += 4;
-
-    // 5. Defesa / Disciplina
-    let def = 68;
-    if (pos.includes('zagueiro') || pos.includes('volante') || pos.includes('lateral')) {
-      def = 82 + (totalJogos > 100 ? 6 : 2);
-    } else if (pos.includes('goleiro')) {
-      def = 88;
+    // 2. Finalização (40 a 99)
+    let fin = 55;
+    if (isAtacante) {
+      fin = 76;
+      if (totalGols > 150) fin += 18;
+      else if (totalGols > 80) fin += 14;
+      else if (totalGols > 40) fin += 9;
+      else if (totalGols > 15) fin += 4;
+      if (mediaGols > 0.45) fin += 5;
+      fin += Math.round((pontaria - 50) * 0.2);
+    } else if (isMeia) {
+      fin = 66 + (totalGols > 30 ? 12 : 5);
+      if (mediaGols > 0.25) fin += 6;
+    } else if (isDefensor) {
+      fin = 45 + Math.min(20, Math.round(totalGols * 1.5));
+    } else if (isGoleiro) {
+      fin = 40;
     } else {
-      // Para atacantes, disciplina limpa eleva o atributo
+      fin = 55 + (totalGols > 20 ? 12 : 4);
+    }
+
+    // 3. Criação / Passe (40 a 99)
+    let cri = 58;
+    if (isMeia) {
+      cri = 78;
+      if (totalAssists > 50) cri += 18;
+      else if (totalAssists > 25) cri += 12;
+      else if (totalAssists > 10) cri += 7;
+    } else if (isAtacante) {
+      cri = 60;
+      if (totalAssists > 40) cri += 18;
+      else if (totalAssists > 20) cri += 10;
+      else if (totalAssists > 5) cri += 5;
+    } else if (isDefensor) {
+      cri = 50 + (pos.includes('lateral') ? 14 : 4);
+    } else {
+      cri = 55 + Math.min(20, totalAssists * 2);
+    }
+
+    // 4. Físico / Presença (40 a 99)
+    let fis = 65;
+    if (totalJogos > 400) fis += 25;
+    else if (totalJogos > 250) fis += 18;
+    else if (totalJogos > 150) fis += 12;
+    else if (totalJogos > 60) fis += 6;
+    if (resumo.jogos_titular && resumo.jogos_titular > 100) fis += 5;
+
+    // 5. Defesa / Disciplina (40 a 99)
+    let def = 50;
+    if (isGoleiro) {
+      def = 92;
+    } else if (isDefensor) {
+      def = 82 + (totalJogos > 100 ? 8 : 4);
+    } else if (isMeia) {
+      def = pos.includes('volante') ? 80 : 58;
+    } else {
+      // Para centroavantes clássicos, a taxa de recomposição defensiva é baixa (~42-52)
+      def = 44;
       const cartoesPorJogo = totalJogos > 0 ? (amarelos + vermelhos * 2) / totalJogos : 0;
-      if (cartoesPorJogo < 0.15) def += 12;
-      else if (cartoesPorJogo < 0.25) def += 6;
-      else def -= 4;
+      if (cartoesPorJogo < 0.12) def += 8;
+      else if (cartoesPorJogo > 0.25) def -= 6;
     }
 
-    const clamp = (v) => Math.max(50, Math.min(99, Math.round(v)));
+    const clamp = (v) => Math.max(40, Math.min(99, Math.round(v)));
     return [
       { key: 'atk', label: 'Ataque', valor: clamp(atk), desc: 'Presença e volume ofensivo' },
       { key: 'fin', label: 'Finalização', valor: clamp(fin), desc: 'Conversão e precisão no arremate' },
@@ -139,8 +169,11 @@ export default function RadarPentagonPES({
   };
 
   // Coordenadas dos vértices dos atributos do jogador
+  // Coordenadas dos vértices dos atributos do jogador
   const playerPoints = eixos.map((item, idx) => {
-    const pct = item.valor / 100;
+    // Normalização com baseline 40 para destacar características táticas reais (PES / Winning Eleven)
+    // 40 pts = 0.20 raio (núcleo), 70 pts = 0.60 raio, 99 pts = 1.00 raio
+    const pct = Math.max(0.18, Math.min(1.0, 0.20 + ((item.valor - 40) / 59) * 0.80));
     return getCoordinates(idx, pct);
   });
   const playerPolygonPath = playerPoints.map(p => `${p.x},${p.y}`).join(' ');

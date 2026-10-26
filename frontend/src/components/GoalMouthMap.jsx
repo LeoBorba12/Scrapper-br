@@ -12,22 +12,9 @@ export default function GoalMouthMap({ shotmap = [], posicao = 'Atacante' }) {
   // 1. FALLBACK INTELIGENTE (Caso a base SQLite ainda não possua dados de gol-mouth)
   // ============================================================================
   const finalizacoesBaliza = useMemo(() => {
-    const validos = (shotmap || []).filter(
-      (s) => s.gol_mouth_y != null && s.gol_mouth_z != null
+    return (shotmap || []).filter(
+      (s) => s && s.gol_mouth_y != null && s.gol_mouth_z != null
     );
-
-    if (validos.length > 0) return validos;
-
-    // Dados simulados realistas para demonstração imediata na interface
-    return [
-      { id_evento: 1, gol_mouth_y: 48, gol_mouth_z: 18, resultado: 'goal', xg: 0.42, minuto: 83, parte_corpo: 'Pé Direito' },
-      { id_evento: 2, gol_mouth_y: 22, gol_mouth_z: 75, resultado: 'save', xg: 0.24, minuto: 34, parte_corpo: 'Pé Direito' },
-      { id_evento: 3, gol_mouth_y: 65, gol_mouth_z: 32, resultado: 'goal', xg: 0.58, minuto: 61, parte_corpo: 'Cabeça' },
-      { id_evento: 4, gol_mouth_y: 82, gol_mouth_z: 90, resultado: 'miss', xg: 0.08, minuto: 19, parte_corpo: 'Pé Esquerdo' },
-      { id_evento: 5, gol_mouth_y: 35, gol_mouth_z: 45, resultado: 'block', xg: 0.16, minuto: 72, parte_corpo: 'Pé Direito' },
-      { id_evento: 6, gol_mouth_y: 50, gol_mouth_z: 12, resultado: 'goal', xg: 0.76, minuto: 45, parte_corpo: 'Pé Direito' },
-      { id_evento: 7, gol_mouth_y: 15, gol_mouth_z: 20, resultado: 'post', xg: 0.11, minuto: 90, parte_corpo: 'Pé Esquerdo' }
-    ];
   }, [shotmap]);
 
   // Estatísticas do painel da trave
