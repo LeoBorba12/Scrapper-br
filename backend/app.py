@@ -2414,16 +2414,36 @@ def get_analise_mercados_odds():
 # MÓDULO AVANÇADO DE APOSTAS & ODDS (PROBABILIDADES, POISSON, +EV, RAIO-X & JOGADORES)
 # ==============================================================================
 
-def _calc_poisson_bivariate(lambda_h, lambda_a, max_goals=6):
-    """Calcula distribuição bivariada de Poisson para probabilidades de 1X2, Over/Under e BTTS."""
+def _calc_poisson_bivariate(lambda_h, lambda_a, max_goals=6, rho=-0.12):
+    """Calcula probabilidades 1X2, Over/Under e BTTS com calibração Dixon-Coles (1997).
+    Ajusta correlação de placares baixos (0-0, 1-0, 0-1, 1-1) para o padrão do futebol brasileiro.
+    """
     lh = max(0.25, min(lambda_h, 4.5))
     la = max(0.25, min(lambda_a, 4.5))
+
+    def _tau(x, y):
+        if x == 0 and y == 0:
+            return max(0.0, 1.0 - lh * la * rho)
+        elif x == 0 and y == 1:
+            return max(0.0, 1.0 + lh * rho)
+        elif x == 1 and y == 0:
+            return max(0.0, 1.0 + la * rho)
+        elif x == 1 and y == 1:
+            return max(0.0, 1.0 - rho)
+        return 1.0
+
     matrix = [[0.0]*(max_goals+1) for _ in range(max_goals+1)]
     for i in range(max_goals+1):
         p_i = (math.exp(-lh) * (lh**i)) / math.factorial(i)
         for j in range(max_goals+1):
             p_j = (math.exp(-la) * (la**j)) / math.factorial(j)
-            matrix[i][j] = p_i * p_j
+            matrix[i][j] = p_i * p_j * _tau(i, j)
+
+    tot = sum(sum(r) for r in matrix)
+    if tot > 0:
+        for i in range(max_goals+1):
+            for j in range(max_goals+1):
+                matrix[i][j] /= tot
 
     p_home = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i > j)
     p_draw = sum(matrix[i][j] for i in range(max_goals+1) for j in range(max_goals+1) if i == j)

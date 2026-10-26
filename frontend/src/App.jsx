@@ -8,7 +8,7 @@ import {
   Download, Camera, Scale
 } from 'lucide-react';
 import { baixarCardSocialPNG } from './utils/cardGenerator';
-import SoomaFutStatsView from './SoomaFutStatsView';
+import AuthView from './components/AuthView';
 import HomeMatchdayView from './components/HomeMatchdayView';
 import AppShell from './components/AppShell';
 import EditorialClubes from './components/EditorialClubes';
@@ -19,7 +19,6 @@ import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/cha
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' (Matchday Cockpit), 'h2h', 'jogadores', etc.
-  const [viewTheme, setViewTheme] = useState('sooma'); // 'sooma' (referência Outcrowd) | 'classic' (Soft UI)
 
   // ==================== AUTH STATE ====================
   const [currentUser, setCurrentUser] = useState(() => {
@@ -938,257 +937,36 @@ export default function App() {
     );
   }
 
-  // ==================== TELA DE LOGIN / CADASTRO (SOOMA STYLE) ====================
+  // ==================== TELA DE LOGIN / CADASTRO (IDENTIDADE EDITORIAL) ====================
   if (!currentUser) {
     return (
-      <div 
-        style={{ 
-          minHeight: '100dvh', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
-          padding: '24px', 
-          background: 'linear-gradient(135deg, #FBF9FF 0%, #F5F1FB 45%, #FDEEE9 100%)',
-          fontFamily: "'Plus Jakarta Sans', sans-serif"
-        }}
-      >
-        <div 
-          style={{ 
-            maxWidth: '460px', 
-            width: '100%', 
-            padding: '42px 36px', 
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(16px)',
-            borderRadius: '34px',
-            boxShadow: '0 24px 60px -15px rgba(100, 85, 140, 0.12)',
-            border: '1px solid rgba(255, 255, 255, 0.95)'
-          }}
-        >
-          {/* LOGO & CABEÇALHO */}
-          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div 
-              style={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                width: '58px', 
-                height: '42px', 
-                borderRadius: '21px', 
-                backgroundColor: '#111318', 
-                color: '#FFFFFF',
-                fontWeight: 800,
-                fontSize: '0.86rem',
-                letterSpacing: '-0.02em',
-                marginBottom: '16px',
-                boxShadow: '0 8px 20px -4px rgba(17, 19, 24, 0.35)'
-              }}
-            >
-              Sooma
-            </div>
-            <h1 style={{ fontSize: '1.9rem', fontWeight: 800, letterSpacing: '-0.03em', color: '#12141A', marginBottom: '6px' }}>
-              Welcome Back
-            </h1>
-            <p style={{ color: '#767C8E', fontSize: '0.88rem', fontWeight: 500 }}>
-              The simplest way to keep everyone updated.
-            </p>
-          </div>
-
-          {/* TABS LOGIN / REGISTRO COM CONVITE */}
-          <div 
-            style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '6px', 
-              backgroundColor: '#F3F4F8', 
-              padding: '5px', 
-              borderRadius: '9999px', 
-              marginBottom: '26px' 
-            }}
-          >
-            <button
-              onClick={() => { setAuthMode('login'); setAuthError(null); }}
-              style={{
-                padding: '9px',
-                borderRadius: '9999px',
-                border: 'none',
-                background: authMode === 'login' ? '#FFFFFF' : 'transparent',
-                color: authMode === 'login' ? '#111318' : '#757B8C',
-                fontWeight: authMode === 'login' ? 700 : 500,
-                boxShadow: authMode === 'login' ? '0 2px 10px rgba(0,0,0,0.06)' : 'none',
-                cursor: 'pointer',
-                fontSize: '0.84rem',
-                transition: 'all 150ms'
-              }}
-            >
-              Log In
-            </button>
-
-            <button
-              onClick={() => { setAuthMode('registro'); setAuthError(null); }}
-              style={{
-                padding: '9px',
-                borderRadius: '9999px',
-                border: 'none',
-                background: authMode === 'registro' ? '#FFFFFF' : 'transparent',
-                color: authMode === 'registro' ? '#111318' : '#757B8C',
-                fontWeight: authMode === 'registro' ? 700 : 500,
-                boxShadow: authMode === 'registro' ? '0 2px 10px rgba(0,0,0,0.06)' : 'none',
-                cursor: 'pointer',
-                fontSize: '0.84rem',
-                transition: 'all 150ms'
-              }}
-            >
-              First Time Here? Sign Up
-            </button>
-          </div>
-
-          {/* ERRO BANNER */}
-          {authError && (
-            <div 
-              style={{ 
-                padding: '12px 16px', 
-                backgroundColor: 'rgba(239, 68, 68, 0.08)', 
-                border: '1px solid rgba(239, 68, 68, 0.25)', 
-                borderRadius: '16px', 
-                color: '#DC2626', 
-                fontSize: '0.82rem', 
-                fontWeight: 500,
-                marginBottom: '20px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px' 
-              }}
-            >
-              <AlertCircle size={16} />
-              <span>{authError}</span>
-            </div>
-          )}
-
-          {/* FORMULÁRIO DE LOGIN */}
-          {authMode === 'login' && (
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '6px' }}>
-                  Usuário / Login
-                </label>
-                <input 
-                  type="text" 
-                  className="soft-input font-mono"
-                  value={loginUsername}
-                  onChange={e => setLoginUsername(e.target.value)}
-                  placeholder="Seu usuário (ex: LB, thbreda)"
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '6px' }}>
-                  Senha
-                </label>
-                <input 
-                  type="password" 
-                  className="soft-input font-mono"
-                  value={loginPassword}
-                  onChange={e => setLoginPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-
-              <button 
-                type="submit" 
-                className="btn-primary" 
-                style={{ width: '100%', height: '48px', marginTop: '8px', fontSize: '0.92rem' }}
-                disabled={authLoading}
-              >
-                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : null}
-                {authLoading ? 'Verifying...' : 'Log In'}
-              </button>
-            </form>
-          )}
-
-          {/* FORMULÁRIO DE CADASTRO COM CONVITE */}
-          {authMode === 'registro' && (
-            <form onSubmit={handleRegistro} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
-                  Invite Code
-                </label>
-                <input 
-                  type="text" 
-                  className="soft-input font-mono"
-                  value={regCodigoConvite}
-                  onChange={e => setRegCodigoConvite(e.target.value)}
-                  placeholder="FUTSTATS-2026"
-                  required
-                  style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
-                  Full Name / Nickname
-                </label>
-                <input 
-                  type="text" 
-                  className="soft-input"
-                  value={regNome}
-                  onChange={e => setRegNome(e.target.value)}
-                  placeholder="Alice James"
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
-                  Choose Username
-                </label>
-                <input 
-                  type="text" 
-                  className="soft-input font-mono"
-                  value={regUsername}
-                  onChange={e => setRegUsername(e.target.value)}
-                  placeholder="alice"
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#4B5262', marginBottom: '4px' }}>
-                  Choose Password
-                </label>
-                <input 
-                  type="password" 
-                  className="soft-input font-mono"
-                  value={regPassword}
-                  onChange={e => setRegPassword(e.target.value)}
-                  placeholder="Min 4 chars"
-                  required
-                />
-              </div>
-
-              <button 
-                type="submit" 
-                className="btn-primary" 
-                style={{ width: '100%', height: '48px', marginTop: '6px' }}
-                disabled={authLoading}
-              >
-                {authLoading ? <RefreshCw size={18} className="animate-spin" /> : null}
-                {authLoading ? 'Creating Account...' : 'Get Started'}
-              </button>
-            </form>
-          )}
-
-          {/* DICA DE SUPORTE */}
-          <div style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.76rem', color: '#8E94A4' }}>
-            By continuing, you agree to our Terms of Service & Privacy Policy.
-          </div>
-        </div>
-      </div>
+      <AuthView
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        loginUsername={loginUsername}
+        setLoginUsername={setLoginUsername}
+        loginPassword={loginPassword}
+        setLoginPassword={setLoginPassword}
+        regCodigoConvite={regCodigoConvite}
+        setRegCodigoConvite={setRegCodigoConvite}
+        regNome={regNome}
+        setRegNome={setRegNome}
+        regUsername={regUsername}
+        setRegUsername={setRegUsername}
+        regPassword={regPassword}
+        setRegPassword={setRegPassword}
+        authLoading={authLoading}
+        authError={authError}
+        setAuthError={setAuthError}
+        handleLogin={handleLogin}
+        handleRegistro={handleRegistro}
+        darkMode={darkMode}
+        onToggleTheme={() => setDarkMode(!darkMode)}
+      />
     );
   }
 
-  // ==================== DASHBOARD AUTENTICADA (SOOMA EXPERIENCE INTEGRADA) ====================
+  // ==================== DASHBOARD AUTENTICADA (ARQUITETURA EDITORIAL 2026) ====================
   return (
     <AppShell
       activeTab={activeTab}

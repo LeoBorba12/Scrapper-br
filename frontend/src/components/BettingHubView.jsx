@@ -440,7 +440,16 @@ export default function BettingHubView({
               return (
                 <div
                   key={p.id_partida}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Ver Raio-X estatístico do confronto ${p.mandante} contra ${p.visitante}`}
                   onClick={() => abrirRaioX(p.id_partida)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      abrirRaioX(p.id_partida);
+                    }
+                  }}
                   style={{
                     flex: '0 0 290px',
                     backgroundColor: 'var(--surface-panel)',

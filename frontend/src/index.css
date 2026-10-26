@@ -4,23 +4,11 @@
   --font-system: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Cores Soft UI Evolution & Outcrowd Experience */
-  --primary: #87CEEB;
-  --primary-hover: #72b9d6;
-  --secondary: #FFB6C1;
-  --tertiary: #90EE90;
-
-  /* Outcrowd Atmospheric Palette */
-  --sooma-bg-top: #FAF9FE;
-  --sooma-bg-mid: #F3EDF8;
-  --sooma-bg-bot: #FCE8E4;
-  --sooma-pill-bg: #FFFFFF;
-  --sooma-dark-accent: #11141A;
-  --sooma-dark-hover: #222631;
-  --sooma-card-bg: rgba(255, 255, 255, 0.94);
-  --sooma-card-border: rgba(255, 255, 255, 0.8);
-  --sooma-shadow: 0 16px 40px -12px rgba(110, 95, 145, 0.08);
-  --sooma-shadow-float: 0 20px 48px -10px rgba(80, 60, 120, 0.12);
+  /* Cores Soft UI Evolution */
+  --primary: #606E43;
+  --primary-hover: #4F5C35;
+  --secondary: #916346;
+  --tertiary: #586B3B;
 
   /* Tokens base vinculados aos tokens editoriais */
   --bg: var(--surface-page);
@@ -366,6 +354,18 @@ h2, .heading-lg {
 h3, .heading-md {
   font-size: clamp(1rem, 2.4vw, 1.3rem);
   line-height: 1.35;
+}
+
+/* Ocultação Progressiva para Tabelas Densas */
+@media (max-width: 1024px) {
+  .hide-tablet-col {
+    display: none !important;
+  }
+}
+@media (max-width: 640px) {
+  .hide-mobile-col {
+    display: none !important;
+  }
 }
 
 /* Protagonista Grid Responsivo */

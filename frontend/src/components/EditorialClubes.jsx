@@ -307,8 +307,8 @@ export default function EditorialClubes({
           <table className="editorial-table">
             <thead>
               <tr>
-                <th style={{ width: '48px', textAlign: 'center' }}>#</th>
-                <th onClick={() => handleSort('nome')} style={{ cursor: 'pointer' }}>
+                <th style={{ width: '44px', textAlign: 'center', position: 'sticky', left: 0, zIndex: 3, backgroundColor: 'var(--surface-raised)' }}>#</th>
+                <th onClick={() => handleSort('nome')} style={{ cursor: 'pointer', position: 'sticky', left: '44px', zIndex: 3, backgroundColor: 'var(--surface-raised)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.1)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     Clube {sortBy === 'nome' && <ArrowUpDown size={12} color="var(--accent)" />}
                   </div>
@@ -332,10 +332,10 @@ export default function EditorialClubes({
                     Aprov. % {sortBy === 'aproveitamento' && <ArrowUpDown size={12} color="var(--accent)" />}
                   </div>
                 </th>
-                <th onClick={() => handleSort('btts_pct')} style={{ cursor: 'pointer', textAlign: 'center' }}>
+                <th className="hide-tablet-col" onClick={() => handleSort('btts_pct')} style={{ cursor: 'pointer', textAlign: 'center' }}>
                   BTTS % {sortBy === 'btts_pct' && <ArrowUpDown size={12} />}
                 </th>
-                <th onClick={() => handleSort('clean_sheets_pct')} style={{ cursor: 'pointer', textAlign: 'center' }}>
+                <th className="hide-tablet-col" onClick={() => handleSort('clean_sheets_pct')} style={{ cursor: 'pointer', textAlign: 'center' }}>
                   CS % {sortBy === 'clean_sheets_pct' && <ArrowUpDown size={12} />}
                 </th>
                 <th style={{ width: '40px' }}></th>
@@ -366,11 +366,11 @@ export default function EditorialClubes({
                       aria-expanded={isExpanded}
                       aria-label={`Detalhes de ${nomeClube}`}
                     >
-                      <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600, position: 'sticky', left: 0, zIndex: 2, backgroundColor: isExpanded ? 'var(--surface-raised)' : 'var(--surface-panel)' }}>
                         {idx + 1}
                       </td>
 
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      <td style={{ fontWeight: 600, color: 'var(--text-primary)', position: 'sticky', left: '44px', zIndex: 2, backgroundColor: isExpanded ? 'var(--surface-raised)' : 'var(--surface-panel)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.1)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <ClubBadge nome={nomeClube} size={22} />
                           <span>{nomeClube}</span>
@@ -428,11 +428,11 @@ export default function EditorialClubes({
                         </div>
                       </td>
 
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="hide-tablet-col" style={{ textAlign: 'center' }}>
                         {(clube.btts_pct || 0).toFixed(0)}%
                       </td>
 
-                      <td style={{ textAlign: 'center' }}>
+                      <td className="hide-tablet-col" style={{ textAlign: 'center' }}>
                         {(clube.clean_sheets_pct || 0).toFixed(0)}%
                       </td>
 
