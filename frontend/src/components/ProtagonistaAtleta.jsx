@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { RadarPentagonPES, AthleteCareerBarChart } from './charts';
 import ClubBadge from './ClubBadge';
+import SpatialPitchMap from './SpatialPitchMap';
+import GoalMouthMap from './GoalMouthMap';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -825,6 +827,24 @@ export default function ProtagonistaAtleta({
                   Titular: <strong>{resumo.jogos_titular || 0}</strong> • Reserva: <strong>{resumo.jogos_reserva || 0}</strong> • Capitão: <strong>{resumo.jogos_capitao || 0}</strong>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* ================= SEÇÃO DE MAPEAMENTO ESPACIAL (PITCH & GOAL MOUTH) ================= */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '18px' }}>
+            <div className="editorial-panel" style={{ padding: '18px' }}>
+              <SpatialPitchMap
+                shotmap={atleta.shotmap || []}
+                heatmap={atleta.heatmap || []}
+                posicao={atleta.posicao}
+                resumo={resumo}
+              />
+            </div>
+            <div className="editorial-panel" style={{ padding: '18px' }}>
+              <GoalMouthMap
+                shotmap={atleta.shotmap || []}
+                posicao={atleta.posicao}
+              />
             </div>
           </div>
 

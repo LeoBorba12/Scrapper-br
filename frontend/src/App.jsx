@@ -18,7 +18,13 @@ import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/cha
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' (Matchday Cockpit), 'h2h', 'jogadores', etc.
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      if (tab) return tab;
+    } catch {}
+    return 'overview';
+  });
 
   // ==================== AUTH STATE ====================
   const [currentUser, setCurrentUser] = useState(() => {
@@ -55,8 +61,20 @@ export default function App() {
 
   // Tab 1: H2H state
   const [clubesList, setClubesList] = useState([]);
-  const [clube1, setClube1] = useState('Flamengo');
-  const [clube2, setClube2] = useState('Vasco');
+  const [clube1, setClube1] = useState(() => {
+    try {
+      const c = new URLSearchParams(window.location.search).get('c1');
+      if (c) return c;
+    } catch {}
+    return 'Flamengo';
+  });
+  const [clube2, setClube2] = useState(() => {
+    try {
+      const c = new URLSearchParams(window.location.search).get('c2');
+      if (c) return c;
+    } catch {}
+    return 'Vasco';
+  });
   const [h2hData, setH2hData] = useState(null);
   const [h2hLoading, setH2hLoading] = useState(false);
 
@@ -64,7 +82,33 @@ export default function App() {
   const [playerSearch, setPlayerSearch] = useState('');
   const [playerSuggestions, setPlayerSuggestions] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('atleta');
+      if (p) return p;
+    } catch {}
+    return null;
+  });
+
+  // Sincronização profunda do estado com a URL (Deep Linking)
+  useEffect(() => {
+    try {
+      const url = new URL(window.location);
+      if (activeTab === 'overview') {
+        url.searchParams.delete('tab');
+      } else {
+        url.searchParams.set('tab', activeTab);
+      }
+      if (clube1 && clube1 !== 'Flamengo') url.searchParams.set('c1', clube1);
+      else url.searchParams.delete('c1');
+      if (clube2 && clube2 !== 'Vasco') url.searchParams.set('c2', clube2);
+      else url.searchParams.delete('c2');
+      if (selectedPlayer) url.searchParams.set('atleta', selectedPlayer);
+      else url.searchParams.delete('atleta');
+
+      window.history.replaceState({}, '', url);
+    } catch {}
+  }, [activeTab, clube1, clube2, selectedPlayer]);
   const [playerProfile, setPlayerProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [destaques, setDestaques] = useState(null);

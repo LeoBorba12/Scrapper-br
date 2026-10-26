@@ -29,4 +29,6 @@ data/.backfill_checkpoint.json
 scratch/
 
 data/cache_rankinghistorico/
+/futebol.db
+
 

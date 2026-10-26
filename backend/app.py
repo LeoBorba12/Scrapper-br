@@ -1796,6 +1796,33 @@ def get_jogador_perfil():
 
     historico_torneios = sorted(stats_camps.values(), key=lambda x: (x["gols"], x["jogos"]), reverse=True)
 
+    # Buscar dados espaciais (shotmap e heatmap) se as tabelas existirem
+    shotmap_atleta = []
+    heatmap_atleta = []
+    try:
+        if target_id:
+            c.execute("""
+                SELECT id_evento, id_partida, minuto, resultado, parte_corpo, situacao, 
+                       xg, xgot, x_origem, y_origem, x_metros, y_metros, gol_mouth_y, gol_mouth_z
+                FROM partida_shotmap 
+                WHERE id_jogador = ?
+                ORDER BY id_partida DESC LIMIT 100;
+            """, (target_id,))
+            shotmap_atleta = [dict(r) for r in c.fetchall()]
+
+            c.execute("""
+                SELECT pontos_json FROM atleta_heatmap 
+                WHERE id_jogador = ? LIMIT 20;
+            """, (target_id,))
+            for h_row in c.fetchall():
+                try:
+                    pts = json.loads(h_row['pontos_json'] or '[]')
+                    heatmap_atleta.extend(pts)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
     # Minutagem e faixas de gols
     faixas_minutos = {'0-15': 0, '16-30': 0, '31-45+': 0, '46-60': 0, '61-75': 0, '76-90+': 0}
     tempos_gols = {'1T': stats_meta.get('gols_primeiro_tempo', 0), '2T': stats_meta.get('gols_segundo_tempo', 0), 'Outros': 0}
@@ -1898,7 +1925,9 @@ def get_jogador_perfil():
         "distribuicao_minutos": faixas_minutos,
         "distribuicao_tempos": tempos_gols,
         "historico_temporadas": historico_temporadas,
-        "partidas": partidas_ordenadas[:100]
+        "partidas": partidas_ordenadas[:100],
+        "shotmap": shotmap_atleta,
+        "heatmap": heatmap_atleta
     })
 
 @app.route('/api/arbitragem', methods=['GET'])
