@@ -43,3 +43,10 @@
 - Limpeza de 1.872 linhas de código legado.
 - Criação de `AuthView.jsx`, `SpatialPitchMap.jsx` e `GoalMouthMap.jsx`.
 - Deploy na Vercel verificado (HTTP 200 OK).
+
+## [2026-10-26] Restauração Profunda de Integridade de Dados & Telemetria Honesta
+- **Desambiguação Canônica de Homônimos**: Identificado que o agrupamento ingênuo por `nome_exibicao` ('Fred') unificava Frederico Chaves Guedes (Fluminense/Cruzeiro/Atlético-MG) com Fred (Inter - 90001), Fred (Zagueiro Goiás/Grêmio - 90002) e Fred (Anos 70 Vasco/Figueirense/Botafogo - 90003). Higienizados 213 gols e cartões vinculados a 6051.
+- **Auto-healer de Clubes Invertidos**: Identificados e corrigidos 2.227 gols em que scrapers atribuíram o clube ao mandante em partidas cujo mandante fez 0 gols (ex: Caracas 0 x 1 Fluminense e Cerro Porteño 0 x 1 Fluminense atribuídos a Caracas/Cerro Porteño em vez do Fluminense).
+- **Radar Pentagonal PES com Normalização de Escala**: Substituído o cálculo flat `item.valor / 100` (que comprimia todos os atletas em um polígono plano quase idêntico) por escala com baseline 40 estilo Winning Eleven (`pct = 0.20 + ((val - 40)/59) * 0.80`), gerando perfis poligonais taticamente divergentes para cada atleta.
+- **Erradicação de Mockups Simulados Falsos**: Removidos chutes e zonas térmicas simuladas hardcoded de `SpatialPitchMap.jsx` e `GoalMouthMap.jsx`. Implementada salvaguarda de "Honestidade de Dados" que exibe painel transparente de telemetria quando o confronto histórico não possuir tracking ótico por câmeras.
+- **Auditoria Automatizada Expandida**: `scripts/auditar_integridade_dados.py` atualizado com 10 verificações automáticas com auto-reparo. 22/22 testes de regressão verdes (`pytest tests/test_model_evals.py`).
