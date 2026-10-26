@@ -171,6 +171,7 @@ export default function GoalMouthMap({ shotmap = [], posicao = 'Atacante' }) {
               bottom: '12px',
               left: '50%',
               transform: 'translateX(-50%)',
+              maxWidth: 'calc(100% - 24px)',
               backgroundColor: 'var(--surface-panel)',
               border: '1px solid var(--border-strong)',
               borderRadius: 'var(--radius-control)',
@@ -179,7 +180,9 @@ export default function GoalMouthMap({ shotmap = [], posicao = 'Atacante' }) {
               fontSize: '0.74rem',
               pointerEvents: 'none',
               zIndex: 10,
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
           >
             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>

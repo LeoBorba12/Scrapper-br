@@ -308,6 +308,7 @@ export default function HomeMatchdayView({
           2. COCKPIT HERO HEADER & CONTROLES INTELIGENTES
           ==================================================================== */}
       <section
+        className="cockpit-hero-section"
         style={{
           maxWidth: '1440px',
           margin: '0 auto',
@@ -354,10 +355,11 @@ export default function HomeMatchdayView({
             </div>
 
             <h1
+              className="font-editorial"
               style={{
-                fontSize: '2.5rem',
+                fontSize: 'clamp(1.6rem, 3.8vw, 2.35rem)',
                 fontWeight: 800,
-                letterSpacing: '-0.03em',
+                letterSpacing: '-0.025em',
                 lineHeight: 1.15,
                 margin: '0 0 8px 0',
                 color: 'var(--text-primary)'
@@ -490,7 +492,7 @@ export default function HomeMatchdayView({
           gap: '24px',
           alignItems: 'start'
         }}
-        className="bento-container"
+        className="bento-container cockpit-main-section"
       >
         {/* ==================================================================
             COLUNA ESQUERDA / CENTRO: DESTAQUES H2H + NESTE DIA NA HISTÓRIA
@@ -1014,10 +1016,10 @@ export default function HomeMatchdayView({
                         color: 'var(--text-secondary)'
                       }}
                     >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1, paddingRight: '8px' }}>
                         {m.estadio || m.fase || 'Partida Histórica'}
                       </span>
-                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Ver H2H →</span>
+                      <span style={{ color: 'var(--accent)', fontWeight: 600, flexShrink: 0 }}>Ver H2H →</span>
                     </div>
                   </div>
                 );
@@ -1231,15 +1233,17 @@ export default function HomeMatchdayView({
                   title={`Ver histórico de ${clube.clube}`}
                 >
                   {/* Posição + Escudo + Nome */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
                     <span
                       style={{
                         width: '20px',
                         fontSize: '0.75rem',
                         fontWeight: 800,
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-mono)',
+                        fontVariantNumeric: 'tabular-nums',
                         color: isPodium ? podiumColor : 'var(--text-muted)',
-                        textAlign: 'center'
+                        textAlign: 'center',
+                        flexShrink: 0
                       }}
                     >
                       {pos}
@@ -1247,11 +1251,29 @@ export default function HomeMatchdayView({
 
                     <ClubShield name={clube.clube} size={24} />
 
-                    <div>
-                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          fontSize: '0.82rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                        title={clube.clube}
+                      >
                         {clube.clube}
                       </div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                      <div
+                        style={{
+                          fontSize: '0.68rem',
+                          color: 'var(--text-secondary)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                      >
                         {rankingMode === 'ponderado' 
                           ? `${clube.titulos || 0} títulos • ${clube.campanhas || 0} edições`
                           : `${clube.jogos ?? 0} jogos • ${clube.vitorias ?? 0}V`}
@@ -1260,12 +1282,14 @@ export default function HomeMatchdayView({
                   </div>
 
                   {/* Valor Principal em Destaque */}
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '8px' }}>
                     <div
+                      className="font-mono tabular-nums"
                       style={{
                         fontSize: '0.9rem',
                         fontWeight: 800,
-                        fontFamily: 'monospace',
+                        fontFamily: 'var(--font-mono)',
+                        fontVariantNumeric: 'tabular-nums',
                         color: rankingMode === 'ponderado' ? 'var(--accent)' : 'var(--text-primary)'
                       }}
                     >
@@ -1275,7 +1299,7 @@ export default function HomeMatchdayView({
                       {rankingMode === 'campo' && rankingTab === 'aproveitamento' && `${clube.aproveitamento ?? 0}%`}
                       {rankingMode === 'campo' && rankingTab === 'gp' && `${clube.gp ?? 0} gols`}
                     </div>
-                    <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
+                    <div className="font-mono tabular-nums" style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
                       {rankingMode === 'ponderado' ? (clube.uf || 'BR') : `SG: ${(clube.sg ?? 0) > 0 ? `+${clube.sg}` : (clube.sg ?? 0)}`}
                     </div>
                   </div>

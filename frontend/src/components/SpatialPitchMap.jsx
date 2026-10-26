@@ -340,6 +340,7 @@ export default function SpatialPitchMap({
               position: 'absolute',
               top: '12px',
               left: '12px',
+              maxWidth: 'calc(100% - 24px)',
               backgroundColor: 'var(--surface-panel)',
               border: '1px solid var(--border-strong)',
               borderRadius: 'var(--radius-control)',

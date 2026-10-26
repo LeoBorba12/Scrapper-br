@@ -336,7 +336,16 @@ export default function ProtagonistaAtleta({
                 return (
                   <tr 
                     key={p.id_jogador || idx}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Ver perfil de ${nomeAtleta}`}
                     onClick={() => onCarregarPerfilPorId(p.id_jogador, nomeAtleta)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onCarregarPerfilPorId(p.id_jogador, nomeAtleta);
+                      }
+                    }}
                     style={{ cursor: 'pointer' }}
                   >
                     <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -671,7 +680,7 @@ export default function ProtagonistaAtleta({
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                           {temCarreira ? 'Gols na Carreira' : 'Gols Registrados'}
                         </div>
-                        <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        <div className="tabular-nums font-mono" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                           {temCarreira ? golsCarreira : golsCatalogo}
                         </div>
                       </div>
@@ -679,7 +688,7 @@ export default function ProtagonistaAtleta({
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
                           {temCarreira ? 'Jogos Oficiais' : 'Jogos Registrados'}
                         </div>
-                        <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        <div className="tabular-nums font-mono" style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                           {temCarreira 
                             ? (jogosCarreira ?? (
                                 jogosCatalogo > 0 ? (

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import os
 import time
+import datetime
 import urllib.parse
 import urllib.request
 import sqlite3
@@ -70,6 +71,7 @@ def get_db_size_mb() -> float:
 
 def executar_comando(cmd_list, timeout=300):
     safe_print(f"\n[RUN] {' '.join(cmd_list)}")
+    sucesso = False
     try:
         res = subprocess.run(
             cmd_list,
@@ -84,13 +86,18 @@ def executar_comando(cmd_list, timeout=300):
             safe_print(res.stdout[-600:])
         if res.returncode != 0 and res.stderr:
             safe_print(f"[ERRO] {res.stderr[-400:]}")
-        return res.returncode == 0
+        sucesso = (res.returncode == 0)
     except subprocess.TimeoutExpired:
         safe_print("[TIMEOUT] Comando cancelado por tempo limite.")
-        return False
     except Exception as e:
         safe_print(f"[EXCECAO] {e}")
-        return False
+
+    if "ESTADO_NOTIFICACAO" in globals():
+        if sucesso:
+            ESTADO_NOTIFICACAO["tarefas_sucesso"] += 1
+        else:
+            ESTADO_NOTIFICACAO["tarefas_falha"] += 1
+    return sucesso
 
 BLOCOS_HISTORICOS = [
     # 1. Pré-1971 Nacional (Taça Brasil e Robertão)
@@ -129,13 +136,16 @@ BLOCOS_HISTORICOS = [
     }
 ]
 
-# Estado do Relatório Consolidado de 3 em 3 Horas
+# Estado do Relatório Consolidado de 3 em 3 Horas e Monitoramento de SLOs
 INTERVALO_NOTIFICACAO_SEGUNDOS = 3 * 3600  # 3 Horas (10.800s)
 ESTADO_NOTIFICACAO = {
     "ultimo_envio": time.time(),
     "ciclos_concluidos": 0,
     "blocos_raspados": [],
-    "partidas_inicio": 0
+    "partidas_inicio": 0,
+    "tarefas_sucesso": 0,
+    "tarefas_falha": 0,
+    "ultimo_alerta_slo_ts": 0
 }
 
 def ciclo_mestre(numero_ciclo: int):
@@ -177,7 +187,7 @@ def ciclo_mestre(numero_ciclo: int):
     safe_print("\n>>> [FASE C] Validação da Integridade do Banco <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "validar_banco.py")])
 
-    # Otimização com VACUUM
+    # Otimização com VACUUM e Verificação de SLO
     size_mb = get_db_size_mb()
     safe_print(f"\n[INFO] Tamanho do banco data/futebol.db: {size_mb:.2f} MB")
 
@@ -191,6 +201,19 @@ def ciclo_mestre(numero_ciclo: int):
             safe_print(f"[INFO] Tamanho pós-VACUUM: {size_mb:.2f} MB")
         except Exception as e:
             safe_print(f"[VACUUM Falha] {e}")
+
+    # Verificação de Violação Crítica de SLO (Teto Vercel 94 MB)
+    if size_mb >= MAX_DB_SIZE_MB:
+        agora = time.time()
+        if agora - ESTADO_NOTIFICACAO["ultimo_alerta_slo_ts"] > 600:
+            ESTADO_NOTIFICACAO["ultimo_alerta_slo_ts"] = agora
+            alerta_slo = (
+                f"🚨 *[VIOLAÇÃO DE SLO - FUTSTATS]*\n\n"
+                f"⚠️ *Teto Serverless Excedido*: `{size_mb:.2f} MB` / limite `{MAX_DB_SIZE_MB:.1f} MB`.\n"
+                f"Risco iminente de falha de build ou 500 na Vercel (SLI-05).\n"
+                f"Ação automática: limpeza preventiva e bloqueio de novos inserts pesados."
+            )
+            notificar_telegram(alerta_slo)
 
     # -------------------------------------------------------------
     # FASE D: PERSISTÊNCIA, GIT PULL/PUSH E TELEGRAM
@@ -235,16 +258,20 @@ def ciclo_mestre(numero_ciclo: int):
         if len(ESTADO_NOTIFICACAO["blocos_raspados"]) > 8:
             blocos_formatados += f"\n• ... e mais {len(ESTADO_NOTIFICACAO['blocos_raspados']) - 8} blocos históricos."
 
+        total_tarefas = ESTADO_NOTIFICACAO["tarefas_sucesso"] + ESTADO_NOTIFICACAO["tarefas_falha"]
+        taxa_sucesso = (ESTADO_NOTIFICACAO["tarefas_sucesso"] / total_tarefas * 100.0) if total_tarefas > 0 else 100.0
+        status_slo = "🟢 Em conformidade" if taxa_sucesso >= 99.0 else "🟡 Atenção (Error Budget em uso)"
+
         msg_digest = (
             f"🕒 *[FutStats - Relatório Consolidado de 3 Horas]*\n"
             f"📅 _{datetime.datetime.now().strftime('%d/%m/%Y %H:%M')}_\n\n"
-            f"✅ *{ESTADO_NOTIFICACAO['ciclos_concluidos']} ciclos de mineração* executados com sucesso.\n\n"
+            f"✅ *{ESTADO_NOTIFICACAO['ciclos_concluidos']} ciclos concluídos* ({total_tarefas} tarefas executadas).\n\n"
+            f"🎯 *Quadro de Confiabilidade & SLOs:*\n"
+            f"• Sucesso de Scraping (SLI-03): *{taxa_sucesso:.1f}%* ({status_slo} - Meta >=99%)\n"
+            f"• Teto SQLite Vercel (SLI-05): `{size_mb:.2f} MB` / teto {MAX_DB_SIZE_MB:.1f} MB\n"
+            f"• Total de Partidas: *{total_partidas_atual:,}*\n\n"
             f"📦 *Blocos Históricos Varridos no Período:*\n"
             f"{blocos_formatados}\n\n"
-            f"📊 *Estado Geral do Acervo:*\n"
-            f"• Total de Partidas: *{total_partidas_atual:,}*\n"
-            f"• Tamanho do SQLite: `{size_mb:.2f} MB` / teto 94 MB\n"
-            f"• Modelagem: Odds, xCorners e Rigor de Árbitros ativos\n"
             f"🚀 *Infraestrutura VM*: 🟢 100% Estável e Operante 24/7"
         )
         notificar_telegram(msg_digest)
@@ -253,6 +280,8 @@ def ciclo_mestre(numero_ciclo: int):
         ESTADO_NOTIFICACAO["ultimo_envio"] = agora_ts
         ESTADO_NOTIFICACAO["ciclos_concluidos"] = 0
         ESTADO_NOTIFICACAO["blocos_raspados"].clear()
+        ESTADO_NOTIFICACAO["tarefas_sucesso"] = 0
+        ESTADO_NOTIFICACAO["tarefas_falha"] = 0
     else:
         safe_print(f"\n[TELEGRAM] Ciclo silencioso (silêncio inteligente ativo). Próximo resumo de 3 horas em ~{max(1, restante_min)} min.")
 

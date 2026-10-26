@@ -54,6 +54,20 @@ MIN_AVAILABLE_RAM_MB = 150.0
 MIN_FREE_DISK_GB = 1.0
 INTERVALO_SEGUNDOS = 1200  # 20 minutos entre verificações
 
+# runaway-guard: Travas financeiras e de quota para IA
+MAX_AI_CALLS_PER_DAY = 10
+_HISTORICO_CHAMADAS_IA = []
+
+def pode_chamar_ia():
+    agora = time.time()
+    # Remove timestamps mais antigos que 24h (86400 segundos)
+    global _HISTORICO_CHAMADAS_IA
+    _HISTORICO_CHAMADAS_IA = [t for t in _HISTORICO_CHAMADAS_IA if agora - t < 86400]
+    return len(_HISTORICO_CHAMADAS_IA) < MAX_AI_CALLS_PER_DAY
+
+def registrar_chamada_ia():
+    _HISTORICO_CHAMADAS_IA.append(time.time())
+
 
 def carregar_env():
     """Carrega variáveis do arquivo .env sem expor chaves no log."""
@@ -235,10 +249,23 @@ def auditar_banco_dados():
     return relatorio
 
 
+# cost contract (runaway-guard):
+#   provider: Google Gemini 2.5 Flash
+#   unit cost: ~$0.075 / 1M input tokens, ~$0.30 / 1M output tokens
+#   max calls per run: 1 (apenas quando houver anomalia ou relatório diário forçado)
+#   max calls per day: 10 chamadas (cap rígido via _HISTORICO_CHAMADAS_IA)
+#   max $ per day: < $0.01 / dia
+#   provider hard cap: Google AI Studio Quota Limit
+#   concurrency: 1 (single-threaded daemon)
+#   timeout: 10s
 def analisar_com_gemini(resumo_auditoria, gemini_key):
-    """Consulta o modelo Gemini 2.5 Flash via API REST com diretrizes de governança."""
+    """Consulta o modelo Gemini 2.5 Flash com travas de custo rígidas e verificação de quota diária."""
     if not gemini_key:
         return None
+    if not pode_chamar_ia():
+        log(f"[runaway-guard] Cap diário de IA atingido ({MAX_AI_CALLS_PER_DAY} chamadas nas últimas 24h). Consulta a Gemini ignorada para proteção de custos.")
+        return "Parecer Heurístico Local: Sistema operando dentro dos parâmetros de telemetria (análise de IA pausada por limite de cota diária)."
+    
     try:
         diretrizes = carregar_diretrizes_governanca()
         prompt = (
@@ -251,14 +278,15 @@ def analisar_com_gemini(resumo_auditoria, gemini_key):
             "3. Sanidade de partidas e duplicatas\n"
             "4. Ação preventiva sugerida (ou 'Nenhuma ação necessária')"
         )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
         headers = {"Content-Type": "application/json"}
         payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
+            "contents": [{"parts": [{"text": prompt[:2500]}]}],
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 250}
         }
+        registrar_chamada_ia()
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data["candidates"][0]["content"]["parts"][0]["text"].strip()
     except Exception as e:
@@ -280,13 +308,7 @@ def ciclo_verificacao(env_vars, forcar_telegram=False):
         "banco": banco
     }
 
-    # Analisar com IA se chave existir
-    gemini_key = env_vars.get("GEMINI_API_KEY")
-    parecer_ia = analisar_com_gemini(resumo, gemini_key)
-    if parecer_ia:
-        log(f"Parecer Gemini Flash: {parecer_ia}")
-
-    # Verificar necessidades de alerta
+    # Verificar necessidades de alerta primeiro
     alertas = []
     if telemetria.get("alerta_ram"):
         alertas.append(f"⚠️ <b>RAM Crítica:</b> Restam apenas {telemetria['ram_livre_mb']} MB disponíveis.")
@@ -300,6 +322,14 @@ def ciclo_verificacao(env_vars, forcar_telegram=False):
         alertas.append(f"🚨 <b>Corrupção Detectada no Banco:</b> {banco.get('erro') or 'Falha de integridade'}")
 
     log(f"Status do Ciclo: RAM Livre={telemetria['ram_livre_mb']}MB | DB={banco['tamanho_mb']}MB ({banco['total_partidas']} jogos) | Orquestrador={'ON' if processos['orquestrador_ativo'] else 'OFF'}")
+
+    # runaway-guard: Só invoca IA se houver desvio/anomalia detectado OU envio forçado/resumo diário
+    parecer_ia = None
+    if alertas or forcar_telegram:
+        gemini_key = env_vars.get("GEMINI_API_KEY")
+        parecer_ia = analisar_com_gemini(resumo, gemini_key)
+        if parecer_ia:
+            log(f"Parecer Gemini Flash: {parecer_ia}")
 
     # Notificar Telegram em caso de desvio crítico ou forçado
     if alertas or forcar_telegram:

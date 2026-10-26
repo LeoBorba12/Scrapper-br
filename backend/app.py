@@ -277,16 +277,51 @@ def handle_500(err):
 def handle_exception(err):
     return jsonify({"error": f"Erro no servidor: {str(err)}"}), 500
 
+@app.before_request
+def start_request_timer():
+    g._req_start_time = time.perf_counter()
+
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+    if hasattr(g, '_req_start_time'):
+        latency_ms = (time.perf_counter() - g._req_start_time) * 1000.0
+        response.headers['X-Response-Time-Ms'] = f"{latency_ms:.2f}"
     return response
 
 @app.route('/api/health', methods=['GET'])
 def api_health():
-    return jsonify({"status": "ok", "mensagem": "API operacional"})
+    db_ok = False
+    partidas_count = 0
+    t0 = time.perf_counter()
+    try:
+        if os.path.exists(DB_FUTEBOL):
+            conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True, timeout=2)
+            c = conn.cursor()
+            c.execute("SELECT count(*) FROM partidas")
+            partidas_count = c.fetchone()[0]
+            conn.close()
+            db_ok = True
+    except Exception:
+        db_ok = False
+
+    query_latency_ms = round((time.perf_counter() - t0) * 1000.0, 2)
+    status_code = 200 if db_ok else 503
+    return jsonify({
+        "status": "ok" if db_ok else "degraded",
+        "mensagem": "API operacional",
+        "database": {
+            "status": "connected" if db_ok else "disconnected",
+            "partidas": partidas_count,
+            "query_latency_ms": query_latency_ms,
+            "slo_p95_target_ms": 200,
+            "slo_healthy": query_latency_ms < 200
+        },
+        "version": "2026.1",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }), status_code
 
 # ==================== ROTAS DE AUTENTICAÇÃO ====================
 @app.route('/api/auth/login', methods=['POST'])
@@ -3204,6 +3239,12 @@ def perguntar_ia():
 
     if not pergunta:
         return jsonify({"error": "Por favor, digite sua pergunta."}), 400
+
+    # runaway-guard: Trava de tamanho de entrada para evitar estouro de tokens/custo
+    if len(pergunta) > 500:
+        return jsonify({
+            "error": "A pergunta excede o limite máximo de 500 caracteres para proteção de cota e tokens."
+        }), 400
 
     # Cache de perguntas idênticas (economiza chamadas de IA e responde em < 5ms)
     cache_key = f"ia_{hashlib.md5((pergunta.lower() + '_' + modelo).encode('utf-8')).hexdigest()}"

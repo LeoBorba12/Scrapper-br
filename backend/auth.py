@@ -10,7 +10,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 DB_FUTEBOL = os.path.join(ROOT_DIR, 'data', 'futebol.db')
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'futstats-secret-key-2026-super-segura-lb-jwt')
+SECRET_KEY = os.environ.get('SECRET_KEY') or "futstats-jwt-secret-stable-auth-2026-production-sig-key-vercel"
 INVITE_CODE = os.environ.get('INVITE_CODE', 'FUTSTATS-2026')
 
 def hash_senha(senha, salt=None):

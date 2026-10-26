@@ -142,13 +142,32 @@ def obter_ultimos_jogos() -> str:
     except Exception as e:
         return f"❌ Erro ao consultar últimas partidas: {e}"
 
+# runaway-guard: Travas de custo e quota para o Bot Telegram
+MAX_BOT_AI_CALLS_PER_HOUR = 20
+_HISTORICO_BOT_AI = []
+
+def pode_chamar_ia_bot():
+    agora = time.time()
+    global _HISTORICO_BOT_AI
+    _HISTORICO_BOT_AI = [t for t in _HISTORICO_BOT_AI if agora - t < 3600]
+    return len(_HISTORICO_BOT_AI) < MAX_BOT_AI_CALLS_PER_HOUR
+
+# cost contract (runaway-guard):
+#   provider: Google Gemini 2.5 Flash
+#   unit cost: ~$0.075 / 1M input tokens, ~$0.30 / 1M output tokens
+#   max calls per run: 2 (1 text-to-sql + 1 sintese Telegram)
+#   max tokens per call: 250 output tokens
+#   max calls per hour: 20 chamadas (cap rígido via _HISTORICO_BOT_AI)
+#   provider hard cap: Google AI Studio Dashboard Budget Cap
+#   timeout: 8s
 def responder_pergunta_banco(pergunta: str) -> str:
     """Responde a perguntas livres do moderador consultando o banco SQLite via IA ou SQL heurístico."""
-    pergunta_clean = pergunta.strip()
+    pergunta_clean = pergunta[:300].strip()
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
 
-    # 1. Se houver chave Gemini, usar Text-to-SQL seguro
-    if gemini_key:
+    # 1. Se houver chave Gemini e cota disponível, usar Text-to-SQL seguro
+    if gemini_key and pode_chamar_ia_bot():
+        _HISTORICO_BOT_AI.append(time.time())
         try:
             schema_desc = (
                 "Tabelas disponíveis em SQLite:\n"
@@ -164,7 +183,7 @@ def responder_pergunta_banco(pergunta: str) -> str:
                 "PROIBIDO: DROP, DELETE, INSERT, UPDATE, ALTER, ATTACH.\n"
                 "Retorne JSON estrito: {\"sql\": \"SELECT ...\"}"
             )
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={gemini_key}"
             headers = {"Content-Type": "application/json"}
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],

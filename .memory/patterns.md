@@ -17,3 +17,11 @@
 ## P4: Botões Inline no Telegram Bot
 - **Arquivo**: `scripts/bot_telegram_interativo.py`
 - **Padrão**: Envia `reply_markup` em JSON com arrays de `inline_keyboard` contendo `callback_data` e intercepta `item.get("callback_query")` no loop de polling, respondendo com `answerCallbackQuery` e disparando a ação correspondente.
+
+## P5: Gates de Regressão Estatística e Avaliação Contínua
+- **Arquivo**: `tests/test_model_evals.py`
+- **Padrão**: Utiliza golden datasets parametrizados com cenários reais e de borda, validando:
+  1. Axioma de partição da unidade ($\sum P = 1.0$) com tolerância para arredondamento de exibição.
+  2. Bounded interval checks para odds justas: $Odd \in [\frac{100}{p + \epsilon}, \frac{100}{p - \epsilon}]$ contra probabilidades discretizadas.
+  3. Strict gating de $+EV$: $EV > 0 \iff Odd_{mercado} > FairOdd$.
+

@@ -7,11 +7,13 @@ scripts/
 .github
 !requirements.txt
 
-# Ignorar acervos brutos e bancos redundantes na Vercel (economiza >220 MB de bundle)
+# Ignorar acervos brutos e bancos redundantes na Vercel (economiza >260 MB de bundle)
 api/data/
 data/futebol_acervo.db
 data/clima.db
 data/*.json
 data/raw_*
 data/raw_*/**
+data/cache_*
+data/cache_*/**
 docs/

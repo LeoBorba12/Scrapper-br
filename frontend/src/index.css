@@ -507,3 +507,21 @@ h3, .heading-md {
     font-size: 0.74rem;
   }
 }
+
+/* Feedback tátil universal para botões e cards interativos (UX-002) */
+button:active,
+.btn-primary:active,
+.btn-secondary:active,
+.touch-tactile:active {
+  transform: scale(0.98) !important;
+}
+
+/* Ajustes finos de padding mobile para o Matchday Cockpit */
+@media (max-width: 640px) {
+  .cockpit-hero-section {
+    padding: 20px 14px 16px 14px !important;
+  }
+  .cockpit-main-section {
+    padding: 10px 14px !important;
+  }
+}

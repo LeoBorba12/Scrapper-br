@@ -24,3 +24,17 @@
 - **Status**: Implementado e Ativo
 - **Contexto**: A digitação manual de comandos no Telegram reduzia a agilidade na moderação e no acompanhamento da VM Oracle.
 - **Decisão**: Implementar `InlineKeyboardMarkup` e tratamento de `callback_query` no `bot_telegram_interativo.py` para acesso em 1 toque a status, sniper e banco de dados.
+
+## ADR-006: Suíte de Avaliação Automatizada e Gates de Regressão Estatística (agent-evals)
+- **Status**: Implementado e Aprovado
+- **Contexto**: Mudanças em heurísticas ou código backend poderiam inadvertidamente quebrar axiomas probabilísticos (probabilidades não somarem 1.0, inversão de odds justas ou cálculo incorreto de +EV).
+- **Decisão**: Instituir suíte de testes de regressão automatizada em `tests/test_model_evals.py` baseada em golden datasets, parametrização e gates determinísticos para calibração Dixon-Coles ($\rho = -0.12$), tolerâncias estritas e resiliência de borda.
+
+## ADR-007: Framework Oficial de Confiabilidade e Governança de SLOs/SLIs
+- **Status**: Implementado e Ativo
+- **Contexto**: Falta de metas formais de nível de serviço para a API Vercel, risco de falha silenciosa no digest de 3 horas por bug de importação e potencial de tempestade de alertas no Telegram durante incidentes na VM Oracle.
+- **Decisão**: 
+  1. Formalizar o quadro de SLOs/SLIs em `.memory/slo-framework.md` cobrindo Disponibilidade Vercel ($\ge 99.5\%$), Latência $p_{95} < 200\text{ ms}$, Sucesso de Scraping 24x7 ($\ge 99.0\%$), Teto de Armazenamento ($\le 94.0\text{ MB}$) e Política Anti-Spam no Telegram (1 digest/3h; alertas fora do digest apenas sob violação de SLO).
+  2. Implementar medição ativa de latência via cabeçalho `X-Response-Time-Ms` e rota de healthcheck detalhada em `/api/health`.
+  3. Corrigir importação ausente de `datetime` no orquestrador mestre e adicionar cooldown de proteção contra flood crítico (mínimo 300s) no watchdog de saúde da VM.
+

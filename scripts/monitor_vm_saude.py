@@ -39,8 +39,10 @@ carregar_env()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
-COOLDOWN_ALERTAS_SEG = 900  # 15 minutos entre alertas para não floodar
+COOLDOWN_ALERTAS_SEG = 900  # 15 minutos entre alertas normais para não floodar
+COOLDOWN_CRITICO_SEG = 300  # 5 minutos para alertas críticos (evita tempestade a cada ciclo de 30s)
 ultimo_alerta_ts = 0
+ultimo_critico_ts = 0
 
 def notificar_telegram(mensagem: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -117,7 +119,7 @@ def obter_top_processos():
         return "Indisponível"
 
 def verificar_e_alertar():
-    global ultimo_alerta_ts
+    global ultimo_alerta_ts, ultimo_critico_ts
     m = obter_metricas_sistema()
     agora = time.time()
 
@@ -146,9 +148,17 @@ def verificar_e_alertar():
             nivel = "ALERTA"
 
     if motivos:
-        # Verifica se já passou o tempo de cooldown
-        if (agora - ultimo_alerta_ts) >= COOLDOWN_ALERTAS_SEG or nivel == "CRITICO":
+        # Verifica se já passou o tempo de cooldown respeitando a gravidade
+        deve_enviar = False
+        if nivel == "CRITICO":
+            if (agora - ultimo_critico_ts) >= COOLDOWN_CRITICO_SEG:
+                deve_enviar = True
+                ultimo_critico_ts = agora
+        elif (agora - ultimo_alerta_ts) >= COOLDOWN_ALERTAS_SEG:
+            deve_enviar = True
             ultimo_alerta_ts = agora
+
+        if deve_enviar:
             top_proc = obter_top_processos()
 
             icone = "🚨" if nivel == "CRITICO" else "⚠️"

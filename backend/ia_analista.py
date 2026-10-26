@@ -289,20 +289,41 @@ def executar_query_segura(sql):
     resultados = [dict(zip(colunas, row)) for row in linhas]
     return colunas, resultados
 
+# cost contract (runaway-guard):
+#   provider: Google Gemini Flash (gemini-flash-latest / gemini-2.5-flash)
+#   unit cost: ~$0.075 / 1M input tokens, ~$0.30 / 1M output tokens
+#   max calls per run: 2 (1 query generation + max 1 correction retry)
+#   max tokens per call: 768 output tokens (bounds worst-case spend < $0.0003 / run)
+#   provider hard cap: Google AI Studio / GCP Project Budget Alert & Quota Cap
+#   concurrency: 1 in-flight per serverless invocation
+#   timeout: 4.0s (aborts before Vercel serverless limit)
+MAX_OUTPUT_TOKENS_SQL = 768
+TIMEOUT_GEMINI_SEC = 4.0
+
 def chamar_gemini(prompt, api_key):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": [{"text": prompt[:3000]}]}],
         "generationConfig": {
             "temperature": 0.2,
-            "maxOutputTokens": 2048
+            "maxOutputTokens": MAX_OUTPUT_TOKENS_SQL
         }
     }
-    resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=3.5)
+    resp = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, timeout=TIMEOUT_GEMINI_SEC)
     if resp.status_code == 200:
         data = resp.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
     raise RuntimeError(f"Erro Gemini API ({resp.status_code}): {resp.text[:120]}")
+
+# cost contract (runaway-guard):
+#   provider: DeepSeek V3 / OpenRouter (deepseek-chat)
+#   unit cost: ~$0.14 / 1M input tokens, ~$0.28 / 1M output tokens (DeepSeek cache miss)
+#   max calls per run: 2 (1 query generation + max 1 correction retry)
+#   max tokens per call: 768 output tokens (bounds worst-case spend < $0.0004 / run)
+#   provider hard cap: OpenRouter / DeepSeek Pre-paid Balance + Daily Limit
+#   concurrency: 1 in-flight per serverless invocation
+#   timeout: 6.5s (aborts before Vercel serverless limit)
+TIMEOUT_DEEPSEEK_SEC = 6.5
 
 def chamar_deepseek(prompt, api_key, model="deepseek-chat"):
     is_openrouter = api_key.startswith("sk-or-")
@@ -323,13 +344,13 @@ def chamar_deepseek(prompt, api_key, model="deepseek-chat"):
     payload = {
         "model": actual_model,
         "messages": [
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt[:3000]}
         ],
         "temperature": 0.2,
-        "max_tokens": 1500
+        "max_tokens": MAX_OUTPUT_TOKENS_SQL
     }
-    # Timeout de 7s para não estourar o limite de serverless da Vercel
-    resp = requests.post(url, json=payload, headers=headers, timeout=7)
+    # Timeout estrito de 6.5s para não estourar o limite de serverless da Vercel
+    resp = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT_DEEPSEEK_SEC)
     if resp.status_code != 200:
         raise RuntimeError(f"Erro DeepSeek API ({resp.status_code}): {resp.text}")
         

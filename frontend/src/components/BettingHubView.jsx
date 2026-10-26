@@ -344,7 +344,7 @@ export default function BettingHubView({
             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Partidas com Odds no Banco
             </div>
-            <div className="font-mono" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
               {(hubData?.total_banco_odds || 9252).toLocaleString('pt-BR')}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
@@ -363,7 +363,7 @@ export default function BettingHubView({
             <div style={{ fontSize: '0.76rem', color: 'var(--positive)', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Flame size={14} /> Apostas com +EV
             </div>
-            <div className="font-mono" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--positive)', marginTop: '4px' }}>
+            <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--positive)', marginTop: '4px' }}>
               {hubData?.total_com_ev || 0}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--positive)', marginTop: '2px' }}>
@@ -382,7 +382,7 @@ export default function BettingHubView({
             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Favoráveis ao Over 2.5
             </div>
-            <div className="font-mono" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
               {hubData?.total_over_2_5_favoravel || 0}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -401,7 +401,7 @@ export default function BettingHubView({
             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
               Favoráveis ao BTTS (Ambas)
             </div>
-            <div className="font-mono" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
+            <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
               {hubData?.total_btts_favoravel || 0}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -1105,10 +1105,20 @@ export default function BettingHubView({
                         }}
                       >
                         {/* Mandante */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                           <ClubBadge nome={p.mandante} size={32} />
-                          <div>
-                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                fontSize: '0.92rem',
+                                fontWeight: 700,
+                                color: 'var(--text-primary)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                              title={p.mandante}
+                            >
                               {p.mandante}
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
@@ -1117,15 +1127,15 @@ export default function BettingHubView({
                           </div>
                         </div>
 
-                        {/* Placar ou VS */}
-                        <div style={{ textAlign: 'center', padding: '0 12px' }}>
+                        {/* Placar ou x */}
+                        <div style={{ textAlign: 'center', padding: '0 10px', flexShrink: 0 }}>
                           {p.gols_mandante !== null && p.gols_visitante !== null ? (
-                            <div className="font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            <div className="font-mono tabular-nums" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                               {p.gols_mandante} - {p.gols_visitante}
                             </div>
                           ) : (
                             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                              VS
+                              x
                             </div>
                           )}
                           {p.horario && (
@@ -1136,9 +1146,19 @@ export default function BettingHubView({
                         </div>
 
                         {/* Visitante */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, justifyContent: 'flex-end', textAlign: 'right' }}>
-                          <div>
-                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, justifyContent: 'flex-end', textAlign: 'right' }}>
+                          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                fontSize: '0.92rem',
+                                fontWeight: 700,
+                                color: 'var(--text-primary)',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                              title={p.visitante}
+                            >
                               {p.visitante}
                             </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
@@ -1549,7 +1569,7 @@ export default function BettingHubView({
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                         <div>Média Gols Pró: <strong>{analisePartida.forma_recente?.mandante?.media_gp ?? '—'}</strong></div>
                         <div>Média Gols Contra: <strong>{analisePartida.forma_recente?.mandante?.media_gc ?? '—'}</strong></div>
-                        <div>Clean Sheets: <strong>{analisePartida.forma_recente?.mandante?.clean_sheets_pct != null ? `${analisePartida.forma_recente?.mandante?.clean_sheets_pct}%` : '—'}</strong></div>
+                        <div>Baliza Inviolada: <strong>{analisePartida.forma_recente?.mandante?.clean_sheets_pct != null ? `${analisePartida.forma_recente?.mandante?.clean_sheets_pct}%` : '—'}</strong></div>
                         <div>Over 2.5: <strong>{analisePartida.forma_recente?.mandante?.over_2_5_pct != null ? `${analisePartida.forma_recente?.mandante?.over_2_5_pct}%` : '—'}</strong></div>
                       </div>
                     </div>
@@ -1590,7 +1610,7 @@ export default function BettingHubView({
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                         <div>Média Gols Pró: <strong>{analisePartida.forma_recente?.visitante?.media_gp ?? '—'}</strong></div>
                         <div>Média Gols Contra: <strong>{analisePartida.forma_recente?.visitante?.media_gc ?? '—'}</strong></div>
-                        <div>Clean Sheets: <strong>{analisePartida.forma_recente?.visitante?.clean_sheets_pct != null ? `${analisePartida.forma_recente?.visitante?.clean_sheets_pct}%` : '—'}</strong></div>
+                        <div>Baliza Inviolada: <strong>{analisePartida.forma_recente?.visitante?.clean_sheets_pct != null ? `${analisePartida.forma_recente?.visitante?.clean_sheets_pct}%` : '—'}</strong></div>
                         <div>Over 2.5: <strong>{analisePartida.forma_recente?.visitante?.over_2_5_pct != null ? `${analisePartida.forma_recente?.visitante?.over_2_5_pct}%` : '—'}</strong></div>
                       </div>
                     </div>

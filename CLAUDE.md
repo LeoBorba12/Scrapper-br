@@ -11,6 +11,7 @@
 - → **Frontend (`frontend/`)**: React 18, Vite, CSS custom properties (`tokens.css`), componentes SVG espaciais (`SpatialPitchMap.jsx`, `GoalMouthMap.jsx`, `RadarPentagonPES`).
 - → **Backend (`backend/`)**: Python Flask API REST, SQLite (`data/futebol.db`), calibração Dixon-Coles (1997) para probabilidades 1X2 e +EV, autenticação JWT.
 - → **Scripts & DevOps (`scripts/`)**: Daemons 24x7 na VM Oracle Cloud (`orquestrador_mestre_24x7.py`, `bot_telegram_interativo.py`, `sniper.sh`), scrapers de eventing espacial (`spatial_scraper.py`).
+- → **Testes & Avaliações (`tests/`)**: Suíte de regressão estatística (`test_model_evals.py`) com golden datasets para Dixon-Coles, integridade de probabilidades e +EV.
 - → **Memória & Decisões (`.memory/`)**: Arquivo de decisões de arquitetura (`decisions.md`), padrões reutilizáveis (`patterns.md`) e registro de auditorias (`audit-log.md`).
 
 ## Invariantes & Restrições Inegociáveis

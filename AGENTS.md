@@ -15,8 +15,10 @@
 5. `hierarchical-agent-memory`: Arquitetura de contexto escopado e memória persistente.
 6. `futstats-product-audit`: Auditoria completa de produto e UX da dashboard.
 7. `web-design-guidelines`: Diretrizes de acessibilidade e design de interface.
+8. `agent-evals`: Suítes de avaliação automatizada, datasets padrão ouro e regression gates.
 
 ## Regras de Execução Pre-flight
 - Sempre verificar integridade de build (`npm run build`) antes de commitar mudanças no frontend.
+- Executar a suíte de testes de regressão dos modelos (`pytest tests/test_model_evals.py`) após qualquer alteração em cálculos preditivos, Dixon-Coles ou odds.
 - Nunca commitar chaves de API, credenciais ou duplicatas de arquivos `.db`.
 - Manter o idioma da interface e código 100% em Português do Brasil (sem placeholders em inglês).
