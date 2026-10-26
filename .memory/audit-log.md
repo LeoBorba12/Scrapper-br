@@ -50,3 +50,9 @@
 - **Radar Pentagonal PES com Normalização de Escala**: Substituído o cálculo flat `item.valor / 100` (que comprimia todos os atletas em um polígono plano quase idêntico) por escala com baseline 40 estilo Winning Eleven (`pct = 0.20 + ((val - 40)/59) * 0.80`), gerando perfis poligonais taticamente divergentes para cada atleta.
 - **Erradicação de Mockups Simulados Falsos**: Removidos chutes e zonas térmicas simuladas hardcoded de `SpatialPitchMap.jsx` e `GoalMouthMap.jsx`. Implementada salvaguarda de "Honestidade de Dados" que exibe painel transparente de telemetria quando o confronto histórico não possuir tracking ótico por câmeras.
 - **Auditoria Automatizada Expandida**: `scripts/auditar_integridade_dados.py` atualizado com 10 verificações automáticas com auto-reparo. 22/22 testes de regressão verdes (`pytest tests/test_model_evals.py`).
+
+## [2026-10-26] Implementação do Manual de Eficiência & Arquitetura RepoBrain
+- **Diretrizes Universais de Agentes**: Integradas ao `AGENTS.md` e `CLAUDE.md` com 4 pilares: Gestão de Tokens & Contexto (leituras cirúrgicas), Padrões Anti-Slop (escala 4px/8px, WCAG AA+, microinterações), Exploração de Dados (resumos executivos) e Resolução na Causa-Raiz (sem remendos superficiais).
+- **Mapa Modular de Contexto (`.memory/context-map.md`)**: Estruturado o índice completo dos 6 subsistemas (Frontend, Backend, Dados/SQLite, Scripts 24x7, Testes e Memória) para roteamento com baixo consumo de tokens.
+- **Prompts Modulares de Ativação Rápida**: Formalizados os modos `[MODO FRONTEND]`, `[MODO DADOS]` e `[MODO DEVOPS]`.
+- **Validação de Pre-flight**: Testes de modelos (22/22 verdes), auditor de integridade (10 regras) e build do frontend (`npm run build`) 100% verificados.
