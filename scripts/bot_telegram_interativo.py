@@ -42,13 +42,16 @@ ADMIN_CHATS_RAW = os.getenv("TELEGRAM_ADMIN_CHATS", os.getenv("TELEGRAM_CHAT_ID"
 ADMIN_CHATS = set(str(c).strip() for c in ADMIN_CHATS_RAW.split(",") if c.strip())
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://scrapper-br.vercel.app")
 
-def notificar(chat_id: str, texto: str):
+def notificar(chat_id: str, texto: str, reply_markup: dict = None):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = urllib.parse.urlencode({
+    dados = {
         "chat_id": chat_id,
         "text": texto,
         "parse_mode": "Markdown"
-    }).encode("utf-8")
+    }
+    if reply_markup:
+        dados["reply_markup"] = json.dumps(reply_markup)
+    payload = urllib.parse.urlencode(dados).encode("utf-8")
     try:
         req = urllib.request.Request(url, data=payload, method="POST")
         with urllib.request.urlopen(req, timeout=10):
@@ -56,6 +59,34 @@ def notificar(chat_id: str, texto: str):
     except Exception as e:
         print(f"[Bot Erro] Envio de msg falhou: {e}", flush=True)
 
+def responder_callback(callback_id: str, texto: str = ""):
+    url = f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery"
+    dados = {"callback_query_id": callback_id}
+    if texto:
+        dados["text"] = texto
+    payload = urllib.parse.urlencode(dados).encode("utf-8")
+    try:
+        req = urllib.request.Request(url, data=payload, method="POST")
+        with urllib.request.urlopen(req, timeout=5):
+            pass
+    except Exception:
+        pass
+
+TECLADO_INLINE_MENU = {
+    "inline_keyboard": [
+        [
+            {"text": "📊 Status VM", "callback_data": "/status"},
+            {"text": "🎯 Sniper OCI", "callback_data": "/sniper"}
+        ],
+        [
+            {"text": "⚽ Últimos Jogos", "callback_data": "/ultimos"},
+            {"text": "💾 Baixar Banco", "callback_data": "/banco"}
+        ],
+        [
+            {"text": "🌐 Abrir FutStats Web", "url": DASHBOARD_URL}
+        ]
+    ]
+}
 def enviar_documento(chat_id: str, file_path: str, caption: str = "") -> bool:
     url = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
     boundary = "----WebKitFormBoundary" + secrets.token_hex(16)
@@ -336,21 +367,13 @@ def tratar_comando(chat_id: str, texto: str):
         notificar(chat_id, f"⛔ *Acesso Restrito*\nVocê não possui permissão de moderador.\nSeu Chat ID é: `{chat_id}`")
         return
 
-    if cmd in ("/start", "/ajuda", "/help"):
+    if cmd in ("/start", "/ajuda", "/help", "/menu"):
         msg = (
             f"👋 *Olá, Moderador!*\n\n"
-            f"Bem-vindo ao canal de controle e inteligência do *Scrapper-BR*.\n\n"
-            f"Comandos disponíveis:\n"
-            f"💬 *Fazer Pergunta:* Envie qualquer pergunta em texto comum (ex: _'quantos jogos do Flamengo temos?'_ ou _'quem é o maior artilheiro?'_)\n"
-            f"🎯 `/sniper` - Exibe o status da caça à VM da Oracle Cloud (24GB/12GB/6GB)\n"
-            f"📊 `/status` - Exibe a saúde da VM e métricas de infraestrutura\n"
-            f"🕒 `/ultimos` - Exibe os últimos 5 jogos adicionados pelo scraping\n"
-            f"📥 `/banco` - Baixa o banco SQLite compactado (`futebol.db.zip` ~17MB)\n"
-            f"🌐 `/dashboard` - Link direto do painel web na Vercel\n"
-            f"❓ `/ajuda` - Exibe esta mensagem\n"
+            f"Bem-vindo ao canal de controle do *FutStats / Scrapper-BR*.\n\n"
+            f"Toque em um dos botões abaixo ou envie sua pergunta diretamente:\n"
         )
-        notificar(chat_id, msg)
-
+        notificar(chat_id, msg, reply_markup=TECLADO_INLINE_MENU)
     elif cmd == "/sniper":
         notificar(chat_id, obter_status_sniper())
 
@@ -419,6 +442,16 @@ def iniciar_polling():
             if data.get("ok"):
                 for item in data.get("result", []):
                     offset = item["update_id"] + 1
+                    cb = item.get("callback_query")
+                    if cb:
+                        cb_id = str(cb.get("id"))
+                        cb_msg = cb.get("message", {})
+                        cb_chat_id = str(cb_msg.get("chat", {}).get("id"))
+                        cb_data = cb.get("data", "")
+                        responder_callback(cb_id, f"Ação: {cb_data}")
+                        tratar_comando(cb_chat_id, cb_data)
+                        continue
+
                     msg = item.get("message") or item.get("channel_post")
                     if msg and "text" in msg:
                         c_id = str(msg["chat"]["id"])

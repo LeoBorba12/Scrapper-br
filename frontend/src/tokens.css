@@ -16,15 +16,15 @@
   --text-muted: #665D4F;
   --border-subtle: #D6C9B9;
   --border-strong: #B8A894;
-  --accent: #606E43;
-  --accent-hover: #4F5C35;
+  --accent: #5A673E;
+  --accent-hover: #4A5630;
   --accent-foreground: #FFFFFF;
   --accent-soft: #DEE2CE;
-  --positive: #586B3B;
+  --positive: #526337;
   --positive-bg: #DFE6D1;
-  --negative: #916346;
+  --negative: #85573B;
   --negative-bg: #EFDFD2;
-  --focus-ring: #606E43;
+  --focus-ring: #5A673E;
 
   --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-editorial: "Source Serif 4", Georgia, "Times New Roman", serif;
