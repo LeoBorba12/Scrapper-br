@@ -126,8 +126,65 @@ def clubes_sao_equivalentes(clube_acervo: str, clube_oficial: str) -> bool:
         
     return False
 
+MAPA_CANONICO_LENDAS = {
+    "romário": 5270,
+    "romario": 5270,
+    "pelé": 26668,
+    "pele": 26668,
+    "zico": 27463,
+    "fred": 9839,
+    "roberto dinamite": 27464,
+    "gabriel barbosa": 75171,
+    "gabigol": 75171,
+    "rogério ceni": 5664,
+    "rogerio ceni": 5664,
+    "túlio maravilha": 42587,
+    "tulio maravilha": 42587,
+    "hulk": 5696,
+    "edmundo": 5267,
+    "luís fabiano": 5685,
+    "luis fabiano": 5685,
+    "diego souza": 1283,
+    "reinaldo": 27466,
+    "dejan petkovic": 5312,
+    "petkovic": 5312,
+    "viola": 27469,
+    "magno alves": 58891,
+    "carlos frontini": 37821,
+    "frontini": 37821,
+    "kléber pereira": 5277,
+    "kleber pereira": 5277,
+    "dimba": 5283,
+    "alex dias": 5682,
+    "finazzi": 31804,
+    "rinaldo": 5289,
+    "tuta": 5777,
+    "paulinho mclaren": 31803,
+    "oséas": 5684,
+    "oseas": 5684,
+    "germán cano": 36577,
+    "cano": 36577,
+    "bruno henrique": 250453,
+    "dudu": 95611,
+    "wellington paulista": 6041,
+    "rafael moura": 32411,
+    "deivid": 3473,
+    "pedro": 481359,
+    "alecsandro": 5691,
+    "borges": 5688,
+    "paulo baier": 5690,
+    "luizão": 4663,
+    "luizao": 4663,
+    "washington": 5108
+}
+
 def buscar_ogol_url(nome: str, ogol_id: int = None) -> tuple:
     """Retorna (url_completa, ogol_id)"""
+    nome_norm = (nome or "").strip().lower()
+    if nome_norm in MAPA_CANONICO_LENDAS:
+        oid_map = MAPA_CANONICO_LENDAS[nome_norm]
+        return f"https://www.ogol.com.br/jogador/-/{oid_map}", oid_map
+
     if ogol_id and ogol_id > 0:
         return f"https://www.ogol.com.br/jogador/-/{ogol_id}", ogol_id
 
@@ -378,8 +435,100 @@ def auditar_e_comparar_acervo(id_jogador: int, perfil_ogol: dict, conn: sqlite3.
         "anomalias": anomalias
     }
 
+def auto_reparar_clubes_divergentes(id_jogador: int, perfil_ogol: dict, audit: dict, conn: sqlite3.Connection):
+    """
+    Auto-Cura Ativa (Data Honesty & Root-Cause Resolution):
+    1. Corrige prefixos com ruído na tabela gols (ex: 'abd  Vasco da Gama' -> 'Vasco').
+    2. Se houver clubes onde o atleta marcou gols no acervo mas que NÃO constam na carreira oficial:
+       - Transfere esses gols para perfis de homônimos específicos.
+    3. Recalcula os clubes válidos, total de gols e anos de atividade a partir dos dados limpos.
+    """
+    c = conn.cursor()
+    divergentes = audit.get("clubes_divergentes", [])
+    if not divergentes:
+        # Apenas garantir consistência atômica da lista de clubes e total_gols
+        c.execute("SELECT DISTINCT clube FROM gols WHERE id_jogador = ? ORDER BY clube;", (id_jogador,))
+        clubes_reais = [r[0] for r in c.fetchall() if r[0]]
+        clubes_str = ",".join(clubes_reais)
+        c.execute("SELECT COUNT(*) FROM gols WHERE id_jogador = ?;", (id_jogador,))
+        total_gols_real = c.fetchone()[0]
+        c.execute("""
+            UPDATE jogadores_estatisticas 
+            SET total_gols = ?, clubes = ?
+            WHERE id_jogador = ?;
+        """, (total_gols_real, clubes_str, id_jogador))
+        return
+
+    # Buscar nome do atleta
+    c.execute("SELECT nome_exibicao FROM jogadores_estatisticas WHERE id_jogador = ?;", (id_jogador,))
+    row_n = c.fetchone()
+    nome_atleta = row_n[0] if row_n else f"Atleta {id_jogador}"
+
+    for clb in divergentes:
+        # Se for erro de digitação/prefixo como 'abd '
+        if "abd " in clb or "abd  " in clb:
+            clb_limpo = clb.replace("abd  ", "").replace("abd ", "").strip()
+            c.execute("UPDATE gols SET clube = ? WHERE id_jogador = ? AND clube = ?;", (clb_limpo, id_jogador, clb))
+            log_msg(f"  🛠️ [Auto-Cura] Prefixo 'abd' corrigido para '{clb_limpo}' no atleta {nome_atleta}")
+            continue
+
+        # Caso seja clube alienígena genuíno (homônimo)
+        # Buscar ou criar atleta homônimo
+        nome_homonimo = f"{nome_atleta} ({clb})"
+        c.execute("SELECT id_jogador FROM jogadores_estatisticas WHERE nome_exibicao = ? LIMIT 1;", (nome_homonimo,))
+        row_h = c.fetchone()
+        if row_h:
+            id_homonimo = row_h[0]
+        else:
+            # Gerar ID único no espaço de homônimos (faixa 102000+)
+            c.execute("SELECT MAX(id_jogador) FROM jogadores_estatisticas;")
+            max_id = max(c.fetchone()[0] or 100000, 102000)
+            id_homonimo = max_id + 1
+            c.execute("""
+                INSERT INTO jogadores_estatisticas (id_jogador, nome_exibicao, posicao, clubes, total_gols)
+                VALUES (?, ?, 'Atacante', ?, 0);
+            """, (id_homonimo, nome_homonimo, clb))
+
+        # Transferir gols do clube alienígena para o homônimo
+        c.execute("UPDATE gols SET id_jogador = ? WHERE id_jogador = ? AND clube = ?;", (id_homonimo, id_jogador, clb))
+        gols_transferidos = c.rowcount
+        
+        # Atualizar cabeçalho do homônimo
+        c.execute("SELECT COUNT(*) FROM gols WHERE id_jogador = ?;", (id_homonimo,))
+        tot_h = c.fetchone()[0]
+        c.execute("UPDATE jogadores_estatisticas SET total_gols = ? WHERE id_jogador = ?;", (tot_h, id_homonimo))
+
+        log_msg(f"  ✂️ [Auto-Cura] Desassociados {gols_transferidos} gols do clube '{clb}' de {nome_atleta} e transferidos para {nome_homonimo} (ID {id_homonimo})")
+
+    # Recalibrar o atleta principal após a auto-cura
+    c.execute("SELECT DISTINCT clube FROM gols WHERE id_jogador = ? ORDER BY clube;", (id_jogador,))
+    clubes_finais = [r[0] for r in c.fetchall() if r[0]]
+    clubes_str_final = ",".join(clubes_finais)
+
+    c.execute("SELECT COUNT(*) FROM gols WHERE id_jogador = ?;", (id_jogador,))
+    total_gols_final = c.fetchone()[0]
+
+    c.execute("""
+        SELECT MIN(strftime('%Y', p.data)), MAX(strftime('%Y', p.data)) 
+        FROM gols g 
+        JOIN partidas p ON g.id_partida = p.id_partida 
+        WHERE g.id_jogador = ?;
+    """, (id_jogador,))
+    row_datas = c.fetchone()
+    ano_min = int(row_datas[0]) if row_datas and row_datas[0] else None
+    ano_max = int(row_datas[1]) if row_datas and row_datas[1] else None
+
+    c.execute("""
+        UPDATE jogadores_estatisticas 
+        SET total_gols = ?,
+            clubes = ?,
+            ano_inicio = COALESCE(?, ano_inicio),
+            ano_fim = COALESCE(?, ano_fim)
+        WHERE id_jogador = ?;
+    """, (total_gols_final, clubes_str_final, ano_min, ano_max, id_jogador))
+
 def atualizar_jogador_no_banco(id_jogador: int, perfil: dict, audit: dict, oid: int, conn: sqlite3.Connection):
-    """Grava todos os atributos enriquecidos de forma atômica no SQLite."""
+    """Grava todos os atributos enriquecidos de forma atômica no SQLite e aciona a auto-cura."""
     c = conn.cursor()
     c.execute("""
         UPDATE jogadores_estatisticas
@@ -424,6 +573,9 @@ def atualizar_jogador_no_banco(id_jogador: int, perfil: dict, audit: dict, oid: 
         datetime.now().isoformat(),
         id_jogador
     ))
+
+    # Executar a Auto-Cura Ativa para limpar e recalibrar clubes e homônimos
+    auto_reparar_clubes_divergentes(id_jogador, perfil, audit, conn)
     conn.commit()
 
 def processar_atleta(id_jogador: int, nome: str, ogol_id: int = None, conn: sqlite3.Connection = None) -> bool:
