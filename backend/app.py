@@ -298,7 +298,13 @@ def api_health():
     t0 = time.perf_counter()
     try:
         if os.path.exists(DB_FUTEBOL):
-            conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True, timeout=2)
+            try:
+                conn = sqlite3.connect(f"file:{DB_FUTEBOL}?immutable=1", uri=True, timeout=5)
+            except Exception:
+                try:
+                    conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True, timeout=5)
+                except Exception:
+                    conn = sqlite3.connect(DB_FUTEBOL, timeout=5)
             c = conn.cursor()
             c.execute("SELECT count(*) FROM partidas")
             partidas_count = c.fetchone()[0]
@@ -446,11 +452,14 @@ def get_db():
     conn = None
     if os.path.exists(DB_FUTEBOL):
         try:
-            conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True)
+            conn = sqlite3.connect(f"file:{DB_FUTEBOL}?immutable=1", uri=True, timeout=15)
         except Exception:
-            conn = sqlite3.connect(DB_FUTEBOL)
+            try:
+                conn = sqlite3.connect(f"file:{DB_FUTEBOL}?mode=ro", uri=True, timeout=15)
+            except Exception:
+                conn = sqlite3.connect(DB_FUTEBOL, timeout=15)
     else:
-        conn = sqlite3.connect(DB_FUTEBOL)
+        conn = sqlite3.connect(DB_FUTEBOL, timeout=15)
 
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -466,12 +475,15 @@ def get_db():
 
     if os.path.exists(DB_CLIMA):
         try:
-            cursor.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
+            cursor.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?immutable=1' AS clima;")
         except Exception:
             try:
-                cursor.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+                cursor.execute(f"ATTACH DATABASE 'file:{DB_CLIMA}?mode=ro' AS clima;")
             except Exception:
-                pass
+                try:
+                    cursor.execute(f"ATTACH DATABASE '{DB_CLIMA}' AS clima;")
+                except Exception:
+                    pass
     return conn
 
 @app.route('/api/overview', methods=['GET'])
