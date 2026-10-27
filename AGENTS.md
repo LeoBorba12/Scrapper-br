@@ -69,6 +69,9 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 6. `futstats-product-audit`: Auditoria completa de produto e UX da dashboard.
 7. `web-design-guidelines`: Diretrizes de acessibilidade e design de interface.
 8. `agent-evals`: Suítes de avaliação automatizada, datasets padrão ouro e regression gates.
+9. `grill-me`: Entrevista estratégica pré-implementação para eliminar suposições e retrabalho.
+10. `git-guardrails`: Proteção de repositório, bloqueio de comandos perigosos e vigilância do teto de 95 MB.
+11. `karpathy-guidelines`: Simplicidade radical, diagnósticos de causa-raiz e modificações cirúrgicas mínimas.
 
 ---
 
