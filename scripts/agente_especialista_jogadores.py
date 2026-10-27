@@ -455,6 +455,8 @@ def main():
     parser.add_argument("--id", type=int, help="ID do jogador para enriquecer/auditar")
     parser.add_argument("--nome", type=str, help="Nome do jogador para buscar")
     parser.add_argument("--top", type=int, help="Processar os TOP N jogadores por gols")
+    parser.add_argument("--pendentes-ogol", action="store_true", help="Processar atletas com ogol_id que ainda não possuem foto/bio")
+    parser.add_argument("--limit", type=int, default=None, help="Limite de atletas para processar")
     parser.add_argument("--auditar-todos", action="store_true", help="Auditar todos os atletas com ogol_id")
     args = parser.parse_args()
 
@@ -477,6 +479,32 @@ def main():
             print(f"Atleta com nome '{args.nome}' não encontrado.")
             return
         processar_atleta(row[0], row[1], row[2], conn)
+
+    elif args.pendentes_ogol:
+        c = conn.cursor()
+        query = """
+            SELECT id_jogador, nome_exibicao, ogol_id 
+            FROM jogadores_estatisticas 
+            WHERE ogol_id IS NOT NULL AND (foto_url IS NULL OR altura IS NULL)
+            ORDER BY total_gols DESC
+        """
+        if args.limit:
+            query += f" LIMIT {args.limit}"
+        c.execute(query)
+        rows = c.fetchall()
+        log_msg(f"Iniciando Fase 2: enriquecimento de {len(rows)} atletas pendentes com ogol_id...")
+        sucessos = 0
+        for idx, r in enumerate(rows, 1):
+            log_msg(f"[{idx}/{len(rows)}] Atleta: {r[1]} (ID: {r[0]}, OGol: {r[2]})")
+            ok = processar_atleta(r[0], r[1], r[2], conn)
+            if ok:
+                sucessos += 1
+            if idx % 10 == 0:
+                conn.commit()
+                log_msg(f"💾 Checkpoint: {idx} atletas processados ({sucessos} com sucesso).")
+            time.sleep(random.uniform(1.2, 2.2))
+        conn.commit()
+        log_msg(f"🎉 Fase 2 Concluída! {sucessos} de {len(rows)} atletas enriquecidos com sucesso.")
 
     elif args.top:
         c = conn.cursor()
