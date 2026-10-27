@@ -472,6 +472,13 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [playerSearch]);
 
+  // Sincronizar carregamento automático se selectedPlayer vier via URL ou navegação externa
+  useEffect(() => {
+    if (activeTab === 'jogadores' && selectedPlayer && !playerProfile && !profileLoading && currentUser) {
+      carregarPerfilJogador(selectedPlayer);
+    }
+  }, [activeTab, selectedPlayer, playerProfile, profileLoading, currentUser]);
+
   // Carregar perfil completo do jogador via apiFetch (suporta nome ou id_jogador)
   const carregarPerfilJogador = (nome, clube = '', idJogador = null) => {
     if (!nome && !idJogador) return;
@@ -1062,6 +1069,17 @@ export default function App() {
           setRankingType={(tipo) => carregarRanking(tipo)}
           topPlayers={rankingData}
           onCarregarPerfilPorId={(id, nome) => carregarPerfilJogador(nome, '', id)}
+          onVoltarParaLista={() => {
+            setSelectedPlayer(null);
+            setPlayerProfile(null);
+            setPlayerSearch('');
+            setPlayerSuggestions([]);
+            try {
+              const url = new URL(window.location);
+              url.searchParams.delete('atleta');
+              window.history.replaceState({}, '', url);
+            } catch {}
+          }}
         />
       )}
 

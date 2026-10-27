@@ -21,7 +21,8 @@ export default function ProtagonistaAtleta({
   rankingType,
   setRankingType,
   topPlayers,
-  onCarregarPerfilPorId
+  onCarregarPerfilPorId,
+  onVoltarParaLista
 }) {
   const [subTab, setSubTab] = useState('partidas'); // 'partidas' | 'temporadas' | 'torneios' | 'vitimas'
   const [partidasPage, setPartidasPage] = useState(1);
@@ -32,7 +33,7 @@ export default function ProtagonistaAtleta({
   }, [playerProfile?.id_jogador, selectedPlayer]);
 
   // ==================== VISÃO 1: ENTRADA / ÍNDICE DE ATLETAS ====================
-  if (!selectedPlayer && !playerProfile) {
+  if (!selectedPlayer) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Cabeçalho Editorial da Seção */}
@@ -435,7 +436,11 @@ export default function ProtagonistaAtleta({
           type="button"
           aria-label="Voltar para a lista e rankings de atletas"
           onClick={() => {
-            setSelectedPlayer(null);
+            if (onVoltarParaLista) {
+              onVoltarParaLista();
+            } else {
+              if (setSelectedPlayer) setSelectedPlayer(null);
+            }
           }}
           style={{
             display: 'flex',
