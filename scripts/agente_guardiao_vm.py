@@ -216,10 +216,11 @@ def auditar_banco_dados():
         c.execute("SELECT count(*) FROM partidas;")
         relatorio["total_partidas"] = c.fetchone()[0]
 
-        # Verificar se tabela de gols existe
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='gols_detalhados';")
-        if c.fetchone():
-            c.execute("SELECT count(*) FROM gols_detalhados;")
+        # Verificar se tabela de gols existe (suporta 'gols' e 'gols_detalhados')
+        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND (name='gols' OR name='gols_detalhados') ORDER BY (name='gols') DESC;")
+        tbl = c.fetchone()
+        if tbl:
+            c.execute(f"SELECT count(*) FROM {tbl[0]};")
             relatorio["total_gols"] = c.fetchone()[0]
 
         # Auditoria de Sanidade Esportiva
@@ -230,7 +231,7 @@ def auditar_banco_dados():
             relatorio["placares_anomalos"] = 0
 
         try:
-            c.execute("SELECT count(*) FROM (SELECT data, time_mandante, time_visitante, campeonato, count(*) as c FROM partidas GROUP BY data, time_mandante, time_visitante, campeonato HAVING c > 1);")
+            c.execute("SELECT count(*) FROM (SELECT data, mandante, visitante, campeonato, count(*) as c FROM partidas GROUP BY data, mandante, visitante, campeonato HAVING c > 1);")
             relatorio["duplicatas_detectadas"] = c.fetchone()[0]
         except Exception:
             relatorio["duplicatas_detectadas"] = 0

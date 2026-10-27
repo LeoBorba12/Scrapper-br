@@ -31,4 +31,8 @@ scratch/
 data/cache_rankinghistorico/
 /futebol.db
 
+# Ferramentas locais e extensões
+.tools/
+*.vsix
+
 

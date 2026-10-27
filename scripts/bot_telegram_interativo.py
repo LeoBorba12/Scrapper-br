@@ -57,7 +57,17 @@ def notificar(chat_id: str, texto: str, reply_markup: dict = None):
         with urllib.request.urlopen(req, timeout=10):
             pass
     except Exception as e:
-        print(f"[Bot Erro] Envio de msg falhou: {e}", flush=True)
+        # Fallback sem markdown caso haja caracteres não escapados
+        try:
+            dados_puros = {"chat_id": chat_id, "text": texto}
+            if reply_markup:
+                dados_puros["reply_markup"] = json.dumps(reply_markup)
+            payload_puro = urllib.parse.urlencode(dados_puros).encode("utf-8")
+            req_puro = urllib.request.Request(url, data=payload_puro, method="POST")
+            with urllib.request.urlopen(req_puro, timeout=10):
+                pass
+        except Exception as e2:
+            print(f"[Bot Erro] Envio de msg falhou: {e} | Fallback falhou: {e2}", flush=True)
 
 def responder_callback(callback_id: str, texto: str = ""):
     url = f"https://api.telegram.org/bot{TOKEN}/answerCallbackQuery"
@@ -129,7 +139,7 @@ def obter_ultimos_jogos() -> str:
     try:
         conn = sqlite3.connect(f"file:{DB_LOCAL}?mode=ro", uri=True)
         c = conn.cursor()
-        c.execute("SELECT data, campeonato, time_mandante, gols_mandante, gols_visitante, time_visitante FROM partidas ORDER BY id DESC LIMIT 5;")
+        c.execute("SELECT data, campeonato, mandante, gols_mandante, gols_visitante, visitante FROM partidas ORDER BY id_partida DESC LIMIT 5;")
         rows = c.fetchall()
         conn.close()
         if not rows:
@@ -171,10 +181,11 @@ def responder_pergunta_banco(pergunta: str) -> str:
         try:
             schema_desc = (
                 "Tabelas disponíveis em SQLite:\n"
-                "1. partidas(id, data, ano, campeonato, time_mandante, time_visitante, gols_mandante, gols_visitante, estadio, arbitro, rodada)\n"
-                "2. gols_detalhados(id, partida_id, atleta, time, minuto, tipo_gol)\n"
-                "3. atletas(id, nome, posicao, clubes_recentes)\n"
-                "4. estatisticas_partida(partida_id, time, chutes, chutes_a_gol, faltas, escanteios, posse, amarelos, vermelhos)"
+                "1. partidas(id_partida, data, ano, campeonato, mandante, visitante, gols_mandante, gols_visitante, estadio, arbitro, rodada)\n"
+                "2. gols(id_gol, id_partida, clube, atleta, minuto, tempo, tipo_de_gol, id_jogador)\n"
+                "3. jogadores(id_jogador, nome_exibicao, nome_completo, posicao, clubes, total_jogos, total_gols, total_assistencias)\n"
+                "4. estatisticas_partidas(partida_id, time, chutes, chutes_a_gol, faltas, escanteios, posse, amarelos, vermelhos)\n"
+                "5. odds_partidas(partida_id, odd_mandante, odd_empate, odd_visitante, mercado_over25, mercado_btts)"
             )
             prompt = (
                 f"Você é o assistente de dados do projeto FutStats.\n{schema_desc}\n\n"
@@ -235,7 +246,7 @@ def responder_pergunta_banco(pergunta: str) -> str:
             return f"⚽ Temos atualmente *{total:,}* partidas oficiais catalogadas no banco de dados."
 
         if any(w in p_lower for w in ["gols", "artilheiro", "artilheiros", "mais gols"]):
-            c.execute("SELECT atleta, count(*) as total FROM gols_detalhados GROUP BY atleta ORDER BY total DESC LIMIT 5;")
+            c.execute("SELECT atleta, count(*) as total FROM gols GROUP BY atleta ORDER BY total DESC LIMIT 5;")
             rows = c.fetchall()
             conn.close()
             if rows:
@@ -248,9 +259,9 @@ def responder_pergunta_banco(pergunta: str) -> str:
         clubes_comuns = ["flamengo", "palmeiras", "corinthians", "são paulo", "sao paulo", "santos", "vasco", "fluminense", "botafogo", "grêmio", "gremio", "internacional", "cruzeiro", "atlético", "atletico", "bahia", "fortaleza", "sport", "vitória", "vitoria"]
         for clube in clubes_comuns:
             if clube in p_lower:
-                c.execute("SELECT count(*) FROM partidas WHERE time_mandante LIKE ? OR time_visitante LIKE ?;", (f"%{clube}%", f"%{clube}%"))
+                c.execute("SELECT count(*) FROM partidas WHERE mandante LIKE ? OR visitante LIKE ?;", (f"%{clube}%", f"%{clube}%"))
                 cnt = c.fetchone()[0]
-                c.execute("SELECT count(*) FROM partidas WHERE (time_mandante LIKE ? AND gols_mandante > gols_visitante) OR (time_visitante LIKE ? AND gols_visitante > gols_mandante);", (f"%{clube}%", f"%{clube}%"))
+                c.execute("SELECT count(*) FROM partidas WHERE (mandante LIKE ? AND gols_mandante > gols_visitante) OR (visitante LIKE ? AND gols_visitante > gols_mandante);", (f"%{clube}%", f"%{clube}%"))
                 vitorias = c.fetchone()[0]
                 conn.close()
                 return f"🛡️ *Registros do {clube.title()}*:\n• Total de Partidas: *{cnt:,}*\n• Vitórias Registradas: *{vitorias:,}*"
@@ -467,6 +478,7 @@ def iniciar_polling():
                         cb_msg = cb.get("message", {})
                         cb_chat_id = str(cb_msg.get("chat", {}).get("id"))
                         cb_data = cb.get("data", "")
+                        print(f"[Bot Telegram] Botão clicado: '{cb_data}' por {cb_chat_id}", flush=True)
                         responder_callback(cb_id, f"Ação: {cb_data}")
                         tratar_comando(cb_chat_id, cb_data)
                         continue
@@ -475,8 +487,10 @@ def iniciar_polling():
                     if msg and "text" in msg:
                         c_id = str(msg["chat"]["id"])
                         txt = msg["text"]
+                        print(f"[Bot Telegram] Mensagem recebida: '{txt}' de {c_id}", flush=True)
                         tratar_comando(c_id, txt)
         except Exception as e:
+            print(f"[Bot Polling Erro]: {e}", flush=True)
             time.sleep(3)
 
 if __name__ == "__main__":

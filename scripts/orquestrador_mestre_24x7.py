@@ -154,6 +154,12 @@ def ciclo_mestre(numero_ciclo: int):
     safe_print(f"=======================================================")
 
     # -------------------------------------------------------------
+    # FASE 0: SINCRONIZAÇÃO EM TEMPO REAL DE PARTIDAS, SÚMULAS E SCOUTS
+    # -------------------------------------------------------------
+    safe_print("\n>>> [FASE 0] Sincronizando Partidas Recentes, Gols e Scouts de Atletas <<<")
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sincronizar_partidas_recentes_e_scouts.py"), "--dias", "7"])
+
+    # -------------------------------------------------------------
     # FASE A: MOTOR DE APOSTAS E MERCADOS (OVER/UNDER, BTTS, CARTÕES)
     # -------------------------------------------------------------
     safe_print("\n>>> [FASE A] Atualizando Inteligência de Apostas & Mercados <<<")
@@ -183,6 +189,8 @@ def ciclo_mestre(numero_ciclo: int):
     # -------------------------------------------------------------
     safe_print("\n>>> [FASE C] Higienização e Desambiguação de Gols <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "higienizar_e_desambiguar_gols.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sanitizar_dashboard_e_atletas.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "corrigir_desambiguacao_estrita.py")])
 
     safe_print("\n>>> [FASE C] Validação da Integridade do Banco <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "validar_banco.py")])
