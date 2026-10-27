@@ -491,7 +491,7 @@ export default function ProtagonistaAtleta({
                   ) : null}
                 </div>
 
-                {/* Área da Imagem com dimensões reservadas (fallback para monograma neutro) */}
+                {/* Área da Imagem com dimensões reservadas (com suporte à foto oficial do OGol) */}
                 <div 
                   style={{ 
                     width: '100%', 
@@ -503,10 +503,19 @@ export default function ProtagonistaAtleta({
                     justifyContent: 'center',
                     marginBottom: '18px',
                     overflow: 'hidden',
-                    border: '1px solid var(--border-subtle)'
+                    border: '1px solid var(--border-subtle)',
+                    position: 'relative'
                   }}
                 >
-                  <div style={{ textAlign: 'center' }}>
+                  {atleta.foto_url ? (
+                    <img 
+                      src={atleta.foto_url} 
+                      alt={atleta.nome || selectedPlayer} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  ) : null}
+                  <div style={{ textAlign: 'center', display: atleta.foto_url ? 'none' : 'block' }}>
                     <div 
                       className="font-editorial" 
                       style={{ 
@@ -530,12 +539,69 @@ export default function ProtagonistaAtleta({
                     fontSize: '1.85rem', 
                     fontWeight: 700, 
                     color: 'var(--text-primary)', 
-                    margin: '0 0 4px 0',
+                    margin: '0 0 2px 0',
                     lineHeight: 1.2
                   }}
                 >
                   {atleta.nome || selectedPlayer}
                 </h2>
+
+                {atleta.nome_completo && atleta.nome_completo !== atleta.nome && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '8px', fontStyle: 'italic' }}>
+                    {atleta.nome_completo}
+                  </div>
+                )}
+
+                {/* Metadados Biométricos Oficiais (OGol) */}
+                {(atleta.altura || atleta.peso || atleta.data_nascimento || atleta.situacao) && (
+                  <div 
+                    style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(2, 1fr)', 
+                      gap: '8px', 
+                      margin: '12px 0',
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--surface-raised)',
+                      borderRadius: 'var(--radius-control)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.76rem'
+                    }}
+                  >
+                    {atleta.altura && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Altura:</span>{' '}
+                        <strong className="font-mono">{atleta.altura} cm</strong>
+                      </div>
+                    )}
+                    {atleta.peso && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Peso:</span>{' '}
+                        <strong className="font-mono">{atleta.peso} kg</strong>
+                      </div>
+                    )}
+                    {atleta.data_nascimento && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Nasc:</span>{' '}
+                        <strong className="font-mono">{atleta.data_nascimento}</strong>
+                        {atleta.idade && <span style={{ color: 'var(--text-secondary)' }}> ({atleta.idade}a)</span>}
+                      </div>
+                    )}
+                    {atleta.situacao && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Status:</span>{' '}
+                        <span className={atleta.situacao.toLowerCase().includes('ativo') ? 'pill-olive' : 'pill-neutral'} style={{ padding: '2px 6px', fontSize: '0.68rem' }}>
+                          {atleta.situacao}
+                        </span>
+                      </div>
+                    )}
+                    {atleta.pe_preferencial && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Pé:</span>{' '}
+                        <strong>{atleta.pe_preferencial}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
                   Período ativo na base: <strong className="tabular-nums">{resumo.ano_min || '—'} – {resumo.ano_max || '—'}</strong>
@@ -888,6 +954,8 @@ export default function ProtagonistaAtleta({
             <div role="tablist" aria-label="Estatísticas detalhadas do atleta" style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', overflowX: 'auto' }}>
               {[
                 { id: 'partidas', label: `Partidas Catalogadas (${(atleta.partidas || []).length})` },
+                { id: 'carreira_ogol', label: `Carreira Oficial OGol (${(carreira.clubes || []).length})` },
+                { id: 'titulos', label: `Títulos & Prêmios (${(atleta.titulos || []).length + (atleta.premios || []).length})` },
                 { id: 'temporadas', label: `Por Temporada (${(atleta.historico_temporadas || []).length})` },
                 { id: 'torneios', label: `Competições (${(atleta.historico_torneios || []).length})` },
                 { id: 'vitimas', label: `Clubes Vítimas (${(atleta.top_vitimas || []).length})` }
@@ -1152,6 +1220,118 @@ export default function ProtagonistaAtleta({
                       )}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Sub-aba Carreira Oficial OGol */}
+              {subTab === 'carreira_ogol' && (
+                <div style={{ overflowX: 'auto' }}>
+                  {(carreira.clubes || []).length === 0 ? (
+                    <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      Nenhum histórico consolidado de clubes disponível no momento.
+                    </div>
+                  ) : (
+                    <table className="editorial-table">
+                      <thead>
+                        <tr>
+                          <th>Clube / Seleção</th>
+                          <th style={{ textAlign: 'center' }}>Período Oficial</th>
+                          <th style={{ textAlign: 'center' }}>Jogos Oficiais (J)</th>
+                          <th style={{ textAlign: 'center' }}>Gols Oficiais (GM)</th>
+                          <th style={{ textAlign: 'center' }}>Assistências (ASS)</th>
+                          <th style={{ textAlign: 'center' }}>Média de Gols</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {carreira.clubes.map((c_item, idx) => {
+                          const media = c_item.jogos > 0 ? (c_item.gols / c_item.jogos).toFixed(2) : '0.00';
+                          return (
+                            <tr key={idx}>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <ClubBadge nome={c_item.clube} size={18} />
+                                  <strong style={{ color: 'var(--text-primary)' }}>{c_item.clube}</strong>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="font-mono">
+                                {c_item.periodo || '—'}
+                              </td>
+                              <td style={{ textAlign: 'center' }} className="font-mono tabular-nums">
+                                {c_item.jogos}
+                              </td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }} className="font-mono tabular-nums">
+                                {c_item.gols}
+                              </td>
+                              <td style={{ textAlign: 'center' }} className="font-mono tabular-nums">
+                                {c_item.assistencias}
+                              </td>
+                              <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="font-mono tabular-nums">
+                                {media}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-aba Títulos & Palmarés */}
+              {subTab === 'titulos' && (
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div>
+                    <h4 className="font-editorial" style={{ margin: '0 0 10px 0', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                      🏆 Galeria de Títulos Conquistados
+                    </h4>
+                    {(atleta.titulos || []).length === 0 ? (
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Nenhum título oficial cadastrado no registro do atleta.</p>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+                        {atleta.titulos.map((t, idx) => (
+                          <div 
+                            key={idx}
+                            style={{ 
+                              padding: '12px 14px',
+                              backgroundColor: 'var(--surface-raised)',
+                              borderRadius: 'var(--radius-control)',
+                              border: '1px solid var(--border-subtle)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '10px'
+                            }}
+                          >
+                            <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {t.titulo}
+                            </span>
+                            <span className="pill-olive font-mono" style={{ fontSize: '0.74rem' }}>
+                              x{t.quantidade}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {(atleta.premios || []).length > 0 && (
+                    <div>
+                      <h4 className="font-editorial" style={{ margin: '0 0 10px 0', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                        🎖️ Distinções e Prêmios Individuais
+                      </h4>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {atleta.premios.map((p, idx) => (
+                          <span 
+                            key={idx}
+                            className="pill-neutral"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', fontWeight: 600 }}
+                          >
+                            ⭐ {p}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
