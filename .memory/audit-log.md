@@ -69,3 +69,14 @@
   - Criado `scripts/auditar_sanidade_atletas.py` e integrado na Fase C do `scripts/orquestrador_mestre_24x7.py` (auto-reparou 196 inconsistências herdadas no banco).
 - **Validação de Pre-Flight**: 22/22 pytest aprovados, frontend buildado em 6.8s, 115.356 partidas íntegras e banco SQLite em 84.8 MB. Commits `8338a5e` e `105c522` enviados para produção na Vercel (`main`).
 
+
+## [2026-10-28] Extensão do Pilar 4: Filtros de Competição no Comparador Head-to-Head
+- **Backend (`backend/app.py`)**:
+  - Implementado `_obter_condicao_campeonato()` e parâmetro `campeonato_filtro` em `_construir_perfil_jogador()` e rota `/api/jogadores/comparar`.
+  - Suporte a 5 escopos táticos: `todos` (Carreira Completa / Acervo Geral), `brasileirao` (Série A e unificados), `copa_do_brasil` (mata-mata nacional), `libertadores` (Conmebol) e `estaduais` (Paulista, Carioca, etc.).
+  - Recálculo dinâmico do **Radar Dual PES (OVR)**, tabela de scouts, métricas de gols decisivos (80'+), aproveitamento de pontos e histórico de confrontos diretos restritos à competição selecionada.
+- **Frontend (`frontend/src/components/AthleteCompareView.jsx`)**:
+  - Nova barra de escopo com botões táteis (Bento UI) para seleção instantânea de torneio.
+  - Sincronização automática com preservação do filtro ao trocar de atletas, usar presets de duelos ou inverter posições (swap).
+  - Badges dinâmicos de escopo ativo no card de resumo e cabeçalhos contextuais.
+- **Pre-Flight de Confiabilidade**: 22/22 pytest aprovados, integridade do banco (84.82 MB < 94 MB) e build do frontend concluído em 4.79s.

@@ -1915,7 +1915,34 @@ def _calcular_radar_pes(posicao, resumo, carreira):
     return {"eixos": eixos, "ovr": ovr}
 
 
-def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None, limit_partidas=100):
+COMPETICOES_COMPARADOR = [
+    {"id": "todos", "label": "Carreira Completa", "icone": "🌐", "descricao": "Histórico mundial oficial e acervo completo"},
+    {"id": "brasileirao", "label": "Brasileirão Série A", "icone": "🏆", "descricao": "Campeonato Brasileiro Série A e unificados"},
+    {"id": "copa_do_brasil", "label": "Copa do Brasil", "icone": "🇧🇷", "descricao": "Torneio mata-mata nacional"},
+    {"id": "libertadores", "label": "Copa Libertadores", "icone": "🌎", "descricao": "Copa Conmebol Libertadores"},
+    {"id": "estaduais", "label": "Estaduais", "icone": "📍", "descricao": "Paulista, Carioca, Gaúcho, Mineiro e outros"}
+]
+
+
+def _obter_condicao_campeonato(filtro):
+    if not filtro or filtro in ('todos', 'carreira', 'all'):
+        return "", []
+    filtro_lower = filtro.lower().strip()
+    if filtro_lower in ('brasileirao', 'brasileiro', 'serie_a'):
+        return " AND (p.campeonato LIKE '%Brasileir%' OR p.campeonato LIKE '%Série A%' OR p.campeonato LIKE '%Serie A%' OR p.campeonato LIKE '%Taça Brasil%' OR p.campeonato LIKE '%Robertão%' OR p.campeonato LIKE '%Gomes Pedrosa%')", []
+    elif filtro_lower in ('copa_do_brasil', 'copa_brasil', 'cdb'):
+        return " AND p.campeonato LIKE '%Copa do Brasil%'", []
+    elif filtro_lower in ('libertadores', 'conmebol_libertadores'):
+        return " AND p.campeonato LIKE '%Libertadores%'", []
+    elif filtro_lower in ('estaduais', 'estadual'):
+        return " AND (p.campeonato LIKE '%Paulista%' OR p.campeonato LIKE '%Carioca%' OR p.campeonato LIKE '%Mineiro%' OR p.campeonato LIKE '%Gaúcho%' OR p.campeonato LIKE '%Gaucho%' OR p.campeonato LIKE '%Baiano%' OR p.campeonato LIKE '%Pernambucano%' OR p.campeonato LIKE '%Paranaense%' OR p.campeonato LIKE '%Catarinense%' OR p.campeonato LIKE '%Estadual%')", []
+    elif filtro_lower in ('internacionais', 'continental', 'conmebol'):
+        return " AND (p.campeonato LIKE '%Libertadores%' OR p.campeonato LIKE '%Sul-Americana%' OR p.campeonato LIKE '%Mercosul%' OR p.campeonato LIKE '%Supercopa%' OR p.campeonato LIKE '%Mundial%')", []
+    else:
+        return " AND p.campeonato LIKE ?", [f"%{filtro}%"]
+
+
+def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None, limit_partidas=100, campeonato_filtro=None):
     c = conn.cursor()
 
     row_est = None
@@ -1959,9 +1986,13 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         JOIN partidas p ON g.id_partida = p.id_partida
         WHERE {cond_gols}
     """
+    cond_camp, params_camp = _obter_condicao_campeonato(campeonato_filtro)
     if clube_filtro:
         sql_gols += " AND g.clube LIKE ?"
         params_gols.append(f"%{clube_filtro}%")
+    if cond_camp:
+        sql_gols += cond_camp
+        params_gols.extend(params_camp)
     sql_gols += " ORDER BY p.data DESC, p.id_partida DESC;"
     c.execute(sql_gols, params_gols)
     gols = [dict(r) for r in c.fetchall()]
@@ -1976,6 +2007,9 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     if clube_filtro:
         sql_cartoes += " AND cr.clube LIKE ?"
         params_cartoes.append(f"%{clube_filtro}%")
+    if cond_camp:
+        sql_cartoes += cond_camp
+        params_cartoes.extend(params_camp)
     sql_cartoes += " ORDER BY p.data DESC, p.id_partida DESC;"
     c.execute(sql_cartoes, params_cartoes)
     cartoes = [dict(r) for r in c.fetchall()]
@@ -1990,6 +2024,9 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     if clube_filtro:
         sql_esc += " AND e.clube LIKE ?"
         params_esc.append(f"%{clube_filtro}%")
+    if cond_camp:
+        sql_esc += cond_camp
+        params_esc.extend(params_camp)
     sql_esc += " ORDER BY p.data DESC, p.id_partida DESC;"
     c.execute(sql_esc, params_esc)
     escalacoes = [dict(r) for r in c.fetchall()]
@@ -2037,12 +2074,18 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
 
     partidas_ordenadas = sorted(partidas_map.values(), key=lambda x: (x['data'] or '', x['id_partida']), reverse=True)
 
-    gols_normais = stats_meta.get('gols_bola_rolando') or len([g for g in gols if not g['tipo_de_gol'] or 'normal' in (g['tipo_de_gol'] or '').lower()])
-    gols_penalti = stats_meta.get('gols_penalti') or len([g for g in gols if g['tipo_de_gol'] and ('pênalti' in g['tipo_de_gol'].lower() or 'penalti' in g['tipo_de_gol'].lower())])
-    gols_falta = stats_meta.get('gols_falta') or len([g for g in gols if g['tipo_de_gol'] and 'falta' in g['tipo_de_gol'].lower()])
-    amarelos = stats_meta.get('cartoes_amarelos') or len([c for c in cartoes if 'amarelo' in (c['cartao'] or '').lower()])
-    vermelhos = stats_meta.get('cartoes_vermelhos') or len([c for c in cartoes if 'vermelho' in (c['cartao'] or '').lower()])
-    total_jogos = max(stats_meta.get('total_jogos', 0), len(partidas_ordenadas))
+    is_filtro_camp = bool(campeonato_filtro and campeonato_filtro not in ('todos', 'carreira', 'all'))
+    gols_normais = len([g for g in gols if not g['tipo_de_gol'] or 'normal' in (g['tipo_de_gol'] or '').lower()]) if is_filtro_camp else (stats_meta.get('gols_bola_rolando') or len([g for g in gols if not g['tipo_de_gol'] or 'normal' in (g['tipo_de_gol'] or '').lower()]))
+    gols_penalti = len([g for g in gols if g['tipo_de_gol'] and ('pênalti' in g['tipo_de_gol'].lower() or 'penalti' in g['tipo_de_gol'].lower())]) if is_filtro_camp else (stats_meta.get('gols_penalti') or len([g for g in gols if g['tipo_de_gol'] and ('pênalti' in g['tipo_de_gol'].lower() or 'penalti' in g['tipo_de_gol'].lower())]))
+    gols_falta = len([g for g in gols if g['tipo_de_gol'] and 'falta' in g['tipo_de_gol'].lower()]) if is_filtro_camp else (stats_meta.get('gols_falta') or len([g for g in gols if g['tipo_de_gol'] and 'falta' in g['tipo_de_gol'].lower()]))
+    if is_filtro_camp:
+        amarelos = len([c for c in cartoes if 'amarelo' in (c.get('cartao') or '').lower()])
+        vermelhos = len([c for c in cartoes if 'vermelho' in (c.get('cartao') or '').lower()])
+        total_jogos = len(partidas_ordenadas)
+    else:
+        amarelos = stats_meta.get('cartoes_amarelos') or len([c for c in cartoes if 'amarelo' in (c.get('cartao') or '').lower()])
+        vermelhos = stats_meta.get('cartoes_vermelhos') or len([c for c in cartoes if 'vermelho' in (c.get('cartao') or '').lower()])
+        total_jogos = max(stats_meta.get('total_jogos', 0), len(partidas_ordenadas))
 
     vitimas = {}
     for g in gols:
@@ -2180,47 +2223,85 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     ano_min = stats_meta.get('ano_inicio') or (min(anos) if anos else None)
     ano_max = stats_meta.get('ano_fim') or (max(anos) if anos else None)
 
-    total_gols_final = stats_meta.get('total_gols') or len(gols)
-    total_assists_final = stats_meta.get('total_assistencias') or 0
+    is_filtro_camp = bool(campeonato_filtro and campeonato_filtro not in ('todos', 'carreira', 'all'))
+    if is_filtro_camp:
+        total_gols_final = len(gols)
+        total_assists_final = 0
+        carreira_oficial = {
+            "gols": total_gols_final,
+            "jogos": total_jogos,
+            "assistencias": total_assists_final,
+            "clubes": sorted(list(stats_por_clube.keys()))
+        }
+    else:
+        total_gols_final = stats_meta.get('total_gols') or len(gols)
+        total_assists_final = stats_meta.get('total_assistencias') or 0
+        raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
+        raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
+        raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
+        carreira_oficial = {
+            "gols": max(raw_gols_carreira, total_gols_final),
+            "jogos": max(raw_jogos_carreira, total_jogos),
+            "assistencias": max(raw_assists_carreira, total_assists_final),
+            "clubes": json.loads(stats_meta['detalhe_carreira_clubes']) if stats_meta.get('detalhe_carreira_clubes') else []
+        }
 
-    raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
-    raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
-    raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
+    # Aproveitamento sob filtro específico
+    vitorias = 0
+    empates = 0
+    for p in partidas_ordenadas:
+        placar = p.get('placar') or ''
+        m_placar = re.search(r'(\d+)\s*[xX\-–]\s*(\d+)', placar)
+        if m_placar:
+            gm = int(m_placar.group(1))
+            gv = int(m_placar.group(2))
+            clube_atleta = None
+            if p.get('escalacao') and p['escalacao'].get('clube'):
+                clube_atleta = p['escalacao']['clube']
+            elif p.get('gols') and p['gols'][0].get('clube'):
+                clube_atleta = p['gols'][0]['clube']
+            elif p.get('cartoes') and p['cartoes'][0].get('clube'):
+                clube_atleta = p['cartoes'][0]['clube']
 
-    carreira_oficial = {
-        "gols": max(raw_gols_carreira, total_gols_final),
-        "jogos": max(raw_jogos_carreira, total_jogos),
-        "assistencias": max(raw_assists_carreira, total_assists_final),
-        "clubes": json.loads(stats_meta['detalhe_carreira_clubes']) if stats_meta.get('detalhe_carreira_clubes') else []
-    }
+            if gm == gv:
+                empates += 1
+            elif clube_atleta:
+                is_mandante = clube_atleta.lower() in (p.get('mandante') or '').lower()
+                if (is_mandante and gm > gv) or (not is_mandante and gv > gm):
+                    vitorias += 1
+            else:
+                empates += 1
+
+    aproveitamento_calc = round((vitorias * 3 + empates) / max(total_jogos * 3, 1) * 100, 1) if total_jogos > 0 else 0.0
 
     resumo_dados = {
         "total_gols": total_gols_final,
         "total_assistencias": total_assists_final,
-        "participacoes_gols": stats_meta.get('participacoes_gols') or (total_gols_final + total_assists_final),
+        "participacoes_gols": total_gols_final if is_filtro_camp else (stats_meta.get('participacoes_gols') or (total_gols_final + total_assists_final)),
         "gols_normais": gols_normais,
         "gols_penalti": gols_penalti,
         "gols_falta": gols_falta,
-        "gols_decisivos_80mais": stats_meta.get('gols_decisivos_80mais', 0),
-        "hat_tricks": stats_meta.get('hat_tricks', 0),
-        "dobletes": stats_meta.get('dobletes', 0),
+        "gols_decisivos_80mais": len([g for g in gols if g.get('minuto') and (re.search(r'\d+', str(g['minuto'])) and int(re.search(r'\d+', str(g['minuto'])).group(0)) >= 80)]) if is_filtro_camp else stats_meta.get('gols_decisivos_80mais', 0),
+        "hat_tricks": len([p for p in partidas_ordenadas if len(p.get('gols', [])) >= 3]) if is_filtro_camp else stats_meta.get('hat_tricks', 0),
+        "dobletes": len([p for p in partidas_ordenadas if len(p.get('gols', [])) == 2]) if is_filtro_camp else stats_meta.get('dobletes', 0),
         "amarelos": amarelos,
         "vermelhos": vermelhos,
         "jogos_registrados": total_jogos,
-        "aproveitamento_pontos": stats_meta.get('aproveitamento_pontos', 0.0),
-        "jogos_titular": stats_meta.get('jogos_titular', 0),
-        "jogos_reserva": stats_meta.get('jogos_reserva', 0),
+        "aproveitamento_pontos": aproveitamento_calc if is_filtro_camp else stats_meta.get('aproveitamento_pontos', 0.0),
+        "jogos_titular": len([p for p in partidas_ordenadas if p.get('escalacao') and p['escalacao'].get('titular')]) if is_filtro_camp else stats_meta.get('jogos_titular', 0),
+        "jogos_reserva": len([p for p in partidas_ordenadas if p.get('escalacao') and not p['escalacao'].get('titular')]) if is_filtro_camp else stats_meta.get('jogos_reserva', 0),
         "jogos_capitao": stats_meta.get('jogos_capitao', 0),
         "chutes_ao_gol": stats_meta.get('chutes_ao_gol', 0),
         "finalizacoes_totais": stats_meta.get('finalizacoes_totais', 0),
         "pontaria_chutes_pct": stats_meta.get('pontaria_chutes_pct', 0.0),
         "penaltis_cobrados": stats_meta.get('penaltis_cobrados', 0),
         "penaltis_perdidos": stats_meta.get('penaltis_perdidos', 0),
-        "maior_vitima_clube": stats_meta.get('maior_vitima_clube') or (top_vitimas[0]['clube'] if top_vitimas else None),
+        "maior_vitima_clube": (top_vitimas[0]['clube'] if top_vitimas else None),
         "estadio_favorito": stats_meta.get('estadio_favorito'),
         "media_gols": round(total_gols_final / max(total_jogos, 1), 2),
         "ano_min": ano_min,
-        "ano_max": ano_max
+        "ano_max": ano_max,
+        "filtro_campeonato": campeonato_filtro or "todos"
     }
 
     radar_pes = _calcular_radar_pes(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial)
@@ -2286,13 +2367,14 @@ def comparar_jogadores():
     id2 = request.args.get('id2', type=int)
     nome1 = request.args.get('nome1', '').strip()
     nome2 = request.args.get('nome2', '').strip()
+    campeonato = request.args.get('campeonato', 'todos').strip()
 
     if not (id1 or nome1) or not (id2 or nome2):
         return jsonify({"error": "Informe ambos os atletas para o confronto comparativo (id1/nome1 e id2/nome2)"}), 400
 
     conn = get_db()
-    perfil1 = _construir_perfil_jogador(conn, player_id=id1, nome=nome1, limit_partidas=30)
-    perfil2 = _construir_perfil_jogador(conn, player_id=id2, nome=nome2, limit_partidas=30)
+    perfil1 = _construir_perfil_jogador(conn, player_id=id1, nome=nome1, limit_partidas=30, campeonato_filtro=campeonato)
+    perfil2 = _construir_perfil_jogador(conn, player_id=id2, nome=nome2, limit_partidas=30, campeonato_filtro=campeonato)
 
     if not perfil1 or not perfil2:
         conn.close()
@@ -2305,7 +2387,8 @@ def comparar_jogadores():
     p2_nome = perfil2.get('nome')
 
     # 1. Confrontos Diretos e Parcerias (Partidas em comum no acervo)
-    confrontos_sql = """
+    cond_camp_h2h, params_camp_h2h = _obter_condicao_campeonato(campeonato)
+    confrontos_sql = f"""
         SELECT 
             p.id_partida, p.data, p.campeonato, p.mandante, p.visitante, p.placar,
             e1.clube as clube1, e2.clube as clube2,
@@ -2316,11 +2399,12 @@ def comparar_jogadores():
         WHERE (e1.id_jogador = ? OR (e1.id_jogador IS NULL AND LOWER(e1.atleta) = LOWER(?)))
           AND (e2.id_jogador = ? OR (e2.id_jogador IS NULL AND LOWER(e2.atleta) = LOWER(?)))
           AND e1.rowid != e2.rowid
+          {cond_camp_h2h}
         GROUP BY p.id_partida
         ORDER BY p.data DESC
         LIMIT 40;
     """
-    rows_confrontos = c.execute(confrontos_sql, (p1_id, p1_nome, p2_id, p2_nome)).fetchall()
+    rows_confrontos = c.execute(confrontos_sql, [p1_id, p1_nome, p2_id, p2_nome] + params_camp_h2h).fetchall()
 
     jogos_comuns = []
     totais_h2h = {"partidas": len(rows_confrontos), "como_rivais": 0, "como_companheiros": 0, "vitorias1": 0, "vitorias2": 0, "empates": 0, "gols1": 0, "gols2": 0}
@@ -2362,14 +2446,107 @@ def comparar_jogadores():
     r1 = perfil1["resumo"]
     r2 = perfil2["resumo"]
 
-    gols_carreira_1 = c1.get("gols") or r1.get("total_gols", 0)
-    gols_carreira_2 = c2.get("gols") or r2.get("total_gols", 0)
-    jogos_carreira_1 = c1.get("jogos") or r1.get("jogos_registrados", 1)
-    jogos_carreira_2 = c2.get("jogos") or r2.get("jogos_registrados", 1)
-    media_carreira_1 = round(gols_carreira_1 / max(jogos_carreira_1, 1), 2)
-    media_carreira_2 = round(gols_carreira_2 / max(jogos_carreira_2, 1), 2)
+    is_filtro_camp = bool(campeonato and campeonato not in ('todos', 'carreira', 'all'))
+    nome_camp_curto = {
+        'brasileirao': 'Brasileirão',
+        'copa_do_brasil': 'Copa do Brasil',
+        'libertadores': 'Libertadores',
+        'estaduais': 'Estaduais',
+        'internacionais': 'Torneios Internacionais'
+    }.get(campeonato.lower(), campeonato)
 
-    matriz_scouts = [
+    prep_comp = "no" if nome_camp_curto == "Brasileirão" else ("na" if "Copa" in nome_camp_curto or "Libertadores" in nome_camp_curto else "em")
+
+    if is_filtro_camp:
+        gols_carreira_1 = r1.get("total_gols", 0)
+        gols_carreira_2 = r2.get("total_gols", 0)
+        jogos_carreira_1 = r1.get("jogos_registrados", 0)
+        jogos_carreira_2 = r2.get("jogos_registrados", 0)
+        media_carreira_1 = r1.get("media_gols", 0.0)
+        media_carreira_2 = r2.get("media_gols", 0.0)
+        cat_recorte = f"Recorte: {nome_camp_curto}"
+
+        matriz_scouts = [
+            {
+                "chave": "gols_comp",
+                "categoria": cat_recorte,
+                "label": f"Gols {prep_comp} {nome_camp_curto}",
+                "val1": gols_carreira_1,
+                "val2": gols_carreira_2,
+                "formato": "numero",
+                "unidade": "gols",
+                "inverso": False
+            },
+            {
+                "chave": "jogos_comp",
+                "categoria": cat_recorte,
+                "label": f"Jogos {prep_comp} {nome_camp_curto}",
+                "val1": jogos_carreira_1,
+                "val2": jogos_carreira_2,
+                "formato": "numero",
+                "unidade": "jogos",
+                "inverso": False
+            },
+            {
+                "chave": "media_gols_comp",
+                "categoria": cat_recorte,
+                "label": f"Média Gols / Jogo ({nome_camp_curto})",
+                "val1": media_carreira_1,
+                "val2": media_carreira_2,
+                "formato": "decimal",
+                "unidade": "gol/jogo",
+                "inverso": False
+            },
+            {
+                "chave": "gols_decisivos",
+                "categoria": "Decisão & Clutch",
+                "label": f"Gols Decisivos nos Finais (80'+) {prep_comp} {nome_camp_curto}",
+                "val1": r1.get("gols_decisivos_80mais", 0),
+                "val2": r2.get("gols_decisivos_80mais", 0),
+                "formato": "numero",
+                "unidade": "gols",
+                "inverso": False
+            },
+            {
+                "chave": "aproveitamento_pontos",
+                "categoria": "Impacto em Campo",
+                "label": f"Aproveitamento de Pontos ({nome_camp_curto})",
+                "val1": r1.get("aproveitamento_pontos", 0.0),
+                "val2": r2.get("aproveitamento_pontos", 0.0),
+                "formato": "porcentagem",
+                "unidade": "%",
+                "inverso": False
+            },
+            {
+                "chave": "cartoes_amarelos",
+                "categoria": "Disciplina Tática",
+                "label": f"Cartões Amarelos ({nome_camp_curto})",
+                "val1": r1.get("amarelos", 0),
+                "val2": r2.get("amarelos", 0),
+                "formato": "numero",
+                "unidade": "amarelos",
+                "inverso": True
+            },
+            {
+                "chave": "cartoes_vermelhos",
+                "categoria": "Disciplina Tática",
+                "label": f"Cartões Vermelhos ({nome_camp_curto})",
+                "val1": r1.get("vermelhos", 0),
+                "val2": r2.get("vermelhos", 0),
+                "formato": "numero",
+                "unidade": "vermelhos",
+                "inverso": True
+            }
+        ]
+    else:
+        gols_carreira_1 = c1.get("gols") or r1.get("total_gols", 0)
+        gols_carreira_2 = c2.get("gols") or r2.get("total_gols", 0)
+        jogos_carreira_1 = c1.get("jogos") or r1.get("jogos_registrados", 1)
+        jogos_carreira_2 = c2.get("jogos") or r2.get("jogos_registrados", 1)
+        media_carreira_1 = round(gols_carreira_1 / max(jogos_carreira_1, 1), 2)
+        media_carreira_2 = round(gols_carreira_2 / max(jogos_carreira_2, 1), 2)
+
+        matriz_scouts = [
         {
             "chave": "gols_carreira",
             "categoria": "Carreira Oficial",
@@ -2565,7 +2742,9 @@ def comparar_jogadores():
         "matriz_scouts": matriz_scouts,
         "h2h_jogos": jogos_comuns,
         "totais_h2h": totais_h2h,
-        "evolucao_temporadas": evolucao_temporadas
+        "evolucao_temporadas": evolucao_temporadas,
+        "competicao_ativa": campeonato,
+        "competicoes_disponiveis": COMPETICOES_COMPARADOR
     })
 
 @app.route('/api/arbitragem', methods=['GET'])

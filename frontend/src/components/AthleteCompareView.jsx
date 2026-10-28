@@ -17,6 +17,14 @@ const FILTROS_POSICAO = [
   { id: 'goleiro', label: 'Goleiros' }
 ];
 
+const COMPETICOES_FILTRO = [
+  { id: 'todos', label: 'Carreira Completa', icone: '🌐' },
+  { id: 'brasileirao', label: 'Brasileirão Série A', icone: '🏆' },
+  { id: 'copa_do_brasil', label: 'Copa do Brasil', icone: '🇧🇷' },
+  { id: 'libertadores', label: 'Copa Libertadores', icone: '🌎' },
+  { id: 'estaduais', label: 'Estaduais', icone: '📍' }
+];
+
 export default function AthleteCompareView({
   initialId1 = 10,
   initialId2 = 7,
@@ -32,6 +40,7 @@ export default function AthleteCompareView({
   const [nome2, setNome2] = useState(initialNome2);
 
   const [posFiltro, setPosFiltro] = useState('todos');
+  const [compFiltro, setCompFiltro] = useState('todos');
 
   // Estado da comparação
   const [loading, setLoading] = useState(false);
@@ -56,7 +65,7 @@ export default function AthleteCompareView({
   };
 
   // Carregar dados comparativos
-  const fetchComparison = async (paramId1, paramId2, paramNome1, paramNome2) => {
+  const fetchComparison = async (paramId1, paramId2, paramNome1, paramNome2, paramComp = compFiltro) => {
     setLoading(true);
     setError(null);
     try {
@@ -67,6 +76,10 @@ export default function AthleteCompareView({
 
       if (paramId2) params.append('id2', paramId2);
       else if (paramNome2) params.append('nome2', paramNome2);
+
+      if (paramComp && paramComp !== 'todos') {
+        params.append('campeonato', paramComp);
+      }
 
       const endpoint = `/api/jogadores/comparar?${params.toString()}`;
       const res = apiFetch
@@ -187,7 +200,13 @@ export default function AthleteCompareView({
     setNome1(nome2);
     setId2(tempId);
     setNome2(tempNome);
-    fetchComparison(id2, tempId, nome2, tempNome);
+    fetchComparison(id2, tempId, nome2, tempNome, compFiltro);
+  };
+
+  // Alternar filtro de competição
+  const handleSelectCompeticao = (novaComp) => {
+    setCompFiltro(novaComp);
+    fetchComparison(id1, id2, nome1, nome2, novaComp);
   };
 
   // Selecionar sugestão
@@ -196,7 +215,7 @@ export default function AthleteCompareView({
     setNome1(item.nome || item.atleta);
     setSearchQuery1(item.nome || item.atleta);
     setShowDropdown1(false);
-    fetchComparison(item.id_jogador, id2, item.nome || item.atleta, nome2);
+    fetchComparison(item.id_jogador, id2, item.nome || item.atleta, nome2, compFiltro);
   };
 
   const handleSelectAthlete2 = (item) => {
@@ -204,7 +223,7 @@ export default function AthleteCompareView({
     setNome2(item.nome || item.atleta);
     setSearchQuery2(item.nome || item.atleta);
     setShowDropdown2(false);
-    fetchComparison(id1, item.id_jogador, nome1, item.nome || item.atleta);
+    fetchComparison(id1, item.id_jogador, nome1, item.nome || item.atleta, compFiltro);
   };
 
   const handleDueloRapido = (duelo) => {
@@ -212,7 +231,7 @@ export default function AthleteCompareView({
     setId2(duelo.id2);
     setNome1(duelo.nome1 || '');
     setNome2(duelo.nome2 || '');
-    fetchComparison(duelo.id1, duelo.id2, duelo.nome1, duelo.nome2);
+    fetchComparison(duelo.id1, duelo.id2, duelo.nome1, duelo.nome2, compFiltro);
   };
 
   const atleta1 = compareData?.atleta1 || {};
@@ -322,6 +341,66 @@ export default function AthleteCompareView({
             <span style={{ fontSize: '0.66rem', color: 'var(--accent)', opacity: 0.85 }}>({d.pos})</span>
           </button>
         ))}
+      </div>
+
+      {/* Seletor de Escopo de Competição (Pilar 4) */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          padding: '10px 16px',
+          backgroundColor: 'var(--surface-raised)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-card)',
+          boxShadow: 'var(--shadow-editorial)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Escopo da Disputa:
+          </span>
+          {(compareData?.competicoes_disponiveis || COMPETICOES_FILTRO).map((c) => {
+            const isAtivo = compFiltro === c.id;
+            return (
+              <button
+                key={c.id}
+                onClick={() => handleSelectCompeticao(c.id)}
+                className="touch-tactile"
+                style={{
+                  backgroundColor: isAtivo ? 'var(--accent)' : 'var(--surface-card)',
+                  color: isAtivo ? '#FFFFFF' : 'var(--text-primary)',
+                  border: isAtivo ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-control)',
+                  padding: '5px 12px',
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 150ms ease'
+                }}
+              >
+                <span>{c.icone}</span>
+                <span>{c.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>ℹ️</span>
+          <span>
+            {compFiltro === 'todos' && 'Exibindo estatísticas oficiais consolidadas e acervo integral'}
+            {compFiltro === 'brasileirao' && 'Filtrando exclusivamente confrontos, scouts e gols pelo Brasileirão Série A'}
+            {compFiltro === 'copa_do_brasil' && 'Filtrando exclusivamente confrontos, scouts e gols pela Copa do Brasil'}
+            {compFiltro === 'libertadores' && 'Filtrando exclusivamente confrontos, scouts e gols pela Copa Libertadores'}
+            {compFiltro === 'estaduais' && 'Filtrando exclusivamente confrontos, scouts e gols pelos Campeonatos Estaduais'}
+          </span>
+        </div>
       </div>
 
       {/* Barra de Seleção e Busca dos Dois Atletas com Botão Swap */}
@@ -596,8 +675,13 @@ export default function AthleteCompareView({
             }}
           >
             <div>
-              <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Resumo Geral do Confronto Estatístico
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Resumo Geral do Confronto Estatístico
+                </span>
+                <span className="pill-neutral" style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px' }}>
+                  {compFiltro === 'todos' ? '🌐 Carreira Geral' : (COMPETICOES_FILTRO.find(c => c.id === compFiltro)?.label || compFiltro)}
+                </span>
               </div>
               <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {placar.lider === 1 ? (
