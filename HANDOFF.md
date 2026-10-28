@@ -163,6 +163,11 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
      - `exportarDossieScoutingAtletaPNG(atleta)`: Dossiê visual completo 1080x1350 (formato A4/Instagram) com identidade editorial, números mestres da carreira oficial, análise de $xG$, detalhamento de gols (pênalti, falta, cabeça, clutch 80+), maior vítima e estádio favorito.
      - `exportarCardCampanhaHistoricaPNG(campanha)`: Card widescreen 1200x675 com curva da campanha rodada a rodada, recordes e estatísticas finais.
    - Integrado botão tátil `[📸 Exportar Dossiê (PNG)]` em `ProtagonistaAtleta.jsx` e `[📸 Exportar Card da Campanha (PNG)]` em `HistoricCampaignChart.jsx`.
+7. **[CONCLUÍDO] Pilar 4: Automação Contínua na VM Oracle Cloud 24/7 & Confiabilidade do Acervo**:
+   - `scripts/scraper_odds_sofascore_24x7.py`: Pipeline contínuo de coleta e modelagem de Odds com cálculo de Dixon-Coles/Poisson, identificação de valor esperado (+EV >= 6%), dimensionamento ótimo de banca (1/4 Kelly) e disparo automático de alertas estruturados no canal do Telegram.
+   - `scripts/orquestrador_mestre_24x7.py`:
+     - Integrado `scraper_odds_sofascore_24x7.py` no ciclo de mineração (Fase A).
+     - Implementada a rotina `executar_auditoria_diaria_04am()` na Fase C: dispara diariamente às 04:00 AM a auditoria das 11 regras relacionais de integridade, auto-repara eventuais anomalias e envia digest consolidado no Telegram com contadores, tamanho de banco (`futebol.db`) e status dos SLOs.
 
 
 
