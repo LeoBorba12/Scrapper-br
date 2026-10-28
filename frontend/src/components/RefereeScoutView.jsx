@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ShieldAlert, ShieldCheck, Search, Filter, ArrowLeft, 
-  Clock, AlertTriangle, ChevronRight, Award, Flame, Scale, TrendingUp 
+  Clock, AlertTriangle, ChevronRight, Award, Flame, Scale, TrendingUp,
+  SlidersHorizontal, Check
 } from 'lucide-react';
+import MobileBottomSheet from './MobileBottomSheet';
 
 const ARBITROS_DESTAQUE_CHIPS = [
   "Anderson Daronco",
@@ -20,6 +22,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
   const [loadingList, setLoadingList] = useState(true);
   const [busca, setBusca] = useState('');
   const [filtroRigor, setFiltroRigor] = useState('todos'); // 'todos' | 'rigoroso' | 'padrao' | 'fluir'
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Perfil selecionado
   const [selectedReferee, setSelectedReferee] = useState(null);
@@ -125,7 +128,8 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
               backgroundColor: 'var(--surface-raised)',
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-primary)',
-              padding: '8px 16px',
+              padding: '10px 18px',
+              minHeight: '44px',
               borderRadius: 'var(--radius-control)',
               fontSize: '0.84rem',
               fontWeight: 700,
@@ -540,6 +544,31 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
         </div>
       )}
 
+      {/* Botão de Filtro Mobile para abrir Bottom Sheet */}
+      <div className="mobile-drawer-btn" style={{ width: '100%' }}>
+        <button
+          onClick={() => setIsMobileFilterOpen(true)}
+          className="touch-tactile btn-primary"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '12px 16px',
+            fontSize: '0.88rem',
+            fontWeight: 800,
+            borderRadius: 'var(--radius-control)',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          <SlidersHorizontal size={16} />
+          <span>⚡ Filtrar Rigor & Árbitros Populares</span>
+        </button>
+      </div>
+
       {/* Barra de Busca e Filtros de Rigor */}
       <div
         className="editorial-panel"
@@ -611,7 +640,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
       </div>
 
       {/* Chips Rápidos de Árbitros Famosos */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div className="touch-horizontal-scroll" style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '4px' }}>
         <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
           Acesso Rápido:
         </span>
@@ -653,80 +682,253 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
             Carregando ranking oficial de arbitragem...
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                  <th style={{ padding: '10px 8px' }}>Árbitro</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>Jogos</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>Média Cartões</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>% no 2º Tempo</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>Pênaltis / Jogo</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>% Vit. Mandante</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>Índice de Rigor</th>
-                  <th style={{ padding: '10px 8px', textAlign: 'center' }}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {arbitrosFiltrados.map((a, idx) => {
-                  const badge = getRigorBadge(a.indice_rigor || 50, a.perfil_disciplinar);
-                  return (
-                    <tr
-                      key={idx}
-                      onClick={() => carregarPerfil(a.arbitro)}
+          <div>
+            {/* Tabela Master Desktop (oculta em mobile) */}
+            <div style={{ overflowX: 'auto' }}>
+              <table className="referee-desktop-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '10px 8px' }}>Árbitro</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Jogos</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Média Cartões</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>% no 2º Tempo</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Pênaltis / Jogo</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>% Vit. Mandante</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Índice de Rigor</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {arbitrosFiltrados.map((a, idx) => {
+                    const badge = getRigorBadge(a.indice_rigor || 50, a.perfil_disciplinar);
+                    return (
+                      <tr
+                        key={idx}
+                        onClick={() => carregarPerfil(a.arbitro)}
+                        style={{
+                          borderBottom: '1px solid var(--border-subtle)',
+                          backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--surface-raised)',
+                          cursor: 'pointer',
+                          transition: 'background-color 150ms ease'
+                        }}
+                      >
+                        <td style={{ padding: '12px 8px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {a.arbitro}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          {a.total_jogos}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 800, color: a.media_cartoes >= 5.2 ? '#DC2626' : (a.media_cartoes >= 4.5 ? '#D97706' : '#5A673E') }}>
+                          {a.media_cartoes || '—'}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: a.pct_cartoes_2t >= 65 ? '#DC2626' : 'var(--text-secondary)' }}>
+                          {a.pct_cartoes_2t ? `${a.pct_cartoes_2t}%` : '—'}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: a.media_penaltis >= 0.1 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                          {a.media_penaltis || '0.00'}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          {a.pct_vit_mandante}%
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              padding: '3px 8px',
+                              borderRadius: '10px',
+                              backgroundColor: badge.bg,
+                              color: badge.text,
+                              border: `1px solid ${badge.border}`
+                            }}
+                          >
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center' }}>
+                            Raio-X <ChevronRight size={14} />
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Visualização em Cards Táteis para Telas Mobile (< 768px) */}
+            <div className="referee-mobile-cards">
+              {arbitrosFiltrados.map((a, idx) => {
+                const badge = getRigorBadge(a.indice_rigor || 50, a.perfil_disciplinar);
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => carregarPerfil(a.arbitro)}
+                    className="touch-tactile"
+                    style={{
+                      backgroundColor: 'var(--surface-raised)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-control)',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.96rem', color: 'var(--text-primary)' }}>
+                        {a.arbitro}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.70rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '10px',
+                          backgroundColor: badge.bg,
+                          color: badge.text,
+                          border: `1px solid ${badge.border}`
+                        }}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', textAlign: 'center' }}>
+                      <div style={{ backgroundColor: 'var(--surface-card)', padding: '6px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Média Cartões</div>
+                        <div className="font-mono" style={{ fontWeight: 800, fontSize: '0.92rem', color: a.media_cartoes >= 5.2 ? '#DC2626' : 'var(--text-primary)' }}>
+                          {a.media_cartoes || '—'}
+                        </div>
+                      </div>
+                      <div style={{ backgroundColor: 'var(--surface-card)', padding: '6px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jogos</div>
+                        <div className="font-mono" style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                          {a.total_jogos}
+                        </div>
+                      </div>
+                      <div style={{ backgroundColor: 'var(--surface-card)', padding: '6px', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Vit. Mandante</div>
+                        <div className="font-mono" style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                          {a.pct_vit_mandante}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      className="touch-tactile btn-primary"
                       style={{
-                        borderBottom: '1px solid var(--border-subtle)',
-                        backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--surface-raised)',
-                        cursor: 'pointer',
-                        transition: 'background-color 150ms ease'
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: 'var(--radius-control)',
+                        fontSize: '0.82rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        border: 'none',
+                        cursor: 'pointer'
                       }}
                     >
-                      <td style={{ padding: '12px 8px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {a.arbitro}
-                      </td>
-                      <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                        {a.total_jogos}
-                      </td>
-                      <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', fontWeight: 800, color: a.media_cartoes >= 5.2 ? '#DC2626' : (a.media_cartoes >= 4.5 ? '#D97706' : '#5A673E') }}>
-                        {a.media_cartoes || '—'}
-                      </td>
-                      <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: a.pct_cartoes_2t >= 65 ? '#DC2626' : 'var(--text-secondary)' }}>
-                        {a.pct_cartoes_2t ? `${a.pct_cartoes_2t}%` : '—'}
-                      </td>
-                      <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: a.media_penaltis >= 0.1 ? 'var(--accent)' : 'var(--text-muted)' }}>
-                        {a.media_penaltis || '0.00'}
-                      </td>
-                      <td className="font-mono" style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                        {a.pct_vit_mandante}%
-                      </td>
-                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                        <span
-                          style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '10px',
-                            backgroundColor: badge.bg,
-                            color: badge.text,
-                            border: `1px solid ${badge.border}`
-                          }}
-                        >
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 700, display: 'inline-flex', alignItems: 'center' }}>
-                          Raio-X <ChevronRight size={14} />
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      <span>Abrir Raio-X Completo</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
+
+      {/* Drawer Tátil Mobile para Filtro de Rigor e Árbitros Populares */}
+      <MobileBottomSheet
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        title="⚡ Filtrar Rigor & Árbitros"
+        subtitle="Escolha o critério disciplinar e selecione juízes populares com 1 toque"
+      >
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+            ⚖️ Critério Disciplinar:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+            {[
+              { id: 'todos', label: 'Todos os Árbitros', icone: '🌐' },
+              { id: 'rigoroso', label: 'Mais Rigorosos (≥5.2)', icone: '🔥' },
+              { id: 'padrao', label: 'Padrão (4.5 a 5.1)', icone: '⚖️' },
+              { id: 'fluir', label: 'Deixa Fluir (<4.5)', icone: '🟢' }
+            ].map((f) => {
+              const isAtivo = filtroRigor === f.id;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setFiltroRigor(f.id);
+                    setIsMobileFilterOpen(false);
+                  }}
+                  className="touch-tactile"
+                  style={{
+                    backgroundColor: isAtivo ? 'var(--accent)' : 'var(--surface-raised)',
+                    color: isAtivo ? '#FFFFFF' : 'var(--text-primary)',
+                    border: isAtivo ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    padding: '12px 10px',
+                    fontSize: '0.80rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>{f.icone}</span>
+                  <span style={{ flex: 1, textAlign: 'left' }}>{f.label}</span>
+                  {isAtivo && <Check size={14} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+            ⭐ Árbitros Mais Famosos:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+            {ARBITROS_DESTAQUE_CHIPS.map((nome, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  carregarPerfil(nome);
+                  setIsMobileFilterOpen(false);
+                }}
+                className="touch-tactile"
+                style={{
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-control)',
+                  padding: '10px 12px',
+                  fontSize: '0.80rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <span>{nome}</span>
+                <span style={{ fontSize: '0.70rem', color: 'var(--accent)' }}>➔</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </MobileBottomSheet>
     </div>
   );
 }

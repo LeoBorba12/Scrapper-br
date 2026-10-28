@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RadarDualPES } from './charts';
+import MobileBottomSheet from './MobileBottomSheet';
+import { SlidersHorizontal, ArrowLeftRight, Sparkles, Check } from 'lucide-react';
 
 const DUELOS_CLASSICOS = [
   { label: 'Pedro x Gabigol', id1: 10, id2: 7, pos: 'Atacantes' },
@@ -41,6 +43,7 @@ export default function AthleteCompareView({
 
   const [posFiltro, setPosFiltro] = useState('todos');
   const [compFiltro, setCompFiltro] = useState('todos');
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   // Estado da comparação
   const [loading, setLoading] = useState(false);
@@ -303,15 +306,39 @@ export default function AthleteCompareView({
         </div>
       </div>
 
-      {/* Duelos Clássicos em Destaque (Shortcuts) */}
+      {/* Barra de Ação Rápida Mobile para Abertura da Gaveta Tátil */}
+      <div className="mobile-drawer-btn" style={{ width: '100%' }}>
+        <button
+          onClick={() => setIsMobileDrawerOpen(true)}
+          className="touch-tactile btn-primary"
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '12px 16px',
+            fontSize: '0.88rem',
+            fontWeight: 800,
+            borderRadius: 'var(--radius-control)',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          <SlidersHorizontal size={16} />
+          <span>⚡ Personalizar Duelo & Torneio ({COMPETICOES_FILTRO.find(c => c.id === compFiltro)?.label || 'Geral'})</span>
+        </button>
+      </div>
+
+      {/* Duelos Históricos Recomendados (Presets Rápidos) */}
       <div
+        className="touch-horizontal-scroll"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          overflowX: 'auto',
-          paddingBottom: '4px',
-          scrollbarWidth: 'thin'
+          paddingBottom: '4px'
         }}
       >
         <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
@@ -327,7 +354,7 @@ export default function AthleteCompareView({
               border: '1px solid var(--border-subtle)',
               color: 'var(--text-primary)',
               borderRadius: 'var(--radius-control)',
-              padding: '4px 10px',
+              padding: '6px 12px',
               fontSize: '0.76rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -343,8 +370,9 @@ export default function AthleteCompareView({
         ))}
       </div>
 
-      {/* Seletor de Escopo de Competição (Pilar 4) */}
+      {/* Seletor de Escopo de Competição (Desktop) */}
       <div
+        className="desktop-scope-bar"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -403,13 +431,10 @@ export default function AthleteCompareView({
         </div>
       </div>
 
-      {/* Barra de Seleção e Busca dos Dois Atletas com Botão Swap */}
+      {/* Barra de Seleção e Busca dos Dois Atletas com Botão Swap Responsivo */}
       <div
+        className="athlete-selector-grid"
         style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center',
-          gap: '12px',
           backgroundColor: 'var(--surface-card)',
           border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-card)',
@@ -513,11 +538,11 @@ export default function AthleteCompareView({
         </div>
 
         {/* Botão de Inverter (Swap) */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="athlete-swap-btn-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <button
             onClick={handleSwap}
             title="Inverter lados da comparação"
-            className="touch-tactile"
+            className="touch-tactile athlete-swap-btn"
             style={{
               backgroundColor: 'var(--surface-raised)',
               border: '1px solid var(--border-subtle)',
@@ -1264,6 +1289,118 @@ export default function AthleteCompareView({
           </div>
         </>
       )}
+
+      {/* Drawer Tátil Inferior (Mobile Bottom Sheet) */}
+      <MobileBottomSheet
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        title="⚡ Personalizar Confronto & Torneio"
+        subtitle="Selecione o recorte de campeonato e duelos clássicos pré-calibrados"
+      >
+        {/* Seção 1: Escopo de Competição */}
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px' }}>
+            🏆 Escopo da Competição:
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+            {(compareData?.competicoes_disponiveis || COMPETICOES_FILTRO).map((c) => {
+              const isAtivo = compFiltro === c.id;
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    handleSelectCompeticao(c.id);
+                    setIsMobileDrawerOpen(false);
+                  }}
+                  className="touch-tactile"
+                  style={{
+                    backgroundColor: isAtivo ? 'var(--accent)' : 'var(--surface-raised)',
+                    color: isAtivo ? '#FFFFFF' : 'var(--text-primary)',
+                    border: isAtivo ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    padding: '12px 10px',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    justifyContent: 'flex-start'
+                  }}
+                >
+                  <span style={{ fontSize: '1.1rem' }}>{c.icone}</span>
+                  <span style={{ flex: 1, textAlign: 'left' }}>{c.label}</span>
+                  {isAtivo && <Check size={16} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Seção 2: Duelos Clássicos Populares */}
+        <div>
+          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles size={14} color="var(--accent)" />
+            <span>Duelos Históricos Populares:</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {DUELOS_CLASSICOS.map((d, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  handleDueloRapido(d);
+                  setIsMobileDrawerOpen(false);
+                }}
+                className="touch-tactile"
+                style={{
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-control)',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {d.label}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    Recorte de {d.pos}
+                  </div>
+                </div>
+                <span className="pill-neutral" style={{ fontSize: '0.72rem' }}>Carregar ➔</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Ação de Inverter Atletas */}
+        <button
+          onClick={() => {
+            handleSwap();
+            setIsMobileDrawerOpen(false);
+          }}
+          className="touch-tactile btn-secondary"
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: 'var(--radius-control)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            fontWeight: 700,
+            fontSize: '0.84rem',
+            marginTop: '6px'
+          }}
+        >
+          <ArrowLeftRight size={16} />
+          <span>Inverter Lados dos Atletas (⇄)</span>
+        </button>
+      </MobileBottomSheet>
     </div>
   );
 }

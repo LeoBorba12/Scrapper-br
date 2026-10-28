@@ -1,6 +1,6 @@
 # 📋 HANDOFF DO PROJETO: SCRAPPER-BR / GUIA PROFISSIONAL (FUTSTATS)
 
-> **Data de atualização:** 2026-10-28 17:35  
+> **Data de atualização:** 2026-10-28 18:38  
 > **Status do repositório:** 100% Estável em produção na Vercel | 11/11 regras de integridade passando com 0 inconsistências | 22/22 testes de regressão Dixon-Coles/Poisson aprovados | Acervo com 115.361 partidas | Tamanho da base: 86.27 MB (estritamente abaixo do teto de 94.0 MB da Vercel).
 
 ---
@@ -137,9 +137,15 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
 
 ## 6. 🚀 Próximos Passos Recomendados
 
-1. **Pilar 3: IA Analista com Grounding Refinado (NL-to-SQL)**:
+1. **[CONCLUÍDO] Mobile & Microinterações Táteis (Drawer Tátil & Cards Responsivos)**:
+   - Implementado componente `MobileBottomSheet.jsx` com backdrop blur, drag handle tátil, animação fluida e bloqueio de scroll.
+   - `AthleteCompareView.jsx`: Drawer mobile para escolha de competições e duelos clássicos, grid de seletores responsivo e rolagem suave de chips.
+   - `RefereeScoutView.jsx`: Drawer mobile com filtros de rigor e árbitros populares, alvos de toque >= 44px e visualização em cards responsivos no mobile.
+2. **Pilar 2: Hub de Apostas Avançado & Backtesting Quantitativo**:
+   - Implementação de simulações Monte Carlo com Critério de Kelly fracionário e cálculo de drawdown em apostas de valor (+EV).
+   - Ticker dinâmico de tendências quentes e alertas de arbitragem.
+3. **Pilar 3: IA Analista com Grounding Refinado (NL-to-SQL)**:
    - Atualizar os prompts e exemplos em `backend/ia_analista.py` para utilizar as novas tabelas higienizadas, as estatísticas de arbitragem e as métricas Dixon-Coles calibradas.
-2. **Pilar 4: Mobile & Microinterações Táteis Avançadas**:
-   - Refinar a experiência móvel no comparador de jogadores e no scout de árbitros (drawer tátil inferior para filtros rápidos e suporte a gestos de swipe).
-3. **Expansão de Scrapers Automáticos**:
-   - Manter a rotina de sincronização de partidas recentes (`scripts/sincronizar_partidas_recentes_e_scouts.py`) rodando periodicamente para manter as escalações de 2026 sempre atualizadas com os jogos da semana.
+4. **Pilar 1.2: Expected Goals (xG) & Mapas de Chute Aprofundados**:
+   - Expandir as métricas de xG por zona do campo nos confrontos e finalizações dos atletas.
+
