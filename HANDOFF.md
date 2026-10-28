@@ -150,11 +150,13 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
    - Componente `FieldTiltBar.jsx`: Barra de Domínio Territorial no terço final e placar de chances reais ($xG$) no Raio-X do confronto (`BettingHubView.jsx`).
    - `ProtagonistaAtleta.jsx`: Card analítico com $xG$ estimado, Overperformance $G - xG$, taxa de conversão e badge editorial de eficiência finalizadora.
    - Comparador de Atletas (`AthleteCompareView.jsx` & `/api/jogadores/comparar`): Métricas de $xG$, $G - xG$ e Conversão de Finalizações inseridas na matriz comparativa.
-4. **Pilar 3: DataViz Interativa — Linha do Tempo & Grandes Campanhas dos Clubes**:
-   - Linha temporal de carreira ano a ano com escudos e títulos (`AthleteCareerTimeline.jsx`).
-   - Seletor de "Grandes Campanhas" na aba Clubes (Flamengo 2019, Cruzeiro 2003, Santos 1962, etc. rodada a rodada).
+4. **[CONCLUÍDO] Pilar 3: DataViz Interativa — Linha do Tempo de Atletas & Grandes Campanhas dos Clubes (Rodada a Rodada)**:
+   - Endpoint `/api/clubes/campanha-historica`: Retorna a trajetória rodada a rodada de qualquer clube no Brasileirão (1959–2026), computando evolução cumulativa de pontos, aproveitamento %, gols pró/contra, saldo e placar de cada partida com presets das maiores campanhas da história (Flamengo 2019, Cruzeiro 2003, Corinthians 2015, Palmeiras 2022, Atlético-MG 2021, São Paulo 2006, etc.).
+   - Componente `HistoricCampaignChart.jsx`: Gráfico vetorial SVG nativo interativo com curva cumulativa de pontos, área preenchida com gradiente editorial, bento grid de KPIs finais (Pontos, Aproveitamento %, Recorde V-E-D, GP, GC, Saldo), card dinâmico ao passar o mouse por cada rodada e trilha horizontal de jogos com badges coloridos de resultado (V/E/D).
+   - Componente `AthleteCareerTimeline.jsx`: Linha do tempo horizontal tátil de atletas integrada em `ProtagonistaAtleta.jsx`, exibindo a progressão ano a ano com escudos dos clubes, estatísticas detalhadas (jogos, gols, média), badges de títulos e nós interativos.
+   - `EditorialClubes.jsx`: Seção analítica com abas alternáveis entre "Grandes Campanhas (Rodada a Rodada)" e "Panorama Histórico por Décadas".
 5. **Pilar 3.2: IA Analista com Grounding Refinado (NL-to-SQL)**:
-   - Atualizar os prompts e exemplos em `backend/ia_analista.py` para utilizar as novas tabelas higienizadas, as estatísticas de arbitragem e as métricas Dixon-Coles calibradas.
+   - Atualizar os prompts e schema injection em `backend/ia_analista.py` para consultar tabelas sanitizadas, $xG$ de atletas, métricas de arbitragem e backtesting.
 6. **Pilar 5: Scouting & Social Sharing**:
    - Exportação de dossiê completo de scouting em PDF/PNG de alta resolução para atletas e clubes.
 

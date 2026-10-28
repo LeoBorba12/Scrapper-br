@@ -1077,7 +1077,136 @@ def get_times_analise_recente():
     api_cache.set(cache_key, response_data, ttl=600)
     return jsonify(response_data)
 
+
+@app.route('/api/clubes/campanha-historica', methods=['GET'])
+def get_clube_campanha_historica():
+    """
+    Retorna a trajetória rodada a rodada de uma grande campanha histórica de clube,
+    calculando a evolução cumulativa de pontos, aproveitamento, gols pró/contra e saldo.
+    """
+    clube = request.args.get('clube', 'Flamengo').strip()
+    ano = request.args.get('ano', 2019, type=int)
+    campeonato = request.args.get('campeonato', 'Brasileiro').strip()
+
+    cache_key = f"campanha_hist_{clube}_{ano}_{campeonato}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+
+    sql = """
+        SELECT id_partida, rodada, data, mandante, visitante, placar, 
+               gols_mandante, gols_visitante, vencedor, estadio
+        FROM partidas
+        WHERE (mandante = ? OR visitante = ?)
+          AND ano = ?
+          AND campeonato LIKE ?
+          AND gols_mandante IS NOT NULL
+        ORDER BY CAST(rodada AS INTEGER) ASC, data ASC, id_partida ASC;
+    """
+    rows = [dict(r) for r in c.execute(sql, (clube, clube, ano, f"%{campeonato}%")).fetchall()]
+    conn.close()
+
+    if not rows:
+        return jsonify({
+            "error": f"Nenhuma partida localizada para {clube} no ano {ano} ({campeonato})"
+        }), 404
+
+    pontos_acum = 0
+    gp_acum = 0
+    gc_acum = 0
+    vitorias = 0
+    empates = 0
+    derrotas = 0
+    evolucao_rodadas = []
+
+    for idx, r in enumerate(rows, 1):
+        is_home = (r['mandante'] == clube)
+        gp = r['gols_mandante'] if is_home else r['gols_visitante']
+        gc = r['gols_visitante'] if is_home else r['gols_mandante']
+        adv = r['visitante'] if is_home else r['mandante']
+
+        if r['vencedor'] == clube or gp > gc:
+            res = 'V'
+            pts = 3
+            vitorias += 1
+        elif r['vencedor'] == 'Empate' or gp == gc:
+            res = 'E'
+            pts = 1
+            empates += 1
+        else:
+            res = 'D'
+            pts = 0
+            derrotas += 1
+
+        pontos_acum += pts
+        gp_acum += gp
+        gc_acum += gc
+        saldo_acum = gp_acum - gc_acum
+        aprov_acum = round((pontos_acum / (idx * 3)) * 100, 1)
+
+        rodada_num = r.get('rodada') or str(idx)
+
+        evolucao_rodadas.append({
+            "indice": idx,
+            "rodada": rodada_num,
+            "data": r.get('data'),
+            "adversario": adv,
+            "mando": 'Casa' if is_home else 'Fora',
+            "placar": r.get('placar') or f"{r['gols_mandante']} x {r['gols_visitante']}",
+            "resultado": res,
+            "pontos_rodada": pts,
+            "pontos_acumulados": pontos_acum,
+            "aproveitamento_acumulado": aprov_acum,
+            "gols_pro_acumulados": gp_acum,
+            "gols_contra_acumulados": gc_acum,
+            "saldo_gols_acumulado": saldo_acum,
+            "estadio": r.get('estadio')
+        })
+
+    total_jogos = len(rows)
+    aprov_final = round((pontos_acum / max(1, total_jogos * 3)) * 100, 1)
+
+    presets = [
+        {"clube": "Flamengo", "ano": 2019, "titulo": "Flamengo 2019 (Recorde de 90 Pts / Jorge Jesus)"},
+        {"clube": "Cruzeiro", "ano": 2003, "titulo": "Cruzeiro 2003 (Tríplice Coroa / Alex 100 Pts)"},
+        {"clube": "Corinthians", "ano": 2015, "titulo": "Corinthians 2015 (Hexa com Tite / 81 Pts)"},
+        {"clube": "Palmeiras", "ano": 2022, "titulo": "Palmeiras 2022 (Enea/Deca com Abel Ferreira)"},
+        {"clube": "Atlético-MG", "ano": 2021, "titulo": "Atlético-MG 2021 (Bicampeão com Hulk / 84 Pts)"},
+        {"clube": "São Paulo", "ano": 2006, "titulo": "São Paulo 2006 (Início do Tri de Muricy)"},
+        {"clube": "Fluminense", "ano": 2012, "titulo": "Fluminense 2012 (Tetra com Fred)"},
+        {"clube": "Santos", "ano": 2002, "titulo": "Santos 2002 (Meninos da Vila / Diego e Robinho)"},
+        {"clube": "Vasco", "ano": 1997, "titulo": "Vasco 1997 (Show de Edmundo com 29 Gols)"},
+        {"clube": "Grêmio", "ano": 1996, "titulo": "Grêmio 1996 (Campeão Brasileiro de Felipão)"},
+        {"clube": "Botafogo", "ano": 1995, "titulo": "Botafogo 1995 (Túlio Maravilha e Donizete)"}
+    ]
+
+    resultado = {
+        "clube": clube,
+        "ano": ano,
+        "campeonato": campeonato,
+        "total_jogos": total_jogos,
+        "pontos_finais": pontos_acum,
+        "aproveitamento_final": aprov_final,
+        "vitorias": vitorias,
+        "empates": empates,
+        "derrotas": derrotas,
+        "gols_pro": gp_acum,
+        "gols_contra": gc_acum,
+        "saldo_gols": gp_acum - gc_acum,
+        "media_gols_jogo": round(gp_acum / max(1, total_jogos), 2),
+        "evolucao_rodadas": evolucao_rodadas,
+        "presets": presets
+    }
+
+    api_cache.set(cache_key, resultado, ttl=1800)
+    return jsonify(resultado)
+
+
 @app.route('/api/campeonatos', methods=['GET'])
+
 def get_campeonatos():
     cached = api_cache.get("api_campeonatos")
     if cached:

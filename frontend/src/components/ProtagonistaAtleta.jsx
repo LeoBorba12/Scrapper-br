@@ -4,7 +4,8 @@ import {
   ArrowLeft, Clock, Target, Flame, Activity, ChevronRight,
   ChevronLeft, ExternalLink, BarChart2, Zap
 } from 'lucide-react';
-import { RadarPentagonPES, AthleteCareerBarChart } from './charts';
+import { RadarPentagonPES, AthleteCareerBarChart, AthleteCareerTimeline } from './charts';
+
 import ClubBadge from './ClubBadge';
 import SpatialPitchMap from './SpatialPitchMap';
 import GoalMouthMap from './GoalMouthMap';
@@ -27,11 +28,14 @@ export default function ProtagonistaAtleta({
 }) {
   const [subTab, setSubTab] = useState('partidas'); // 'partidas' | 'temporadas' | 'torneios' | 'vitimas'
   const [partidasPage, setPartidasPage] = useState(1);
+  const [anoFiltroTimeline, setAnoFiltroTimeline] = useState(null);
 
   // Reset de página ao alternar atleta
   useEffect(() => {
     setPartidasPage(1);
+    setAnoFiltroTimeline(null);
   }, [playerProfile?.id_jogador, selectedPlayer]);
+
 
   // ==================== VISÃO 1: ENTRADA / ÍNDICE DE ATLETAS ====================
   if (!selectedPlayer) {
@@ -1270,6 +1274,38 @@ export default function ProtagonistaAtleta({
               {/* Sub-aba Temporadas */}
               {subTab === 'temporadas' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Linha do Tempo Cronológica Interativa */}
+                  <AthleteCareerTimeline
+                    temporadas={atleta.historico_temporadas || []}
+                    titulos={atleta.titulos || []}
+                    anoSelecionado={anoFiltroTimeline}
+                    onSelectAno={(ano) => setAnoFiltroTimeline(prev => prev === ano ? null : ano)}
+                  />
+
+                  {anoFiltroTimeline && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px', backgroundColor: 'var(--accent-soft)', borderRadius: 'var(--radius-control)', border: '1px solid var(--accent)', fontSize: '0.82rem' }}>
+                      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                        Temporada selecionada: <strong>{anoFiltroTimeline}</strong>
+                      </span>
+                      <button
+                        onClick={() => setAnoFiltroTimeline(null)}
+                        className="touch-tactile"
+                        style={{
+                          backgroundColor: 'var(--surface-page)',
+                          border: '1px solid var(--accent)',
+                          color: 'var(--accent)',
+                          padding: '3px 10px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '0.74rem'
+                        }}
+                      >
+                        Exibir Todas
+                      </button>
+                    </div>
+                  )}
+
                   {/* Gráfico de Barras da Carreira de Atletas */}
                   <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-control)', padding: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -1311,23 +1347,31 @@ export default function ProtagonistaAtleta({
                             </td>
                           </tr>
                         ) : (
-                          (atleta.historico_temporadas || []).map((tp, k) => (
-                            <tr key={tp.ano || k}>
-                              <td style={{ fontWeight: 700 }}>{tp.ano}</td>
-                              <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
-                              <td style={{ textAlign: 'center' }}>{tp.jogos ?? '—'}</td>
-                              <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols ?? '—'}</td>
-                              <td style={{ textAlign: 'center' }}>{tp.media_gols != null ? tp.media_gols : '—'}</td>
-                              <td style={{ textAlign: 'center' }}>{tp.amarelos ?? 0}</td>
-                              <td style={{ textAlign: 'center' }}>{tp.vermelhos ?? 0}</td>
-                            </tr>
-                          ))
+                          (atleta.historico_temporadas || [])
+                            .filter(tp => !anoFiltroTimeline || Number(tp.ano) === Number(anoFiltroTimeline))
+                            .map((tp, k) => (
+                              <tr
+                                key={tp.ano || k}
+                                style={{
+                                  backgroundColor: anoFiltroTimeline && Number(tp.ano) === Number(anoFiltroTimeline) ? 'var(--accent-soft)' : undefined
+                                }}
+                              >
+                                <td style={{ fontWeight: 700 }}>{tp.ano}</td>
+                                <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
+                                <td style={{ textAlign: 'center' }}>{tp.jogos ?? '—'}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols ?? '—'}</td>
+                                <td style={{ textAlign: 'center' }}>{tp.media_gols != null ? tp.media_gols : '—'}</td>
+                                <td style={{ textAlign: 'center' }}>{tp.amarelos ?? 0}</td>
+                                <td style={{ textAlign: 'center' }}>{tp.vermelhos ?? 0}</td>
+                              </tr>
+                            ))
                         )}
                       </tbody>
                     </table>
                   </div>
                 </div>
               )}
+
 
               {/* Sub-aba Torneios */}
               {subTab === 'torneios' && (

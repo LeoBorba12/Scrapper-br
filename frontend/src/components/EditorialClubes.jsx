@@ -3,7 +3,7 @@ import {
   BarChart3, RefreshCw, Search, ChevronDown, ChevronUp, 
   ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles
 } from 'lucide-react';
-import { ClubEvolutionChart } from './charts';
+import { ClubEvolutionChart, HistoricCampaignChart } from './charts';
 import ClubBadge from './ClubBadge';
 
 export default function EditorialClubes({
@@ -21,6 +21,7 @@ export default function EditorialClubes({
   const [sortAsc, setSortAsc] = useState(false);
   const [expandedClube, setExpandedClube] = useState(null);
   const [clubeEvolucao, setClubeEvolucao] = useState('Flamengo');
+  const [secaoVisual, setSecaoVisual] = useState('campanhas'); // 'campanhas' | 'decadas'
 
   // Ordenação e Filtragem resiliente (compatível com clube e nome)
   const clubesFiltrados = useMemo(() => {
@@ -279,12 +280,65 @@ export default function EditorialClubes({
         </div>
       )}
 
-      {/* ================= GRÁFICO DE EVOLUÇÃO HISTÓRICA DO CLUBE ================= */}
-      <ClubEvolutionChart
-        clubeNome={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
-        partidas={[]}
-        altura={230}
-      />
+      {/* ================= SEÇÃO DATAVIZ INTERATIVA: CAMPANHAS & DÉCADAS ================= */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
+          <button
+            onClick={() => setSecaoVisual('campanhas')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.82rem',
+              fontWeight: secaoVisual === 'campanhas' ? 700 : 500,
+              backgroundColor: secaoVisual === 'campanhas' ? 'var(--accent)' : 'transparent',
+              color: secaoVisual === 'campanhas' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <TrendingUp size={14} />
+            <span>Grandes Campanhas (Rodada a Rodada)</span>
+          </button>
+
+          <button
+            onClick={() => setSecaoVisual('decadas')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.82rem',
+              fontWeight: secaoVisual === 'decadas' ? 700 : 500,
+              backgroundColor: secaoVisual === 'decadas' ? 'var(--accent)' : 'transparent',
+              color: secaoVisual === 'decadas' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <BarChart3 size={14} />
+            <span>Panorama Histórico por Décadas</span>
+          </button>
+        </div>
+
+        {secaoVisual === 'campanhas' ? (
+          <HistoricCampaignChart
+            clubeInicial={expandedClube || clubeEvolucao || 'Flamengo'}
+            anoInicial={2019}
+          />
+        ) : (
+          <ClubEvolutionChart
+            clubeNome={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
+            partidas={[]}
+            altura={230}
+          />
+        )}
+      </div>
 
       {/* ================= TABELA ANALÍTICA PRINCIPAL ================= */}
       <div className="editorial-panel" style={{ overflow: 'hidden' }}>
