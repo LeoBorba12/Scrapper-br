@@ -305,26 +305,87 @@ def extrair_dados_perfil_ogol(html: str) -> dict:
 
     # 4. Tabela de Carreira por Clubes e Períodos
     tables = re.findall(r'<table[^>]*>.*?</table>', html, re.DOTALL)
+    tabela_temporadas = None
     for t in tables:
-        if ('GM' in t or 'Gols' in t or 'Gol' in t) and ('ASS' in t or 'J' in t):
-            rows = re.findall(r'<tr[^>]*>(.*?)</tr>', t, re.DOTALL)
-            for r in rows:
-                cells = [re.sub(r'<[^>]+>', '', c).strip() for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.DOTALL)]
-                if len(cells) >= 5 and cells[1] and cells[1] not in ['Equipe', 'Clube', 'Total', 'Temporada']:
-                    clube_nome = cells[1]
-                    periodo_str = cells[2] if len(cells) > 2 else ""
-                    jogos = int(cells[3]) if len(cells) > 3 and cells[3].isdigit() else 0
-                    gols = int(cells[4]) if len(cells) > 4 and cells[4].isdigit() else 0
-                    assists = int(cells[5]) if len(cells) > 5 and cells[5].isdigit() else 0
-                    perfil["carreira_clubes"].append({
-                        "clube": clube_nome,
-                        "periodo": periodo_str,
-                        "jogos": jogos,
-                        "gols": gols,
-                        "assistencias": assists
-                    })
-            if perfil["carreira_clubes"]:
-                break
+        if 'TEMPORADA' in t and ('EQUIPE' in t or 'Equipe' in t) and 'J' in t:
+            tabela_temporadas = t
+            break
+
+    if tabela_temporadas:
+        headers_row = re.search(r'<tr[^>]*>(.*?)</tr>', tabela_temporadas, re.DOTALL)
+        idx_temp = 1
+        idx_equipe = 2
+        idx_j = 3
+        idx_g = 4
+        idx_a = 5
+        if headers_row:
+            ths = [re.sub(r'<[^>]+>', '', c).strip().upper() for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', headers_row.group(1), re.DOTALL)]
+            for i, h in enumerate(ths):
+                if 'TEMPORADA' in h or 'ÉPOCA' in h: idx_temp = i
+                elif 'EQUIPE' in h or 'CLUBE' in h: idx_equipe = i
+                elif h == 'J': idx_j = i
+                elif h in ['G', 'GM']: idx_g = i
+                elif 'ASS' in h: idx_a = i
+
+        rows = re.findall(r'<tr[^>]*>(.*?)</tr>', tabela_temporadas, re.DOTALL)
+        clubes_map = {}
+        for r in rows:
+            cells_html = re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.DOTALL)
+            if not cells_html:
+                continue
+            cells_clean = [re.sub(r'<[^>]+>', '', c).strip() for c in cells_html]
+            if len(cells_clean) <= max(idx_j, idx_g):
+                continue
+            if 'TEMPORADA' in cells_clean or 'EQUIPE' in cells_clean or 'J' in cells_clean:
+                continue
+
+            m_clb = re.search(r'<a href=["\']/(?:equipe|selecao)/[^"\']+["\']>([^<]+)</a>', r)
+            clube_nome = m_clb.group(1).strip() if m_clb else (cells_clean[idx_equipe] if len(cells_clean) > idx_equipe else None)
+            if not clube_nome or clube_nome in ['Equipe', 'Total']:
+                continue
+
+            if any(tag in clube_nome for tag in ['[S19]', '[S17]', '[S15]', '[S13]', '[S11]', '[Sub-', 'Fut.7']):
+                continue
+
+            val_j = cells_clean[idx_j] if len(cells_clean) > idx_j else ''
+            val_g = cells_clean[idx_g] if len(cells_clean) > idx_g else ''
+            val_a = cells_clean[idx_a] if len(cells_clean) > idx_a else ''
+
+            if val_j.isdigit() and val_g.isdigit():
+                j = int(val_j)
+                g = int(val_g)
+                a = int(val_a) if val_a.isdigit() else 0
+
+                clube_clean = re.sub(r'\s*\([^)]*\)', '', clube_nome).strip()
+                if clube_clean not in clubes_map:
+                    clubes_map[clube_clean] = {"clube": clube_clean, "periodo": "", "jogos": 0, "gols": 0, "assistencias": 0}
+                clubes_map[clube_clean]["jogos"] += j
+                clubes_map[clube_clean]["gols"] += g
+                clubes_map[clube_clean]["assistencias"] += a
+
+        perfil["carreira_clubes"] = list(clubes_map.values())
+    else:
+        # Fallback para lendas aposentadas (Estratégia 2)
+        for t in tables:
+            if 'GM' in t and 'ASS' in t and 'J' in t:
+                rows = re.findall(r'<tr[^>]*>(.*?)</tr>', t, re.DOTALL)
+                for r in rows:
+                    cells = [re.sub(r'<[^>]+>', '', c).strip() for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', r, re.DOTALL)]
+                    if len(cells) >= 5 and cells[1] and cells[1] not in ['Equipe', 'Clube', 'Total', 'Temporada']:
+                        clube_nome = cells[1]
+                        periodo_str = cells[2] if len(cells) > 2 else ""
+                        jogos = int(cells[3]) if len(cells) > 3 and cells[3].isdigit() else 0
+                        gols = int(cells[4]) if len(cells) > 4 and cells[4].isdigit() else 0
+                        assists = int(cells[5]) if len(cells) > 5 and cells[5].isdigit() else 0
+                        perfil["carreira_clubes"].append({
+                            "clube": clube_nome,
+                            "periodo": periodo_str,
+                            "jogos": jogos,
+                            "gols": gols,
+                            "assistencias": assists
+                        })
+                if perfil["carreira_clubes"]:
+                    break
 
     # 5. Títulos Oficiais
     trofeus_blocos = re.findall(r'<div[^>]*class=["\']trophy[^"\']*["\'][^>]*>(.*?)</div>', html, re.DOTALL | re.I)

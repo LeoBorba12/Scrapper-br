@@ -1647,9 +1647,9 @@ def get_jogadores_ranking():
                total_jogos as jogos, total_gols as gols, total_assistencias as assistencias,
                participacoes_gols, gols_decisivos_80mais as gols_clutch,
                maior_vitima_clube, estadio_favorito, aproveitamento_pontos,
-               COALESCE(gols_carreira_oficiais, 0) as gols_carreira,
-               COALESCE(jogos_carreira_oficiais, 0) as jogos_carreira,
-               COALESCE(assistencias_carreira_oficiais, 0) as assistencias_carreira
+               MAX(COALESCE(gols_carreira_oficiais, 0), total_gols) as gols_carreira,
+               MAX(COALESCE(jogos_carreira_oficiais, 0), total_jogos) as jogos_carreira,
+               MAX(COALESCE(assistencias_carreira_oficiais, 0), total_assistencias) as assistencias_carreira
         FROM jogadores_estatisticas
         {where_extra}
         ORDER BY {order_col}
@@ -2183,10 +2183,14 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     total_gols_final = stats_meta.get('total_gols') or len(gols)
     total_assists_final = stats_meta.get('total_assistencias') or 0
 
+    raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
+    raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
+    raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
+
     carreira_oficial = {
-        "gols": stats_meta.get('gols_carreira_oficiais') or 0,
-        "jogos": stats_meta.get('jogos_carreira_oficiais') or 0,
-        "assistencias": stats_meta.get('assistencias_carreira_oficiais') or 0,
+        "gols": max(raw_gols_carreira, total_gols_final),
+        "jogos": max(raw_jogos_carreira, total_jogos),
+        "assistencias": max(raw_assists_carreira, total_assists_final),
         "clubes": json.loads(stats_meta['detalhe_carreira_clubes']) if stats_meta.get('detalhe_carreira_clubes') else []
     }
 

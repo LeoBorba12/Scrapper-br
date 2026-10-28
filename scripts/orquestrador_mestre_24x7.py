@@ -199,6 +199,7 @@ def ciclo_mestre(numero_ciclo: int):
     safe_print("\n>>> [FASE C] Validação e Auditoria da Integridade Relacional do Banco <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "validar_banco.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "auditar_integridade_dados.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "auditar_sanidade_atletas.py")])
 
     # Otimização com VACUUM e Verificação de SLO
     size_mb = get_db_size_mb()

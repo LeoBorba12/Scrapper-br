@@ -171,7 +171,7 @@ def buscar_ogol_path(nome: str, ogol_id: int = None) -> tuple:
     return None, None
 
 def extrair_tabela_carreira(html: str) -> dict:
-    """Extrai a tabela de estatísticas de clubes do atleta (compatível com atletas aposentados e em atividade)."""
+    """Extrai a tabela de estatísticas de clubes e seleção do atleta (compatível com atletas aposentados e em atividade)."""
     tables = re.findall(r'<table[^>]*>.*?</table>', html, re.DOTALL)
     if not tables:
         return None
@@ -184,6 +184,21 @@ def extrair_tabela_carreira(html: str) -> dict:
             break
 
     if tabela_temporadas:
+        headers_row = re.search(r'<tr[^>]*>(.*?)</tr>', tabela_temporadas, re.DOTALL)
+        idx_temp = 1
+        idx_equipe = 2
+        idx_j = 3
+        idx_g = 4
+        idx_a = 5
+        if headers_row:
+            ths = [re.sub(r'<[^>]+>', '', c).strip().upper() for c in re.findall(r'<t[dh][^>]*>(.*?)</t[dh]>', headers_row.group(1), re.DOTALL)]
+            for i, h in enumerate(ths):
+                if 'TEMPORADA' in h or 'ÉPOCA' in h: idx_temp = i
+                elif 'EQUIPE' in h or 'CLUBE' in h: idx_equipe = i
+                elif h == 'J': idx_j = i
+                elif h in ['G', 'GM']: idx_g = i
+                elif 'ASS' in h: idx_a = i
+
         rows = re.findall(r'<tr[^>]*>(.*?)</tr>', tabela_temporadas, re.DOTALL)
         clubes_map = {}
         total_jogos = 0
@@ -195,32 +210,31 @@ def extrair_tabela_carreira(html: str) -> dict:
             if not cells_html:
                 continue
             cells_clean = [re.sub(r'<[^>]+>', '', c).strip() for c in cells_html]
-            if not cells_clean or 'TEMPORADA' in cells_clean or 'EQUIPE' in cells_clean or 'J' in cells_clean:
+            if len(cells_clean) <= max(idx_j, idx_g):
+                continue
+            if 'TEMPORADA' in cells_clean or 'EQUIPE' in cells_clean or 'J' in cells_clean:
                 continue
 
             # Nome do clube
-            clube_nome = None
-            for ch in cells_html:
-                m_clb = re.search(r'<a href=["\']/(?:equipe|selecao)/[^"\']+["\']>([^<]+)</a>', ch)
-                if m_clb:
-                    clube_nome = m_clb.group(1).strip()
-                    break
-            
-            if not clube_nome and len(cells_clean) >= 3:
-                clube_nome = cells_clean[2]
-
-            # Ignorar categorias de base se for clube profissional consolidado
-            if clube_nome and any(tag in clube_nome for tag in ['[S17]', '[S15]', '[S13]', '[S11]', '[Sub-17]']):
+            m_clb = re.search(r'<a href=["\']/(?:equipe|selecao)/[^"\']+["\']>([^<]+)</a>', r)
+            clube_nome = m_clb.group(1).strip() if m_clb else (cells_clean[idx_equipe] if len(cells_clean) > idx_equipe else None)
+            if not clube_nome or clube_nome in ['Equipe', 'Total']:
                 continue
 
-            # Identificar colunas J, G e ASS pelos índices fixos da tabela de temporadas
-            # Formato típico: ['', 'Ano', 'Equipe', 'J', 'G', 'ASS']
-            if len(cells_clean) >= 5 and re.match(r'^\d+$', cells_clean[3]) and re.match(r'^\d+$', cells_clean[4]):
-                j = int(cells_clean[3])
-                g = int(cells_clean[4])
-                a = int(cells_clean[5]) if len(cells_clean) >= 6 and re.match(r'^\d+$', cells_clean[5]) else 0
+            # Ignorar categorias de base e futsal/infantil
+            if any(tag in clube_nome for tag in ['[S19]', '[S17]', '[S15]', '[S13]', '[S11]', '[Sub-', 'Fut.7']):
+                continue
 
-                clube_clean = re.sub(r'\s*\([^)]*\)', '', clube_nome).strip() if clube_nome else 'Outros'
+            val_j = cells_clean[idx_j] if len(cells_clean) > idx_j else ''
+            val_g = cells_clean[idx_g] if len(cells_clean) > idx_g else ''
+            val_a = cells_clean[idx_a] if len(cells_clean) > idx_a else ''
+
+            if val_j.isdigit() and val_g.isdigit():
+                j = int(val_j)
+                g = int(val_g)
+                a = int(val_a) if val_a.isdigit() else 0
+
+                clube_clean = re.sub(r'\s*\([^)]*\)', '', clube_nome).strip()
                 if clube_clean not in clubes_map:
                     clubes_map[clube_clean] = {"clube": clube_clean, "periodo": "", "jogos": 0, "gols": 0, "assistencias": 0}
                 clubes_map[clube_clean]["jogos"] += j

@@ -1,0 +1,200 @@
+[
+  {
+    "id_jogador": 352,
+    "nome_exibicao": "Neymar",
+    "nome_completo": "Neymar da Silva Santos Júnior",
+    "ogol_id": 54814,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 439,
+    "jogos_carreira_oficiais": 719,
+    "assistencias_carreira_oficiais": 279,
+    "gols_selecao": 79,
+    "jogos_selecao": 128,
+    "pontaria_chutes_pct": 68.5,
+    "clubes_resumo": [
+      {"clube": "Santos", "periodo": "2009-2013, 2025-2026", "jogos": 280, "gols": 157, "assistencias": 74},
+      {"clube": "Barcelona", "periodo": "2013-2017", "jogos": 186, "gols": 105, "assistencias": 62},
+      {"clube": "Paris Saint-Germain", "periodo": "2017-2023", "jogos": 173, "gols": 118, "assistencias": 71},
+      {"clube": "Al-Hilal", "periodo": "2023-2024", "jogos": 7, "gols": 1, "assistencias": 2},
+      {"clube": "Seleção Brasileira", "periodo": "2010-2026", "jogos": 128, "gols": 79, "assistencias": 59}
+    ]
+  },
+  {
+    "id_jogador": 7,
+    "nome_exibicao": "Gabriel Barbosa",
+    "nome_completo": "Gabriel Barbosa Almeida",
+    "ogol_id": 75171,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 246,
+    "jogos_carreira_oficiais": 530,
+    "assistencias_carreira_oficiais": 75,
+    "gols_selecao": 5,
+    "jogos_selecao": 18,
+    "pontaria_chutes_pct": 64.0,
+    "clubes_resumo": [
+      {"clube": "Santos", "periodo": "2013-2016, 2018", "jogos": 206, "gols": 83, "assistencias": 13},
+      {"clube": "Flamengo", "periodo": "2019-2024", "jogos": 306, "gols": 161, "assistencias": 44},
+      {"clube": "Cruzeiro", "periodo": "2025-2026", "jogos": 49, "gols": 13, "assistencias": 4},
+      {"clube": "Internazionale", "periodo": "2016-2017", "jogos": 10, "gols": 1, "assistencias": 0},
+      {"clube": "Benfica", "periodo": "2017", "jogos": 5, "gols": 1, "assistencias": 0},
+      {"clube": "Seleção Brasileira", "periodo": "2016-2024", "jogos": 18, "gols": 5, "assistencias": 0}
+    ]
+  },
+  {
+    "id_jogador": 10,
+    "nome_exibicao": "Pedro",
+    "nome_completo": "Pedro Guilherme Abreu dos Santos",
+    "ogol_id": 481359,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 239,
+    "jogos_carreira_oficiais": 496,
+    "assistencias_carreira_oficiais": 49,
+    "gols_selecao": 1,
+    "jogos_selecao": 6,
+    "pontaria_chutes_pct": 71.0,
+    "clubes_resumo": [
+      {"clube": "Fluminense", "periodo": "2016-2019", "jogos": 93, "gols": 31, "assistencias": 7},
+      {"clube": "Fiorentina", "periodo": "2019", "jogos": 4, "gols": 0, "assistencias": 0},
+      {"clube": "Flamengo", "periodo": "2020-2026", "jogos": 271, "gols": 135, "assistencias": 31},
+      {"clube": "Seleção Brasileira", "periodo": "2020-2024", "jogos": 6, "gols": 1, "assistencias": 0}
+    ]
+  },
+  {
+    "id_jogador": 9,
+    "nome_exibicao": "Hulk",
+    "nome_completo": "Givanildo Vieira de Souza",
+    "ogol_id": 5696,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 420,
+    "jogos_carreira_oficiais": 840,
+    "assistencias_carreira_oficiais": 215,
+    "gols_selecao": 11,
+    "jogos_selecao": 49,
+    "pontaria_chutes_pct": 65.0,
+    "clubes_resumo": [
+      {"clube": "Atlético Mineiro", "periodo": "2021-2026", "jogos": 309, "gols": 140, "assistencias": 55},
+      {"clube": "Shanghai SIPG", "periodo": "2016-2020", "jogos": 145, "gols": 77, "assistencias": 46},
+      {"clube": "Zenit", "periodo": "2012-2016", "jogos": 148, "gols": 77, "assistencias": 55},
+      {"clube": "FC Porto", "periodo": "2008-2012", "jogos": 170, "gols": 77, "assistencias": 53},
+      {"clube": "Seleção Brasileira", "periodo": "2009-2021", "jogos": 49, "gols": 11, "assistencias": 6}
+    ]
+  },
+  {
+    "id_jogador": 11,
+    "nome_exibicao": "Germán Cano",
+    "nome_completo": "Germán Ezequiel Cano Recalde",
+    "ogol_id": 36577,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 305,
+    "jogos_carreira_oficiais": 620,
+    "assistencias_carreira_oficiais": 25,
+    "gols_selecao": 0,
+    "jogos_selecao": 0,
+    "pontaria_chutes_pct": 69.0,
+    "clubes_resumo": [
+      {"clube": "Fluminense", "periodo": "2022-2026", "jogos": 239, "gols": 112, "assistencias": 13},
+      {"clube": "Vasco", "periodo": "2020-2021", "jogos": 101, "gols": 43, "assistencias": 4},
+      {"clube": "Independiente Medellín", "periodo": "2012-2019", "jogos": 192, "gols": 129, "assistencias": 4},
+      {"clube": "Pachuca", "periodo": "2015-2017", "jogos": 33, "gols": 8, "assistencias": 0},
+      {"clube": "Club León", "periodo": "2016-2017", "jogos": 48, "gols": 13, "assistencias": 0}
+    ]
+  },
+  {
+    "id_jogador": 93,
+    "nome_exibicao": "Giorgian de Arrascaeta",
+    "nome_completo": "Giorgian Daniel De Arrascaeta Benedetti",
+    "ogol_id": 270657,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 153,
+    "jogos_carreira_oficiais": 545,
+    "assistencias_carreira_oficiais": 168,
+    "gols_selecao": 10,
+    "jogos_selecao": 50,
+    "pontaria_chutes_pct": 62.0,
+    "clubes_resumo": [
+      {"clube": "Flamengo", "periodo": "2019-2026", "jogos": 300, "gols": 73, "assistencias": 90},
+      {"clube": "Cruzeiro", "periodo": "2015-2018", "jogos": 188, "gols": 50, "assistencias": 40},
+      {"clube": "Defensor Sporting", "periodo": "2012-2014", "jogos": 65, "gols": 18, "assistencias": 17},
+      {"clube": "Seleção Uruguaia", "periodo": "2014-2026", "jogos": 50, "gols": 10, "assistencias": 8}
+    ]
+  },
+  {
+    "id_jogador": 11220,
+    "nome_exibicao": "Pelé",
+    "nome_completo": "Edson Arantes do Nascimento",
+    "ogol_id": 1047,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 762,
+    "jogos_carreira_oficiais": 832,
+    "assistencias_carreira_oficiais": 11,
+    "gols_selecao": 77,
+    "jogos_selecao": 92,
+    "pontaria_chutes_pct": 74.0,
+    "clubes_resumo": [
+      {"clube": "Santos", "periodo": "1956-1974", "jogos": 660, "gols": 643, "assistencias": 0},
+      {"clube": "New York Cosmos", "periodo": "1975-1977", "jogos": 64, "gols": 37, "assistencias": 0},
+      {"clube": "Seleção Brasileira", "periodo": "1957-1971", "jogos": 92, "gols": 77, "assistencias": 0}
+    ]
+  },
+  {
+    "id_jogador": 13953,
+    "nome_exibicao": "Zico",
+    "nome_completo": "Arthur Antunes Coimbra",
+    "ogol_id": 1046,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 530,
+    "jogos_carreira_oficiais": 777,
+    "assistencias_carreira_oficiais": 169,
+    "gols_selecao": 48,
+    "jogos_selecao": 71,
+    "pontaria_chutes_pct": 72.0,
+    "clubes_resumo": [
+      {"clube": "Flamengo", "periodo": "1971-1983, 1985-1989", "jogos": 506, "gols": 401, "assistencias": 0},
+      {"clube": "Udinese", "periodo": "1983-1985", "jogos": 54, "gols": 30, "assistencias": 0},
+      {"clube": "Kashima Antlers", "periodo": "1991-1994", "jogos": 88, "gols": 54, "assistencias": 0},
+      {"clube": "Seleção Brasileira", "periodo": "1976-1986", "jogos": 71, "gols": 48, "assistencias": 0}
+    ]
+  },
+  {
+    "id_jogador": 12212,
+    "nome_exibicao": "Romário",
+    "nome_completo": "Romário de Souza Faria",
+    "ogol_id": 5270,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 744,
+    "jogos_carreira_oficiais": 961,
+    "assistencias_carreira_oficiais": 28,
+    "gols_selecao": 55,
+    "jogos_selecao": 70,
+    "pontaria_chutes_pct": 75.0,
+    "clubes_resumo": [
+      {"clube": "Vasco", "periodo": "1985-1988, 2000-2002, 2005-2007", "jogos": 402, "gols": 313, "assistencias": 0},
+      {"clube": "PSV", "periodo": "1988-1993", "jogos": 148, "gols": 128, "assistencias": 0},
+      {"clube": "Barcelona", "periodo": "1993-1995", "jogos": 65, "gols": 39, "assistencias": 0},
+      {"clube": "Flamengo", "periodo": "1995-1999", "jogos": 240, "gols": 204, "assistencias": 0},
+      {"clube": "Fluminense", "periodo": "2002-2004", "jogos": 77, "gols": 48, "assistencias": 0},
+      {"clube": "Seleção Brasileira", "periodo": "1987-2005", "jogos": 70, "gols": 55, "assistencias": 0}
+    ]
+  },
+  {
+    "id_jogador": 6051,
+    "nome_exibicao": "Fred",
+    "nome_completo": "Frederico Chaves Guedes",
+    "ogol_id": 9839,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 413,
+    "jogos_carreira_oficiais": 822,
+    "assistencias_carreira_oficiais": 55,
+    "gols_selecao": 18,
+    "jogos_selecao": 39,
+    "pontaria_chutes_pct": 66.0,
+    "clubes_resumo": [
+      {"clube": "Fluminense", "periodo": "2009-2016, 2020-2022", "jogos": 382, "gols": 199, "assistencias": 30},
+      {"clube": "Cruzeiro", "periodo": "2004-2005, 2018-2019", "jogos": 140, "gols": 81, "assistencias": 12},
+      {"clube": "Lyon", "periodo": "2005-2009", "jogos": 125, "gols": 43, "assistencias": 8},
+      {"clube": "Atlético Mineiro", "periodo": "2016-2017", "jogos": 83, "gols": 42, "assistencias": 9},
+      {"clube": "América-MG", "periodo": "2003-2004", "jogos": 53, "gols": 30, "assistencias": 0},
+      {"clube": "Seleção Brasileira", "periodo": "2005-2014", "jogos": 39, "gols": 18, "assistencias": 3}
+    ]
+  }
+]
