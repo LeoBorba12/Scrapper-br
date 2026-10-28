@@ -9,7 +9,7 @@ DB_PATH = os.path.join(BASE_DIR, "data", "futebol.db")
 def auditar_e_reparar_dados():
     """
     Agente Automatizado de Integridade e Sanidade de Dados (FutStats Data Auditor)
-    Executa 10 verificações de consistência e auto-reparo no SQLite.
+    Executa 11 verificações de consistência e auto-reparo no SQLite.
     """
     relatorio = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -226,6 +226,74 @@ def auditar_e_reparar_dados():
         "status": "CORRIGIDO" if reparados_pos > 0 else ("OK" if artilheiros_sem_pos == 0 else "FALHA"),
         "ocorrencias": artilheiros_sem_pos,
         "reparados": reparados_pos
+    })
+
+    # Regra 11: Coerência de Clube em Gols vs Escalação Oficial (Auto-reparo de Adversário Invertido)
+    c.execute("""
+        SELECT COUNT(*)
+        FROM gols g
+        JOIN escalacoes e ON g.id_partida = e.id_partida AND g.id_jogador = e.id_jogador
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE ((g.clube = p.mandante AND e.clube = p.visitante) OR (g.clube = p.visitante AND e.clube = p.mandante))
+          AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+          AND (SELECT COUNT(DISTINCT e2.clube) FROM escalacoes e2 WHERE e2.id_partida = g.id_partida AND e2.id_jogador = g.id_jogador) = 1;
+    """)
+    gols_inv_escalacao = c.fetchone()[0]
+    reparados_gols_esc = 0
+    if gols_inv_escalacao > 0:
+        c.execute("""
+            SELECT DISTINCT g.id_jogador
+            FROM gols g
+            JOIN escalacoes e ON g.id_partida = e.id_partida AND g.id_jogador = e.id_jogador
+            JOIN partidas p ON g.id_partida = p.id_partida
+            WHERE ((g.clube = p.mandante AND e.clube = p.visitante) OR (g.clube = p.visitante AND e.clube = p.mandante))
+              AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+              AND (SELECT COUNT(DISTINCT e2.clube) FROM escalacoes e2 WHERE e2.id_partida = g.id_partida AND e2.id_jogador = g.id_jogador) = 1;
+        """)
+        atletas_afetados = [row[0] for row in c.fetchall() if row[0]]
+
+        c.execute("""
+            UPDATE gols
+            SET clube = (
+                SELECT e.clube
+                FROM escalacoes e
+                WHERE e.id_partida = gols.id_partida AND e.id_jogador = gols.id_jogador
+                LIMIT 1
+            )
+            WHERE id_gol IN (
+                SELECT g.id_gol
+                FROM gols g
+                JOIN escalacoes e ON g.id_partida = e.id_partida AND g.id_jogador = e.id_jogador
+                JOIN partidas p ON g.id_partida = p.id_partida
+                WHERE ((g.clube = p.mandante AND e.clube = p.visitante) OR (g.clube = p.visitante AND e.clube = p.mandante))
+                  AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+                  AND (SELECT COUNT(DISTINCT e2.clube) FROM escalacoes e2 WHERE e2.id_partida = g.id_partida AND e2.id_jogador = g.id_jogador) = 1
+            );
+        """)
+        reparados_gols_esc = c.rowcount
+        conn.commit()
+
+        # Re-sincroniza a coluna clubes dos atletas afetados
+        for aid in atletas_afetados:
+            c.execute("""
+                SELECT DISTINCT clube FROM (
+                    SELECT DISTINCT clube FROM escalacoes WHERE id_jogador = ? AND clube IS NOT NULL AND clube != ''
+                    UNION
+                    SELECT DISTINCT clube FROM gols WHERE id_jogador = ? AND clube IS NOT NULL AND clube != ''
+                ) ORDER BY clube
+            """, (aid, aid))
+            clubes_lista = [r[0] for r in c.fetchall() if r[0]]
+            clubes_str = ",".join(clubes_lista)
+            if clubes_str:
+                c.execute("UPDATE jogadores SET clubes = ? WHERE id_jogador = ?", (clubes_str, aid))
+                c.execute("UPDATE jogadores_estatisticas SET clubes = ? WHERE id_jogador = ?", (clubes_str, aid))
+        conn.commit()
+
+    relatorio["regras"].append({
+        "regra": "Coerência de Clube em Gols vs Escalação Oficial",
+        "status": "CORRIGIDO" if reparados_gols_esc > 0 else ("OK" if gols_inv_escalacao == 0 else "FALHA"),
+        "ocorrencias": gols_inv_escalacao,
+        "reparados": reparados_gols_esc
     })
 
     # Regra 8: Consistência de soma de partidas por temporada recente
