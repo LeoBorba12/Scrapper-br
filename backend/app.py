@@ -2093,12 +2093,12 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
 
     # Condições de busca para partidas
     if target_id:
-        cond_gols = "(g.id_jogador = ? OR (g.id_jogador IS NULL AND LOWER(g.atleta) = LOWER(?)))"
-        params_gols = [target_id, nome_exib]
-        cond_cartoes = "(cr.id_jogador = ? OR (cr.id_jogador IS NULL AND LOWER(cr.atleta) = LOWER(?)))"
-        params_cartoes = [target_id, nome_exib]
-        cond_esc = "(e.id_jogador = ? OR (e.id_jogador IS NULL AND LOWER(e.atleta) = LOWER(?)))"
-        params_esc = [target_id, nome_exib]
+        cond_gols = "g.id_jogador = ?"
+        params_gols = [target_id]
+        cond_cartoes = "cr.id_jogador = ?"
+        params_cartoes = [target_id]
+        cond_esc = "e.id_jogador = ?"
+        params_esc = [target_id]
     else:
         nome_canonico = MAPA_APELIDOS_ATLETAS.get((nome or '').lower(), nome)
         cond_gols = "(g.atleta = ? OR g.atleta = ?)"
@@ -2479,6 +2479,7 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     return {
         "id_jogador": target_id,
         "nome": nome_exib,
+        "atleta": nome_exib,
         "nome_completo": stats_meta.get('nome_completo'),
         "foto_url": stats_meta.get('foto_url'),
         "ogol_id": stats_meta.get('ogol_id'),

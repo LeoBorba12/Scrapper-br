@@ -296,6 +296,30 @@ def auditar_e_reparar_dados():
         "reparados": reparados_gols_esc
     })
 
+    # Regra 12: Coerência de Jogos x Gols e Médias de Atletas
+    c.execute("""
+        SELECT COUNT(*) FROM jogadores_estatisticas 
+        WHERE total_gols > total_jogos OR (total_gols >= 10 AND media_gols_por_jogo > 2.0);
+    """)
+    atletas_anormais = c.fetchone()[0]
+    reparados_atl = 0
+    if atletas_anormais > 0:
+        c.execute("""
+            UPDATE jogadores_estatisticas
+            SET total_jogos = MAX(total_jogos, total_gols),
+                media_gols_por_jogo = ROUND(CAST(total_gols AS REAL) / MAX(MAX(total_jogos, total_gols), 1), 2)
+            WHERE total_gols > total_jogos OR (total_gols >= 10 AND media_gols_por_jogo > 2.0);
+        """)
+        reparados_atl = c.rowcount
+        conn.commit()
+
+    relatorio["regras"].append({
+        "regra": "Coerência de Atletas: Jogos >= Gols e Médias Verossímeis (<= 2.0)",
+        "status": "CORRIGIDO" if reparados_atl > 0 else ("OK" if atletas_anormais == 0 else "FALHA"),
+        "ocorrencias": atletas_anormais,
+        "reparados": reparados_atl
+    })
+
     # Regra 8: Consistência de soma de partidas por temporada recente
     c.execute("""
         SELECT ano, COUNT(*) FROM partidas WHERE ano >= 2024 GROUP BY ano ORDER BY ano DESC;
