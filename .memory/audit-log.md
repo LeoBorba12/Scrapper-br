@@ -56,3 +56,16 @@
 - **Mapa Modular de Contexto (`.memory/context-map.md`)**: Estruturado o índice completo dos 6 subsistemas (Frontend, Backend, Dados/SQLite, Scripts 24x7, Testes e Memória) para roteamento com baixo consumo de tokens.
 - **Prompts Modulares de Ativação Rápida**: Formalizados os modos `[MODO FRONTEND]`, `[MODO DADOS]` e `[MODO DEVOPS]`.
 - **Validação de Pre-flight**: Testes de modelos (22/22 verdes), auditor de integridade (10 regras) e build do frontend (`npm run build`) 100% verificados.
+
+## [2026-10-28] Pilar 4 (Comparador Head-to-Head) & Saneamento Definitivo de Atletas
+- **Pilar 4 (Comparador de Atletas)**: Implementado `/api/jogadores/comparar` e componente `AthleteCompareView.jsx` com busca dupla por atleta, radar pentagonal SVG estilo Winning Eleven, barras proporcionais de métricas e badges de presets (Romário x Neymar, Gabigol x Pedro, etc). Corrigida autenticação via `futstats_auth_token` para evitar 401 na Vercel.
+- **Saneamento Definitivo de Carreira de Atletas**:
+  - Resolução da causa-raiz no parser OGol (`scraper_ogol_carreira_atletas.py` e `agente_especialista_jogadores.py`) com mapeamento dinâmico de `<th>` para carreira completa (evitando capturar a temporada corrente `2026` como se fosse o histórico total).
+  - Consolidação de homônimos (`scripts/consolidar_homonimos_atletas.py`): Neymar unificado de 4 IDs em 1 canônico (`352`), subindo acervo nacional para 126 gols.
+  - Implementado Golden Truth Dataset (`data/golden_truth_atletas.json`) e script reconciliador (`scripts/reconciliar_golden_truth.py`): Neymar com 439g/719j/279a, Romário com 744g/961j, Gabigol com 246g/530j/75a, Pelé, Zico, Fred, Cano, Hulk, Pedro e Arrascaeta 100% calibrados.
+  - Travas de sanidade no backend (`backend/app.py`): carreira oficial mundial $\ge$ acervo nacional.
+- **Governança da VM e Auditoria Contínua**:
+  - Atualizado `docs/GOVERNANCA_E_DIRETRIZES_VM.md` (seção 4.1).
+  - Criado `scripts/auditar_sanidade_atletas.py` e integrado na Fase C do `scripts/orquestrador_mestre_24x7.py` (auto-reparou 196 inconsistências herdadas no banco).
+- **Validação de Pre-Flight**: 22/22 pytest aprovados, frontend buildado em 6.8s, 115.356 partidas íntegras e banco SQLite em 84.8 MB. Commits `8338a5e` e `105c522` enviados para produção na Vercel (`main`).
+
