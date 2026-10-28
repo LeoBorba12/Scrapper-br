@@ -14,6 +14,7 @@ import AppShell from './components/AppShell';
 import EditorialClubes from './components/EditorialClubes';
 import ProtagonistaAtleta from './components/ProtagonistaAtleta';
 import BettingHubView from './components/BettingHubView';
+import AthleteCompareView from './components/AthleteCompareView';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
 
 export default function App() {
@@ -25,6 +26,47 @@ export default function App() {
     } catch {}
     return 'overview';
   });
+
+  const [athleteSubView, setAthleteSubView] = useState(() => {
+    try {
+      const sub = new URLSearchParams(window.location.search).get('sub');
+      if (sub === 'comparar') return 'comparar';
+    } catch {}
+    return 'perfil';
+  });
+
+  const [compararAtletasState, setCompararAtletasState] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id1 = params.get('id1') ? parseInt(params.get('id1')) : 10;
+      const id2 = params.get('id2') ? parseInt(params.get('id2')) : 7;
+      const nome1 = params.get('nome1') || '';
+      const nome2 = params.get('nome2') || '';
+      return { id1, id2, nome1, nome2 };
+    } catch {
+      return { id1: 10, id2: 7, nome1: '', nome2: '' };
+    }
+  });
+
+  const abrirComparadorAtletas = (atletaId, atletaNome) => {
+    setActiveTab('jogadores');
+    setAthleteSubView('comparar');
+    if (atletaId || atletaNome) {
+      setCompararAtletasState(prev => ({
+        ...prev,
+        id1: atletaId || prev.id1,
+        nome1: atletaNome || prev.nome1
+      }));
+    }
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set('tab', 'jogadores');
+      url.searchParams.set('sub', 'comparar');
+      if (atletaId) url.searchParams.set('id1', atletaId);
+      window.history.replaceState({}, '', url);
+    } catch {}
+  };
+
 
   // ==================== AUTH STATE ====================
   const [currentUser, setCurrentUser] = useState(() => {
@@ -983,7 +1025,7 @@ export default function App() {
   if (authChecking) {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg)' }}>
-        <RefreshCw size={36} className="animate-spin" color="#87CEEB" />
+        <RefreshCw size={36} className="animate-spin" color="var(--accent)" />
       </div>
     );
   }
@@ -1055,8 +1097,31 @@ export default function App() {
         />
       )}
 
-      {/* ================= PILOTO 2: ATLETAS NO MODELO PROTAGONISTA ================= */}
-      {activeTab === 'jogadores' && (
+      {/* ================= PILOTO 2: ATLETAS NO MODELO PROTAGONISTA & COMPARADOR ================= */}
+      {activeTab === 'jogadores' && athleteSubView === 'comparar' && (
+        <AthleteCompareView
+          initialId1={compararAtletasState.id1}
+          initialId2={compararAtletasState.id2}
+          initialNome1={compararAtletasState.nome1}
+          initialNome2={compararAtletasState.nome2}
+          onBack={() => {
+            setAthleteSubView('perfil');
+            try {
+              const url = new URL(window.location);
+              url.searchParams.delete('sub');
+              url.searchParams.delete('id1');
+              url.searchParams.delete('id2');
+              window.history.replaceState({}, '', url);
+            } catch {}
+          }}
+          onSelectPlayer={(id, nome) => {
+            setAthleteSubView('perfil');
+            carregarPerfilJogador(nome, '', id);
+          }}
+        />
+      )}
+
+      {activeTab === 'jogadores' && athleteSubView !== 'comparar' && (
         <ProtagonistaAtleta
           playerSearch={playerSearch}
           setPlayerSearch={setPlayerSearch}
@@ -1069,6 +1134,7 @@ export default function App() {
           setRankingType={(tipo) => carregarRanking(tipo)}
           topPlayers={rankingData}
           onCarregarPerfilPorId={(id, nome) => carregarPerfilJogador(nome, '', id)}
+          onAbrirComparador={abrirComparadorAtletas}
           onVoltarParaLista={() => {
             setSelectedPlayer(null);
             setPlayerProfile(null);
@@ -1112,7 +1178,7 @@ export default function App() {
           {/* SELETOR DE CLUBES */}
           <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Swords size={20} color="#87CEEB" /> Escolha os Clubes do Duelo
+              <Swords size={20} color="var(--accent)" /> Escolha os Clubes do Duelo
             </h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
@@ -1388,7 +1454,7 @@ export default function App() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Brain size={28} color="#87CEEB" />
+                  <Brain size={28} color="var(--accent)" />
                   <h2 style={{ fontSize: '1.4rem', fontWeight: '700' }}>
                     Oráculo Estatístico & IA Analista
                   </h2>
@@ -1480,7 +1546,7 @@ export default function App() {
           {/* LOADING DA CONSULTA */}
           {oraculoLoading && (
             <div className="soft-card" style={{ padding: '48px 20px', textAlign: 'center', marginBottom: '24px' }}>
-              <RefreshCw size={36} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 16px' }} />
+              <RefreshCw size={36} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 16px' }} />
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>O Oráculo está pesquisando no banco...</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
                 Traduzindo sua pergunta para SQL, consultando 55.395 partidas e gerando o insight.
@@ -1534,7 +1600,7 @@ export default function App() {
                   <div style={{ padding: '16px', backgroundColor: 'var(--surface-hover)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ flex: 1, minWidth: '280px' }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Sparkles size={14} color="#FFB6C1" /> Sugestão de Post para o Twitter/X:
+                        <Sparkles size={14} color="var(--accent)" /> Sugestão de Post para o Twitter/X:
                       </div>
                       <div className="font-mono" style={{ fontSize: '0.88rem', color: 'var(--text-main)', whiteSpace: 'pre-line' }}>
                         {oraculoResult.tweet}
@@ -1569,7 +1635,7 @@ export default function App() {
                 <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                     <h4 style={{ fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <BarChart3 size={18} color="#87CEEB" /> Dados Encontrados ({oraculoResult.total_registros} registros)
+                      <BarChart3 size={18} color="var(--accent)" /> Dados Encontrados ({oraculoResult.total_registros} registros)
                     </h4>
                   </div>
 
@@ -1616,7 +1682,7 @@ export default function App() {
           {/* FILTROS DO PLAYGROUND */}
           <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Search size={20} color="#87CEEB" /> Filtros do Banco de Partidas
+              <Search size={20} color="var(--accent)" /> Filtros do Banco de Partidas
             </h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
@@ -1792,7 +1858,7 @@ export default function App() {
         <section>
           <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CloudRain size={22} color="#87CEEB" /> Impacto Meteorológico no Futebol Brasileiro
+              <CloudRain size={22} color="var(--accent)" /> Impacto Meteorológico no Futebol Brasileiro
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               Cruzamento científico de mais de 7.000 partidas com medições das estações meteorológicas oficiais do INMET nas capitais brasileiras (2015 - 2024).
@@ -1801,7 +1867,7 @@ export default function App() {
 
           {climaLoading ? (
             <div className="soft-card" style={{ padding: '40px', textAlign: 'center' }}>
-              <RefreshCw size={32} className="animate-spin" color="#87CEEB" style={{ margin: '0 auto 12px' }} />
+              <RefreshCw size={32} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
               <p style={{ color: 'var(--text-muted)' }}>Processando dados de meteorologia e partidas...</p>
             </div>
           ) : climaData ? (
@@ -2113,7 +2179,7 @@ export default function App() {
         <section>
           <div className="soft-card" style={{ padding: '24px', marginBottom: '24px' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={22} color="#FFB6C1" /> Gerador de Tweets & Posts com Dados Históricos
+              <Sparkles size={22} color="var(--accent)" /> Gerador de Tweets & Posts com Dados Históricos
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               Modelos de postagens prontos com estatísticas verificadas para engajamento no X/Twitter.
@@ -2479,7 +2545,7 @@ export default function App() {
 
             {/* Mensagem de Erro */}
             {trocarSenhaError && (
-              <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: '12px', padding: '10px 14px', fontSize: '0.82rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ backgroundColor: 'var(--negative-bg)', border: '1px solid var(--border-subtle)', color: 'var(--negative)', borderRadius: '12px', padding: '10px 14px', fontSize: '0.82rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AlertCircle size={16} />
                 <span>{trocarSenhaError}</span>
               </div>
@@ -2487,7 +2553,7 @@ export default function App() {
 
             {/* Mensagem de Sucesso */}
             {trocarSenhaSuccess && (
-              <div style={{ backgroundColor: '#ECFDF5', border: '1px solid #6EE7B7', color: '#065F46', borderRadius: '12px', padding: '10px 14px', fontSize: '0.82rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ backgroundColor: 'var(--positive-bg)', border: '1px solid var(--border-subtle)', color: 'var(--positive)', borderRadius: '12px', padding: '10px 14px', fontSize: '0.82rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Check size={16} />
                 <span>{trocarSenhaSuccess}</span>
               </div>
@@ -2496,7 +2562,7 @@ export default function App() {
             {/* Formulário */}
             <form onSubmit={handleAlterarSenha} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4B5262', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Senha Atual
                 </label>
                 <input
@@ -2511,7 +2577,7 @@ export default function App() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4B5262', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Nova Senha
                 </label>
                 <input
@@ -2526,7 +2592,7 @@ export default function App() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#4B5262', marginBottom: '5px' }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Confirmar Nova Senha
                 </label>
                 <input
@@ -2548,10 +2614,10 @@ export default function App() {
                   style={{
                     flex: 1,
                     height: '44px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(0,0,0,0.08)',
-                    backgroundColor: '#F3F4F6',
-                    color: '#4B5262',
+                    borderRadius: 'var(--radius-control)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--surface-raised)',
+                    color: 'var(--text-primary)',
                     fontWeight: 600,
                     fontSize: '0.85rem',
                     cursor: 'pointer'

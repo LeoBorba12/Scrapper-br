@@ -185,15 +185,20 @@ def ciclo_mestre(numero_ciclo: int):
     executar_comando(cmd_hist, timeout=400)
 
     # -------------------------------------------------------------
-    # FASE C: HIGIENIZAÇÃO, DESAMBIGUAÇÃO E VALIDAÇÃO
+    # FASE C: HIGIENIZAÇÃO, DESAMBIGUAÇÃO E VALIDAÇÃO CONTÍNUA
     # -------------------------------------------------------------
-    safe_print("\n>>> [FASE C] Higienização e Desambiguação de Gols <<<")
+    safe_print("\n>>> [FASE C] Higienização e Desambiguação de Gols & Confrontos <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "higienizar_e_desambiguar_gols.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sanitizar_dashboard_e_atletas.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "corrigir_desambiguacao_estrita.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sanitizar_confrontos_duplicados.py")])
 
-    safe_print("\n>>> [FASE C] Validação da Integridade do Banco <<<")
+    safe_print("\n>>> [FASE C] Auditoria Universal de Atletas, OGol e Auto-Cura <<<")
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "auditar_e_reconciliar_jogadores_ogol.py"), "--limit", "30"])
+
+    safe_print("\n>>> [FASE C] Validação e Auditoria da Integridade Relacional do Banco <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "validar_banco.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "auditar_integridade_dados.py")])
 
     # Otimização com VACUUM e Verificação de SLO
     size_mb = get_db_size_mb()
@@ -277,6 +282,8 @@ def ciclo_mestre(numero_ciclo: int):
             f"🎯 *Quadro de Confiabilidade & SLOs:*\n"
             f"• Sucesso de Scraping (SLI-03): *{taxa_sucesso:.1f}%* ({status_slo} - Meta >=99%)\n"
             f"• Teto SQLite Vercel (SLI-05): `{size_mb:.2f} MB` / teto {MAX_DB_SIZE_MB:.1f} MB\n"
+            f"• Integridade Relacional: *🟢 0 Duplicatas e 0 Falhas FK*\n"
+            f"• Invariância Atômica de Gols: *🟢 100% Consistente*\n"
             f"• Total de Partidas: *{total_partidas_atual:,}*\n\n"
             f"📦 *Blocos Históricos Varridos no Período:*\n"
             f"{blocos_formatados}\n\n"

@@ -22,7 +22,8 @@ export default function ProtagonistaAtleta({
   setRankingType,
   topPlayers,
   onCarregarPerfilPorId,
-  onVoltarParaLista
+  onVoltarParaLista,
+  onAbrirComparador
 }) {
   const [subTab, setSubTab] = useState('partidas'); // 'partidas' | 'temporadas' | 'torneios' | 'vitimas'
   const [partidasPage, setPartidasPage] = useState(1);
@@ -37,26 +38,52 @@ export default function ProtagonistaAtleta({
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Cabeçalho Editorial da Seção */}
-        <div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            Base de Atletas • Futebol Brasileiro 1902–2026
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              Base de Atletas • Futebol Brasileiro 1902–2026
+            </div>
+            <h1 
+              className="font-editorial" 
+              style={{ 
+                fontSize: '2.2rem', 
+                fontWeight: 700, 
+                letterSpacing: '-0.02em', 
+                color: 'var(--text-primary)',
+                marginBottom: '6px'
+              }}
+            >
+              Atletas & Estatísticas Oficiais de Carreira
+            </h1>
+            <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', maxWidth: '780px', lineHeight: 1.55 }}>
+              Pesquise qualquer jogador histórico ou em atividade para visualizar sua ficha na composição Protagonista, 
+              ou explore os rankings oficiais catalogados.
+            </p>
           </div>
-          <h1 
-            className="font-editorial" 
-            style={{ 
-              fontSize: '2.2rem', 
-              fontWeight: 700, 
-              letterSpacing: '-0.02em', 
-              color: 'var(--text-primary)',
-              marginBottom: '6px'
-            }}
-          >
-            Atletas & Estatísticas Oficiais de Carreira
-          </h1>
-          <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', maxWidth: '780px', lineHeight: 1.55 }}>
-            Pesquise qualquer jogador histórico ou em atividade para visualizar sua ficha na composição Protagonista, 
-            ou explore os rankings oficiais catalogados.
-          </p>
+
+          {onAbrirComparador && (
+            <button
+              type="button"
+              onClick={() => onAbrirComparador()}
+              className="touch-tactile"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--surface-raised)',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+                padding: '10px 18px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-editorial)'
+              }}
+            >
+              ⚔️ Comparador de Atletas H2H
+            </button>
+          )}
         </div>
 
         {/* Barra de Busca de Atleta com Autocomplete (Lote 1 & 2) */}
@@ -461,9 +488,33 @@ export default function ProtagonistaAtleta({
           <span>Voltar para Lista & Rankings</span>
         </button>
 
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          Atleta ID: <strong className="font-mono">{atleta.id_jogador || '—'}</strong>
-          {atleta.ogol_id && ` • OGol ID: ${atleta.ogol_id}`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {onAbrirComparador && (
+            <button
+              type="button"
+              onClick={() => onAbrirComparador(atleta.id_jogador, atleta.nome)}
+              className="touch-tactile"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'var(--surface-raised)',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              ⚔️ Comparar com outro atleta
+            </button>
+          )}
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+            Atleta ID: <strong className="font-mono">{atleta.id_jogador || '—'}</strong>
+            {atleta.ogol_id && ` • OGol ID: ${atleta.ogol_id}`}
+          </div>
         </div>
       </div>
 
@@ -684,6 +735,9 @@ export default function ProtagonistaAtleta({
                   carreira={carreira}
                   size={290}
                 />
+                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
+                  Índice ponderado (40–99) calculado a partir de scouts atômicos reais (gols/jogo, pontaria %, assistências e disciplina).
+                </span>
               </div>
 
               <div style={{ height: '1px', backgroundColor: 'var(--border-subtle)', margin: '4px 0' }} />
