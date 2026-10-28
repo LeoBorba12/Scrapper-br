@@ -3730,6 +3730,253 @@ def get_apostas_hub():
     return jsonify(resumo)
 
 
+@app.route('/api/apostas/backtesting', methods=['GET'])
+def get_apostas_backtesting():
+    """
+    Backtesting quantitativo e histórico de performance das probabilidades do modelo Poisson/Dixon-Coles.
+    Compara previsões pré-jogo com os resultados reais consolidados, calculando taxas de acerto e ROI em unidades.
+    """
+    temporada = request.args.get('temporada', 'recentes').strip()
+    mercado_selecionado = request.args.get('mercado', 'todos').strip()
+    campeonato = request.args.get('campeonato', '').strip()
+    limit = min(request.args.get('limit', 60, type=int), 200)
+
+    cache_key = f"apostas_backtest_{temporada}_{mercado_selecionado}_{campeonato}_{limit}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    conn = get_db()
+    c = conn.cursor()
+    team_stats = _obter_medias_times_db(conn)
+
+    where_clauses = [
+        "p.gols_mandante IS NOT NULL",
+        "o.odd_mandante IS NOT NULL"
+    ]
+    params = []
+
+    if temporada == '2026':
+        where_clauses.append("p.ano = 2026")
+    elif temporada == '2025':
+        where_clauses.append("p.ano = 2025")
+    elif temporada == '2024':
+        where_clauses.append("p.ano = 2024")
+    elif temporada in ('todas', 'historico'):
+        pass
+    else:  # 'recentes'
+        where_clauses.append("p.ano >= 2025")
+
+    if campeonato:
+        where_clauses.append("p.campeonato LIKE ?")
+        params.append(f"%{campeonato}%")
+
+    where_sql = " AND ".join(where_clauses)
+
+    sql = f"""
+        SELECT 
+            p.id_partida, p.ano, p.data, p.campeonato, p.rodada,
+            p.mandante, p.visitante, p.placar, p.gols_mandante, p.gols_visitante,
+            o.odd_mandante, o.odd_empate, o.odd_visitante,
+            o.odd_over_1_5, o.odd_under_1_5,
+            o.odd_over_2_5, o.odd_under_2_5,
+            o.odd_btts_sim, o.odd_btts_nao
+        FROM partidas p
+        JOIN odds_partidas o ON p.id_partida = o.id_partida
+        WHERE {where_sql}
+        ORDER BY p.data DESC, p.id_partida DESC
+        LIMIT 350;
+    """
+
+    rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    conn.close()
+
+    mercados_stats = {
+        'over_1_5': {'nome': 'Over 1.5 Gols', 'apostas': 0, 'greens': 0, 'reds': 0, 'lucro_unidades': 0.0},
+        'over_2_5': {'nome': 'Gols (Over 2.5)', 'apostas': 0, 'greens': 0, 'reds': 0, 'lucro_unidades': 0.0},
+        'btts': {'nome': 'Ambas Marcam (BTTS)', 'apostas': 0, 'greens': 0, 'reds': 0, 'lucro_unidades': 0.0},
+        'favorito_1x2': {'nome': 'Favorito 1X2', 'apostas': 0, 'greens': 0, 'reds': 0, 'lucro_unidades': 0.0},
+        'ev_plus': {'nome': 'Apostas de Valor (+EV)', 'apostas': 0, 'greens': 0, 'reds': 0, 'lucro_unidades': 0.0}
+    }
+
+    historico_partidas = []
+
+    for r in rows:
+        gm = r['gols_mandante']
+        gv = r['gols_visitante']
+        total_gols = gm + gv
+        btts_ocorreu = (gm > 0 and gv > 0)
+        vencedor_real = 'mandante' if gm > gv else ('visitante' if gv > gm else 'empate')
+
+        m_casa = team_stats.get((r['mandante'], 'casa'), {'gp': 1.45, 'gc': 1.10, 'over25': 0.48, 'btts': 0.50})
+        m_fora = team_stats.get((r['visitante'], 'fora'), {'gp': 1.05, 'gc': 1.40, 'over25': 0.46, 'btts': 0.48})
+
+        lh = max(0.40, (m_casa['gp'] + m_fora['gc']) / 2.0)
+        la = max(0.35, (m_fora['gp'] + m_casa['gc']) / 2.0)
+        calc = _calc_poisson_bivariate(lh, la)
+
+        partida_prognosticos = []
+
+        # 1. Avaliação Over 1.5 (quando probabilidade >= 65%)
+        odd_o15 = r.get('odd_over_1_5') or 1.25
+        if calc['prob_over_1_5'] >= 65.0 and odd_o15 >= 1.12:
+            mercados_stats['over_1_5']['apostas'] += 1
+            acertou = (total_gols > 1)
+            lucro = round(odd_o15 - 1.0, 2) if acertou else -1.0
+            if acertou:
+                mercados_stats['over_1_5']['greens'] += 1
+            else:
+                mercados_stats['over_1_5']['reds'] += 1
+            mercados_stats['over_1_5']['lucro_unidades'] = round(mercados_stats['over_1_5']['lucro_unidades'] + lucro, 2)
+            partida_prognosticos.append({
+                'mercado': 'Over 1.5 Gols',
+                'tipo': 'over_1_5',
+                'odd': odd_o15,
+                'prob_modelo': calc['prob_over_1_5'],
+                'resultado': 'GREEN' if acertou else 'RED',
+                'lucro_unidades': lucro
+            })
+
+        # 2. Avaliação Over 2.5 (quando probabilidade >= 50%)
+        odd_o25 = r.get('odd_over_2_5')
+        if odd_o25 and odd_o25 >= 1.40 and calc['prob_over_2_5'] >= 50.0:
+            mercados_stats['over_2_5']['apostas'] += 1
+            acertou = (total_gols > 2)
+            lucro = round(odd_o25 - 1.0, 2) if acertou else -1.0
+            if acertou:
+                mercados_stats['over_2_5']['greens'] += 1
+            else:
+                mercados_stats['over_2_5']['reds'] += 1
+            mercados_stats['over_2_5']['lucro_unidades'] = round(mercados_stats['over_2_5']['lucro_unidades'] + lucro, 2)
+            partida_prognosticos.append({
+                'mercado': 'Over 2.5 Gols',
+                'tipo': 'over_2_5',
+                'odd': odd_o25,
+                'prob_modelo': calc['prob_over_2_5'],
+                'resultado': 'GREEN' if acertou else 'RED',
+                'lucro_unidades': lucro
+            })
+
+        # 3. Avaliação BTTS (quando probabilidade >= 50%)
+        odd_btts = r.get('odd_btts_sim')
+        if odd_btts and odd_btts >= 1.40 and calc['prob_btts_sim'] >= 50.0:
+            mercados_stats['btts']['apostas'] += 1
+            acertou = btts_ocorreu
+            lucro = round(odd_btts - 1.0, 2) if acertou else -1.0
+            if acertou:
+                mercados_stats['btts']['greens'] += 1
+            else:
+                mercados_stats['btts']['reds'] += 1
+            mercados_stats['btts']['lucro_unidades'] = round(mercados_stats['btts']['lucro_unidades'] + lucro, 2)
+            partida_prognosticos.append({
+                'mercado': 'Ambas Marcam (Sim)',
+                'tipo': 'btts',
+                'odd': odd_btts,
+                'prob_modelo': calc['prob_btts_sim'],
+                'resultado': 'GREEN' if acertou else 'RED',
+                'lucro_unidades': lucro
+            })
+
+        # 4. Avaliação Favorito 1X2 (quando mandante tem >= 50% de probabilidade)
+        odd_m = r.get('odd_mandante')
+        if odd_m and odd_m >= 1.25 and calc['prob_mandante'] >= 50.0:
+            mercados_stats['favorito_1x2']['apostas'] += 1
+            acertou = (vencedor_real == 'mandante')
+            lucro = round(odd_m - 1.0, 2) if acertou else -1.0
+            if acertou:
+                mercados_stats['favorito_1x2']['greens'] += 1
+            else:
+                mercados_stats['favorito_1x2']['reds'] += 1
+            mercados_stats['favorito_1x2']['lucro_unidades'] = round(mercados_stats['favorito_1x2']['lucro_unidades'] + lucro, 2)
+            partida_prognosticos.append({
+                'mercado': f"Vitória {r['mandante']}",
+                'tipo': 'favorito_1x2',
+                'odd': odd_m,
+                'prob_modelo': calc['prob_mandante'],
+                'resultado': 'GREEN' if acertou else 'RED',
+                'lucro_unidades': lucro
+            })
+
+        # 5. Avaliação Apostas de Valor (+EV)
+        candidatos_ev = [
+            (f"Vitória {r['mandante']}", r.get('odd_mandante'), calc['prob_mandante'], vencedor_real == 'mandante'),
+            (f"Vitória {r['visitante']}", r.get('odd_visitante'), calc['prob_visitante'], vencedor_real == 'visitante'),
+            ("Empate", r.get('odd_empate'), calc['prob_empate'], vencedor_real == 'empate'),
+            ("Over 2.5", r.get('odd_over_2_5'), calc['prob_over_2_5'], total_gols > 2),
+            ("Ambas Marcam", r.get('odd_btts_sim'), calc['prob_btts_sim'], btts_ocorreu)
+        ]
+
+        for nome_mkt, odd_val, prob_val, acertou_mkt in candidatos_ev:
+            if odd_val and odd_val >= 1.20 and prob_val:
+                ev_calc = (prob_val / 100.0) * odd_val - 1.0
+                if ev_calc >= 0.06:  # +6% de Valor Esperado
+                    mercados_stats['ev_plus']['apostas'] += 1
+                    lucro = round(odd_val - 1.0, 2) if acertou_mkt else -1.0
+                    if acertou_mkt:
+                        mercados_stats['ev_plus']['greens'] += 1
+                    else:
+                        mercados_stats['ev_plus']['reds'] += 1
+                    mercados_stats['ev_plus']['lucro_unidades'] = round(mercados_stats['ev_plus']['lucro_unidades'] + lucro, 2)
+                    partida_prognosticos.append({
+                        'mercado': f"{nome_mkt} (+EV +{round(ev_calc*100, 1)}%)",
+                        'tipo': 'ev_plus',
+                        'odd': odd_val,
+                        'prob_modelo': prob_val,
+                        'resultado': 'GREEN' if acertou_mkt else 'RED',
+                        'lucro_unidades': lucro
+                    })
+
+        # Filtra para o histórico exibido
+        prognosticos_filtrados = [
+            p for p in partida_prognosticos 
+            if mercado_selecionado == 'todos' or p['tipo'] == mercado_selecionado
+        ]
+
+        if prognosticos_filtrados:
+            historico_partidas.append({
+                'id_partida': r['id_partida'],
+                'data': r['data'],
+                'campeonato': r['campeonato'],
+                'mandante': r['mandante'],
+                'visitante': r['visitante'],
+                'placar': f"{gm} x {gv}",
+                'prognosticos': prognosticos_filtrados
+            })
+
+    # Calcula percentuais e ROI de cada mercado
+    for m_key, m_info in mercados_stats.items():
+        total_ap = m_info['apostas']
+        if total_ap > 0:
+            m_info['taxa_acerto_pct'] = round((m_info['greens'] / total_ap) * 100, 1)
+            m_info['roi_pct'] = round((m_info['lucro_unidades'] / total_ap) * 100, 1)
+        else:
+            m_info['taxa_acerto_pct'] = 0.0
+            m_info['roi_pct'] = 0.0
+
+    # Resumo Geral
+    total_geral_apostas = sum(m['apostas'] for m in mercados_stats.values())
+    total_geral_greens = sum(m['greens'] for m in mercados_stats.values())
+    total_geral_lucro = round(sum(m['lucro_unidades'] for m in mercados_stats.values()), 2)
+    taxa_geral_acerto = round((total_geral_greens / total_geral_geral) * 100, 1) if (total_geral_geral := total_geral_apostas) > 0 else 0.0
+    roi_geral = round((total_geral_lucro / total_geral_apostas) * 100, 1) if total_geral_apostas > 0 else 0.0
+
+    resultado = {
+        'total_partidas_analisadas': len(rows),
+        'total_apostas_avaliadas': total_geral_apostas,
+        'taxa_acerto_geral': taxa_geral_acerto,
+        'lucro_total_unidades': total_geral_lucro,
+        'roi_geral_pct': roi_geral,
+        'temporada': temporada,
+        'mercado_selecionado': mercado_selecionado,
+        'metricas_mercados': mercados_stats,
+        'historico_partidas': historico_partidas[:limit]
+    }
+
+    api_cache.set(cache_key, resultado, ttl=900)
+    return jsonify(resultado)
+
+
+
 @app.route('/api/apostas/analise', methods=['GET'])
 @app.route('/api/apostas/analise_jogo', methods=['GET'])
 def get_apostas_analise_jogo():

@@ -141,11 +141,15 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
    - Implementado componente `MobileBottomSheet.jsx` com backdrop blur, drag handle tátil, animação fluida e bloqueio de scroll.
    - `AthleteCompareView.jsx`: Drawer mobile para escolha de competições e duelos clássicos, grid de seletores responsivo e rolagem suave de chips.
    - `RefereeScoutView.jsx`: Drawer mobile com filtros de rigor e árbitros populares, alvos de toque >= 44px e visualização em cards responsivos no mobile.
-2. **Pilar 2: Hub de Apostas Avançado & Backtesting Quantitativo**:
-   - Implementação de simulações Monte Carlo com Critério de Kelly fracionário e cálculo de drawdown em apostas de valor (+EV).
-   - Ticker dinâmico de tendências quentes e alertas de arbitragem.
-3. **Pilar 3: IA Analista com Grounding Refinado (NL-to-SQL)**:
+2. **[CONCLUÍDO] Pilar 2: Hub de Apostas Avançado, Backtesting Quantitativo & Critério de Kelly**:
+   - Endpoint `/api/apostas/backtesting`: Auditoria matemática comparando prognósticos do modelo Poisson/Dixon-Coles com placares reais de 10.924 partidas catalogadas. Métricas de acurácia (Green/Red), lucro acumulado em unidades (+U) e ROI por mercado (Over 1.5, Over 2.5, BTTS, 1X2, +EV).
+   - Componente `KellyCalculatorModal.jsx`: Dimensionamento ótimo de apostas esportivas via Critério de Kelly ($f^* = (bp-q)/b$) com perfis de risco (Conservador 1/4 Kelly, Moderado 1/2 Kelly, Agressivo Full Kelly), cálculo de $+EV$ em R$, lucro líquido potencial e gestão de risco.
+   - `BettingHubView.jsx`: Nova aba "Track Record & Backtesting" com bento grid de métricas, histórico de jogos auditados com selo Green/Red, e botão direto "Calcular Stake de Kelly" em cada card com aposta de valor (+EV).
+3. **Pilar 1.2: Expected Goals (xG) & Domínio Territorial (Field Tilt)**:
+   - Cálculo estatístico de chances reais e eficiência de finalização de atletas (gols reais vs xG).
+4. **Pilar 3: IA Analista com Grounding Refinado (NL-to-SQL)**:
    - Atualizar os prompts e exemplos em `backend/ia_analista.py` para utilizar as novas tabelas higienizadas, as estatísticas de arbitragem e as métricas Dixon-Coles calibradas.
-4. **Pilar 1.2: Expected Goals (xG) & Mapas de Chute Aprofundados**:
-   - Expandir as métricas de xG por zona do campo nos confrontos e finalizações dos atletas.
+5. **Pilar 5: Scouting & Social Sharing**:
+   - Exportação de dossiê completo de scouting em PDF/PNG de alta resolução para atletas e clubes.
+
 

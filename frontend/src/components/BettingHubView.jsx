@@ -21,9 +21,13 @@ import {
   Zap,
   Info,
   DollarSign,
-  UserCheck
+  UserCheck,
+  Scale,
+  History
 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
+import KellyCalculatorModal from './KellyCalculatorModal';
+
 
 // ============================================================================
 // CONFIGURAÇÕES VISUAIS & IDENTIDADE DOS CLUBES
@@ -111,6 +115,32 @@ export default function BettingHubView({
   const [jogadoresPosicao, setJogadoresPosicao] = useState('todos');
   const [jogadoresOrdenacao, setJogadoresOrdenacao] = useState('prob_gol');
 
+  // Backtesting & Track Record State
+  const [backtestingData, setBacktestingData] = useState(null);
+  const [backtestingLoading, setBacktestingLoading] = useState(false);
+  const [backtestingMercado, setBacktestingMercado] = useState('todos');
+  const [backtestingTemporada, setBacktestingTemporada] = useState('recentes');
+
+  // Modal Calculadora de Kelly
+  const [kellyModalOpen, setKellyModalOpen] = useState(false);
+  const [kellySelectedData, setKellySelectedData] = useState({
+    odd: 2.00,
+    prob: 55.0,
+    market: 'Aposta de Valor (+EV)',
+    match: ''
+  });
+
+  const abrirCalculadoraKelly = (odd = 2.00, prob = 55.0, market = 'Aposta +EV', match = '') => {
+    setKellySelectedData({
+      odd: Number(odd) || 2.00,
+      prob: Number(prob) || 55.0,
+      market,
+      match
+    });
+    setKellyModalOpen(true);
+  };
+
+
   // Carregar dados do Hub
   const carregarHub = async () => {
     setLoading(true);
@@ -168,6 +198,33 @@ export default function BettingHubView({
       carregarJogadores();
     }
   }, [mercadoFiltro, jogadoresPosicao, jogadoresOrdenacao]);
+
+  // Carregar Backtesting Histórico
+  const carregarBacktesting = async () => {
+    setBacktestingLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('temporada', backtestingTemporada);
+      if (backtestingMercado !== 'todos') params.append('mercado', backtestingMercado);
+      params.append('limit', '80');
+      const res = await apiFetch(`/api/apostas/backtesting?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBacktestingData(data);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar backtesting:', err);
+    } finally {
+      setBacktestingLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mercadoFiltro === 'backtesting') {
+      carregarBacktesting();
+    }
+  }, [mercadoFiltro, backtestingTemporada, backtestingMercado]);
+
 
   // Carregar Raio-X Detalhado da Partida
   const abrirRaioX = async (idPartida) => {
@@ -302,10 +359,35 @@ export default function BettingHubView({
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button
-              onClick={() => { carregarHub(); if (mercadoFiltro === 'jogadores') carregarJogadores(); }}
-              className="btn-secondary"
+              onClick={() => abrirCalculadoraKelly(2.10, 52.0, 'Simulação de Gestão de Banca', 'Calculadora Livre')}
+              className="touch-tactile"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                borderRadius: 'var(--radius-control)',
+                backgroundColor: 'var(--accent-soft)',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+                cursor: 'pointer'
+              }}
+            >
+              <Scale size={15} />
+              <span>Calculadora de Stake (Kelly)</span>
+            </button>
+
+            <button
+              onClick={() => {
+                carregarHub();
+                if (mercadoFiltro === 'jogadores') carregarJogadores();
+                if (mercadoFiltro === 'backtesting') carregarBacktesting();
+              }}
+              className="btn-secondary touch-tactile"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -316,10 +398,11 @@ export default function BettingHubView({
                 cursor: 'pointer'
               }}
             >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-              <span>Atualizar Odds</span>
+              <RefreshCw size={15} className={loading || backtestingLoading ? 'animate-spin' : ''} />
+              <span>Atualizar Dados</span>
             </button>
           </div>
+
         </div>
 
         {/* METRICS STRIP / INDICADORES GLOBAIS */}
@@ -640,7 +723,8 @@ export default function BettingHubView({
             { id: 'ev_plus', label: 'Apostas de Valor (+EV)', icon: Flame, badge: hubData?.total_com_ev },
             { id: 'over_2_5', label: 'Gols (Over/Under 2.5)', icon: Target },
             { id: 'btts', label: 'Ambas Marcam (BTTS)', icon: Percent },
-            { id: 'jogadores', label: 'Jogadores & Anytime Scorer', icon: UserCheck }
+            { id: 'jogadores', label: 'Jogadores & Anytime Scorer', icon: UserCheck },
+            { id: 'backtesting', label: 'Track Record & Backtesting', icon: History, badge: 'Green/Red' }
           ].map((m) => {
             const Icon = m.icon;
             const active = mercadoFiltro === m.id;
@@ -648,6 +732,7 @@ export default function BettingHubView({
               <button
                 key={m.id}
                 onClick={() => setMercadoFiltro(m.id)}
+                className="touch-tactile"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -665,7 +750,7 @@ export default function BettingHubView({
               >
                 {Icon && <Icon size={14} />}
                 <span>{m.label}</span>
-                {m.badge !== undefined && m.badge > 0 && (
+                {m.badge !== undefined && (
                   <span
                     style={{
                       backgroundColor: active ? 'var(--accent-foreground)' : 'var(--positive-bg)',
@@ -684,8 +769,9 @@ export default function BettingHubView({
           })}
         </div>
 
-        {/* BUSCA E FILTROS COMPLEMENTARES (QUANDO NÃO EM JOGADORES) */}
-        {mercadoFiltro !== 'jogadores' && (
+        {/* BUSCA E FILTROS COMPLEMENTARES (QUANDO NÃO EM JOGADORES OU BACKTESTING) */}
+        {mercadoFiltro !== 'jogadores' && mercadoFiltro !== 'backtesting' && (
+
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
             <div style={{ position: 'relative', minWidth: '220px' }}>
               <Search
@@ -981,8 +1067,410 @@ export default function BettingHubView({
             </table>
           </div>
         </section>
+      ) : mercadoFiltro === 'backtesting' ? (
+        /* CASO 2: TRACK RECORD & BACKTESTING HISTÓRICO */
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* PAINEL DE CONTROLE DO BACKTESTING */}
+          <div
+            style={{
+              backgroundColor: 'var(--surface-panel)',
+              borderRadius: 'var(--radius-panel)',
+              border: '1px solid var(--border-subtle)',
+              padding: '20px 24px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '16px',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    backgroundColor: 'var(--positive-bg)',
+                    color: 'var(--positive)',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--radius-control)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase'
+                  }}
+                >
+                  Auditoria Matemática Ativa
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Amostra empírica de partidas finalizadas com odds de fechamento
+                </span>
+              </div>
+              <h2
+                className="font-editorial"
+                style={{
+                  fontSize: '1.45rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  margin: 0
+                }}
+              >
+                Track Record & Validação Quantitativa
+              </h2>
+            </div>
+
+            {/* SELETORES DE ESCOPO DO BACKTESTING */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <select
+                value={backtestingTemporada}
+                onChange={(e) => setBacktestingTemporada(e.target.value)}
+                style={{
+                  padding: '7px 12px',
+                  fontSize: '0.82rem',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-control)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="recentes">Recentes (2025–2026)</option>
+                <option value="2026">Temporada 2026</option>
+                <option value="2025">Temporada 2025</option>
+                <option value="2024">Temporada 2024</option>
+                <option value="todas">Todo o Acervo Histórico</option>
+              </select>
+
+              <select
+                value={backtestingMercado}
+                onChange={(e) => setBacktestingMercado(e.target.value)}
+                style={{
+                  padding: '7px 12px',
+                  fontSize: '0.82rem',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-control)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="todos">Todos os Mercados</option>
+                <option value="ev_plus">Apostas de Valor (+EV)</option>
+                <option value="over_1_5">Over 1.5 Gols</option>
+                <option value="over_2_5">Gols (Over 2.5)</option>
+                <option value="btts">Ambas Marcam (BTTS)</option>
+                <option value="favorito_1x2">Favoritos 1X2</option>
+              </select>
+            </div>
+          </div>
+
+          {backtestingLoading ? (
+            <div
+              style={{
+                backgroundColor: 'var(--surface-panel)',
+                borderRadius: 'var(--radius-panel)',
+                border: '1px solid var(--border-subtle)',
+                padding: '60px 20px',
+                textAlign: 'center',
+                color: 'var(--text-muted)'
+              }}
+            >
+              <RefreshCw size={32} className="animate-spin" style={{ margin: '0 auto 14px', color: 'var(--accent)' }} />
+              <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Auditando prognósticos históricos contra placares reais...
+              </div>
+            </div>
+          ) : backtestingData ? (
+            <>
+              {/* METRICS STRIP / 4 CARDS DE INDICADORES */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '14px'
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: 'var(--surface-panel)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    padding: '16px 18px'
+                  }}
+                >
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Jogos Analisados
+                  </span>
+                  <div className="font-mono tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
+                    {backtestingData.total_partidas_analisadas}
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    {backtestingData.total_apostas_avaliadas} prognósticos testados
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--surface-panel)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    padding: '16px 18px'
+                  }}
+                >
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Taxa de Acerto Geral
+                  </span>
+                  <div className="font-mono tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--positive)', marginTop: '4px' }}>
+                    {backtestingData.taxa_acerto_geral}%
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Prognósticos com status GREEN
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--surface-panel)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    padding: '16px 18px'
+                  }}
+                >
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    Lucro Acumulado
+                  </span>
+                  <div
+                    className="font-mono tabular-nums"
+                    style={{
+                      fontSize: '1.6rem',
+                      fontWeight: 800,
+                      color: backtestingData.lucro_total_unidades >= 0 ? 'var(--positive)' : 'var(--negative)',
+                      marginTop: '4px'
+                    }}
+                  >
+                    {backtestingData.lucro_total_unidades >= 0 ? '+' : ''}{backtestingData.lucro_total_unidades} u
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Unidades de 1u fixa por entrada
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: 'var(--surface-panel)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)',
+                    padding: '16px 18px'
+                  }}
+                >
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                    ROI Médio
+                  </span>
+                  <div
+                    className="font-mono tabular-nums"
+                    style={{
+                      fontSize: '1.6rem',
+                      fontWeight: 800,
+                      color: backtestingData.roi_geral_pct >= 0 ? 'var(--positive)' : 'var(--negative)',
+                      marginTop: '4px'
+                    }}
+                  >
+                    {backtestingData.roi_geral_pct >= 0 ? '+' : ''}{backtestingData.roi_geral_pct}%
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Retorno sobre volume apostado
+                  </span>
+                </div>
+              </div>
+
+              {/* CARDS COMPARATIVOS POR MERCADO */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '12px'
+                }}
+              >
+                {Object.entries(backtestingData.metricas_mercados || {}).map(([key, m]) => (
+                  <div
+                    key={key}
+                    style={{
+                      backgroundColor: 'var(--surface-panel)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-control)',
+                      padding: '14px 16px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>{m.nome}</strong>
+                      <span className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {m.apostas} entradas
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>Acurácia:</span>
+                      <strong className="font-mono" style={{ fontSize: '1.05rem', color: 'var(--positive)' }}>
+                        {m.taxa_acerto_pct}% ({m.greens}G / {m.reds}R)
+                      </strong>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>Lucro / ROI:</span>
+                      <strong
+                        className="font-mono"
+                        style={{
+                          fontSize: '0.88rem',
+                          color: m.lucro_unidades >= 0 ? 'var(--positive)' : 'var(--negative)'
+                        }}
+                      >
+                        {m.lucro_unidades >= 0 ? '+' : ''}{m.lucro_unidades}u ({m.roi_pct >= 0 ? '+' : ''}{m.roi_pct}%)
+                      </strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* LISTAGEM DETALHADA DE JOGOS AUDITADOS */}
+              <div
+                style={{
+                  backgroundColor: 'var(--surface-panel)',
+                  borderRadius: 'var(--radius-panel)',
+                  border: '1px solid var(--border-subtle)',
+                  padding: '20px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3
+                    className="font-editorial"
+                    style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}
+                  >
+                    Histórico Transparente de Partidas Auditadas
+                  </h3>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    Exibindo as últimas {backtestingData.historico_partidas?.length || 0} partidas com prognósticos
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {backtestingData.historico_partidas?.map((partida) => (
+                    <div
+                      key={partida.id_partida}
+                      style={{
+                        padding: '12px 14px',
+                        backgroundColor: 'var(--surface-raised)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-control)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}
+                    >
+                      {/* CABEÇALHO DO JOGO */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="font-mono" style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                            {partida.data}
+                          </span>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            &bull; {partida.campeonato}
+                          </span>
+                        </div>
+
+                        {/* PLACAR REAL */}
+                        <div
+                          className="font-mono"
+                          style={{
+                            backgroundColor: 'var(--surface-page)',
+                            padding: '3px 10px',
+                            borderRadius: '4px',
+                            fontWeight: 800,
+                            fontSize: '0.84rem',
+                            color: 'var(--text-primary)'
+                          }}
+                        >
+                          Placar Final: {partida.placar}
+                        </div>
+                      </div>
+
+                      {/* CONFRONTO */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <ClubBadge nome={partida.mandante} size={20} />
+                        <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{partida.mandante}</strong>
+                        <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>x</span>
+                        <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{partida.visitante}</strong>
+                        <ClubBadge nome={partida.visitante} size={20} />
+                      </div>
+
+                      {/* LISTA DE PROGNÓSTICOS DA PARTIDA */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+                        {partida.prognosticos?.map((prog, idx) => {
+                          const isGreen = prog.resultado === 'GREEN';
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '4px 10px',
+                                borderRadius: '4px',
+                                backgroundColor: isGreen ? 'var(--positive-bg)' : 'var(--negative-bg, rgba(198, 40, 40, 0.12))',
+                                border: isGreen ? '1px solid var(--positive)' : '1px solid var(--negative, #C62828)',
+                                fontSize: '0.76rem'
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color: isGreen ? 'var(--positive)' : 'var(--negative, #C62828)'
+                                }}
+                              >
+                                {isGreen ? '✅ GREEN' : '❌ RED'}
+                              </span>
+                              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                                {prog.mercado}
+                              </span>
+                              <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
+                                @{formatOdd(prog.odd)} ({prog.prob_modelo}%)
+                              </span>
+                              <span
+                                className="font-mono"
+                                style={{
+                                  fontWeight: 700,
+                                  color: isGreen ? 'var(--positive)' : 'var(--negative, #C62828)'
+                                }}
+                              >
+                                {prog.lucro_unidades >= 0 ? '+' : ''}{prog.lucro_unidades}u
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => abrirCalculadoraKelly(prog.odd, prog.prob_modelo, prog.mercado, `${partida.mandante} x ${partida.visitante}`)}
+                                title="Calcular Stake no Critério de Kelly"
+                                className="touch-tactile"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--accent)',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                              >
+                                <Scale size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : null}
+        </section>
       ) : (
-        /* CASO 2: LISTA DE PARTIDAS COM ODDS & MERCADOS */
+        /* CASO 3: LISTA DE PARTIDAS COM ODDS & MERCADOS */
         <section>
           {loading ? (
             <div
@@ -1327,33 +1815,62 @@ export default function BettingHubView({
                       )}
                     </div>
 
-                    {/* BOTÃO RAIO-X COMPLETO */}
-                    <button
-                      onClick={() => abrirRaioX(p.id_partida)}
-                      style={{
-                        width: '100%',
-                        padding: '9px 14px',
-                        backgroundColor: 'var(--surface-raised)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-control)',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        transition: 'background-color 140ms ease'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-soft)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-raised)'}
-                    >
-                      <BarChart3 size={15} />
-                      <span>Raio-X Aprofundado &bull; Cartões & Minutagem</span>
-                      <ChevronRight size={15} />
-                    </button>
+                    {/* BOTÕES DE AÇÃO DO CARD */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                      {p.has_ev && melhor && (
+                        <button
+                          type="button"
+                          onClick={() => abrirCalculadoraKelly(melhor.odd, melhor.prob, melhor.mercado, `${p.mandante} x ${p.visitante}`)}
+                          className="touch-tactile"
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            backgroundColor: 'var(--positive-bg)',
+                            color: 'var(--positive)',
+                            border: '1px solid var(--positive)',
+                            borderRadius: 'var(--radius-control)',
+                            fontSize: '0.80rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <Scale size={14} />
+                          <span>Calcular Stake de Kelly ({melhor.mercado})</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => abrirRaioX(p.id_partida)}
+                        style={{
+                          width: '100%',
+                          padding: '9px 14px',
+                          backgroundColor: 'var(--surface-raised)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-control)',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'background-color 140ms ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--accent-soft)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-raised)'}
+                      >
+                        <BarChart3 size={15} />
+                        <span>Raio-X Aprofundado &bull; Cartões & Minutagem</span>
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
                   </div>
+
                 );
               })}
             </div>
@@ -1707,6 +2224,18 @@ export default function BettingHubView({
           </div>
         </div>
       )}
+
+
+      {/* MODAL CALCULADORA DE KELLY & GESTÃO DE BANCA */}
+      <KellyCalculatorModal
+        isOpen={kellyModalOpen}
+        onClose={() => setKellyModalOpen(false)}
+        initialOdd={kellySelectedData.odd}
+        initialProb={kellySelectedData.prob}
+        initialMarket={kellySelectedData.market}
+        initialMatch={kellySelectedData.match}
+      />
     </div>
   );
 }
+
