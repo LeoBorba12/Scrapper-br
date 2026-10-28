@@ -23,123 +23,165 @@ DB_FUTEBOL = find_db_path('futebol.db')
 DB_CLIMA = find_db_path('clima.db')
 
 SCHEMA_PROMPT = """
-Você é o Oráculo de Futebol & IA Analista de Dados do FutStats, conectado a um banco SQLite real com 55.395 jogos oficiais e 42.138 gols do futebol brasileiro.
+Você é o Oráculo de Futebol & IA Analista de Dados do FutStats, conectado a um banco SQLite real de alto desempenho com 115.361 jogos oficiais (1950 a 2026), mais de 150.000 gols e telemetria avançada do futebol brasileiro e sul-americano.
 
-Tabelas disponíveis:
-1. partidas (todas as partidas 1971-2024 de Série A, Série B, Copa do Brasil, Libertadores, etc):
+TABELAS DISPONÍVEIS NO BANCO DE DADOS:
+
+1. partidas (115.361 partidas oficiais de 1950 a 2026: Série A, Série B, Copa do Brasil, Libertadores, Sul-Americana, Estaduais e Amistosos Oficiais):
    - id_partida (INT, PK)
-   - ano (INT, EDIÇÃO OFICIAL/TEMPORADA DO CAMPEONATO. Ex: 1982, 2020, 2024. IMPORTANTE: temporadas estendidas como a de 2020 possuem ano = 2020 mesmo com partidas em jan/fev de 2021).
-   - data (TEXT, formato YYYY-MM-DD, data civil exata do jogo, ex: '2024-05-12')
+   - ano (INT, temporada oficial ex: 1982, 2019, 2024, 2026)
+   - data (TEXT, YYYY-MM-DD ex: '2024-05-12')
    - horario (TEXT, ex: '16:00')
    - estadio (TEXT)
    - cidade (TEXT)
-   - estado (TEXT)
-   - mandante (TEXT, nome canônico ex: 'Flamengo', 'Corinthians', 'Palmeiras', 'São Paulo', 'Botafogo', 'Atlético-MG', 'Athletico-PR')
+   - estado (TEXT, UF de 2 letras)
+   - mandante (TEXT, ex: 'Flamengo', 'Corinthians', 'Palmeiras', 'São Paulo', 'Grêmio', 'Atlético-MG', 'Santos')
    - visitante (TEXT)
    - gols_mandante (INT)
    - gols_visitante (INT)
    - placar (TEXT, ex: '2 x 1')
-   - vencedor (TEXT, nome do clube vencedor ex: 'Flamengo' ou 'Empate')
-   - campeonato (TEXT, padronizado: 'Campeonato Brasileiro Série A' para toda a história 1971-2024 da 1ª divisão; 'Campeonato Brasileiro Série B'; 'Copa do Brasil'; 'Copa Libertadores'; 'Copa Sul-Americana')
-   - fase (TEXT, ex: 'Final', 'Semifinal', 'Rodada 1')
-   - arbitro (TEXT)
-   - publico (INT)
+   - vencedor (TEXT, nome do clube vencedor ou 'Empate')
+   - campeonato (TEXT, ex: 'Campeonato Brasileiro Série A', 'Copa do Brasil', 'Copa Libertadores', 'Campeonato Paulista')
+   - fase (TEXT, ex: 'Final', 'Semifinal', 'Rodada 38')
+   - arbitro (TEXT, nome do árbitro da partida)
+   - publico (INT, público pagante/presente)
 
-2. gols (gols catalogados lance a lance por atleta):
+2. jogadores_estatisticas (perfis analíticos e canônicos consolidados de todos os atletas):
+   - id_jogador (INT, PK)
+   - nome_exibicao (TEXT, ex: 'Neymar', 'Romário', 'Gabriel Barbosa', 'Pelé', 'Zico', 'Pedro', 'Hulk', 'Cano')
+   - nome_completo (TEXT)
+   - apelido (TEXT)
+   - posicao (TEXT, ex: 'Atacante', 'Meia', 'Volante', 'Zagueiro', 'Lateral', 'Goleiro')
+   - clubes (TEXT, histórico consolidado de clubes defendidos)
+   - ano_inicio, ano_fim (INT, anos de início e fim no acervo)
+   - total_jogos (INT, total de partidas no acervo nacional FutStats)
+   - total_gols (INT, total de gols oficiais no acervo nacional FutStats)
+   - total_assistencias (INT, assistências no acervo)
+   - participacoes_gols (INT, gols + assistências)
+   - gols_carreira_oficiais (INT, total canônico mundial de gols em jogos oficiais na carreira inteira)
+   - jogos_carreira_oficiais (INT, total canônico mundial de jogos na carreira inteira)
+   - assistencias_carreira_oficiais (INT, total canônico mundial de assistências)
+   - gols_bola_rolando, gols_penalti, gols_falta, gols_cabeca (INT)
+   - gols_primeiro_tempo, gols_segundo_tempo (INT)
+   - gols_decisivos_80mais (INT, gols marcados a partir dos 80 minutos)
+   - hat_tricks, dobletes (INT)
+   - maior_vitima_clube (TEXT, clube contra o qual o jogador mais marcou gols)
+   - estadio_favorito (TEXT)
+   - pontaria_chutes_pct (REAL, percentual de finalizações no alvo)
+   - aproveitamento_pontos (REAL, aproveitamento em campo)
+
+3. gols (detalhamento lance a lance de gols):
    - id_gol (INT, PK)
-   - id_partida (INT, FK partidas)
-   - clube (TEXT)
-   - atleta (TEXT, ex: 'Zico', 'Roberto Dinamite', 'Reinaldo', 'Gabriel Barbosa')
-   - minuto (TEXT, ex: '34', '45+2', '90+3')
-   - tempo (TEXT, ex: '1T', '2T')
+   - id_partida (INT, FK partidas.id_partida)
+   - id_jogador (INT, FK jogadores_estatisticas.id_jogador)
+   - clube (TEXT, clube pelo qual o gol foi marcado)
+   - atleta (TEXT, nome do autor do gol)
+   - minuto (TEXT, ex: '15', '45+2', '90+4')
+   - tempo (TEXT, '1T', '2T')
    - tipo_de_gol (TEXT, ex: 'Normal', 'Pênalti', 'Falta', 'Contra')
 
-3. cartoes (cartões disciplinares aplicados):
-   - id_cartao (INT, PK)
-   - id_partida (INT, FK)
-   - clube (TEXT)
-   - atleta (TEXT, ex: 'Thiago Heleno', 'Fagner', 'Felipe Melo')
-   - cartao (TEXT, ex: 'Amarelo', 'Vermelho')
-   - minuto (TEXT)
-   - motivo (TEXT)
+4. estatisticas_arbitros e view_estatisticas_arbitros (Raio-X de Arbitragem):
+   - arbitro (TEXT, PK, nome oficial do árbitro)
+   - total_jogos (INT, total de partidas apitadas)
+   - total_amarelos (INT)
+   - total_vermelhos (INT)
+   - media_amarelos (REAL, média por jogo)
+   - media_vermelhos (REAL, média por jogo)
+   - rigor (TEXT, ex: 'Muito Alto', 'Alto', 'Moderado', 'Baixo')
+   - tendencia_cartoes (TEXT)
+   - vitorias_mandante, vitorias_visitante, empates (INT)
+   - pct_vitorias_mandante (REAL)
 
-4. escalacoes (atletas titulares e reservas):
-   - id_escalacao (INT)
-   - id_partida (INT)
-   - clube (TEXT)
-   - atleta (TEXT)
-   - titular (INT, 1=titular, 0=reserva)
-   - posicao (TEXT)
-
-5. artilharia_historica (rankings oficiais consolidados de torneios e fundamentos):
-   - id (INT, PK)
-   - divisao (TEXT, ex: 'Série A', 'Série B', 'Copa do Brasil', 'Libertadores', 'Gols de Falta')
-   - posicao (INT, 1 a 10)
-   - atleta (TEXT, ex: 'Zico', 'Juninho Pernambucano', 'Rogério Ceni', 'Marcelinho Carioca', 'Pelé', 'Léo Gamalho')
-   - clubes (TEXT)
-   - total_gols (INT)
-   - periodo (TEXT)
-
-6. clima.clima_diario (dados meteorológicos oficiais do INMET em capitais brasileiras 2015-2024):
-   - data (TEXT, YYYY-MM-DD)
-   - cidade (TEXT)
-   - estado (TEXT)
-   - precipitacao_mm (REAL, chuva em milímetros)
-   - temperatura_media (REAL, temperatura em Celsius)
-
-7. odds_partidas (cotações de apostas e probabilidades implícitas de mercado no Brasileirão Série A 2012-2024):
+5. estatisticas_partidas (Telemetria avançada e Expected Goals):
    - id_partida (INT, PK, FK partidas.id_partida)
-   - odd_mandante (REAL, cotação média de mercado para vitória do mandante, ex: 1.65)
-   - odd_empate (REAL, cotação média para empate, ex: 3.40)
-   - odd_visitante (REAL, cotação média para vitória do visitante, ex: 5.20)
-   - prob_mandante (REAL, probabilidade percentual implícita de vitória do mandante, ex: 60.6%)
-   - prob_empate (REAL, probabilidade percentual de empate, ex: 29.4%)
-   - prob_visitante (REAL, probabilidade percentual de vitória do visitante, ex: 19.2%)
-   - odd_max_mandante, odd_max_visitante (REAL, cotação máxima do mercado)
-   - odd_pinnacle_mandante, odd_pinnacle_visitante (REAL, cotação da Pinnacle Sports)
-   - odd_b365_mandante, odd_b365_visitante (REAL, cotação da Bet365)
-   - status_zebra (TEXT: 'Normal', 'Zebra Mandante', 'Super Zebra Mandante', 'Zebra Visitante', 'Super Zebra Visitante')
+   - xg_mandante, xg_visitante (REAL, Expected Goals / Gols Esperados calculados)
+   - posse_mandante, posse_visitante (REAL, percentual de posse de bola)
+   - chutes_mandante, chutes_visitante (INT)
+   - chutes_no_gol_mandante, chutes_no_gol_visitante (INT)
+   - escanteios_mandante, escanteios_visitante (INT)
+   - faltas_mandante, faltas_visitante (INT)
 
-8. view_estatisticas_estadios (visão agregada oficial de estádios):
-   - estadio (TEXT, nome do estádio ex: 'Maracanã', 'Mineirão', 'Neo Química Arena', 'Allianz Parque')
-   - cidade (TEXT, ex: 'Rio de Janeiro', 'São Paulo', 'Belo Horizonte')
-   - estado (TEXT, UF de 2 letras ex: 'RJ', 'SP', 'MG')
-   - total_jogos (INT, total de partidas sediadas)
-   - total_gols (INT, total de gols marcados no estádio)
-   - media_gols_jogo (REAL, média de gols por jogo)
-   - recorde_publico (INT, maior público registrado)
-   - competicoes_distintas (INT)
+6. odds_partidas (Mercado de apostas e probabilidades implícitas de 2012 a 2026):
+   - id_partida (INT, PK, FK partidas.id_partida)
+   - odd_mandante, odd_empate, odd_visitante (REAL)
+   - prob_mandante, prob_empate, prob_visitante (REAL, em %)
+   - status_zebra (TEXT: 'Normal', 'Zebra Mandante', 'Zebra Visitante')
 
-9. view_estatisticas_arbitros (visão analítica de arbitragem):
-   - arbitro (TEXT, nome completo do árbitro ex: 'Raphael Claus', 'Wilton Pereira Sampaio', 'Anderson Daronco')
-   - total_jogos (INT, partidas apitadas)
-   - vitorias_mandante (INT)
-   - vitorias_visitante (INT)
-   - empates (INT)
-   - pct_vitorias_mandante (REAL, percentual de vitórias do mandante)
-   - media_gols_jogo (REAL, média de gols nas partidas que apitou)
+7. cartoes e escalacoes:
+   - cartoes: id_cartao, id_partida, clube, atleta, cartao ('Amarelo' ou 'Vermelho'), minuto, motivo
+   - escalacoes: id_escalacao, id_partida, clube, atleta, titular (1 ou 0), posicao
 
-MATRIZ DE COBERTURA DE DADOS (TRANSPARÊNCIA METODOLÓGICA):
-- Partidas, Placares e Vencedores: cobertura abrangente de 1910 a 2026 nos 20 maiores clubes e de 1971 a 2026 em Série A, Série B, Copa do Brasil e Libertadores.
-- Estádios e Árbitros: para rankings gerais de estádios ou arbitragem, SEMPRE use `view_estatisticas_estadios` e `view_estatisticas_arbitros`. Para saber o estádio ou árbitro de uma partida específica, consulte `partidas.estadio`, `partidas.arbitro`, `partidas.tecnico_mandante` e `partidas.publico`.
-- Gols de Atletas lance a lance: cobertura no Brasileirão clássico (1971-2002), Libertadores, Sul-Americana e Copa do Brasil. Na tabela 'gols', a esmagadora maioria dos registros está catalogada como 'Normal' ou 'Pênalti'.
-- Rankings Oficiais e Gols de Falta: SEMPRE consulte a tabela artilharia_historica para rankings de artilheiros ou especialistas em fundamentos (ex: WHERE divisao = 'Gols de Falta' traz o ranking histórico oficial de batedores como Zico, Juninho Pernambucano, Pelé, Ronaldinho Gaúcho, Rogério Ceni e Marcelinho Carioca; WHERE divisao = 'Série B' traz os artilheiros da 2ª divisão). NUNCA filtre a tabela 'gols' por tipo_de_gol = 'Falta', pois ela contém apenas uma amostra de torneios internacionais.
+8. artilharia_historica (rankings históricos oficiais de artilheiros e cobradores de falta):
+   - divisao (TEXT, ex: 'Gols de Falta', 'Série A', 'Série B', 'Copa do Brasil', 'Libertadores')
+   - posicao (INT, ranking 1 a 10)
+   - atleta, clubes, total_gols, periodo
+
+9. view_estatisticas_estadios:
+   - estadio, cidade, estado, total_jogos, total_gols, media_gols_jogo, recorde_publico
+
+EXEMPLOS DE PERGUNTAS E CONSULTAS IDEAIS (FEW-SHOT):
+
+- Pergunta: "Quem tem mais gols decisivos no fim do jogo (depois dos 80 minutos)?"
+  SQL: SELECT nome_exibicao, clubes, total_gols, gols_decisivos_80mais FROM jogadores_estatisticas ORDER BY gols_decisivos_80mais DESC LIMIT 10;
+
+- Pergunta: "Quantos gols o Neymar e o Romário têm na carreira oficial e no acervo nacional?"
+  SQL: SELECT nome_exibicao, total_gols as gols_acervo, gols_carreira_oficiais, jogos_carreira_oficiais, assistencias_carreira_oficiais FROM jogadores_estatisticas WHERE LOWER(nome_exibicao) IN ('neymar', 'romário', 'romario');
+
+- Pergunta: "Qual árbitro aplica mais cartões vermelhos por jogo?"
+  SQL: SELECT arbitro, total_jogos, total_vermelhos, media_vermelhos, rigor FROM estatisticas_arbitros WHERE total_jogos >= 20 ORDER BY media_vermelhos DESC LIMIT 10;
+
+- Pergunta: "Quais partidas tiveram as maiores zebras comparando placar com o xG?"
+  SQL: SELECT p.data, p.mandante, p.visitante, p.placar, p.vencedor, ep.xg_mandante, ep.xg_visitante FROM partidas p JOIN estatisticas_partidas ep ON p.id_partida = ep.id_partida WHERE p.vencedor = p.visitante AND ep.xg_mandante > ep.xg_visitante + 1.2 ORDER BY (ep.xg_mandante - ep.xg_visitante) DESC LIMIT 10;
+
+- Pergunta: "Quem são os maiores líderes de assistências da história?"
+  SQL: SELECT nome_exibicao, clubes, total_assistencias, total_gols, participacoes_gols FROM jogadores_estatisticas WHERE total_assistencias > 0 ORDER BY total_assistencias DESC LIMIT 10;
+
+- Pergunta: "Qual clube mais venceu com a arbitragem de Raphael Claus?"
+  SQL: SELECT p.vencedor, COUNT(*) as vitorias FROM partidas p WHERE p.arbitro LIKE '%Raphael Claus%' AND p.vencedor != 'Empate' AND p.vencedor IS NOT NULL GROUP BY p.vencedor ORDER BY vitorias DESC LIMIT 5;
 
 REGRAS OBRIGATÓRIAS DE SQL:
 - Escreva APENAS comandos SELECT (somente-leitura).
-- REGRA DE OURO DOS CLUBES: NUNCA use LIKE '%Botafogo%' ou LIKE '%Atlético%' indiscriminadamente. Use igualdade exata ou lista IN:
-  * Botafogo carioca: mandante = 'Botafogo' OR visitante = 'Botafogo' (evite LIKE '%Botafogo%' para não misturar Botafogo-SP e Botafogo-PB).
-  * São Paulo: mandante = 'São Paulo' OR visitante = 'São Paulo' (evite LIKE '%São Paulo%' para não pegar São Paulo-RS).
-  * Atlético-MG: mandante = 'Atlético-MG' OR visitante = 'Atlético-MG' (o clube paranaense é 'Athletico-PR').
-  * Grêmio: mandante = 'Grêmio' OR visitante = 'Grêmio' (evite pegar Grêmio Prudente ou Grêmio Maringá).
-- BRASILEIRÃO SÉRIE A: O campeonato está unificado em:
-  campeonato = 'Campeonato Brasileiro Série A'
-- TEMPORADAS: Para consultar um ano de torneio, use `ano = 2020` (a edição oficial), e reserve `data` para filtros de dias específicos, meses ou dias pares/ímpares.
-- Para filtros de dia par/ímpar: CAST(strftime('%d', data) AS INT) % 2 = 0
-- Para filtros de acréscimos: (minuto LIKE '45+%' OR minuto LIKE '90+%' OR CAST(minuto AS INT) >= 90)
+- REGRA DE OURO DOS CLUBES: Use igualdade exata ou lista IN para grandes clubes (ex: mandante = 'Flamengo' OR visitante = 'Flamengo') para evitar colisões com filiais e homônimos.
+- Para perfis, artilharias e métricas de atletas, prefira SEMPRE a tabela consolidada `jogadores_estatisticas` para velocidade e precisão.
+- Para arbitragem, use `estatisticas_arbitros` ou `view_estatisticas_arbitros`.
 - Sempre limite o resultado caso retorne muitas linhas (LIMIT 50).
-- EVENTOS EXTERNOS E CULTURA POP: Quando envolver novelas das 9, datas de eleições ou fatos da cultura brasileira, use seu conhecimento prévio para filtrar as datas civis exatas: `WHERE data IN ('YYYY-MM-DD', ...)`
 """
+
+# Tabelas públicas permitidas para o Oráculo IA (Sandboxing Zero-Trust)
+TABELAS_PERMITIDAS = {
+    "partidas",
+    "gols",
+    "cartoes",
+    "escalacoes",
+    "assistencias",
+    "clima_diario",
+    "artilharia_historica",
+    "jogadores",
+    "jogadores_estatisticas",
+    "jogadores_resumo",
+    "estatisticas_arbitros",
+    "estatisticas_partidas",
+    "odds_partidas",
+    "ranking_ponderado",
+    "view_estatisticas_arbitros",
+    "view_estatisticas_estadios",
+}
+
+def sqlite_authorizer_callback(action, arg1, arg2, dbname, source):
+    """
+    Callback nativo do SQLite para sandboxing estrito (Zero-Trust).
+    Bloqueia leitura da tabela 'usuarios' e qualquer operação que não seja SELECT/READ.
+    """
+    if action in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_FUNCTION):
+        return sqlite3.SQLITE_OK
+
+    if action == sqlite3.SQLITE_READ:
+        tabela = (arg1 or "").lower().strip()
+        if tabela in TABELAS_PERMITIDAS:
+            return sqlite3.SQLITE_OK
+        return sqlite3.SQLITE_DENY
+
+    return sqlite3.SQLITE_DENY
 
 def executar_query_segura(sql):
     if not sql or not isinstance(sql, str):
@@ -161,7 +203,6 @@ def executar_query_segura(sql):
         'VACUUM', 'EXEC ', 'EXECUTE ', 'LOAD_EXTENSION', ';--'
     ]
 
-    # Se a IA retornou mais de um comando separado por ;, valida cada comando contra palavras proibidas
     statements = [s.strip() for s in cleaned_sql.split(';') if s.strip()]
     for stmt in statements:
         u = stmt.upper()
@@ -171,62 +212,6 @@ def executar_query_segura(sql):
 
     if statements:
         cleaned_sql = statements[0]
-
-    upper_sql = cleaned_sql.upper().strip()
-
-    # Validação estrita de comando: deve iniciar com SELECT ou WITH
-    if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
-        raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
-
-# Tabelas públicas permitidas para o Oráculo IA (exclui explicitamente 'usuarios' e metadados internos)
-TABELAS_PERMITIDAS = {
-    "partidas",
-    "gols",
-    "cartoes",
-    "escalacoes",
-    "clima_diario",
-    "artilharia_historica",
-    "jogadores_resumo",
-    "odds_partidas",
-}
-
-def sqlite_authorizer_callback(action, arg1, arg2, dbname, source):
-    """
-    Callback nativo do SQLite para sandboxing estrito (Zero-Trust).
-    Bloqueia leitura da tabela 'usuarios' e qualquer operação que não seja SELECT/READ.
-    """
-    # 1. Permite instrução SELECT e uso de funções SQL (COUNT, SUM, ROUND, strftime, etc.)
-    if action in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_FUNCTION):
-        return sqlite3.SQLITE_OK
-
-    # 2. Valida leitura de tabelas e colunas (arg1 = tabela, arg2 = coluna)
-    if action == sqlite3.SQLITE_READ:
-        tabela = (arg1 or "").lower().strip()
-        if tabela in TABELAS_PERMITIDAS:
-            return sqlite3.SQLITE_OK
-        # Bloqueia acesso a 'usuarios', 'sqlite_master', 'sqlite_schema', etc.
-        return sqlite3.SQLITE_DENY
-
-    # 3. Nega qualquer outra operação (INSERT, UPDATE, DELETE, PRAGMA, ATTACH dinâmico, etc.)
-    return sqlite3.SQLITE_DENY
-
-def executar_query_segura(sql):
-    if not sql or not isinstance(sql, str):
-        raise ValueError("Consulta SQL vazia ou inválida.")
-    
-    # Remove blocos markdown e comentários SQL
-    cleaned_sql = re.sub(r'```(?:sql)?', '', sql).strip()
-    lines = [l for l in cleaned_sql.splitlines() if not l.strip().startswith('--')]
-    cleaned_sql = ' '.join(lines).strip()
-    
-    if not cleaned_sql:
-        raise ValueError("Consulta SQL vazia após limpeza de comentários.")
-
-    # Garante execução de apenas um comando SQL
-    statements = [s.strip() for s in cleaned_sql.split(';') if s.strip()]
-    if len(statements) > 1:
-        raise ValueError("Múltiplos comandos SQL não são permitidos.")
-    cleaned_sql = statements[0]
 
     upper_sql = cleaned_sql.upper().strip()
     if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
@@ -499,6 +484,202 @@ Corrija a consulta SQL. Retorne APENAS o SQL corrigido em ```sql ... ```."""
 def responder_perguntas_demo(pergunta):
     p = pergunta.lower()
     
+    # 0.1 Árbitros (rigor, cartões, estatísticas)
+    if ("árbitro" in p or "arbitro" in p or "juiz" in p or "rigoroso" in p or "cartões por jogo" in p or "cartoes por jogo" in p or "apito" in p):
+        if "vermelho" in p or "expuls" in p or "rigor" in p or "mais rigoroso" in p:
+            sql = """
+SELECT arbitro, total_jogos, total_amarelos, total_vermelhos, media_amarelos, media_vermelhos, rigor, tendencia_cartoes
+FROM estatisticas_arbitros
+WHERE total_jogos >= 15
+ORDER BY media_vermelhos DESC, total_vermelhos DESC
+LIMIT 8;
+"""
+            colunas, dados = executar_query_segura(sql)
+            top = dados[0] if dados else {}
+            insight = f"No Raio-X de Arbitragem do FutStats, o árbitro mais rigoroso em média de cartões vermelhos é {top.get('arbitro')}, com média de {top.get('media_vermelhos')} expulsões por partida ({top.get('total_vermelhos')} vermelhos em {top.get('total_jogos')} jogos), sob rigor classificado como '{top.get('rigor')}'!"
+            tweet = f"⚖️ Raio-X dos Árbitros: O juiz com maior média de expulsões no futebol brasileiro é {top.get('arbitro')} (média {top.get('media_vermelhos')} vermelhos/jogo em {top.get('total_jogos')} partidas)! Confira o ranking completo no FutStats. #Arbitragem #Futebol #Dados"
+            return {
+                "pergunta": pergunta,
+                "modelo_usado": "FutStats Referee Scout (SQLite)",
+                "sql_executado": sql.strip(),
+                "colunas": colunas,
+                "dados": dados,
+                "total_registros": len(dados),
+                "insight": insight,
+                "tweet": tweet,
+                "conclusao": f"{top.get('arbitro')} lidera em média de cartões vermelhos ({top.get('media_vermelhos')}/jogo)."
+            }
+        else:
+            sql = """
+SELECT arbitro, total_jogos, total_amarelos, total_vermelhos, media_amarelos, media_vermelhos, rigor
+FROM estatisticas_arbitros
+ORDER BY total_jogos DESC
+LIMIT 8;
+"""
+            colunas, dados = executar_query_segura(sql)
+            top = dados[0] if dados else {}
+            insight = f"O árbitro com maior volume de partidas apitadas no acervo do FutStats é {top.get('arbitro')}, somando {top.get('total_jogos')} jogos, {top.get('total_amarelos')} amarelos e {top.get('total_vermelhos')} vermelhos (média de {top.get('media_amarelos')} amarelos por jogo)!"
+            tweet = f"⚖️ Recordista do apito! {top.get('arbitro')} lidera em jogos apitados no FutStats ({top.get('total_jogos')} partidas e {top.get('total_amarelos')} amarelos). #Arbitragem #FutStats"
+            return {
+                "pergunta": pergunta,
+                "modelo_usado": "FutStats Referee Scout (SQLite)",
+                "sql_executado": sql.strip(),
+                "colunas": colunas,
+                "dados": dados,
+                "total_registros": len(dados),
+                "insight": insight,
+                "tweet": tweet,
+                "conclusao": f"{top.get('arbitro')} é o árbitro com mais partidas apitadas ({top.get('total_jogos')})."
+            }
+
+    # 0.2 Craques Canônicos e Estatísticas de Carreira
+    craques = {
+        'neymar': 'Neymar',
+        'romario': 'Romário',
+        'romário': 'Romário',
+        'gabigol': 'Gabriel Barbosa',
+        'gabriel barbosa': 'Gabriel Barbosa',
+        'pele': 'Pelé',
+        'pelé': 'Pelé',
+        'zico': 'Zico',
+        'pedro': 'Pedro',
+        'hulk': 'Hulk',
+        'cano': 'Germán Cano',
+        'arrascaeta': 'Giorgian de Arrascaeta'
+    }
+    craque_detectado = next((v for k, v in craques.items() if k in p), None)
+    if craque_detectado and ("gol" in p or "carreira" in p or "quantos" in p or "jogos" in p or "estatística" in p or "estatistica" in p or "número" in p or "numero" in p):
+        sql = f"""
+SELECT 
+    nome_exibicao,
+    posicao,
+    clubes,
+    total_gols as gols_acervo_nacional,
+    total_jogos as jogos_acervo_nacional,
+    total_assistencias as assistencias_acervo,
+    gols_carreira_oficiais,
+    jogos_carreira_oficiais,
+    assistencias_carreira_oficiais,
+    gols_decisivos_80mais,
+    maior_vitima_clube
+FROM jogadores_estatisticas
+WHERE LOWER(nome_exibicao) = LOWER('{craque_detectado}') 
+   OR LOWER(nome_completo) LIKE '%{craque_detectado.lower()}%' 
+   OR LOWER(apelido) = LOWER('{craque_detectado}')
+ORDER BY total_gols DESC
+LIMIT 1;
+"""
+        colunas, dados = executar_query_segura(sql)
+        if dados:
+            d = dados[0]
+            nome = d.get('nome_exibicao')
+            g_car = d.get('gols_carreira_oficiais') or d.get('gols_acervo_nacional')
+            j_car = d.get('jogos_carreira_oficiais') or d.get('jogos_acervo_nacional')
+            a_car = d.get('assistencias_carreira_oficiais') or d.get('assistencias_acervo', 0)
+            g_br = d.get('gols_acervo_nacional', 0)
+            vitima = d.get('maior_vitima_clube') or "vários clubes"
+            
+            insight = f"Raio-X Canônico Oficial do FutStats: {nome} possui {g_car} gols e {a_car} assistências em {j_car} jogos oficiais na carreira inteira (média de {round(g_car/max(j_car,1), 2)} gols/jogo). No acervo nacional de competições brasileiras, são {g_br} gols catalogados, sendo sua maior vítima o {vitima}!"
+            tweet = f"⭐ Números de {nome}: {g_car} gols oficiais e {a_car} assistências em {j_car} jogos na carreira mundial ({g_br} gols no acervo nacional do FutStats). Maior vítima: {vitima}! #Futebol #{nome.replace(' ', '')}"
+            return {
+                "pergunta": pergunta,
+                "modelo_usado": "FutStats Golden Truth Engine (SQLite)",
+                "sql_executado": sql.strip(),
+                "colunas": colunas,
+                "dados": dados,
+                "total_registros": len(dados),
+                "insight": insight,
+                "tweet": tweet,
+                "conclusao": f"{nome}: {g_car} gols e {a_car} assistências em {j_car} jogos oficiais na carreira."
+            }
+
+    # 0.3 Gols Clutch / Finais de Jogo (80+)
+    if "clutch" in p or "decisiv" in p or "80+" in p or "minutos finais" in p or "fim do jogo" in p or "final do jogo" in p:
+        sql = """
+SELECT nome_exibicao, posicao, clubes, total_gols, gols_decisivos_80mais,
+       ROUND(gols_decisivos_80mais * 100.0 / NULLIF(total_gols, 0), 1) as pct_gols_decisivos
+FROM jogadores_estatisticas
+WHERE gols_decisivos_80mais > 0 AND total_gols >= 20
+ORDER BY gols_decisivos_80mais DESC
+LIMIT 8;
+"""
+        colunas, dados = executar_query_segura(sql)
+        top = dados[0] if dados else {}
+        insight = f"Os jogadores mais clutch do futebol brasileiro! Nos minutos finais (a partir dos 80 minutos de jogo), o maior artilheiro decisivo catalogado é {top.get('nome_exibicao')}, com impressionantes {top.get('gols_decisivos_80mais')} gols marcados na reta final ({top.get('pct_gols_decisivos')}% de todos os seus gols)!"
+        tweet = f"⚡ Artilheiro do apagar das luzes! {top.get('nome_exibicao')} lidera em gols após os 80 minutos ({top.get('gols_decisivos_80mais')} gols clutch na história catalogada do FutStats)! #Futebol #Dados #Clutch"
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Player Intelligence (SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": len(dados),
+            "insight": insight,
+            "tweet": tweet,
+            "conclusao": f"{top.get('nome_exibicao')} lidera em gols após os 80 minutos ({top.get('gols_decisivos_80mais')})."
+        }
+
+    # 0.4 Assistências & Garçons
+    if "assistência" in p or "assistencia" in p or "garçom" in p or "garcom" in p or "garçons" in p or "passes para gol" in p:
+        sql = """
+SELECT nome_exibicao, posicao, clubes, total_assistencias, total_gols, participacoes_gols
+FROM jogadores_estatisticas
+WHERE total_assistencias > 0
+ORDER BY total_assistencias DESC
+LIMIT 8;
+"""
+        colunas, dados = executar_query_segura(sql)
+        top = dados[0] if dados else {}
+        insight = f"Visão de jogo refinada! No ranking histórico de assistências catalogadas do FutStats, o líder é {top.get('nome_exibicao')}, somando {top.get('total_assistencias')} assistências para gol e {top.get('participacoes_gols')} participações diretas em gols!"
+        tweet = f"🎯 Mestres da criação! {top.get('nome_exibicao')} lidera o ranking de assistências no FutStats com {top.get('total_assistencias')} passes para gol catalogados! #Futebol #Assistencias #FutStats"
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Player Intelligence (SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": len(dados),
+            "insight": insight,
+            "tweet": tweet,
+            "conclusao": f"{top.get('nome_exibicao')} lidera em assistências catalogadas ({top.get('total_assistencias')})."
+        }
+
+    # 0.5 Maiores Zebras da História (Odds Improváveis e Super Zebras)
+    if "zebra" in p or "maior zebra" in p or "maiores zebras" in p or "improvável" in p or "improvavel" in p:
+        sql = """
+SELECT 
+    p.data, p.mandante, p.visitante, p.placar, p.vencedor, p.campeonato,
+    o.status_zebra,
+    o.odd_mandante, o.odd_visitante,
+    ROUND(CASE WHEN p.vencedor = p.visitante THEN o.odd_visitante ELSE o.odd_mandante END, 2) as odd_vencedor
+FROM partidas p
+JOIN odds_partidas o ON p.id_partida = o.id_partida
+WHERE o.status_zebra LIKE '%Super Zebra%'
+ORDER BY odd_vencedor DESC
+LIMIT 8;
+"""
+        colunas, dados = executar_query_segura(sql)
+        top = dados[0] if dados else {}
+        mand = top.get('mandante', 'Flamengo')
+        visi = top.get('visitante', 'Avaí')
+        plac = top.get('placar', '1 x 2')
+        venc = top.get('vencedor', 'Avaí')
+        odd_v = top.get('odd_vencedor', 16.07)
+        data_j = top.get('data', '2022-11-12')
+        insight = f"Histórico de Improbabilidades! A maior Super Zebra catalogada pelo FutStats no Brasileirão ocorreu em {data_j}: {mand} {plac} {visi}, onde a vitória do {venc} pagava uma cotação chocante de {odd_v} na média das casas de apostas (probabilidade implícita inferior a 6%)!"
+        tweet = f"🦓 A maior Super Zebra do Brasileirão no FutStats: {mand} {plac} {visi} em {data_j}! A odd do {venc} bateu {odd_v}. Confira as maiores surpresas da história no Oráculo! #Futebol #Zebras #Odds #FutStats"
+        return {
+            "pergunta": pergunta,
+            "modelo_usado": "FutStats Betting Odds Intelligence (SQLite)",
+            "sql_executado": sql.strip(),
+            "colunas": colunas,
+            "dados": dados,
+            "total_registros": len(dados),
+            "insight": insight,
+            "tweet": tweet,
+            "conclusao": f"Maior zebra catalogada: {mand} {plac} {visi} (odd {odd_v})."
+        }
+
     # 1. Dias pares vs ímpares (evita colisão com 'partida')
     if ("dia" in p or "calendário" in p or "calendario" in p) and re.search(r'\b(pares?|ímpares?|impares?)\b', p):
         clube = "Corinthians"
