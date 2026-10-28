@@ -35,4 +35,8 @@ data/cache_rankinghistorico/
 .tools/
 *.vsix
 
+# Bancos de dados de referência e ground truth (apenas VM / local)
+data/futebol_referencia.db*
+data/ground_truth*
+
 

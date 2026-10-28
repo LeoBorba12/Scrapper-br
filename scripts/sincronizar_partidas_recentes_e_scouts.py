@@ -179,11 +179,47 @@ def obter_ou_criar_jogador(cursor, nome_atleta: str, clube: str) -> int:
     return cursor.lastrowid
 
 def processar_sumula_e_gols(cursor, event_id: str, id_partida: int, slug: str, mandante: str, visitante: str):
-    """Consulta summary da ESPN para extrair gols detalhados e estatísticas táticas."""
+    """Consulta summary da ESPN para extrair escalações oficiais, gols detalhados e estatísticas táticas."""
     sum_url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/summary?event={event_id}"
     sdata = requisitar_json(sum_url, timeout=10)
     if not sdata:
         return 0
+
+    # 1. Extração Completa de Escalações (Rosters)
+    rosters = sdata.get("rosters", [])
+    escalacoes_inseridas = 0
+    for team_block in rosters:
+        t_display = team_block.get("team", {}).get("displayName", "")
+        clube_esc = normalizar_clube(t_display)
+        if clube_esc not in (mandante, visitante):
+            clube_esc = mandante if t_display.lower() in mandante.lower() else visitante
+
+        for p_entry in team_block.get("roster", []):
+            athlete_info = p_entry.get("athlete", {})
+            atleta_nome = athlete_info.get("displayName", "")
+            if not atleta_nome:
+                continue
+
+            jersey = str(p_entry.get("jersey", ""))
+            pos_info = p_entry.get("position", {})
+            pos_nome = pos_info.get("displayName") or pos_info.get("name") or "Jogador"
+            titular = 1 if p_entry.get("starter", False) else 0
+            is_gol = 1 if "goalkeeper" in pos_nome.lower() or "goleiro" in pos_nome.lower() else 0
+
+            id_jog = obter_ou_criar_jogador(cursor, atleta_nome, clube_esc)
+
+            cursor.execute("""
+                SELECT id_escalacao FROM escalacoes
+                WHERE id_partida = ? AND atleta = ? AND clube = ?
+                LIMIT 1;
+            """, (id_partida, atleta_nome, clube_esc))
+            if not cursor.fetchone():
+                cursor.execute("""
+                    INSERT INTO escalacoes (
+                        id_partida, clube, atleta, num_camisa, posicao, titular, is_goleiro, id_jogador
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """, (id_partida, clube_esc, atleta_nome, jersey, pos_nome, titular, is_gol, id_jog))
+                escalacoes_inseridas += 1
 
     gols_inseridos = 0
     key_events = sdata.get("keyEvents", [])
@@ -409,8 +445,8 @@ def sincronizar_partidas(dias_retroativos: int = 14):
                         total_atualizadas += 1
                         print(f"  [ATUALIZADA] {data_iso} | {mandante} {gm} x {gv} {visitante} ({liga['campeonato']})")
 
-                    # Extrair súmula e gols se finalizada com gols
-                    if finalizado and gm is not None and gv is not None and (gm + gv > 0):
+                    # Extrair súmula, escalações e gols se finalizada
+                    if finalizado and gm is not None and gv is not None:
                         n_gols = processar_sumula_e_gols(cursor, event_id, id_partida, liga["slug"], mandante, visitante)
                         total_gols_registrados += n_gols
 
@@ -434,7 +470,7 @@ def sincronizar_partidas(dias_retroativos: int = 14):
                     total_novas += 1
                     print(f"  [NOVA INSERIDA] {data_iso} | {mandante} {placar} {visitante} [{liga['campeonato']}]")
 
-                    if finalizado and gm is not None and gv is not None and (gm + gv > 0):
+                    if finalizado and gm is not None and gv is not None:
                         n_gols = processar_sumula_e_gols(cursor, event_id, id_partida, liga["slug"], mandante, visitante)
                         total_gols_registrados += n_gols
 
