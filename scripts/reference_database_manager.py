@@ -82,6 +82,63 @@ MAPA_WIKIDATA_CLUBES = {
     "sport club do recife": "Sport",
     "sport recife": "Sport",
     "sport": "Sport",
+    "guarani futebol clube": "Guarani",
+    "guarani": "Guarani",
+    "associação atlética ponte preta": "Ponte Preta",
+    "ponte preta": "Ponte Preta",
+    "associação portuguesa de desportos": "Portuguesa",
+    "portuguesa": "Portuguesa",
+    "figueirense futebol clube": "Figueirense",
+    "figueirense": "Figueirense",
+    "esporte clube juventude": "Juventude",
+    "juventude": "Juventude",
+    "clube náutico capibaribe": "Náutico",
+    "náutico": "Náutico",
+    "nautico": "Náutico",
+    "criciúma esporte clube": "Criciúma",
+    "criciúma": "Criciúma",
+    "criciuma": "Criciúma",
+    "brasiliense futebol clube": "Brasiliense",
+    "brasiliense": "Brasiliense",
+    "esporte clube santo andré": "Santo André",
+    "santo andré": "Santo André",
+    "paran clube": "Paraná",
+    "paraná clube": "Paraná",
+    "paraná": "Paraná",
+    "parana": "Paraná",
+    "avaí futebol clube": "Avaí",
+    "avaí": "Avaí",
+    "avai": "Avaí",
+    "associação chapecoense de futebol": "Chapecoense",
+    "chapecoense": "Chapecoense",
+    "santa cruz futebol clube": "Santa Cruz",
+    "santa cruz": "Santa Cruz",
+    "paysandu sport club": "Paysandu",
+    "paysandu": "Paysandu",
+    "clube do remo": "Remo",
+    "remo": "Remo",
+    "bangu atlético clube": "Bangu",
+    "bangu": "Bangu",
+    "red bull bragantino": "Red Bull Bragantino",
+    "bragantino": "Red Bull Bragantino",
+    "inter de limeira": "Inter de Limeira",
+    "associação atlética internacional": "Inter de Limeira",
+    "marília atlético clube": "Marília",
+    "marília": "Marília",
+    "marilia": "Marília",
+    "mogi mirim esporte clube": "Mogi Mirim",
+    "mogi mirim": "Mogi Mirim",
+    "esporte clube são bento": "São Bento",
+    "são bento": "São Bento",
+    "sao bento": "São Bento",
+    "associação atlética caldense": "Caldense",
+    "caldense": "Caldense",
+    "mirassol futebol clube": "Mirassol",
+    "mirassol": "Mirassol",
+    "são caetano": "São Caetano",
+    "associacao desportiva sao caetano": "São Caetano",
+    "uniao sao joao": "União São João",
+    "união são joão": "União São João",
     "futbol club barcelona": "Barcelona",
     "fc barcelona": "Barcelona",
     "paris saint-germain football club": "Paris Saint-Germain",
@@ -95,6 +152,66 @@ MAPA_WIKIDATA_CLUBES = {
     "fort lauderdale strikers": "Fort Lauderdale Strikers",
     "miami fc": "Miami FC",
     "al-sadd sports club": "Al-Sadd"
+}
+
+# Mapeamento inteligente de nomes populares para busca exata na Wikidata
+MAPA_NOMES_WIKIDATA = {
+    "fred": "Frederico Chaves Guedes",
+    "marcelinho carioca": "Marcelinho Carioca",
+    "edmundo": "Edmundo Alves de Souza Neto",
+    "gabriel barbosa": "Gabriel Barbosa",
+    "gabigol": "Gabriel Barbosa",
+    "careca": "Antônio de Oliveira Filho",
+    "roberto dinamite": "Roberto Dinamite",
+    "alex": "Alexsandro de Souza",
+    "luís fabiano": "Luís Fabiano",
+    "luis fabiano": "Luís Fabiano",
+    "dodô": "Ricardo Lucas",
+    "dodo": "Ricardo Lucas",
+    "serginho chulapa": "Sérgio Bernardino",
+    "ricardinho": "Ricardo Luís Pozzi Rodrigues",
+    "romário": "Romário",
+    "luizão": "Luiz Carlos Bombonato Goulart",
+    "luizao": "Luiz Carlos Bombonato Goulart",
+    "mirandinha": "Sebastião Miranda da Silva Filho",
+    "hulk": "Givanildo Vieira de Sousa",
+    "germán cano": "Germán Cano",
+    "german cano": "Germán Cano",
+    "pedro": "Pedro Guilherme Abreu dos Santos",
+    "dudu": "Eduardo Pereira Rodrigues",
+    "arrascaeta": "Giorgian De Arrascaeta",
+    "raphael veiga": "Raphael Veiga",
+    "yuri alberto": "Yuri Alberto",
+    "bruno henrique": "Bruno Henrique Pinto",
+    "túlio maravilha": "Túlio Maravilha",
+    "tulio maravilha": "Túlio Maravilha",
+    "zico": "Zico",
+    "pelé": "Pelé",
+    "pele": "Pelé",
+    "garrincha": "Garrincha",
+    "tostão": "Tostão",
+    "tostao": "Tostão",
+    "rivelino": "Roberto Rivellino",
+    "rivellino": "Roberto Rivellino",
+    "paulo baier": "Paulo Baier",
+    "magno alves": "Magno Alves",
+    "marinho": "Mário Sérgio Santos Costa",
+    "deivid": "Deivid de Souza",
+    "washington": "Washington Stecanela Cerqueira",
+    "kléber pereira": "Kléber Pereira",
+    "kleber pereira": "Kléber Pereira",
+    "kléber": "Kléber Giacomance de Souza Freitas",
+    "kleber": "Kléber Giacomance de Souza Freitas",
+    "borges": "Humberlito Borges",
+    "dagoberto": "Dagoberto Pelentier",
+    "diego souza": "Diego de Souza Andrade",
+    "everton ribeiro": "Everton Ribeiro",
+    "gustavo scarpa": "Gustavo Scarpa",
+    "paulinho": "Paulo Henrique Sampaio Filho",
+    "lucas moura": "Lucas Moura",
+    "estêvão": "Estêvão Willian",
+    "estevao": "Estêvão Willian",
+    "paulinho mclaren": "Paulinho McLaren"
 }
 
 def normalizar_nome_clube(raw: str) -> str:
@@ -378,13 +495,17 @@ def curar_gols_alienigenas(id_jogador: int, aplicar: bool = False) -> Dict:
         clube_correto = item["clube_correto"]
         id_gol = item["id_gol"]
         if clube_correto:
+            # Caso 1: Gol legítimo onde o adversário foi gravado por engano
             if aplicar:
                 c.execute("UPDATE gols SET clube = ? WHERE id_gol = ?", (clube_correto, id_gol))
             corrigidos += 1
-            print(f" [CURA] Gol {id_gol} de {item['clube_registrado']} -> {clube_correto} (Partida {item['id_partida']})")
+            print(f" [CURA-CLUBE] Gol {id_gol} de {item['clube_registrado']} -> {clube_correto} (Partida {item['id_partida']})")
+        else:
+            # Caso 2: Nem mandante nem visitante constam na carreira oficial (Divergência mantida para auditoria segura)
+            print(f" [AUDITORIA] Gol {id_gol} em {item['clube_registrado']} (Partida {item['id_partida']}): mantido para validação manual.")
     
     if aplicar:
-        # Recalcula a coluna jogadores.clubes para o atleta
+        # Recalcula a coluna clubes e total_gols para o atleta
         c.execute("""
             SELECT DISTINCT clube FROM (
                 SELECT clube FROM escalacoes WHERE id_jogador = ?
@@ -394,12 +515,96 @@ def curar_gols_alienigenas(id_jogador: int, aplicar: bool = False) -> Dict:
         """, (id_jogador, id_jogador))
         novos_clubes = [r[0] for r in c.fetchall() if r[0]]
         clubes_str = ",".join(sorted(novos_clubes))
-        c.execute("UPDATE jogadores SET clubes = ? WHERE id_jogador = ?", (clubes_str, id_jogador))
+        
+        c.execute("SELECT COUNT(*) FROM gols WHERE id_jogador = ?", (id_jogador,))
+        gols_atualizados = c.fetchone()[0]
+
+        c.execute("UPDATE jogadores SET clubes = ?, total_gols = ? WHERE id_jogador = ?", (clubes_str, gols_atualizados, id_jogador))
+        c.execute("UPDATE jogadores_estatisticas SET clubes = ?, total_gols = ? WHERE id_jogador = ?", (clubes_str, gols_atualizados, id_jogador))
         conn.commit()
-        print(f" -> Coluna 'clubes' do jogador {id_jogador} atualizada para: {clubes_str}")
+        print(f" -> Atleta {id_jogador}: total_gols={gols_atualizados} | clubes={clubes_str}")
         
     conn.close()
     return {"status": "sucesso", "corrigidos": corrigidos, "aplicado": aplicar}
+
+def processar_lote_top(limite: int = 50, aplicar: bool = True):
+    """Executa auditoria e reconciliação em lote dos Top N atletas da base."""
+    print("=" * 70)
+    print(f"  RECONCILIAÇÃO EM LOTE: TOP {limite} ATLETAS DA BASE")
+    print("=" * 70)
+
+    init_reference_db()
+    conn_main = sqlite3.connect(DB_MAIN)
+    conn_main.row_factory = sqlite3.Row
+    c_main = conn_main.cursor()
+
+    c_main.execute("""
+        SELECT id_jogador, nome_exibicao, apelido, total_gols, total_jogos, clubes
+        FROM jogadores_estatisticas
+        WHERE total_gols > 0
+        ORDER BY total_gols DESC, total_jogos DESC
+        LIMIT ?;
+    """, (limite,))
+    atletas = [dict(r) for r in c_main.fetchall()]
+    conn_main.close()
+
+    total_auditados = 0
+    total_gols_curados = 0
+    atletas_com_divergencia = 0
+    divergencias_detalhes = []
+
+    for idx, atl in enumerate(atletas, 1):
+        id_jog = atl["id_jogador"]
+        nome = atl["nome_exibicao"]
+        apelido = atl.get("apelido") or nome
+
+        # Mapeamento canônico para busca Wikidata
+        nome_busca = MAPA_NOMES_WIKIDATA.get(nome.lower(), MAPA_NOMES_WIKIDATA.get(apelido.lower(), nome))
+
+        # 1. Cadastra na referência se ainda não cadastrado
+        conn_ref = sqlite3.connect(DB_REF)
+        c_ref = conn_ref.cursor()
+        c_ref.execute("SELECT wikidata_id FROM ref_atletas WHERE id_jogador_futebol_db = ?", (id_jog,))
+        row_ref = c_ref.fetchone()
+        conn_ref.close()
+
+        if not row_ref:
+            cadastrar_atleta_referencia(id_jog, nome_custom=nome_busca)
+            time.sleep(0.3)
+
+        # 2. Executa auditoria
+        res_audit = auditar_e_comparar_atleta(id_jog)
+        gols_al = res_audit.get("gols_alienigenas", [])
+
+        if gols_al:
+            atletas_com_divergencia += 1
+            print(f"[{idx}/{len(atletas)}] ID {id_jog}: {nome} -> {len(gols_al)} gols com clube invertido!")
+            divergencias_detalhes.append({
+                "id_jogador": id_jog,
+                "nome": nome,
+                "gols_invertidos": len(gols_al),
+                "detalhes": gols_al[:3]
+            })
+            if aplicar:
+                res_cura = curar_gols_alienigenas(id_jog, aplicar=True)
+                total_gols_curados += res_cura.get("corrigidos", 0)
+        else:
+            print(f"[{idx}/{len(atletas)}] ID {id_jog}: {nome} -> 100% íntegro.")
+
+        total_auditados += 1
+
+    print("\n" + "=" * 70)
+    print(f"  RESUMO DA AUDITORIA E RECONCILIAÇÃO DO LOTE TOP {limite}:")
+    print(f"  • Total de atletas auditados: {total_auditados}")
+    print(f"  • Atletas com divergências identificadas: {atletas_com_divergencia}")
+    print(f"  • Gols alienígenas curados cirurgicamente: {total_gols_curados}")
+    print("=" * 70)
+    return {
+        "auditados": total_auditados,
+        "com_divergencia": atletas_com_divergencia,
+        "gols_curados": total_gols_curados,
+        "divergencias": divergencias_detalhes
+    }
 
 if __name__ == "__main__":
     import argparse
@@ -410,10 +615,13 @@ if __name__ == "__main__":
     parser.add_argument("--curar", type=int, help="ID do jogador para curar gols alienígenas")
     parser.add_argument("--aplicar", action="store_true", help="Aplica as correções no futebol.db")
     parser.add_argument("--buscar-nome", type=str, help="Busca jogador no futebol.db por nome")
-    
+    parser.add_argument("--lote-top", type=int, help="Executa auditoria e cura em lote nos Top N atletas")
+
     args = parser.parse_args()
-    
-    if args.cadastrar:
+
+    if args.lote_top:
+        processar_lote_top(limite=args.lote_top, aplicar=args.aplicar)
+    elif args.cadastrar:
         cadastrar_atleta_referencia(args.cadastrar, args.nome)
     elif args.auditar:
         resultado = auditar_e_comparar_atleta(args.auditar)
