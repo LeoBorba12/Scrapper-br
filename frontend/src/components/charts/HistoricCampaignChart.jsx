@@ -4,6 +4,7 @@ import {
   Flame, ShieldCheck, Activity, Info, Sparkles, Award
 } from 'lucide-react';
 import ClubBadge from '../ClubBadge';
+import { exportarCardCampanhaHistoricaPNG } from '../../utils/cardGenerator';
 
 const PRESETS_PADRAO = [
   { clube: 'Flamengo', ano: 2019, label: 'Flamengo 2019', recorde: '90 pts • Jorge Jesus' },
@@ -143,6 +144,31 @@ export default function HistoricCampaignChart({
           <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
             Acompanhe a curva de pontuação cumulativa, aproveitamento e resultados de ponta a ponta na competição.
           </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+            {dados && (
+              <button
+                type="button"
+                onClick={() => exportarCardCampanhaHistoricaPNG(dados)}
+                className="touch-tactile"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-control)',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                title="Baixar card de alta resolução da campanha histórica (PNG)"
+              >
+                📸 Exportar Card da Campanha (PNG)
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Presets Rápidos */}

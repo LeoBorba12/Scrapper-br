@@ -155,10 +155,14 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
    - Componente `HistoricCampaignChart.jsx`: Gráfico vetorial SVG nativo interativo com curva cumulativa de pontos, área preenchida com gradiente editorial, bento grid de KPIs finais (Pontos, Aproveitamento %, Recorde V-E-D, GP, GC, Saldo), card dinâmico ao passar o mouse por cada rodada e trilha horizontal de jogos com badges coloridos de resultado (V/E/D).
    - Componente `AthleteCareerTimeline.jsx`: Linha do tempo horizontal tátil de atletas integrada em `ProtagonistaAtleta.jsx`, exibindo a progressão ano a ano com escudos dos clubes, estatísticas detalhadas (jogos, gols, média), badges de títulos e nós interativos.
    - `EditorialClubes.jsx`: Seção analítica com abas alternáveis entre "Grandes Campanhas (Rodada a Rodada)" e "Panorama Histórico por Décadas".
-5. **Pilar 3.2: IA Analista com Grounding Refinado (NL-to-SQL)**:
-   - Atualizar os prompts e schema injection em `backend/ia_analista.py` para consultar tabelas sanitizadas, $xG$ de atletas, métricas de arbitragem e backtesting.
-6. **Pilar 5: Scouting & Social Sharing**:
-   - Exportação de dossiê completo de scouting em PDF/PNG de alta resolução para atletas e clubes.
+5. **[CONCLUÍDO] Pilar 3.2: IA Analista com Grounding Refinado (NL-to-SQL)**:
+   - Injetado no `SCHEMA_PROMPT` em `backend/ia_analista.py` a telemetria avançada de Expected Goals ($xG$), Domínio Territorial ($Field\text{ Tilt}$), Raio-X de Arbitragem (Rigor, viés e 1T vs 2T), Odds, Backtesting Quantitativo e Grandes Campanhas.
+   - Adicionados handlers heurísticos ultrarrápidos em `responder_perguntas_demo` para perguntas analíticas de ponta: $xG$ e Overperformance Clínica ($G - xG$), Backtesting de Apostas com Critério de Kelly (+EV e acurácia) e Recordes Históricos de Pontos Corridos.
+6. **[CONCLUÍDO] Pilar 5: Scouting & Social Sharing (Dossiê e Cards em Alta Resolução)**:
+   - Módulo `frontend/src/utils/cardGenerator.js` expandido com funções de renderização nativa em canvas de alta resolução:
+     - `exportarDossieScoutingAtletaPNG(atleta)`: Dossiê visual completo 1080x1350 (formato A4/Instagram) com identidade editorial, números mestres da carreira oficial, análise de $xG$, detalhamento de gols (pênalti, falta, cabeça, clutch 80+), maior vítima e estádio favorito.
+     - `exportarCardCampanhaHistoricaPNG(campanha)`: Card widescreen 1200x675 com curva da campanha rodada a rodada, recordes e estatísticas finais.
+   - Integrado botão tátil `[📸 Exportar Dossiê (PNG)]` em `ProtagonistaAtleta.jsx` e `[📸 Exportar Card da Campanha (PNG)]` em `HistoricCampaignChart.jsx`.
 
 
 

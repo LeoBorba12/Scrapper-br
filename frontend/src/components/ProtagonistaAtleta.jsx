@@ -9,6 +9,7 @@ import { RadarPentagonPES, AthleteCareerBarChart, AthleteCareerTimeline } from '
 import ClubBadge from './ClubBadge';
 import SpatialPitchMap from './SpatialPitchMap';
 import GoalMouthMap from './GoalMouthMap';
+import { exportarDossieScoutingAtletaPNG } from '../utils/cardGenerator';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -492,7 +493,29 @@ export default function ProtagonistaAtleta({
           <span>Voltar para Lista & Rankings</span>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => exportarDossieScoutingAtletaPNG(atleta)}
+            className="touch-tactile"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            title="Baixar dossiê analítico completo do atleta em alta resolução (PNG)"
+          >
+            📸 Exportar Dossiê (PNG)
+          </button>
+
           {onAbrirComparador && (
             <button
               type="button"
