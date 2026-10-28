@@ -112,7 +112,7 @@ export function baixarCardSocialPNG({
   // 7. Rodapé / Marca d'Água Viral
   ctx.fillStyle = '#64748B';
   ctx.font = '600 20px JetBrains Mono, monospace, sans-serif';
-  ctx.fillText('futstats.vercel.app • Base Histórica Oficial (55.395 Jogos & INMET)', 60, 590);
+  ctx.fillText('futstats.vercel.app • Base Histórica Oficial (115.361 Jogos & INMET)', 60, 590);
 
   ctx.fillStyle = '#38BDF8';
   ctx.textAlign = 'right';
