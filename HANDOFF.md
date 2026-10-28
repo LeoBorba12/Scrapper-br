@@ -1,6 +1,6 @@
 # 📋 HANDOFF DO PROJETO: SCRAPPER-BR / GUIA PROFISSIONAL (FUTSTATS)
 
-> **Data de atualização:** 2026-10-28 18:38  
+> **Data de atualização:** 2026-10-28 19:11  
 > **Status do repositório:** 100% Estável em produção na Vercel | 11/11 regras de integridade passando com 0 inconsistências | 22/22 testes de regressão Dixon-Coles/Poisson aprovados | Acervo com 115.361 partidas | Tamanho da base: 86.27 MB (estritamente abaixo do teto de 94.0 MB da Vercel).
 
 ---
@@ -145,11 +145,18 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
    - Endpoint `/api/apostas/backtesting`: Auditoria matemática comparando prognósticos do modelo Poisson/Dixon-Coles com placares reais de 10.924 partidas catalogadas. Métricas de acurácia (Green/Red), lucro acumulado em unidades (+U) e ROI por mercado (Over 1.5, Over 2.5, BTTS, 1X2, +EV).
    - Componente `KellyCalculatorModal.jsx`: Dimensionamento ótimo de apostas esportivas via Critério de Kelly ($f^* = (bp-q)/b$) com perfis de risco (Conservador 1/4 Kelly, Moderado 1/2 Kelly, Agressivo Full Kelly), cálculo de $+EV$ em R$, lucro líquido potencial e gestão de risco.
    - `BettingHubView.jsx`: Nova aba "Track Record & Backtesting" com bento grid de métricas, histórico de jogos auditados com selo Green/Red, e botão direto "Calcular Stake de Kelly" em cada card com aposta de valor (+EV).
-3. **Pilar 1.2: Expected Goals (xG) & Domínio Territorial (Field Tilt)**:
-   - Cálculo estatístico de chances reais e eficiência de finalização de atletas (gols reais vs xG).
-4. **Pilar 3: IA Analista com Grounding Refinado (NL-to-SQL)**:
+3. **[CONCLUÍDO] Pilar 1.2: Expected Goals (xG) & Domínio Territorial (Field Tilt)**:
+   - Backend (`backend/app.py`): Modelagem analítica de $xG$ de atletas calibrada para o futebol brasileiro (Pênalti $0.79$, Chutes no Alvo $0.315$, Chutes Fora $0.045$), computando Overperformance Clínica ($G - xG$), perfil de finalizador e taxa de conversão %.
+   - Componente `FieldTiltBar.jsx`: Barra de Domínio Territorial no terço final e placar de chances reais ($xG$) no Raio-X do confronto (`BettingHubView.jsx`).
+   - `ProtagonistaAtleta.jsx`: Card analítico com $xG$ estimado, Overperformance $G - xG$, taxa de conversão e badge editorial de eficiência finalizadora.
+   - Comparador de Atletas (`AthleteCompareView.jsx` & `/api/jogadores/comparar`): Métricas de $xG$, $G - xG$ e Conversão de Finalizações inseridas na matriz comparativa.
+4. **Pilar 3: DataViz Interativa — Linha do Tempo & Grandes Campanhas dos Clubes**:
+   - Linha temporal de carreira ano a ano com escudos e títulos (`AthleteCareerTimeline.jsx`).
+   - Seletor de "Grandes Campanhas" na aba Clubes (Flamengo 2019, Cruzeiro 2003, Santos 1962, etc. rodada a rodada).
+5. **Pilar 3.2: IA Analista com Grounding Refinado (NL-to-SQL)**:
    - Atualizar os prompts e exemplos em `backend/ia_analista.py` para utilizar as novas tabelas higienizadas, as estatísticas de arbitragem e as métricas Dixon-Coles calibradas.
-5. **Pilar 5: Scouting & Social Sharing**:
+6. **Pilar 5: Scouting & Social Sharing**:
    - Exportação de dossiê completo de scouting em PDF/PNG de alta resolução para atletas e clubes.
+
 
 

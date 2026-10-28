@@ -27,6 +27,8 @@ import {
 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
 import KellyCalculatorModal from './KellyCalculatorModal';
+import FieldTiltBar from './FieldTiltBar';
+
 
 
 // ============================================================================
@@ -2044,8 +2046,24 @@ export default function BettingHubView({
                   </div>
                 )}
 
+                {/* BARRA DE FIELD TILT & EXPECTED GOALS (xG) */}
+                {analisePartida.analytics_xg && (
+                  <div style={{ marginBottom: '22px' }}>
+                    <FieldTiltBar
+                      mandante={analisePartida.partida?.mandante}
+                      visitante={analisePartida.partida?.visitante}
+                      xgMandante={analisePartida.analytics_xg?.xg_mandante}
+                      xgVisitante={analisePartida.analytics_xg?.xg_visitante}
+                      fieldTiltMandante={analisePartida.analytics_xg?.field_tilt?.mandante_pct}
+                      fieldTiltVisitante={analisePartida.analytics_xg?.field_tilt?.visitante_pct}
+                      dominio={analisePartida.analytics_xg?.field_tilt?.dominio}
+                    />
+                  </div>
+                )}
+
                 {/* COMPARATIVO DE FORMA RECENTE (ÚLTIMOS 10 JOGOS) */}
                 <div style={{ marginBottom: '22px' }}>
+
                   <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
                     Forma Recente nos Últimos 10 Jogos
                   </div>

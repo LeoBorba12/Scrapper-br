@@ -770,7 +770,92 @@ export default function ProtagonistaAtleta({
                 </div>
                 <Activity size={24} color="var(--accent)" />
               </div>
+
+              {/* CARD DE EXPECTED GOALS (xG) & EFICIÊNCIA CLÍNICA */}
+              {(() => {
+                const xgData = atleta.analytics_xg || resumo.analytics_xg;
+                if (!xgData) return null;
+                const isOverperformer = (xgData.delta_xg || 0) >= 0;
+                return (
+                  <div
+                    style={{
+                      backgroundColor: 'var(--surface-raised)',
+                      padding: '12px',
+                      borderRadius: 'var(--radius-control)',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          color: 'var(--accent)',
+                          backgroundColor: 'var(--surface-page)',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        <Target size={12} /> Expected Goals (xG)
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          color: isOverperformer ? 'var(--positive)' : 'var(--text-secondary)'
+                        }}
+                      >
+                        {xgData.perfil_clinico}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
+                      <div style={{ backgroundColor: 'var(--surface-page)', padding: '6px', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>xG Estimado</div>
+                        <div className="font-mono tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {xgData.xg_acumulado}
+                        </div>
+                      </div>
+
+                      <div style={{ backgroundColor: 'var(--surface-page)', padding: '6px', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>G - xG</div>
+                        <div
+                          className="font-mono tabular-nums"
+                          style={{
+                            fontSize: '1.05rem',
+                            fontWeight: 800,
+                            color: isOverperformer ? 'var(--positive)' : 'var(--negative, #C62828)'
+                          }}
+                        >
+                          {xgData.delta_xg >= 0 ? `+${xgData.delta_xg}` : xgData.delta_xg}
+                        </div>
+                      </div>
+
+                      <div style={{ backgroundColor: 'var(--surface-page)', padding: '6px', borderRadius: '4px' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>Conversão</div>
+                        <div className="font-mono tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent)' }}>
+                          {xgData.taxa_conversao_pct}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+                      {isOverperformer
+                        ? `Supera as chances estatísticas esperadas em +${xgData.delta_xg} gols (finalizador clínico).`
+                        : `Finalizador com alto volume de finalizações (${xgData.chutes_totais || '—'} chutes registrados).`}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
+
 
             {/* ================= COLUNA 3: MÉTRICAS OFICIAIS & TOTAIS (33%) ================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

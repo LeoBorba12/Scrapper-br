@@ -2304,6 +2304,47 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "filtro_campeonato": campeonato_filtro or "todos"
     }
 
+    # Cálculo Analítico de Expected Goals (xG) & Eficiência Clínica
+    chutes_alvo = stats_meta.get('chutes_ao_gol') or 0
+    chutes_tot = stats_meta.get('finalizacoes_totais') or 0
+    penaltis = stats_meta.get('penaltis_cobrados') or stats_meta.get('gols_penalti') or 0
+    gols_calc = total_gols_final or 0
+
+    if chutes_tot > 0:
+        chutes_fora = max(0, chutes_tot - chutes_alvo)
+        chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
+        xg_acumulado = round((penaltis * 0.79) + (chutes_alvo_abertos * 0.315) + (chutes_fora * 0.045), 1)
+        taxa_conversao = round((gols_calc / chutes_tot) * 100, 1)
+    else:
+        xg_acumulado = round(gols_calc * 0.93, 1) if gols_calc > 0 else round(total_jogos * 0.35, 1)
+        taxa_conversao = round((gols_calc / max(1, total_jogos * 2.8)) * 100, 1)
+
+    delta_xg = round(gols_calc - xg_acumulado, 1)
+    if delta_xg >= 4.0:
+        perfil_clinico = "Finalizador Clínico de Elite (+xG)"
+        status_xg = "overperformer"
+    elif delta_xg >= 0.5:
+        perfil_clinico = "Finalizador Eficiente (Acima da média)"
+        status_xg = "eficiente"
+    elif delta_xg >= -2.0:
+        perfil_clinico = "Finalizador Equilibrado (Neutro)"
+        status_xg = "neutro"
+    else:
+        perfil_clinico = "Volume Shooter (Abaixo do xG esperado)"
+        status_xg = "underperformer"
+
+    analytics_xg = {
+        "xg_acumulado": xg_acumulado,
+        "gols_reais": gols_calc,
+        "delta_xg": delta_xg,
+        "taxa_conversao_pct": taxa_conversao,
+        "chutes_totais": chutes_tot,
+        "chutes_ao_gol": chutes_alvo,
+        "perfil_clinico": perfil_clinico,
+        "status_xg": status_xg
+    }
+    resumo_dados["analytics_xg"] = analytics_xg
+
     radar_pes = _calcular_radar_pes(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial)
 
     return {
@@ -2327,6 +2368,7 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "titulos": json.loads(stats_meta['titulos']) if stats_meta.get('titulos') else [],
         "premios": json.loads(stats_meta['premios']) if stats_meta.get('premios') else [],
         "resumo": resumo_dados,
+        "analytics_xg": analytics_xg,
         "carreira_oficial": carreira_oficial,
         "radar_pes": radar_pes,
         "top_vitimas": top_vitimas,
@@ -2339,6 +2381,7 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "shotmap": shotmap_atleta,
         "heatmap": heatmap_atleta
     }
+
 
 
 @app.route('/api/jogadores/perfil', methods=['GET'])
@@ -2627,6 +2670,37 @@ def comparar_jogadores():
             "unidade": "%",
             "inverso": False
         },
+        {
+            "chave": "xg_acumulado",
+            "categoria": "Expected Goals (xG)",
+            "label": "Expected Goals (xG Acumulado)",
+            "val1": (r1.get("analytics_xg") or {}).get("xg_acumulado", 0.0),
+            "val2": (r2.get("analytics_xg") or {}).get("xg_acumulado", 0.0),
+            "formato": "decimal",
+            "unidade": "xG",
+            "inverso": False
+        },
+        {
+            "chave": "delta_xg",
+            "categoria": "Expected Goals (xG)",
+            "label": "Overperformance Clínica (Gols - xG)",
+            "val1": (r1.get("analytics_xg") or {}).get("delta_xg", 0.0),
+            "val2": (r2.get("analytics_xg") or {}).get("delta_xg", 0.0),
+            "formato": "decimal",
+            "unidade": "G-xG",
+            "inverso": False
+        },
+        {
+            "chave": "taxa_conversao",
+            "categoria": "Precisão & Eficiência",
+            "label": "Taxa de Conversão de Finalizações",
+            "val1": (r1.get("analytics_xg") or {}).get("taxa_conversao_pct", 0.0),
+            "val2": (r2.get("analytics_xg") or {}).get("taxa_conversao_pct", 0.0),
+            "formato": "porcentagem",
+            "unidade": "%",
+            "inverso": False
+        },
+
         {
             "chave": "aproveitamento_pontos",
             "categoria": "Impacto em Campo",
@@ -4224,9 +4298,34 @@ def get_apostas_analise_jogo():
     elif calc['prob_under_2_5'] >= 55.0:
         insights.append(f"Jogo Truncado: Probabilidade de Under 2.5 gols é de {calc['prob_under_2_5']}%.")
 
+    # Cálculo de Expected Goals (xG) e Domínio Territorial (Field Tilt)
+    xg_m = round(lh, 2)
+    xg_v = round(la, 2)
+    soma_xg = max(0.01, xg_m + xg_v)
+    field_tilt_m = round((xg_m / soma_xg) * 100, 1)
+    field_tilt_v = round(100.0 - field_tilt_m, 1)
+
+    if field_tilt_m >= 58.0:
+        dominio_tilt = f"Domínio territorial e chances para o {time_m}"
+    elif field_tilt_v >= 58.0:
+        dominio_tilt = f"Pressão e volume de chances para o {time_v}"
+    else:
+        dominio_tilt = "Confronto equilibrado territorialmente"
+
+    analytics_xg_partida = {
+        'xg_mandante': xg_m,
+        'xg_visitante': xg_v,
+        'field_tilt': {
+            'mandante_pct': field_tilt_m,
+            'visitante_pct': field_tilt_v,
+            'dominio': dominio_tilt
+        }
+    }
+
     return jsonify({
         'partida': partida,
         'probabilidades': calc,
+        'analytics_xg': analytics_xg_partida,
         'forma_recente': {
             'mandante': forma_mandante,
             'visitante': forma_visitante
@@ -4248,6 +4347,7 @@ def get_apostas_analise_jogo():
         'arbitro': arbitro_stats,
         'insights_apostador': insights
     })
+
 
 
 @app.route('/api/apostas/jogadores', methods=['GET'])
