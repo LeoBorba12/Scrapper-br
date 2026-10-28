@@ -527,10 +527,10 @@ def curar_gols_alienigenas(id_jogador: int, aplicar: bool = False) -> Dict:
     conn.close()
     return {"status": "sucesso", "corrigidos": corrigidos, "aplicado": aplicar}
 
-def processar_lote_top(limite: int = 50, aplicar: bool = True):
-    """Executa auditoria e reconciliação em lote dos Top N atletas da base."""
+def processar_lote_top(limite: int = 50, offset: int = 0, aplicar: bool = True):
+    """Executa auditoria e reconciliação em lote dos Top N atletas da base com paginação."""
     print("=" * 70)
-    print(f"  RECONCILIAÇÃO EM LOTE: TOP {limite} ATLETAS DA BASE")
+    print(f"  RECONCILIAÇÃO EM LOTE: TOP {limite} ATLETAS (OFFSET {offset})")
     print("=" * 70)
 
     init_reference_db()
@@ -543,8 +543,8 @@ def processar_lote_top(limite: int = 50, aplicar: bool = True):
         FROM jogadores_estatisticas
         WHERE total_gols > 0
         ORDER BY total_gols DESC, total_jogos DESC
-        LIMIT ?;
-    """, (limite,))
+        LIMIT ? OFFSET ?;
+    """, (limite, offset))
     atletas = [dict(r) for r in c_main.fetchall()]
     conn_main.close()
 
@@ -570,7 +570,7 @@ def processar_lote_top(limite: int = 50, aplicar: bool = True):
 
         if not row_ref:
             cadastrar_atleta_referencia(id_jog, nome_custom=nome_busca)
-            time.sleep(0.3)
+            time.sleep(0.25)
 
         # 2. Executa auditoria
         res_audit = auditar_e_comparar_atleta(id_jog)
@@ -578,7 +578,7 @@ def processar_lote_top(limite: int = 50, aplicar: bool = True):
 
         if gols_al:
             atletas_com_divergencia += 1
-            print(f"[{idx}/{len(atletas)}] ID {id_jog}: {nome} -> {len(gols_al)} gols com clube invertido!")
+            print(f"[{offset + idx}/{offset + len(atletas)}] ID {id_jog}: {nome} -> {len(gols_al)} gols invertidos detectados!")
             divergencias_detalhes.append({
                 "id_jogador": id_jog,
                 "nome": nome,
@@ -589,14 +589,15 @@ def processar_lote_top(limite: int = 50, aplicar: bool = True):
                 res_cura = curar_gols_alienigenas(id_jog, aplicar=True)
                 total_gols_curados += res_cura.get("corrigidos", 0)
         else:
-            print(f"[{idx}/{len(atletas)}] ID {id_jog}: {nome} -> 100% íntegro.")
+            if idx % 25 == 0 or idx == len(atletas):
+                print(f"[{offset + idx}/{offset + len(atletas)}] Processando... ({atletas_com_divergencia} com divergência até aqui)")
 
         total_auditados += 1
 
     print("\n" + "=" * 70)
-    print(f"  RESUMO DA AUDITORIA E RECONCILIAÇÃO DO LOTE TOP {limite}:")
+    print(f"  RESUMO DA RECONCILIAÇÃO (OFFSET {offset} A {offset + total_auditados}):")
     print(f"  • Total de atletas auditados: {total_auditados}")
-    print(f"  • Atletas com divergências identificadas: {atletas_com_divergencia}")
+    print(f"  • Atletas com divergências: {atletas_com_divergencia}")
     print(f"  • Gols alienígenas curados cirurgicamente: {total_gols_curados}")
     print("=" * 70)
     return {
@@ -616,11 +617,12 @@ if __name__ == "__main__":
     parser.add_argument("--aplicar", action="store_true", help="Aplica as correções no futebol.db")
     parser.add_argument("--buscar-nome", type=str, help="Busca jogador no futebol.db por nome")
     parser.add_argument("--lote-top", type=int, help="Executa auditoria e cura em lote nos Top N atletas")
+    parser.add_argument("--offset", type=int, default=0, help="Offset inicial para paginação do lote")
 
     args = parser.parse_args()
 
     if args.lote_top:
-        processar_lote_top(limite=args.lote_top, aplicar=args.aplicar)
+        processar_lote_top(limite=args.lote_top, offset=args.offset, aplicar=args.aplicar)
     elif args.cadastrar:
         cadastrar_atleta_referencia(args.cadastrar, args.nome)
     elif args.auditar:
