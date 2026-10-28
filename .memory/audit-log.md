@@ -80,3 +80,18 @@
   - Sincronização automática com preservação do filtro ao trocar de atletas, usar presets de duelos ou inverter posições (swap).
   - Badges dinâmicos de escopo ativo no card de resumo e cabeçalhos contextuais.
 - **Pre-Flight de Confiabilidade**: 22/22 pytest aprovados, integridade do banco (84.82 MB < 94 MB) e build do frontend concluído em 4.79s.
+
+## [2026-10-28] Pilar 2 (Raio-X Avançado de Árbitros & Disciplina) & Restabelecimento do Bot Telegram
+- **Bot do Telegram Restabelecido**:
+  - Diagnosticada fila de mensagens pendentes (update `/status` no chat `1797566691`) devido à interrupção do daemon após reinício de sessão.
+  - Testada API Telegram (`getMe`, `sendMessage`), processada a fila e iniciado o `scripts/bot_telegram_interativo.py` como daemon contínuo em background.
+- **Pilar 2: Raio-X Avançado de Árbitros & Disciplina**:
+  - **Backend (`backend/app.py`)**:
+    - Rota `/api/arbitros/destaques` expandida com: média de cartões, proporção de cartões no 2º tempo (`pct_cartoes_2t`), média de penalidades marcadas (`media_penaltis`), índice de rigor calibrado (0 a 100) e probabilidade Poisson de Over 4.5 cartões.
+    - Rota `/api/arbitros/perfil` expandida com telemetria atômica: distribuição por tempo (1T vs 2T), distribuição por mando (mandante vs visitante), histograma de minutagem em faixas de 15 minutos, motivos de súmula e tabela de aproveitamento/cartões dos clubes mais apitados.
+  - **Frontend (`frontend/src/components/RefereeScoutView.jsx`)**:
+    - Novo componente editorial 2026 dedicado à aba Arbitragem.
+    - 4 KPIs analíticos do acervo: Árbitro Mais Rigoroso, Maior Média de Pênaltis, Viés do Mandante e Pico no 2º Tempo (~60% dos cartões saem após o intervalo).
+    - Tabela master com busca em tempo real, chips rápidos e filtros por rigor.
+    - Visão Raio-X aprofundada com barra comparativa 1T vs 2T, equilíbrio de mando e tabela de rendimento por clube.
+- **Validação de Pre-Flight**: 22/22 pytest aprovados, integridade do banco (84.82 MB < 94 MB) e build do frontend concluído em 7.99s.

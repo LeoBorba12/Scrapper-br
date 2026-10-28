@@ -15,6 +15,7 @@ import EditorialClubes from './components/EditorialClubes';
 import ProtagonistaAtleta from './components/ProtagonistaAtleta';
 import BettingHubView from './components/BettingHubView';
 import AthleteCompareView from './components/AthleteCompareView';
+import RefereeScoutView from './components/RefereeScoutView';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
 
 export default function App() {
@@ -1950,228 +1951,19 @@ export default function App() {
         </section>
       )}
 
-      {/* ABA 7: RAIO-X DO APITO */}
+      {/* ABA 7: RAIO-X AVANÇADO DO APITO & DISCIPLINA TÁTICA (PILAR 2) */}
       {(activeTab === 'arbitros' || activeTab === 'arbitragem') && (
         <section>
-          <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldAlert size={20} color="#F59E0B" /> Raio-X do Apito (Histórico de Árbitros & Cartões)
-            </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '6px' }}>Árbitro</label>
-                <input
-                  type="text"
-                  className="soft-input"
-                  value={arbitroBusca}
-                  onChange={e => setArbitroBusca(e.target.value)}
-                  placeholder="Ex: Anderson Daronco, Raphael Claus, Wilton Pereira..."
-                  list="arbitros-sugestoes"
-                />
-                <datalist id="arbitros-sugestoes">
-                  {arbitrosList.map(a => <option key={a.arbitro} value={a.arbitro} />)}
-                </datalist>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '6px' }}>Filtrar por Clube (Opcional)</label>
-                <input
-                  type="text"
-                  className="soft-input"
-                  value={arbitroClubeFiltro}
-                  onChange={e => setArbitroClubeFiltro(e.target.value)}
-                  placeholder="Ex: Flamengo, Palmeiras, Corinthians..."
-                  list="clubes-sugestoes"
-                />
-              </div>
-
-              <button className="btn-primary" onClick={() => carregarPerfilArbitro(arbitroBusca, arbitroClubeFiltro)} disabled={arbitroLoading}>
-                {arbitroLoading ? <RefreshCw size={18} className="animate-spin" /> : <Search size={18} />} Analisar Árbitro
-              </button>
-            </div>
-          </div>
-
-          {arbitroLoading && (
-            <div className="soft-card" style={{ padding: '40px 20px', textAlign: 'center', marginBottom: '24px' }}>
-              <RefreshCw size={32} className="animate-spin" color="#F59E0B" style={{ margin: '0 auto 12px' }} />
-              <p style={{ color: 'var(--text-muted)' }}>Analisando súmulas e histórico do árbitro...</p>
-            </div>
-          )}
-
-          {arbitroPerfil && !arbitroLoading && (
-            <div className="soft-card" style={{ padding: '22px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.4rem', fontWeight: '700' }}>
-                    {arbitroPerfil.arbitro} {arbitroPerfil.clube_filtro ? `(Jogos do ${arbitroPerfil.clube_filtro})` : ''}
-                  </h3>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    Período catalogado: {arbitroPerfil.resumo.ano_min} a {arbitroPerfil.resumo.ano_max}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => setArbitroPerfil(null)}
-                    style={{ fontSize: '0.85rem' }}
-                  >
-                    Voltar ao Ranking
-                  </button>
-                  <button
-                    className="btn-primary"
-                    onClick={() =>
-                      baixarCardSocialPNG({
-                        categoria: 'Raio-X do Apito',
-                        titulo: arbitroPerfil.arbitro,
-                        subtitulo: arbitroPerfil.clube_filtro
-                          ? `Retrospecto apitando jogos do ${arbitroPerfil.clube_filtro}`
-                          : `${arbitroPerfil.resumo.total_jogos} partidas oficiais apitadas no acervo`,
-                        metricas: [
-                          { label: 'Jogos Apitados', valor: arbitroPerfil.resumo.total_jogos, cor: '#38BDF8' },
-                          { label: '% Vit. Mandante', valor: `${arbitroPerfil.resumo.pct_mandante}%`, cor: '#10B981' },
-                          { label: 'Amarelos / Jogo', valor: arbitroPerfil.resumo.media_amarelos, cor: '#F59E0B' },
-                          { label: 'Total Vermelhos', valor: arbitroPerfil.resumo.vermelhos, cor: '#EF4444' }
-                        ],
-                        destaqueTexto: `Média de ${arbitroPerfil.resumo.media_gols} gols por jogo | Mandantes: ${arbitroPerfil.resumo.vit_mandante}V • ${arbitroPerfil.resumo.empates}E • ${arbitroPerfil.resumo.vit_visitante}D`,
-                        nomeArquivo: `arbitro-${arbitroPerfil.arbitro.toLowerCase().replace(/\s+/g, '-')}.png`
-                      })
-                    }
-                  >
-                    <Share2 size={16} /> Baixar Card PNG do Árbitro
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-                <div className="soft-card" style={{ padding: '16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Jogos Apitados</div>
-                  <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#0369A1' }}>{arbitroPerfil.resumo.total_jogos}</div>
-                </div>
-                <div className="soft-card" style={{ padding: '16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Vitórias do Mandante</div>
-                  <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#15803D' }}>{arbitroPerfil.resumo.pct_mandante}%</div>
-                </div>
-                <div className="soft-card" style={{ padding: '16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🟨 Média Amarelos</div>
-                  <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#D97706' }}>{arbitroPerfil.resumo.media_amarelos}</div>
-                </div>
-                <div className="soft-card" style={{ padding: '16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>🟥 Total Expulsões</div>
-                  <div className="font-mono" style={{ fontSize: '2rem', fontWeight: '700', color: '#DC2626' }}>{arbitroPerfil.resumo.vermelhos}</div>
-                </div>
-              </div>
-
-              {/* Desempenho dos clubes apitados */}
-              {arbitroPerfil.clubes_apitados && arbitroPerfil.clubes_apitados.length > 0 && (
-                <div style={{ marginTop: '20px' }}>
-                  <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
-                    Clubes Mais Apitados por {arbitroPerfil.arbitro}
-                  </h4>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '8px' }}>Clube</th>
-                          <th style={{ padding: '8px', textAlign: 'center' }}>Jogos</th>
-                          <th style={{ padding: '8px', textAlign: 'center' }}>V</th>
-                          <th style={{ padding: '8px', textAlign: 'center' }}>E</th>
-                          <th style={{ padding: '8px', textAlign: 'center' }}>D</th>
-                          <th style={{ padding: '8px', textAlign: 'center' }}>Aproveitamento</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {arbitroPerfil.clubes_apitados.map((c, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '8px', fontWeight: '600' }}>{c.clube}</td>
-                            <td className="font-mono" style={{ padding: '8px', textAlign: 'center' }}>{c.jogos}</td>
-                            <td className="font-mono" style={{ padding: '8px', textAlign: 'center', color: '#15803D' }}>{c.vitorias}</td>
-                            <td className="font-mono" style={{ padding: '8px', textAlign: 'center', color: 'var(--text-muted)' }}>{c.empates}</td>
-                            <td className="font-mono" style={{ padding: '8px', textAlign: 'center', color: '#DC2626' }}>{c.derrotas}</td>
-                            <td className="font-mono" style={{ padding: '8px', textAlign: 'center', fontWeight: '700', color: c.aproveitamento_pct >= 50 ? '#15803D' : '#DC2626' }}>
-                              {c.aproveitamento_pct}%
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Últimas partidas apitadas */}
-              {arbitroPerfil.partidas && arbitroPerfil.partidas.length > 0 && (
-                <div style={{ marginTop: '24px' }}>
-                  <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
-                    Últimas Partidas Oficiais Apitadas
-                  </h4>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '8px' }}>Data</th>
-                          <th style={{ padding: '8px' }}>Campeonato</th>
-                          <th style={{ padding: '8px' }}>Confronto</th>
-                          <th style={{ padding: '8px', textAlign: 'center' }}>Placar</th>
-                          <th style={{ padding: '8px' }}>Estádio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {arbitroPerfil.partidas.map((p, idx) => (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td className="font-mono" style={{ padding: '8px', color: 'var(--text-muted)' }}>{p.data}</td>
-                            <td style={{ padding: '8px' }}><span className="badge badge-blue">{p.campeonato}</span></td>
-                            <td style={{ padding: '8px', fontWeight: '500' }}>{p.mandante} x {p.visitante}</td>
-                            <td className="font-mono" style={{ padding: '8px', textAlign: 'center', fontWeight: '700' }}>{p.placar}</td>
-                            <td style={{ padding: '8px', color: 'var(--text-muted)' }}>{p.estadio || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Ranking Geral de Árbitros quando nenhum estiver filtrado */}
-          {!arbitroPerfil && !arbitroLoading && arbitrosList.length > 0 && (
-            <div className="soft-card" style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px' }}>
-                Árbitros Mais Atuantes no Acervo (Clique para abrir o Raio-X)
-              </h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '10px 8px' }}>Árbitro</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'center' }}>Jogos</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'center' }}>% Vit. Mandante</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'center' }}>🟨 Amarelos/J</th>
-                      <th style={{ padding: '10px 8px', textAlign: 'center' }}>🟥 Vermelhos</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {arbitrosList
-                      .filter(a => !arbitroBusca || a.arbitro.toLowerCase().includes(arbitroBusca.toLowerCase()))
-                      .map((a, idx) => (
-                      <tr
-                        key={idx}
-                        onClick={() => carregarPerfilArbitro(a.arbitro)}
-                        style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background-color 150ms' }}
-                      >
-                        <td style={{ padding: '10px 8px', fontWeight: '600', color: '#0369A1' }}>{a.arbitro}</td>
-                        <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center' }}>{a.total_jogos}</td>
-                        <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center' }}>{a.pct_vit_mandante}%</td>
-                        <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', color: '#D97706' }}>{a.media_amarelos || '-'}</td>
-                        <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', color: '#DC2626' }}>{a.total_vermelhos || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <RefereeScoutView
+            apiFetch={apiFetch}
+            onSelectMatch={(m) => {
+              if (m && m.mandante && m.visitante) {
+                setClube1(m.mandante);
+                setClube2(m.visitante);
+                setActiveTab('h2h');
+              }
+            }}
+          />
         </section>
       )}
 

@@ -2844,14 +2844,14 @@ def get_arbitragem():
 
 @app.route('/api/arbitros/destaques', methods=['GET'])
 def get_arbitros_destaques():
-    cached = api_cache.get("api_arbitros_destaques")
+    cached = api_cache.get("api_arbitros_destaques_v2")
     if cached:
         return jsonify(cached)
 
     conn = get_db()
     c = conn.cursor()
 
-    # Top árbitros por volume de jogos apitados e cruzamento de cartões
+    # Top árbitros com métricas avançadas de rigor disciplinar (Pilar 2)
     c.execute("""
         WITH stats_arbitro AS (
             SELECT 
@@ -2875,38 +2875,80 @@ def get_arbitros_destaques():
         cartoes_por_arbitro AS (
             SELECT 
                 TRIM(p.arbitro) as arbitro,
-                COUNT(DISTINCT p.id_partida) as jogos_com_scout_cartoes,
+                COUNT(DISTINCT p.id_partida) as jogos_com_cartoes,
                 SUM(CASE WHEN cr.cartao LIKE '%Amarelo%' THEN 1 ELSE 0 END) as amarelos,
-                SUM(CASE WHEN cr.cartao LIKE '%Vermelho%' THEN 1 ELSE 0 END) as vermelhos
+                SUM(CASE WHEN cr.cartao LIKE '%Vermelho%' THEN 1 ELSE 0 END) as vermelhos,
+                SUM(CASE WHEN CAST(REPLACE(REPLACE(cr.minuto, '+', ''), "'", '') AS INTEGER) <= 45 THEN 1 ELSE 0 END) as cartoes_1t,
+                SUM(CASE WHEN CAST(REPLACE(REPLACE(cr.minuto, '+', ''), "'", '') AS INTEGER) > 45 THEN 1 ELSE 0 END) as cartoes_2t
             FROM partidas p
             JOIN cartoes cr ON p.id_partida = cr.id_partida
             WHERE p.arbitro IS NOT NULL
             GROUP BY TRIM(p.arbitro)
+        ),
+        penaltis_por_arbitro AS (
+            SELECT 
+                TRIM(p.arbitro) as arbitro,
+                COUNT(g.id_gol) as total_penaltis
+            FROM partidas p
+            JOIN gols g ON p.id_partida = g.id_partida
+            WHERE p.arbitro IS NOT NULL AND (g.tipo_de_gol LIKE '%pênalti%' OR g.tipo_de_gol LIKE '%penalti%')
+            GROUP BY TRIM(p.arbitro)
         )
         SELECT 
             s.*,
-            COALESCE(ca.jogos_com_scout_cartoes, 0) as jogos_cartoes,
+            COALESCE(ca.jogos_com_cartoes, 0) as jogos_cartoes,
             COALESCE(ca.amarelos, 0) as total_amarelos,
             COALESCE(ca.vermelhos, 0) as total_vermelhos,
+            COALESCE(ca.cartoes_1t, 0) as cartoes_1t,
+            COALESCE(ca.cartoes_2t, 0) as cartoes_2t,
+            COALESCE(pa.total_penaltis, 0) as total_penaltis,
+            ROUND(COALESCE(pa.total_penaltis, 0) * 1.0 / s.total_jogos, 2) as media_penaltis,
             CASE 
-                WHEN COALESCE(ca.jogos_com_scout_cartoes, 0) >= 5 
-                THEN ROUND(ca.amarelos * 1.0 / ca.jogos_com_scout_cartoes, 2) 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
+                THEN ROUND(ca.amarelos * 1.0 / ca.jogos_com_cartoes, 2) 
                 ELSE 0 
             END as media_amarelos,
             CASE 
-                WHEN COALESCE(ca.jogos_com_scout_cartoes, 0) >= 5 
-                THEN ROUND(ca.vermelhos * 1.0 / ca.jogos_com_scout_cartoes, 2) 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
+                THEN ROUND(ca.vermelhos * 1.0 / ca.jogos_com_cartoes, 2) 
                 ELSE 0 
-            END as media_vermelhos
+            END as media_vermelhos,
+            CASE 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
+                THEN ROUND((ca.amarelos + ca.vermelhos) * 1.0 / ca.jogos_com_cartoes, 2) 
+                ELSE 0 
+            END as media_cartoes,
+            CASE 
+                WHEN (COALESCE(ca.cartoes_1t, 0) + COALESCE(ca.cartoes_2t, 0)) > 0
+                THEN ROUND(ca.cartoes_2t * 100.0 / (ca.cartoes_1t + ca.cartoes_2t), 1)
+                ELSE 50.0
+            END as pct_cartoes_2t
         FROM stats_arbitro s
         LEFT JOIN cartoes_por_arbitro ca ON s.arbitro = ca.arbitro
+        LEFT JOIN penaltis_por_arbitro pa ON s.arbitro = pa.arbitro
         ORDER BY s.total_jogos DESC
-        LIMIT 30;
+        LIMIT 40;
     """)
-    arbitros = [dict(r) for r in c.fetchall()]
+    raw_arbitros = [dict(r) for r in c.fetchall()]
     conn.close()
 
-    api_cache.set("api_arbitros_destaques", arbitros, ttl=3600)
+    arbitros = []
+    for r in raw_arbitros:
+        m_cart = r.get("media_cartoes") or 0.0
+        # Índice de Rigor de 0 a 100 (Baseline futebol BR: 4.8 cartões = 50)
+        score_rigor = min(max(int(20 + (m_cart - 2.5) * 16), 15), 98) if m_cart > 0 else 50
+        perfil = "Ultra Rigoroso" if m_cart >= 5.5 else ("Disciplinador Padrão" if m_cart >= 4.5 else "Deixa o Jogo Fluir")
+        # Probabilidade de Over 4.5 Cartões
+        lam = m_cart if m_cart > 0 else 4.8
+        p_under = sum((math.exp(-lam) * (lam ** k) / math.factorial(k)) for k in range(5))
+        prob_over_45 = round((1.0 - p_under) * 100, 1)
+
+        r["indice_rigor"] = score_rigor
+        r["perfil_disciplinar"] = perfil
+        r["prob_over_4_5_cartoes"] = prob_over_45
+        arbitros.append(r)
+
+    api_cache.set("api_arbitros_destaques_v2", arbitros, ttl=1800)
     return jsonify(arbitros)
 
 
@@ -2917,7 +2959,7 @@ def get_arbitro_perfil():
     if not nome:
         return jsonify({"error": "Informe o nome do árbitro"}), 400
 
-    cache_key = f"arbitro_{nome.lower()}_{clube.lower()}"
+    cache_key = f"arbitro_v2_{nome.lower()}_{clube.lower()}"
     cached = api_cache.get(cache_key)
     if cached:
         return jsonify(cached)
@@ -2931,7 +2973,7 @@ def get_arbitro_perfil():
         filtro_clube_sql = " AND (p.mandante LIKE ? OR p.visitante LIKE ?)"
         params.extend([f"%{clube}%", f"%{clube}%"])
 
-    # Resumo geral do árbitro (ou específico para o clube filtrado)
+    # 1. Resumo geral do árbitro
     c.execute(f"""
         SELECT 
             COUNT(*) as total_jogos,
@@ -2946,61 +2988,134 @@ def get_arbitro_perfil():
     """, params)
     resumo_row = dict(c.fetchone() or {})
 
-    # Cartões aplicados pelo árbitro nos jogos filtrados
+    # 2. Cartões detalhados por tempo, minuto e clube
     c.execute(f"""
         SELECT 
-            COUNT(DISTINCT p.id_partida) as jogos_com_cartoes,
-            SUM(CASE WHEN cr.cartao LIKE '%Amarelo%' THEN 1 ELSE 0 END) as amarelos,
-            SUM(CASE WHEN cr.cartao LIKE '%Vermelho%' THEN 1 ELSE 0 END) as vermelhos
-        FROM partidas p
-        JOIN cartoes cr ON p.id_partida = cr.id_partida
+            cr.minuto, cr.cartao, cr.clube, cr.motivo, p.mandante, p.visitante, p.id_partida
+        FROM cartoes cr
+        JOIN partidas p ON cr.id_partida = p.id_partida
         WHERE p.arbitro LIKE ? {filtro_clube_sql};
     """, params)
-    cartoes_row = dict(c.fetchone() or {})
+    raw_cartoes = c.fetchall()
 
-    # Desempenho dos clubes mais apitados por este árbitro
+    jogos_com_cartoes_set = set()
+    amarelos = 0
+    vermelhos = 0
+    c_1t = 0
+    c_2t = 0
+    c_mand = 0
+    c_vis = 0
+    faixas_min = {'0-15': 0, '16-30': 0, '31-45': 0, '46-60': 0, '61-75': 0, '76-90+': 0}
+    motivos_cont = {}
+
+    for cr in raw_cartoes:
+        jogos_com_cartoes_set.add(cr['id_partida'])
+        cart = (cr['cartao'] or '').lower()
+        if 'vermelho' in cart:
+            vermelhos += 1
+        else:
+            amarelos += 1
+
+        min_str = str(cr['minuto'] or '')
+        m_num = re.search(r'(\d+)', min_str)
+        if m_num:
+            minuto = int(m_num.group(1))
+            if minuto <= 15: faixas_min['0-15'] += 1
+            elif minuto <= 30: faixas_min['16-30'] += 1
+            elif minuto <= 45: faixas_min['31-45'] += 1
+            elif minuto <= 60: faixas_min['46-60'] += 1
+            elif minuto <= 75: faixas_min['61-75'] += 1
+            else: faixas_min['76-90+'] += 1
+
+            if minuto <= 45: c_1t += 1
+            else: c_2t += 1
+
+        clb = (cr['clube'] or '').lower()
+        m_team = (cr['mandante'] or '').lower()
+        v_team = (cr['visitante'] or '').lower()
+        if clb and clb in m_team:
+            c_mand += 1
+        elif clb and clb in v_team:
+            c_vis += 1
+
+        mot = (cr['motivo'] or '').strip()
+        if mot and len(mot) > 3 and mot.lower() not in ('não informado', 'nao informado', '-'):
+            motivos_cont[mot] = motivos_cont.get(mot, 0) + 1
+
+    # 3. Pênaltis marcados
+    c.execute(f"""
+        SELECT COUNT(g.id_gol)
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE p.arbitro LIKE ? AND (g.tipo_de_gol LIKE '%pênalti%' OR g.tipo_de_gol LIKE '%penalti%')
+        {filtro_clube_sql};
+    """, params)
+    total_penaltis = c.fetchone()[0] or 0
+
+    # 4. Desempenho dos clubes apitados por este árbitro
     c.execute("""
         WITH jogos_clube AS (
-            SELECT mandante as clube, vencedor FROM partidas WHERE arbitro LIKE ?
+            SELECT id_partida, mandante as clube, vencedor FROM partidas WHERE arbitro LIKE ?
             UNION ALL
-            SELECT visitante as clube, vencedor FROM partidas WHERE arbitro LIKE ?
+            SELECT id_partida, visitante as clube, vencedor FROM partidas WHERE arbitro LIKE ?
+        ),
+        cartoes_clube AS (
+            SELECT cr.clube, count(cr.id_cartao) as total_cartoes
+            FROM cartoes cr
+            JOIN partidas p ON cr.id_partida = p.id_partida
+            WHERE p.arbitro LIKE ?
+            GROUP BY cr.clube
         )
         SELECT 
-            clube,
-            COUNT(*) as jogos,
-            SUM(CASE WHEN vencedor = clube THEN 1 ELSE 0 END) as vitorias,
-            SUM(CASE WHEN vencedor = 'Empate' THEN 1 ELSE 0 END) as empates,
-            SUM(CASE WHEN vencedor != clube AND vencedor != 'Empate' THEN 1 ELSE 0 END) as derrotas,
-            ROUND(SUM(CASE WHEN vencedor = clube THEN 3.0 WHEN vencedor = 'Empate' THEN 1.0 ELSE 0 END) * 100.0 / (COUNT(*) * 3.0), 1) as aproveitamento_pct
-        FROM jogos_clube
-        GROUP BY clube
+            jc.clube,
+            COUNT(DISTINCT jc.id_partida) as jogos,
+            SUM(CASE WHEN jc.vencedor = jc.clube THEN 1 ELSE 0 END) as vitorias,
+            SUM(CASE WHEN jc.vencedor = 'Empate' THEN 1 ELSE 0 END) as empates,
+            SUM(CASE WHEN jc.vencedor != jc.clube AND jc.vencedor != 'Empate' THEN 1 ELSE 0 END) as derrotas,
+            ROUND(SUM(CASE WHEN jc.vencedor = jc.clube THEN 3.0 WHEN jc.vencedor = 'Empate' THEN 1.0 ELSE 0 END) * 100.0 / (COUNT(DISTINCT jc.id_partida) * 3.0), 1) as aproveitamento_pct,
+            COALESCE(cc.total_cartoes, 0) as cartoes_recebidos
+        FROM jogos_clube jc
+        LEFT JOIN cartoes_clube cc ON jc.clube = cc.clube
+        GROUP BY jc.clube
         ORDER BY jogos DESC
-        LIMIT 12;
-    """, (f"%{nome}%", f"%{nome}%"))
+        LIMIT 15;
+    """, (f"%{nome}%", f"%{nome}%", f"%{nome}%"))
     clubes_apitados = [dict(r) for r in c.fetchall()]
 
-    # Últimas 25 partidas apitadas
+    # 5. Últimas partidas apitadas
     c.execute(f"""
         SELECT p.id_partida, p.data, p.campeonato, p.mandante, p.visitante, p.placar, p.estadio, p.arbitro
         FROM partidas p
         WHERE p.arbitro LIKE ? {filtro_clube_sql}
         ORDER BY p.data DESC, p.id_partida DESC
-        LIMIT 25;
+        LIMIT 30;
     """, params)
     partidas = [dict(r) for r in c.fetchall()]
 
     conn.close()
 
     total_j = resumo_row.get("total_jogos") or 0
-    jc = cartoes_row.get("jogos_com_cartoes") or 0
-    am = cartoes_row.get("amarelos") or 0
-    vm = cartoes_row.get("vermelhos") or 0
+    jc = len(jogos_com_cartoes_set)
+    total_cart = amarelos + vermelhos
+    media_cart = round(total_cart / max(jc, 1), 2) if jc > 0 else 0.0
+    media_am = round(amarelos / max(jc, 1), 2) if jc > 0 else 0.0
+    media_vm = round(vermelhos / max(jc, 1), 2) if jc > 0 else 0.0
+
+    score_rigor = min(max(int(20 + (media_cart - 2.5) * 16), 15), 98) if media_cart > 0 else 50
+    perfil = "Ultra Rigoroso" if media_cart >= 5.5 else ("Disciplinador Padrão" if media_cart >= 4.5 else "Deixa o Jogo Fluir")
+
+    lam = media_cart if media_cart > 0 else 4.8
+    p_under = sum((math.exp(-lam) * (lam ** k) / math.factorial(k)) for k in range(5))
+    prob_over_45 = round((1.0 - p_under) * 100, 1)
+
+    top_motivos = [{"motivo": k, "total": v} for k, v in sorted(motivos_cont.items(), key=lambda x: x[1], reverse=True)[:6]]
 
     dados = {
         "arbitro": nome,
         "clube_filtro": clube,
         "resumo": {
             "total_jogos": total_j,
+            "jogos_com_cartoes": jc,
             "ano_min": resumo_row.get("ano_min"),
             "ano_max": resumo_row.get("ano_max"),
             "media_gols": resumo_row.get("media_gols") or 0,
@@ -3008,11 +3123,36 @@ def get_arbitro_perfil():
             "empates": resumo_row.get("empates") or 0,
             "vit_visitante": resumo_row.get("vit_visitante") or 0,
             "pct_mandante": round((resumo_row.get("vit_mandante") or 0) * 100.0 / total_j, 1) if total_j > 0 else 0,
-            "amarelos": am,
-            "vermelhos": vm,
-            "media_amarelos": round(am / jc, 2) if jc > 0 else 0,
-            "media_vermelhos": round(vm / jc, 2) if jc > 0 else 0,
+            "pct_empate": round((resumo_row.get("empates") or 0) * 100.0 / total_j, 1) if total_j > 0 else 0,
+            "pct_visitante": round((resumo_row.get("vit_visitante") or 0) * 100.0 / total_j, 1) if total_j > 0 else 0,
+            "amarelos": amarelos,
+            "vermelhos": vermelhos,
+            "total_cartoes": total_cart,
+            "media_cartoes": media_cart,
+            "media_amarelos": media_am,
+            "media_vermelhos": media_vm,
+            "indice_rigor": score_rigor,
+            "perfil_disciplinar": perfil,
+            "prob_over_4_5_cartoes": prob_over_45,
+            "penaltis": {
+                "total": total_penaltis,
+                "media_por_jogo": round(total_penaltis / max(total_j, 1), 2)
+            },
+            "distribuicao_tempos": {
+                "cartoes_1t": c_1t,
+                "cartoes_2t": c_2t,
+                "pct_1t": round(c_1t * 100.0 / max(total_cart, 1), 1),
+                "pct_2t": round(c_2t * 100.0 / max(total_cart, 1), 1)
+            },
+            "distribuicao_mando": {
+                "cartoes_mandante": c_mand,
+                "cartoes_visitante": c_vis,
+                "pct_mandante": round(c_mand * 100.0 / max(c_mand + c_vis, 1), 1),
+                "pct_visitante": round(c_vis * 100.0 / max(c_mand + c_vis, 1), 1)
+            },
+            "faixas_minutos": faixas_min
         },
+        "top_motivos": top_motivos,
         "clubes_apitados": clubes_apitados,
         "partidas": partidas
     }
