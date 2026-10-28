@@ -242,6 +242,7 @@ def ciclo_mestre(numero_ciclo: int):
     safe_print("\n>>> [FASE C] Higienização e Desambiguação de Gols & Confrontos <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "higienizar_e_desambiguar_gols.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sanitizar_dashboard_e_atletas.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sanear_dados_atletas_e_estatisticas.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "corrigir_desambiguacao_estrita.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "sanitizar_confrontos_duplicados.py")])
 

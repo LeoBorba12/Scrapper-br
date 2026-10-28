@@ -278,11 +278,14 @@ def recalcular_invariantes_atomicas(conn):
         WHERE id_jogador IN (SELECT id_jogador FROM temp_contagem_gols);
     """)
     
-    # 4. Ajustar total_jogos: total_jogos nunca pode ser menor que total_gols
+    # 4. Ajustar total_jogos: total_jogos nunca pode ser menor que total_gols e recalcular médias
     c.execute("""
         UPDATE jogadores_estatisticas
-        SET total_jogos = total_gols
-        WHERE total_jogos < total_gols;
+        SET total_jogos = MAX(total_jogos, total_gols),
+            media_gols_por_jogo = ROUND(CAST(total_gols AS REAL) / MAX(MAX(total_jogos, total_gols), 1), 2),
+            participacoes_gols = total_gols + COALESCE(total_assistencias, 0),
+            media_participacao_por_jogo = ROUND(CAST((total_gols + COALESCE(total_assistencias, 0)) AS REAL) / MAX(MAX(total_jogos, total_gols), 1), 2)
+        WHERE total_jogos < total_gols OR media_gols_por_jogo > 2.0;
     """)
     
     # 5. Sincronizar também com a tabela jogadores legada e jogadores_resumo
