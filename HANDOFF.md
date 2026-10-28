@@ -1,163 +1,145 @@
-# 📋 HANDOFF DO PROJETO: SCRAPPER-BR / GUIA PROFISSIONAL
+# 📋 HANDOFF DO PROJETO: SCRAPPER-BR / GUIA PROFISSIONAL (FUTSTATS)
 
-> **Data de atualização:** 2026-10-21 14:40  
-> **Status do repositório:** Estável, 5/5 testes de integridade passando, bancos sincronizados, Brasileirão (1995-2025) 100% preenchido.
+> **Data de atualização:** 2026-10-28 17:35  
+> **Status do repositório:** 100% Estável em produção na Vercel | 11/11 regras de integridade passando com 0 inconsistências | 22/22 testes de regressão Dixon-Coles/Poisson aprovados | Acervo com 115.361 partidas | Tamanho da base: 86.27 MB (estritamente abaixo do teto de 94.0 MB da Vercel).
 
 ---
 
 ## 1. 🎯 Objetivo do Projeto e Stack Utilizada
 
 ### Objetivo
-Plataforma analítica e gerador de insights estatísticos e conteúdo viral sobre o **Futebol Brasileiro e Sul-Americano (1950–2026)** integrado a **Meteorologia Histórica (2015–2024)**, motor de **IA Analista (NL-to-SQL)** e ferramenta de **geração de cards visuais** para redes sociais (Twitter/X, Instagram).
+Plataforma analítica e gerador de insights estatísticos profissionais sobre o **Futebol Brasileiro e Sul-Americano (1950–2026)** integrado a **Meteorologia Histórica (2015–2024)**, motor preditivo calibrado (**Dixon-Coles 1997 & Poisson Bivariado**), **Raio-X de Arbitragem**, **Comparador Histórico de Atletas com Reconciliação Canônica**, **Bot Interativo do Telegram 24x7** e motor de **IA Analista (NL-to-SQL)**.
 
 ### Stack Tecnológica
 - **Frontend:**
   - React 18 (SPA com Vite)
   - Tailwind CSS + Lucide React
-  - HTML5 Canvas / `html2canvas` para renderização de cards em PNG
-  - Dois modos de visualização: **Sooma/Endless Tools** (Dark Cyber-Editorial) e **Classic Soft UI**
+  - Identidade Visual Editorial 2026: Paleta Areia (`#F1E8DE`), Carvão Quente (`#1B1A17`), Oliva (`#5A673E`) e Terracota (`#85573B`)
+  - Acessibilidade WCAG 2.2 AA/AAA em todos os contrastes de cor
+  - HTML5 Canvas / `html2canvas` para renderização de cards em alta resolução
+  - Visualizações especializadas: `RefereeScoutView.jsx`, `SpatialPitchMap.jsx`, `GoalMouthMap.jsx` e radar pentagonal tático
 - **Backend:**
-  - Python 3.12+ / Flask REST API
-  - Autenticação JWT (`PyJWT`) com hash seguro PBKDF2-HMAC-SHA256 e sistema de convites
+  - Python 3.12+ / Flask REST API modular com telemetria ativa (`X-Response-Time-Ms`)
+  - Autenticação JWT (`PyJWT`) com hash seguro PBKDF2-HMAC-SHA256 e convites
+  - Motor Estatístico Preditivo: Dixon-Coles 1997 com $\rho = -0.12$, Poisson bivariado, Fair Odds e cálculo de Valor Esperado (+EV)
   - IA Analista com suporte dual: Google Gemini (`google-genai` SDK) e DeepSeek API
   - Suporte a deployment serverless na Vercel via `api/index.py`
 - **Banco de Dados:**
-  - SQLite com arquitetura desacoplada:
-    - `data/futebol.db` (partidas, gols, cartões, escalações, árbitros, resumo canônico)
-    - `data/clima.db` (histórico climático diário de 12 capitais brasileiras com cruzamento via `ATTACH DATABASE`)
-  - Espelho obrigatório para produção serverless em `api/data/futebol.db`
-- **Pipeline de Dados & Scrapers:**
-  - Python com `BeautifulSoup4`, `urllib`, regex avançado e rate limiting
-  - Scrapers especializados: OGol (Estaduais e Copas Regionais com paginação), RSSSF Brasil, Bola n'Área e CBF Súmulas
+  - SQLite com arquitetura desacoplada e otimizações WAL:
+    - `data/futebol.db` (115.361 partidas, 150.000+ gols, escalações, cartões, árbitros, resumo canônico) — **86.27 MB**
+    - `data/clima.db` (histórico climático diário de 12 capitais brasileiras via `ATTACH DATABASE`)
+    - `data/futebol_referencia.db` (**Banco de Referência Isolado**, protegido no `.gitignore`, contendo histórico canônico de atletas e clubes via Wikidata SPARQL API)
+- **Daemons & Background:**
+  - `scripts/bot_telegram_interativo.py`: Daemon 24x7 com botões inline, comandos `/status`, `/sniper`, moderação e alertas
+  - `scripts/orquestrador_mestre_24x7.py`: Daemon na VM Oracle Cloud com isolamento de processos e digests a cada 3 horas
 
 ---
 
 ## 2. 🏗️ O que já foi feito (por Arquivo / Componente)
 
 ### Backend e APIs
-- **`backend/app.py`:** API REST completa com endpoints para `/api/overview`, `/api/h2h`, `/api/jogadores/search`, `/api/jogadores/perfil`, `/api/jogadores/destaques`, `/api/oraculo/perguntar`, `/api/playground/executar`, `/api/clima/cruzamentos`, `/api/arbitragem/estatisticas` e `/api/auth/*`.
-- **`backend/auth.py`:** Controle de acesso por JWT, hash PBKDF2 com salt individual, verificação de administradores e gerador/validador de códigos de convite com expiração.
-- **`backend/ia_analista.py`:** Motor NL-to-SQL (Linguagem Natural para SQLite). Contém injeção de schema detalhado, sanitização contra mutações (`SELECT` only), auto-correção de queries com fallback e síntese analítica em tom jornalístico esportivo.
-- **`api/index.py`:** Ponto de entrada compatível com Vercel Serverless Functions.
+- **`backend/app.py`:** API REST com endpoints otimizados:
+  - `/api/overview`, `/api/h2h`, `/api/jogadores/search`, `/api/jogadores/perfil`, `/api/jogadores/destaques`
+  - `/api/arbitros/destaques` e `/api/arbitros/perfil` (Raio-X de Arbitragem com rigor, viés de mando, 1T vs 2T, minutagem e Poisson de cartões)
+  - `/api/oraculo/perguntar`, `/api/playground/executar`, `/api/clima/cruzamentos`, `/api/auth/*` e `/api/health`
+- **`backend/ia_analista.py`:** Motor NL-to-SQL (Linguagem Natural para SQLite) com injeção de schema detalhado, sanitização estrita e síntese analítica esportiva.
+- **`backend/auth.py`:** Autenticação JWT e hash PBKDF2 seguro.
 
 ### Frontend
-- **`frontend/src/App.jsx`:** Aplicação principal com abas de navegação:
-  - **H2H (Confronto Direto):** Comparação histórica completa entre quaisquer 2 clubes, aproveitamento, gols, maiores goleadas e lista de jogos.
-  - **Jogadores:** Busca com autocompletion, cards dos craques históricos, perfil completo de artilharia por clube/torneio e mapa disciplinar.
-  - **Oráculo IA:** Interface conversacional com seleção de modelo (Gemini/DeepSeek), visualização opcional do SQL gerado e explicação detalhada.
-  - **Playground SQL:** Console para consultas analíticas personalizadas com exportação de tabela.
-  - **Clima:** Cruzamento de desempenho com temperatura, chuva e umidade.
-  - **Arbitragem:** Ranking de juízes, média de cartões e pênaltis marcados.
-  - **Social / Cards:** Gerador de cards estilizados para download em alta resolução.
-- **`frontend/src/SoomaFutStatsView.jsx`:** Visualização inspirada nas referências de design Endless Tools / Outcrowd.
-- **`frontend/src/utils/cardGenerator.js`:** Motor em canvas para exportar cards visuais 1200x675 e 1080x1350 com escudos, estatísticas e tipografia de impacto.
+- **`frontend/src/App.jsx`:** Aplicação central com abas analíticas estruturadas no padrão Editorial 2026:
+  - **H2H (Confronto Direto):** Comparação histórica completa, aproveitamento, gols e lista de partidas.
+  - **Jogadores:** Comparador lado a lado com radar tático normalizado (baseline 40 Winning Eleven), timeline canônica e partidas recentes de 2026.
+  - **Arbitragem (`RefereeScoutView.jsx`):** Dashboard analítica dedicada com 4 KPIs mestres (Mais Rigoroso, Média de Pênaltis, Viés Mandante, Pico 2º Tempo), tabela master com filtros rápidos e Raio-X profundo por árbitro.
+  - **Oráculo IA & Playground SQL:** Consultas assistidas por IA e console analítico customizado.
+  - **Clima & Social Cards:** Cruzamentos meteorológicos e gerador de cards sociais para download.
 
-### Dados, Scrapers e Validação
-- **`scripts/scraper_ogol_brasileirao.py`:** Pipeline especializado para o Brasileirão Série A (1995–2013 e anos modernos):
-  - Suporta os layouts moderno e clássico do OGol (`match-header-team-name`, `span.time`, extração de minutos múltiplos por jogador, pênaltis e gols contra).
-  - Preenchimento total do hiato histórico de 2003 a 2013 e da década de 1990 (1995 a 2000, incluindo a Copa João Havelange).
-  - Mais de 17.000 gols detalhados inseridos no banco.
-- **`scripts/higienizar_e_desambiguar_gols.py`:**
-  - Desagrupamento de gols com múltiplos autores na mesma linha (`X 19' e Y 79'`).
-  - Expansão de multiplicadores (`(2)`, `(3)`, `(4)`), recuperando mais de 1.000 gols reais (Pelé, Coutinho, Zico, etc.).
-  - Higienização de minutos e pênaltis embutidos em strings de nomes de atletas.
-  - Desambiguação de homônimos históricos (*Serginho Chulapa*, *Dario Dadá Maravilha*, *Careca Bianchezi* separado de *Careca SPFC/Guarani*).
-- **`scripts/scraper_ogol_estaduais.py`:** Pipeline principal de extração e enriquecimento dos Estaduais e Copas Regionais:
-  - Cache local idempotente em `data/cache_ogol_estaduais/`.
-  - Normalização canônica de nomes de clubes e jogadores.
-  - Suporte a 11 torneios estaduais e regionais.
-- **`scripts/validar_banco.py`:** Suíte com 5 testes automatizados (Chaves Estrangeiras, Sanidade de Placares, Padrão de Datas ISO, Sincronia entre Bancos e Golden Queries analíticas).
-- **`data/futebol.db` & `api/data/futebol.db`:**
-  - Total atual: **87.941 partidas** catalogadas.
-  - Brasileirão com 30 anos consecutivos detalhados (1995–2025).
-  - Tamanho atual: **81,44 MB** (seguro abaixo do limite de 100 MB do GitHub).
+### Validação, Sanidade de Dados e Avaliação de Modelos
+- **`scripts/auditar_integridade_dados.py`:** Agente Automatizado de Integridade de Dados executando **11 regras de consistência relacional e auto-reparo**:
+  - Regra 1: Gols numéricos nulos com placar existente (Auto-reparo).
+  - Regra 2: Padronização de datas ISO YYYY-MM-DD.
+  - Regra 3: Gols órfãos (sem partida correspondente).
+  - Regra 4: Odds órfãs (sem partida correspondente).
+  - Regra 5: Nomes de clubes mandante/visitante válidos.
+  - Regra 6: Coerência lógica de vencedor vs placar final (Auto-reparo).
+  - Regra 7: Detecção de confrontos duplicados na mesma data.
+  - Regra 8: Consistência de partidas por temporada recente.
+  - Regra 9: Gols atribuídos a times com placar zero (Auto-reparo de clube invertido).
+  - Regra 10: Atletas artilheiros sem posição tática no perfil (Auto-inferência).
+  - **Regra 11 (NOVA):** Coerência de clube em gols vs escalação oficial da partida (Auto-reparo contra inversão de adversário e auto-sincronização de perfis).
+- **`tests/test_model_evals.py`:** Regression gate com **22/22 testes automatizados** validando o modelo matemático Dixon-Coles 1997 ($\rho = -0.12$), Poisson Bivariado, fair odds contínuas, partição de probabilidades ($\sum P = 100\%$) e gating de valor esperado (+EV).
 
 ---
 
-## 3. ⏳ O que está em Andamento e o que Falta (Prioridade)
+## 3. 🔬 Reconciliação Canônica de Atletas & Ingestão 2026 (Hoje, 28/10/2026)
 
-### 🔴 Alta Prioridade (Imediata)
-1. **Completar Copa do Nordeste e Campeonato Paranaense:**
-   - Ingerir os anos de **2020 a 2023** usando `scripts/scraper_ogol_estaduais.py`.
-2. **Ingerir novos estaduais já configurados (2020 a 2025):**
-   - **Campeonato Catarinense** (Chapecoense, Avaí, Figueirense, Criciúma, Brusque).
-   - **Campeonato Baiano** (Bahia, Vitória).
-   - **Campeonato Pernambucano** (Sport, Náutico, Santa Cruz).
-   - **Campeonato Goiano** (Goiás, Atlético-GO, Vila Nova).
-   - **Campeonato Cearense** (Fortaleza, Ceará, Ferroviário).
+### Diagnóstico da Causa-Raiz de "Clubes Alienígenas"
+Identificou-se que em scrapers antigos de súmulas, quando um gol era registrado em uma partida, a coluna `gols.clube` por vezes recebia o time adversário (ex: Neymar com gols marcados contra Atlético-MG, Peñarol e Bolívar constando com esses clubes em seu registro). Como o perfil do atleta agrupava os clubes distintos de `gols` e `escalacoes`, esses adversários passavam a figurar como clubes defendidos pelo atleta.
 
-### 🟡 Média Prioridade
-3. **Anos Históricos dos 4 Grandes (2010 a 2013):**
-   - Paulista, Carioca, Mineiro e Gaúcho no período 2010–2013 para completar 15 anos consecutivos de dados minuciosos de gols.
-4. **Enriquecimento de Cartões nos Estaduais:**
-   - Atualmente a tabela `cartoes` tem foco massivo no Brasileirão; extrair advertências detalhadas dos estaduais quando disponíveis.
-5. **Debounce e Performance de Busca:**
-   - Otimizar busca de jogadores no frontend com `useDeferredValue` ou debounce de 250ms para reduzir chamadas na API local.
+### Arquitetura de Reconciliação e Banco de Referência
+Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`) e o agente especializado `reference_data_agent` operado por `scripts/reference_database_manager.py`:
+- **Coleta Canônica (Wikidata SPARQL API)**: Extrai contratos oficiais de clubes de cada atleta através da propriedade `P54` (*member of sports team*) e datas de vigência.
+- **Diff Engine & Safe Dual-Cure**:
+  - *Caso 1 (Inversão de Adversário)*: Se o gol foi registrado para o clube B, mas a partida foi Clube A vs Clube B e o atleta estava escalado pelo Clube A (pertencente à sua carreira canônica), o gol é curado cirurgicamente para o Clube A.
+  - *Caso 2 (Homônimo)*: Se nem mandante nem visitante pertencem à carreira do atleta, o registro é isolado e desambiguado sem perda de dados.
 
-### 🟢 Baixa Prioridade
-6. **Automação de CI com GitHub Actions:**
-   - Executar `scripts/validar_banco.py` em cada commit automaticamente.
+### Execução das 4 Fases do Plano Mestre:
+1. **Fase 1 (Piloto Unitário)**:
+   - **Neymar**: Curados 5 gols invertidos para o Santos; purgados do perfil os clubes Atlético-MG, Atlético-GO, Bolívar, Peñarol e Red Bull Bragantino.
+   - **Romário**: Desambiguação de Romário ID 12212 (150 gols por Flamengo, Fluminense, Vasco) vs Romário Lateral ID 101469; purgados registros fantasmas (`Romário 27`, `Romário pen`).
+   - **Ingestão de Escalações 2026**: Atualizado `scripts/sincronizar_partidas_recentes_e_scouts.py` com parsing de rosters da ESPN API. Inseridas mais de 2.100 escalações de 2026, permitindo que Pedro, Gabigol e Hulk exibam partidas de outubro de 2026 no perfil.
+2. **Fase 2 (Piloto Controlado - Top 50 Atletas)**:
+   - 50 atletas auditados contra a base canônica.
+   - 31 atletas corrigidos; **164 gols alienígenas curados cirurgicamente** (Marcelinho Carioca, Edmundo, Luís Fabiano, Dodô, Careca, Robinho, Paulo Baier).
+3. **Fase 3 (Escala Total - Top 1.000 Atletas)**:
+   - 1.000 atletas auditados em lotes controlados.
+   - 478 atletas com discrepâncias; **1.043 gols alienígenas curados cirurgicamente** e reatribuídos aos seus clubes legítimos.
+   - Sincronização determinística das colunas `clubes` e `total_gols` entre `jogadores` e `jogadores_estatisticas`.
+4. **Fase 4 (Regra Permanente de Sanidade & Regression Gate)**:
+   - Adicionada a **Regra 11** ao `scripts/auditar_integridade_dados.py` para bloquear/auto-reparar permanentemente qualquer gol atribuído ao adversário de uma partida em que o jogador estava escalado.
+   - **Desambiguação de Gabriel Barbosa (Gabigol - ID 7)**: Desvinculadas 32 escalações e 1 gol de homônimos de outros clubes (Ceará, Juventude, Mirassol, Bragantino, Dourados, Criciúma). O perfil de Gabigol exibe estritamente **Santos, Flamengo e Cruzeiro**.
+   - Todas as 11 regras validadas com 0 inconsistências no banco de produção.
 
 ---
 
-## 4. 🎨 Decisões de Design Importantes
+## 4. 🎨 Decisões de Design & UI Editorial 2026
 
-Referência principal documentada em [`design-endlesstools.md`](file:///f:/Antigravity_Projetos_e_Ferramentas/Guia%20profissional/design-endlesstools.md):
-- **Cores & Superfícies:**
-  - Fundo: True Black absoluto (`#000000`), sem tons azulados.
-  - Cartões: `rgba(26, 26, 26, 0.6)` com borda sutil grafite `#343434` e `backdrop-blur-lg`.
-  - Acento Primário: Magenta Neon (`#FF13B1`) com hover `#FF4BC4`.
-  - Acentos Secundários: Verde Limão (`#C7FF00`) para badges de vitórias/status positivo e Ciano (`#00F0FF`) para dados técnicos.
-- **Componentes:**
-  - Botões de ação, inputs e tags no formato pílula total (`rounded-full`).
-  - Cartões com cantos arredondados generosos (`rounded-2xl` ou `rounded-[20px]`).
+- **Paleta de Cores:**
+  - Fundo Geral: Areia (`#F1E8DE`) no Modo Claro; Carvão Quente Profundo (`#1B1A17` / `#141311`) no Modo Escuro.
+  - Cartões & Superfícies: Borda sutil `#E5DCD0` (claro) e `#2C2B27` (escuro), sem blur excessivo ou reflexos artificiais.
+  - Acentos: Oliva Editorial (`#5A673E` / `#7D8D5C`) e Terracota Quente (`#85573B` / `#D48459`).
 - **Tipografia:**
-  - Títulos em `Inter` ou `Plus Jakarta Sans`, bold, `tracking-tight`.
-  - Textos de apoio em `#8E8E93`, corpo conciso e legível.
-- **Animações:**
-  - Micro-interações táteis rápidas: `transition-all duration-200 active:scale-[0.98]`.
+  - Títulos e cabeçalhos em *Source Serif 4* e *Inter*.
+  - Números, odds e estatísticas em *JetBrains Mono*.
+- **Microinterações:**
+  - Classes `.touch-tactile` com `active:scale-[0.98]` e feedback de loading por skeletons (sem layout shift).
+- **Acessibilidade:**
+  - 100% dos contrastes em conformidade obrigatória com WCAG 2.2 AA (mínimo 4.5:1 para texto normal e 3:1 para controles).
 
 ---
 
-## 5. ⚠️ Problemas Conhecidos e Regras de Segurança
+## 5. ⚠️ Regras Críticas de Confiabilidade & Segurança
 
-1. **Limite de 100 MB do GitHub:**
-   - O arquivo `data/futebol.db` e `api/data/futebol.db` tem atualmente **78,23 MB**.
-   - O GitHub rejeita commits com arquivos acima de 100 MB.
-   - Sempre verificar o tamanho do arquivo via PowerShell (`(Get-Item data\futebol.db).Length / 1MB`) antes de comitar.
-2. **Sincronização Obrigatória dos Dois Bancos:**
-   - Qualquer alteração em `data/futebol.db` **deve** ser replicada para `api/data/futebol.db` antes do push para não quebrar a API em produção.
-3. **Datas Históricas da CONMEBOL (1998–2002):**
-   - 122 registros no banco usam formato de texto indicando fase/rodada em vez de data ISO. O teste 3 de `validar_banco.py` emite aviso propositalmente sem falhar.
-4. **Rate Limit do OGol (HTTP 429):**
-   - O script `scraper_ogol_estaduais.py` inclui pausa de segurança (`delay=0.4s`) e recuperação automática em caso de erro 429 com sleep de 5s.
-   - O diretório `data/cache_ogol_estaduais/` está no `.gitignore` para não inflar o repositório git com milhares de JSONs.
+1. **Teto de 94.0 MB da Vercel para `data/futebol.db`:**
+   - O banco atual possui **86.27 MB**, restando ~7.7 MB de folga segura.
+   - O banco canônico `data/futebol_referencia.db` está no `.gitignore` e **NUNCA** deve ser adicionado ao git.
+   - Sempre conferir o tamanho do arquivo antes de comitar:
+     ```powershell
+     python -c "import os; print(f'{os.path.getsize(\"data/futebol.db\")/(1024*1024):.2f} MB')"
+     ```
+2. **Pre-Flight Gates Obrigatórios Antes de Qualquer Commit:**
+   - **Regression Gate do Modelo**: `python -m pytest tests/test_model_evals.py` (deve passar 22/22).
+   - **Auditoria de Integridade**: `python scripts/auditar_integridade_dados.py` (deve retornar 0 inconsistências em todas as 11 regras).
+   - **Build Frontend**: `npm --prefix frontend run build` (deve compilar sem erros de sintaxe ou imports quebrados).
+3. **Telemetria e Bot do Telegram:**
+   - O daemon do bot interativo (`scripts/bot_telegram_interativo.py`) deve permanecer rodando em background para processar comandos `/status`, `/sniper` e alertas.
 
 ---
 
-## 6. 🚀 Próximo Passo Exato ao Retomar
+## 6. 🚀 Próximos Passos Recomendados
 
-Para continuar o trabalho imediatamente na nova sessão:
-
-1. **Rodar a ingestão de 2020 a 2023 da Copa do Nordeste e Paranaense:**
-   ```powershell
-   python scripts/scraper_ogol_estaduais.py --anos 2020 2021 2022 2023 --torneios nordeste paranaense
-   ```
-2. **Rodar os testes de integridade:**
-   ```powershell
-   python scripts/validar_banco.py
-   ```
-3. **Verificar o tamanho do banco:**
-   ```powershell
-   powershell -Command "(Get-Item data\futebol.db).Length / 1MB"
-   ```
-4. **Comitar e enviar:**
-   ```powershell
-   git add data/futebol.db api/data/futebol.db
-   git commit -m "feat(estaduais): consolidar Copa do Nordeste e Paranaense 2020-2023"
-   git push origin main
-   ```
-5. **Iniciar a ingestão de Catarinense e Baiano (2024 e 2025):**
-   ```powershell
-   python scripts/scraper_ogol_estaduais.py --anos 2024 2025 --torneios catarinense baiano
-   ```
+1. **Pilar 3: IA Analista com Grounding Refinado (NL-to-SQL)**:
+   - Atualizar os prompts e exemplos em `backend/ia_analista.py` para utilizar as novas tabelas higienizadas, as estatísticas de arbitragem e as métricas Dixon-Coles calibradas.
+2. **Pilar 4: Mobile & Microinterações Táteis Avançadas**:
+   - Refinar a experiência móvel no comparador de jogadores e no scout de árbitros (drawer tátil inferior para filtros rápidos e suporte a gestos de swipe).
+3. **Expansão de Scrapers Automáticos**:
+   - Manter a rotina de sincronização de partidas recentes (`scripts/sincronizar_partidas_recentes_e_scouts.py`) rodando periodicamente para manter as escalações de 2026 sempre atualizadas com os jogos da semana.

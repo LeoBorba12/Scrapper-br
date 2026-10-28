@@ -95,3 +95,16 @@
     - Tabela master com busca em tempo real, chips rápidos e filtros por rigor.
     - Visão Raio-X aprofundada com barra comparativa 1T vs 2T, equilíbrio de mando e tabela de rendimento por clube.
 - **Validação de Pre-Flight**: 22/22 pytest aprovados, integridade do banco (84.82 MB < 94 MB) e build do frontend concluído em 7.99s.
+
+## [2026-10-28] Reconciliação Canônica de Atletas (Top 1.000), Ingestão 2026 & Regra 11 de Integridade
+- **Banco de Referência Isolado & Agente Canônico**:
+  - Implementado `data/futebol_referencia.db` (estritamente no `.gitignore` para proteção do teto Vercel) e módulo `scripts/reference_database_manager.py`.
+  - Coleta canônica via API SPARQL da Wikidata (`P54` member of sports team) para validação da linha do tempo de clubes dos atletas.
+- **Ingestão de Escalações 2026**:
+  - Resolvido o hiato onde jogadores só exibiam jogos até 2025: atualizado `scripts/sincronizar_partidas_recentes_e_scouts.py` com parsing de rosters da ESPN. Inseridas mais de 2.100 escalações de 2026 (Pedro, Hulk e Gabigol agora com jogos em outubro de 2026).
+- **Execução das 4 Fases do Plano de Reconciliação**:
+  - **Fase 1 (Piloto Unitário)**: Neymar (reversão de 5 gols invertidos para o Santos e purga de adversários) e Romário (desambiguação ID 12212 vs homônimo lateral 101469).
+  - **Fase 2 (Piloto Top 50)**: 50 atletas auditados, 31 com anomalias, 164 gols alienígenas curados cirurgicamente.
+  - **Fase 3 (Escala Total Top 1.000)**: 1.000 atletas auditados no acumulado, 478 com discrepâncias, 1.043 gols alienígenas curados cirurgicamente e sincronizados em `jogadores` e `jogadores_estatisticas`.
+  - **Fase 4 (Gate Permanente & Regra 11)**: Implementada a Regra 11 em `scripts/auditar_integridade_dados.py` para detecção e auto-reparo de qualquer gol registrado para adversário em que o atleta conste escalado. Desambiguação de Gabriel Barbosa (Gabigol ID 7) desvinculando 32 escalações e 1 gol de homônimos (restringindo seu perfil estritamente a Santos, Flamengo e Cruzeiro).
+- **Validação de Pre-Flight**: 22/22 pytest aprovados, integridade do banco (86.27 MB < 94 MB), 11/11 regras de auditoria passando com 0 inconsistências e build frontend concluído com sucesso.
