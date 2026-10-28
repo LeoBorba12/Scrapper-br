@@ -23,7 +23,8 @@ export default function AthleteCompareView({
   initialNome1 = '',
   initialNome2 = '',
   onBack,
-  onSelectPlayer
+  onSelectPlayer,
+  apiFetch
 }) {
   const [id1, setId1] = useState(initialId1);
   const [id2, setId2] = useState(initialId2);
@@ -50,12 +51,16 @@ export default function AthleteCompareView({
   const dropdownRef1 = useRef(null);
   const dropdownRef2 = useRef(null);
 
+  const getAuthToken = () => {
+    return localStorage.getItem('futstats_auth_token') || localStorage.getItem('token') || '';
+  };
+
   // Carregar dados comparativos
   const fetchComparison = async (paramId1, paramId2, paramNome1, paramNome2) => {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const params = new URLSearchParams();
       if (paramId1) params.append('id1', paramId1);
       else if (paramNome1) params.append('nome1', paramNome1);
@@ -63,9 +68,12 @@ export default function AthleteCompareView({
       if (paramId2) params.append('id2', paramId2);
       else if (paramNome2) params.append('nome2', paramNome2);
 
-      const res = await fetch(`/api/jogadores/comparar?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
+      const endpoint = `/api/jogadores/comparar?${params.toString()}`;
+      const res = apiFetch
+        ? await apiFetch(endpoint)
+        : await fetch(endpoint, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          });
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -115,15 +123,18 @@ export default function AthleteCompareView({
     const timer = setTimeout(async () => {
       setSearching1(true);
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const params = new URLSearchParams();
         if (searchQuery1.trim()) params.append('q', searchQuery1.trim());
         if (posFiltro !== 'todos') params.append('posicao', posFiltro);
         params.append('limit', '12');
 
-        const res = await fetch(`/api/jogadores/busca?${params.toString()}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const endpoint = `/api/jogadores/busca?${params.toString()}`;
+        const res = apiFetch
+          ? await apiFetch(endpoint)
+          : await fetch(endpoint, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
         if (res.ok) {
           const list = await res.json();
           setSuggestions1(list);
@@ -143,15 +154,18 @@ export default function AthleteCompareView({
     const timer = setTimeout(async () => {
       setSearching2(true);
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const params = new URLSearchParams();
         if (searchQuery2.trim()) params.append('q', searchQuery2.trim());
         if (posFiltro !== 'todos') params.append('posicao', posFiltro);
         params.append('limit', '12');
 
-        const res = await fetch(`/api/jogadores/busca?${params.toString()}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const endpoint = `/api/jogadores/busca?${params.toString()}`;
+        const res = apiFetch
+          ? await apiFetch(endpoint)
+          : await fetch(endpoint, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {}
+            });
         if (res.ok) {
           const list = await res.json();
           setSuggestions2(list);

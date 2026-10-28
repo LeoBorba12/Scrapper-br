@@ -1104,6 +1104,7 @@ export default function App() {
           initialId2={compararAtletasState.id2}
           initialNome1={compararAtletasState.nome1}
           initialNome2={compararAtletasState.nome2}
+          apiFetch={apiFetch}
           onBack={() => {
             setAthleteSubView('perfil');
             try {
