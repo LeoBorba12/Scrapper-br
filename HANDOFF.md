@@ -158,11 +158,15 @@ Criado o banco isolado `data/futebol_referencia.db` (adicionado ao `.gitignore`)
 5. **[CONCLUÍDO] Pilar 3.2: IA Analista com Grounding Refinado (NL-to-SQL)**:
    - Injetado no `SCHEMA_PROMPT` em `backend/ia_analista.py` a telemetria avançada de Expected Goals ($xG$), Domínio Territorial ($Field\text{ Tilt}$), Raio-X de Arbitragem (Rigor, viés e 1T vs 2T), Odds, Backtesting Quantitativo e Grandes Campanhas.
    - Adicionados handlers heurísticos ultrarrápidos em `responder_perguntas_demo` para perguntas analíticas de ponta: $xG$ e Overperformance Clínica ($G - xG$), Backtesting de Apostas com Critério de Kelly (+EV e acurácia) e Recordes Históricos de Pontos Corridos.
-6. **[CONCLUÍDO] Pilar 5: Scouting & Social Sharing (Dossiê e Cards em Alta Resolução)**:
-   - Módulo `frontend/src/utils/cardGenerator.js` expandido com funções de renderização nativa em canvas de alta resolução:
-     - `exportarDossieScoutingAtletaPNG(atleta)`: Dossiê visual completo 1080x1350 (formato A4/Instagram) com identidade editorial, números mestres da carreira oficial, análise de $xG$, detalhamento de gols (pênalti, falta, cabeça, clutch 80+), maior vítima e estádio favorito.
+6. **[CONCLUÍDO] Pilar 5: Scouting & Social Sharing (Dossiê PNG, Relatório Formal PDF & Cards Sociais)**:
+   - `frontend/src/utils/pdfReportGenerator.js`: Emissão de Dossiê Técnico de Scouting formal formatado para impressão A4 / PDF via navegador, com capa executiva, ficha cadastral, KPIs mestres de carreira, análise de $xG$, distribuição de finalizações, preferências geográficas e selo oficial de autenticação.
+   - `frontend/src/utils/cardGenerator.js`:
+     - `exportarDossieScoutingAtletaPNG(atleta)`: Dossiê visual completo 1080x1350 (formato A4/Instagram) com identidade editorial 2026.
      - `exportarCardCampanhaHistoricaPNG(campanha)`: Card widescreen 1200x675 com curva da campanha rodada a rodada, recordes e estatísticas finais.
-   - Integrado botão tátil `[📸 Exportar Dossiê (PNG)]` em `ProtagonistaAtleta.jsx` e `[📸 Exportar Card da Campanha (PNG)]` em `HistoricCampaignChart.jsx`.
+     - `baixarCardDueloH2HPNG(...)`: Card widescreen 1200x675 para redes sociais com retrospecto histórico, vitórias e gols de confrontos clássicos.
+     - `baixarCardApostaEVPNG(...)`: Card widescreen 1200x675 para divulgação de apostas de valor com odds, probabilidades FutStats e stake de Kelly.
+   - `ProtagonistaAtleta.jsx`: Botões integrados `[📸 Exportar Dossiê (PNG)]` e `[📄 Relatório Técnico (PDF)]`.
+   - `App.jsx` (Aba Tweets/Publicar): Botões diretos para download dos novos cards sociais em 1 clique.
 7. **[CONCLUÍDO] Pilar 4: Automação Contínua na VM Oracle Cloud 24/7 & Confiabilidade do Acervo**:
    - `scripts/scraper_odds_sofascore_24x7.py`: Pipeline contínuo de coleta e modelagem de Odds com cálculo de Dixon-Coles/Poisson, identificação de valor esperado (+EV >= 6%), dimensionamento ótimo de banca (1/4 Kelly) e disparo automático de alertas estruturados no canal do Telegram.
    - `scripts/orquestrador_mestre_24x7.py`:

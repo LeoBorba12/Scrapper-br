@@ -521,3 +521,267 @@ export function exportarCardCampanhaHistoricaPNG(campanha) {
   link.click();
   document.body.removeChild(link);
 }
+
+/**
+ * Exporta Card de Duelo H2H para Redes Sociais (1200x675 16:9)
+ */
+export function baixarCardDueloH2HPNG({
+  clube1 = 'Flamengo',
+  clube2 = 'Vasco',
+  totalJogos = 100,
+  vitorias1 = 45,
+  vitorias2 = 30,
+  empates = 25,
+  gols1 = 150,
+  gols2 = 120,
+  campeonato = 'Histórico Geral Oficial'
+}) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 675;
+  const ctx = canvas.getContext('2d');
+
+  const desenharRoundRect = (x, y, w, h, r) => {
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+  };
+
+  // 1. Fundo Carvão Quente
+  ctx.fillStyle = '#141311';
+  ctx.fillRect(0, 0, 1200, 675);
+
+  // Barra Superior
+  const topGrad = ctx.createLinearGradient(0, 0, 1200, 0);
+  topGrad.addColorStop(0, '#5A673E');
+  topGrad.addColorStop(0.5, '#7D8D5C');
+  topGrad.addColorStop(1, '#85573B');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, 1200, 8);
+
+  // 2. Badge Superior
+  ctx.fillStyle = 'rgba(125, 141, 92, 0.15)';
+  ctx.beginPath();
+  desenharRoundRect(60, 42, 340, 36, 18);
+  ctx.fill();
+
+  ctx.fillStyle = '#9EB178';
+  ctx.font = 'bold 14px "JetBrains Mono", monospace';
+  ctx.fillText('⚔️ HISTÓRICO OFICIAL • DUELO H2H', 78, 65);
+
+  // 3. Título do Clássico
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = 'bold 54px "Source Serif 4", Georgia, serif';
+  ctx.fillText(`${clube1} x ${clube2}`, 60, 145);
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '500 20px "Inter", sans-serif';
+  ctx.fillText(`${campeonato} • ${totalJogos} Partidas Oficiais Catalogadas`, 60, 182);
+
+  // 4. Bento Grid de Resultados (Vitórias 1, Empates, Vitórias 2)
+  const boxW = 340;
+  const boxH = 170;
+  const gap = 30;
+  const gridY = 220;
+
+  const boxes = [
+    { label: `VITÓRIAS ${clube1.toUpperCase()}`, val: String(vitorias1), cor: '#7D8D5C', sub: `${Math.round((vitorias1/Math.max(1, totalJogos))*100)}% de aproveitamento` },
+    { label: 'EMPATES', val: String(empates), cor: '#A8A296', sub: `${Math.round((empates/Math.max(1, totalJogos))*100)}% dos jogos` },
+    { label: `VITÓRIAS ${clube2.toUpperCase()}`, val: String(vitorias2), cor: '#D48459', sub: `${Math.round((vitorias2/Math.max(1, totalJogos))*100)}% de aproveitamento` }
+  ];
+
+  boxes.forEach((b, idx) => {
+    const x = 60 + idx * (boxW + gap);
+    ctx.fillStyle = '#1D1B17';
+    ctx.strokeStyle = '#2F2D26';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    desenharRoundRect(x, gridY, boxW, boxH, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#8C897D';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.fillText(b.label, x + 20, gridY + 36);
+
+    ctx.fillStyle = b.cor;
+    ctx.font = 'bold 52px "JetBrains Mono", monospace';
+    ctx.fillText(b.val, x + 20, gridY + 104);
+
+    ctx.fillStyle = '#6E6B62';
+    ctx.font = '13px "Inter", sans-serif';
+    ctx.fillText(b.sub, x + 20, gridY + 140);
+  });
+
+  // 5. Faixa de Gols Marcados
+  const golsY = gridY + boxH + 28;
+  ctx.fillStyle = '#1A1814';
+  ctx.strokeStyle = '#2F2D26';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  desenharRoundRect(60, golsY, 1080, 100, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#8C897D';
+  ctx.font = 'bold 12px "JetBrains Mono", monospace';
+  ctx.fillText('PRODUÇÃO OFENSIVA NO CONFRONTO', 84, golsY + 32);
+
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = 'bold 24px "Inter", sans-serif';
+  ctx.fillText(`⚽ ${gols1} gols do ${clube1}  x  ${gols2} gols do ${clube2}  (Total: ${Number(gols1) + Number(gols2)} gols)`, 84, golsY + 70);
+
+  // 6. Rodapé Oficial
+  ctx.fillStyle = '#6E6B62';
+  ctx.font = '14px "JetBrains Mono", monospace';
+  ctx.fillText('FutStats H2H Intelligence • futstats.vercel.app • Base Oficial do Futebol Brasileiro', 60, 630);
+
+  ctx.fillStyle = '#7D8D5C';
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 16px "Inter", sans-serif';
+  ctx.fillText('@FutStats', 1140, 630);
+  ctx.textAlign = 'left';
+
+  // 7. Download
+  const dataUrl = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = `h2h-${clube1.toLowerCase()}-vs-${clube2.toLowerCase()}.png`;
+  link.href = dataUrl;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
+ * Exporta Card de Alerta de Aposta de Valor (+EV) para Redes Sociais (1200x675 16:9)
+ */
+export function baixarCardApostaEVPNG({
+  jogo = 'Flamengo x Palmeiras',
+  mercado = 'Over 1.5 Gols',
+  odd = 1.42,
+  probFutstats = '78.5%',
+  ev = '+11.4%',
+  stakeKelly = '4.5%',
+  torneio = 'Brasileirão Série A'
+}) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 675;
+  const ctx = canvas.getContext('2d');
+
+  const desenharRoundRect = (x, y, w, h, r) => {
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+  };
+
+  // 1. Fundo Carvão Quente
+  ctx.fillStyle = '#141311';
+  ctx.fillRect(0, 0, 1200, 675);
+
+  // Barra de Destaque Superior
+  const topGrad = ctx.createLinearGradient(0, 0, 1200, 0);
+  topGrad.addColorStop(0, '#5A673E');
+  topGrad.addColorStop(0.5, '#C59B27');
+  topGrad.addColorStop(1, '#7D8D5C');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, 1200, 8);
+
+  // 2. Badge Superior
+  ctx.fillStyle = 'rgba(197, 155, 39, 0.18)';
+  ctx.beginPath();
+  desenharRoundRect(60, 42, 380, 36, 18);
+  ctx.fill();
+
+  ctx.fillStyle = '#E5A93C';
+  ctx.font = 'bold 14px "JetBrains Mono", monospace';
+  ctx.fillText('⚡ APOSTA DE VALOR (+EV DETECTADO)', 78, 65);
+
+  // 3. Título da Partida
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = 'bold 48px "Source Serif 4", Georgia, serif';
+  ctx.fillText(jogo, 60, 142);
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '500 20px "Inter", sans-serif';
+  ctx.fillText(`${torneio} • Entrada: ${mercado}`, 60, 178);
+
+  // 4. Bento Grid de 4 Métricas de Valor
+  const boxW = 252;
+  const boxH = 150;
+  const gap = 24;
+  const gridY = 215;
+
+  const boxes = [
+    { label: 'ODD DA CASA', val: String(odd), cor: '#F1E8DE', sub: 'Cotação média de mercado' },
+    { label: 'PROB. FUTSTATS', val: String(probFutstats), cor: '#7D8D5C', sub: 'Modelo Dixon-Coles/Poisson' },
+    { label: 'VALOR ESPERADO (+EV)', val: String(ev), cor: '#C59B27', sub: 'Vantagem matemática' },
+    { label: 'STAKE SUGERIDA', val: String(stakeKelly), cor: '#D48459', sub: 'Critério de 1/4 Kelly' }
+  ];
+
+  boxes.forEach((b, idx) => {
+    const x = 60 + idx * (boxW + gap);
+    ctx.fillStyle = '#1D1B17';
+    ctx.strokeStyle = '#2F2D26';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    desenharRoundRect(x, gridY, boxW, boxH, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#8C897D';
+    ctx.font = 'bold 12px "JetBrains Mono", monospace';
+    ctx.fillText(b.label, x + 18, gridY + 34);
+
+    ctx.fillStyle = b.cor;
+    ctx.font = 'bold 40px "JetBrains Mono", monospace';
+    ctx.fillText(b.val, x + 18, gridY + 90);
+
+    ctx.fillStyle = '#6E6B62';
+    ctx.font = '13px "Inter", sans-serif';
+    ctx.fillText(b.sub, x + 18, gridY + 122);
+  });
+
+  // 5. Faixa Explicativa de Metodologia
+  const footBoxY = gridY + boxH + 28;
+  ctx.fillStyle = '#1A1814';
+  ctx.strokeStyle = '#2F2D26';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  desenharRoundRect(60, footBoxY, 1080, 115, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#9EB178';
+  ctx.font = 'bold 12px "JetBrains Mono", monospace';
+  ctx.fillText('MODELAGEM MATEMÁTICA & AUDITORIA DE PROBABILIDADES', 84, footBoxY + 32);
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '15px "Inter", sans-serif';
+  ctx.fillText(
+    `A probabilidade estimada de ${probFutstats} supera a odd implícita oferecida pelas casas, gerando margem positiva de ${ev}.`,
+    84, footBoxY + 64
+  );
+  ctx.fillText(
+    'O dimensionamento fracionário de Kelly preserva a banca contra volatilidade com crescimento geométrico a longo prazo.',
+    84, footBoxY + 90
+  );
+
+  // 6. Rodapé Oficial
+  ctx.fillStyle = '#6E6B62';
+  ctx.font = '14px "JetBrains Mono", monospace';
+  ctx.fillText('FutStats Betting Intelligence • futstats.vercel.app • Apostas com Convicção Matemática', 60, 630);
+
+  ctx.fillStyle = '#E5A93C';
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 16px "Inter", sans-serif';
+  ctx.fillText('@FutStats', 1140, 630);
+  ctx.textAlign = 'left';
+
+  // 7. Download
+  const dataUrl = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = `aposta-ev-${jogo.toLowerCase().replace(/\s+/g, '-')}.png`;
+  link.href = dataUrl;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}

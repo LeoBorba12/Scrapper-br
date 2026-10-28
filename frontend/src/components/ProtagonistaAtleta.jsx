@@ -10,6 +10,7 @@ import ClubBadge from './ClubBadge';
 import SpatialPitchMap from './SpatialPitchMap';
 import GoalMouthMap from './GoalMouthMap';
 import { exportarDossieScoutingAtletaPNG } from '../utils/cardGenerator';
+import { exportarRelatorioScoutingPDF } from '../utils/pdfReportGenerator';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -514,6 +515,28 @@ export default function ProtagonistaAtleta({
             title="Baixar dossiê analítico completo do atleta em alta resolução (PNG)"
           >
             📸 Exportar Dossiê (PNG)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => exportarRelatorioScoutingPDF(atleta)}
+            className="touch-tactile"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            title="Visualizar e imprimir relatório formal em PDF (formato A4)"
+          >
+            📄 Relatório Técnico (PDF)
           </button>
 
           {onAbrirComparador && (

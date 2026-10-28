@@ -7,7 +7,7 @@ import {
   Key, Lightbulb, Zap, Lock, LogOut, UserPlus, ShieldCheck,
   Download, Camera, Scale
 } from 'lucide-react';
-import { baixarCardSocialPNG } from './utils/cardGenerator';
+import { baixarCardSocialPNG, baixarCardDueloH2HPNG, baixarCardApostaEVPNG } from './utils/cardGenerator';
 import AuthView from './components/AuthView';
 import HomeMatchdayView from './components/HomeMatchdayView';
 import AppShell from './components/AppShell';
@@ -1996,22 +1996,43 @@ export default function App() {
                      `⚽ Gols: ${h2hData.gols_clube1} do ${h2hData.clube1} x ${h2hData.gols_clube2} do ${h2hData.clube2}`}
                   </div>
                 </div>
-                <button 
-                  className="btn-primary" 
-                  style={{ marginTop: '14px' }}
-                  onClick={() => copiarTweet(
-                    `🔥 HISTÓRICO DO CLÁSSICO: ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
-                    `Em ${h2hData.total_jogos} jogos oficiais catalogados:\n\n` +
-                    `🟢 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
-                    `⚪ ${h2hData.empates} empates\n` +
-                    `🔴 ${h2hData.vitorias_clube2} vitórias do ${h2hData.clube2}\n\n` +
-                    `⚽ Gols: ${h2hData.gols_clube1} x ${h2hData.gols_clube2}\n#Futebol #Brasileirao #Estatisticas`,
-                    'tweet-h2h'
-                  )}
-                >
-                  {copiedKey === 'tweet-h2h' ? <Check size={16} /> : <Copy size={16} />}
-                  {copiedKey === 'tweet-h2h' ? 'Copiado para Área de Transferência!' : 'Copiar Tweet'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
+                  <button 
+                    className="btn-primary" 
+                    style={{ flex: '1 1 auto' }}
+                    onClick={() => copiarTweet(
+                      `🔥 HISTÓRICO DO CLÁSSICO: ${h2hData.clube1} x ${h2hData.clube2}\n\n` +
+                      `Em ${h2hData.total_jogos} jogos oficiais catalogados:\n\n` +
+                      `🟢 ${h2hData.vitorias_clube1} vitórias do ${h2hData.clube1}\n` +
+                      `⚪ ${h2hData.empates} empates\n` +
+                      `🔴 ${h2hData.vitorias_clube2} vitórias do ${h2hData.clube2}\n\n` +
+                      `⚽ Gols: ${h2hData.gols_clube1} x ${h2hData.gols_clube2}\n#Futebol #Brasileirao #Estatisticas`,
+                      'tweet-h2h'
+                    )}
+                  >
+                    {copiedKey === 'tweet-h2h' ? <Check size={16} /> : <Copy size={16} />}
+                    {copiedKey === 'tweet-h2h' ? 'Copiado!' : 'Copiar Tweet'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => baixarCardDueloH2HPNG({
+                      clube1: h2hData.clube1,
+                      clube2: h2hData.clube2,
+                      totalJogos: h2hData.total_jogos,
+                      vitorias1: h2hData.vitorias_clube1,
+                      vitorias2: h2hData.vitorias_clube2,
+                      empates: h2hData.empates,
+                      gols1: h2hData.gols_clube1,
+                      gols2: h2hData.gols_clube2
+                    })}
+                    className="btn-secondary touch-tactile"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px' }}
+                    title="Baixar Card Widescreen (1200x675) para postar no Twitter / Instagram"
+                  >
+                    <Camera size={16} />
+                    <span>Baixar Imagem PNG</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -2044,6 +2065,58 @@ export default function App() {
                 {copiedKey === 'tweet-clima' ? <Check size={16} /> : <Copy size={16} />}
                 {copiedKey === 'tweet-clima' ? 'Copiado para Área de Transferência!' : 'Copiar Tweet'}
               </button>
+            </div>
+
+            {/* CARD MODELO 3: ALERTA DE APOSTA DE VALOR (+EV & CRITÉRIO DE KELLY) */}
+            <div className="soft-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span className="badge badge-yellow">⚡ Template: Alerta +EV & Kelly</span>
+                </div>
+                <div className="font-mono" style={{ fontSize: '0.85rem', whiteSpace: 'pre-line', backgroundColor: 'var(--surface-raised)', color: 'var(--text-primary)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  {`⚡ ALERTA DE VALOR (+EV DETECTADO)\n\n` +
+                   `⚽ Flamengo x Palmeiras (Brasileirão Série A)\n` +
+                   `🎯 Entrada: Over 1.5 Gols @ 1.42\n\n` +
+                   `📊 Probabilidade FutStats: 78.5%\n` +
+                   `📈 Valor Esperado: +11.4% de margem positiva\n` +
+                   `💰 Stake Recomendada (1/4 Kelly): 4.5% da banca`}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
+                <button 
+                  className="btn-primary" 
+                  style={{ flex: '1 1 auto' }}
+                  onClick={() => copiarTweet(
+                    `⚡ ALERTA DE VALOR (+EV DETECTADO)\n\n` +
+                    `⚽ Flamengo x Palmeiras\n` +
+                    `🎯 Entrada: Over 1.5 Gols @ 1.42\n` +
+                    `📊 Probabilidade FutStats: 78.5% | Valor: +11.4%\n` +
+                    `💰 Stake Sugerida: 4.5% (1/4 Kelly)\n\n#ApostasEsportivas #FutStats #Quant`,
+                    'tweet-ev'
+                  )}
+                >
+                  {copiedKey === 'tweet-ev' ? <Check size={16} /> : <Copy size={16} />}
+                  {copiedKey === 'tweet-ev' ? 'Copiado!' : 'Copiar Tweet'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => baixarCardApostaEVPNG({
+                    jogo: 'Flamengo x Palmeiras',
+                    mercado: 'Over 1.5 Gols',
+                    odd: 1.42,
+                    probFutstats: '78.5%',
+                    ev: '+11.4%',
+                    stakeKelly: '4.5%',
+                    torneio: 'Brasileirão Série A'
+                  })}
+                  className="btn-secondary touch-tactile"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px' }}
+                  title="Baixar Card de Aposta +EV (1200x675) para postar no Twitter / Instagram"
+                >
+                  <Camera size={16} />
+                  <span>Baixar Imagem PNG</span>
+                </button>
+              </div>
             </div>
           </div>
         </section>
