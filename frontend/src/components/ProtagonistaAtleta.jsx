@@ -1214,6 +1214,7 @@ export default function ProtagonistaAtleta({
                   shotmap={atleta.shotmap || []}
                   heatmap={atleta.heatmap || []}
                   posicao={atleta.posicao}
+                  telemetria={atleta.telemetria_espacial || {}}
                   resumo={resumo}
                 />
               </div>

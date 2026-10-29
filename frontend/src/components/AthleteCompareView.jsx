@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RadarDualPES } from './charts';
 import MobileBottomSheet from './MobileBottomSheet';
 import { SlidersHorizontal, ArrowLeftRight, Sparkles, Check } from 'lucide-react';
+import SpatialPitchMap from './SpatialPitchMap';
 
 const DUELOS_CLASSICOS = [
   { label: 'Pedro x Gabigol', id1: 10, id2: 7, pos: 'Atacantes' },
@@ -1195,6 +1196,73 @@ export default function AthleteCompareView({
               </table>
             </div>
           </div>
+
+          {/* ================= DUELO ESPACIAL & TELEMETRIA TÁTICA ================= */}
+          {((atleta1?.heatmap && atleta1.heatmap.length > 0) || (atleta2?.heatmap && atleta2.heatmap.length > 0)) && (
+            <div
+              style={{
+                backgroundColor: 'var(--surface-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-card)',
+                padding: '20px',
+                boxShadow: 'var(--shadow-editorial)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
+                    🗺️ Telemetria & Posicionamento Comparativo
+                  </span>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
+                    Duelo Espacial: {atleta1.nome} x {atleta2.nome}
+                  </h3>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>
+                    {atleta1.telemetria_espacial?.papel_tatico || atleta1.posicao} vs {atleta2.telemetria_espacial?.papel_tatico || atleta2.posicao}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: '18px' }}>
+                <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-control)', padding: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#5A673E' }}>
+                      🟢 {atleta1.nome}
+                    </span>
+                    <span className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Centroide: {atleta1.telemetria_espacial?.centroide_x_metros ? `${atleta1.telemetria_espacial.centroide_x_metros}m` : '—'}
+                    </span>
+                  </div>
+                  <SpatialPitchMap
+                    shotmap={atleta1.shotmap || []}
+                    heatmap={atleta1.heatmap || []}
+                    posicao={atleta1.posicao}
+                    telemetria={atleta1.telemetria_espacial || {}}
+                    resumo={atleta1.resumo || {}}
+                  />
+                </div>
+
+                <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-control)', padding: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#85573B' }}>
+                      🟤 {atleta2.nome}
+                    </span>
+                    <span className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Centroide: {atleta2.telemetria_espacial?.centroide_x_metros ? `${atleta2.telemetria_espacial.centroide_x_metros}m` : '—'}
+                    </span>
+                  </div>
+                  <SpatialPitchMap
+                    shotmap={atleta2.shotmap || []}
+                    heatmap={atleta2.heatmap || []}
+                    posicao={atleta2.posicao}
+                    telemetria={atleta2.telemetria_espacial || {}}
+                    resumo={atleta2.resumo || {}}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Jogos em Comum no Acervo (Confrontos Diretos ou Companheiros) */}
           <div
