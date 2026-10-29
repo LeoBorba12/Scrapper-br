@@ -2594,11 +2594,20 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     historico_temporadas = []
     for a in sorted(stats_anos.keys(), reverse=True):
         v = stats_anos[a]
+        jogos_cat = v["jogos"]
+        gols_cat = v["gols"]
+        # Se gols > jogos ou se ano antigo com poucos jogos e muitos gols, as escalações completas de partidas sem gol não estão catalogadas
+        ano_num = int(a) if (isinstance(a, int) or (isinstance(a, str) and a.isdigit())) else 2026
+        acervo_parcial = (gols_cat > jogos_cat) or (ano_num < 2014 and jogos_cat < 20 and gols_cat >= 5)
+        media_gols = round(gols_cat / jogos_cat, 2) if (jogos_cat > 0 and not acervo_parcial) else None
+
         historico_temporadas.append({
             "ano": a,
-            "jogos": v["jogos"],
-            "gols": v["gols"],
-            "media_gols": round(v["gols"] / v["jogos"], 2) if v["jogos"] > 0 else 0,
+            "jogos": jogos_cat,
+            "gols": gols_cat,
+            "media_gols": media_gols,
+            "acervo_parcial": bool(acervo_parcial),
+            "jogos_rotulo": "Jogos c/ Gol" if acervo_parcial else "Jogos",
             "amarelos": v["amarelos"],
             "vermelhos": v["vermelhos"],
             "clubes": sorted(list(v["clubes"]))

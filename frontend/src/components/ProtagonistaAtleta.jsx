@@ -1512,9 +1512,31 @@ export default function ProtagonistaAtleta({
                               >
                                 <td style={{ fontWeight: 700 }}>{tp.ano}</td>
                                 <td style={{ color: 'var(--text-secondary)' }}>{(tp.clubes || []).join(', ')}</td>
-                                <td style={{ textAlign: 'center' }}>{tp.jogos ?? '—'}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  {tp.jogos ?? '—'}
+                                  {tp.acervo_parcial && (
+                                    <span 
+                                      title="Fichas de escalação parciais (contabilizando apenas jogos em que o atleta marcou ou foi advertido)" 
+                                      style={{ color: 'var(--accent)', fontWeight: 800, cursor: 'help', marginLeft: '3px' }}
+                                    >
+                                      *
+                                    </span>
+                                  )}
+                                </td>
                                 <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{tp.gols ?? '—'}</td>
-                                <td style={{ textAlign: 'center' }}>{tp.media_gols != null ? tp.media_gols : '—'}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  {tp.media_gols != null ? (
+                                    tp.media_gols
+                                  ) : (
+                                    <span 
+                                      className="pill-neutral" 
+                                      style={{ fontSize: '0.64rem', padding: '1px 6px', cursor: 'help' }}
+                                      title="Média por jogo omitida para evitar distorção estatística: fichas técnicas de escalações de jogos sem gol não foram digitalizadas pelos órgãos oficiais neste ano."
+                                    >
+                                      Acervo Parcial*
+                                    </span>
+                                  )}
+                                </td>
                                 <td style={{ textAlign: 'center' }}>{tp.amarelos ?? 0}</td>
                                 <td style={{ textAlign: 'center' }}>{tp.vermelhos ?? 0}</td>
                               </tr>
@@ -1522,6 +1544,27 @@ export default function ProtagonistaAtleta({
                         )}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Nota explicativa de honestidade de dados para temporadas antigas */}
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'flex-start', 
+                      gap: '8px', 
+                      padding: '10px 14px', 
+                      backgroundColor: 'var(--surface-raised)', 
+                      borderRadius: 'var(--radius-control)', 
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.72rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.45
+                    }}
+                  >
+                    <span style={{ fontSize: '0.9rem', marginTop: '-1px' }}>ℹ️</span>
+                    <div>
+                      <strong>Nota sobre temporadas com asterisco (*):</strong> Em temporadas anteriores a 2014, o catálogo nacional preserva 100% dos gols, cartões e jogos decisivos, mas as fichas de escalação com os 22 atletas em jogos sem gol não foram disponibilizadas pelos arquivos históricos da CBF/FGF. Nessas temporadas, a coluna 'Jogos' contabiliza partidas onde o atleta pontuou em súmula. Para a carreira total homologada, consulte a aba <em>Carreira Oficial OGol</em> acima.
+                    </div>
                   </div>
                 </div>
               )}
