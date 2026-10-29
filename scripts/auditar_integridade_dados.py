@@ -320,7 +320,42 @@ def auditar_e_reparar_dados():
         "reparados": reparados_atl
     })
 
-    # Regra 8: Consistência de soma de partidas por temporada recente
+    # Regra 12: Coerência de Clubes Recentes dos Atletas (Sincronização Dinâmica)
+    c.execute("""
+        WITH ultimas_partidas AS (
+            SELECT e.id_jogador, e.clube as ultimo_clube, MAX(p.data) as dt
+            FROM escalacoes e
+            JOIN partidas p ON e.id_partida = p.id_partida
+            WHERE e.id_jogador IS NOT NULL AND e.id_jogador > 0 AND e.clube IS NOT NULL AND trim(e.clube) != ''
+            GROUP BY e.id_jogador
+        )
+        SELECT u.id_jogador, u.ultimo_clube, j.clubes
+        FROM ultimas_partidas u
+        JOIN jogadores_estatisticas j ON u.id_jogador = j.id_jogador
+        WHERE instr(COALESCE(j.clubes, ''), u.ultimo_clube) = 0;
+    """)
+    clubes_defasados = c.fetchall()
+    reparados_clubes = 0
+    if clubes_defasados:
+        updates_auditoria = []
+        for jid, ult_clb, clbs_atual in clubes_defasados:
+            u_clean = ult_clb.strip().replace('Atlético Mineiro', 'Atlético-MG').replace('Athletico Paranaense', 'Athletico-PR')
+            lista = [cb.strip() for cb in (clbs_atual or '').split(',') if cb.strip()]
+            if u_clean not in lista:
+                lista.insert(0, u_clean)
+            updates_auditoria.append((', '.join(lista), jid))
+        c.executemany("UPDATE jogadores_estatisticas SET clubes = ? WHERE id_jogador = ?;", updates_auditoria)
+        reparados_clubes = len(updates_auditoria)
+        conn.commit()
+
+    relatorio["regras"].append({
+        "regra": "Coerência de Clubes Recentes: Clube Atual em Escalações presente no Perfil",
+        "status": "CORRIGIDO" if reparados_clubes > 0 else ("OK" if len(clubes_defasados) == 0 else "FALHA"),
+        "ocorrencias": len(clubes_defasados),
+        "reparados": reparados_clubes
+    })
+
+    # Regra de Temporadas Recentes: Consistência de soma de partidas por temporada recente
     c.execute("""
         SELECT ano, COUNT(*) FROM partidas WHERE ano >= 2024 GROUP BY ano ORDER BY ano DESC;
     """)

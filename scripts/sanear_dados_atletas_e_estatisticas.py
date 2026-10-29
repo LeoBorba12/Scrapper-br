@@ -82,14 +82,16 @@ DADOS_CANONICOS_CARREIRA = {
     9: {
         "posicao": "Atacante",
         "apelido": "Hulk",
+        "clubes": "Fluminense, Atlético-MG",
         "gols_carreira_oficiais": 420,
-        "jogos_carreira_oficiais": 840,
+        "jogos_carreira_oficiais": 844,
         "assistencias_carreira_oficiais": 215,
         "detalhe_carreira_clubes": json.dumps([
+            {"clube": "Fluminense", "jogos": 4, "gols": 0},
+            {"clube": "Atlético-MG", "jogos": 235, "gols": 114},
             {"clube": "Porto", "jogos": 170, "gols": 77},
             {"clube": "Zenit", "jogos": 148, "gols": 77},
             {"clube": "Shanghai SIPG", "jogos": 145, "gols": 76},
-            {"clube": "Atlético-MG", "jogos": 235, "gols": 114},
             {"clube": "Seleção Brasileira", "jogos": 49, "gols": 11}
         ], ensure_ascii=False)
     },
@@ -298,6 +300,59 @@ def executar_saneamento():
     """)
 
     conn.commit()
+
+    # -------------------------------------------------------------
+    # 3.1. RECONCILIAÇÃO DINÂMICA DE CLUBES RECENTES (REGRA 12)
+    # -------------------------------------------------------------
+    print("\n[3.1/5] Sincronizando clubes mais recentes de todos os atletas...")
+    c.execute("DROP TABLE IF EXISTS temp_clubes_atletas;")
+    c.execute("""
+        CREATE TEMP TABLE temp_clubes_atletas AS
+        WITH partidas_clubes AS (
+            SELECT e.id_jogador, e.clube, MAX(p.data) as dt
+            FROM escalacoes e
+            JOIN partidas p ON e.id_partida = p.id_partida
+            WHERE e.id_jogador IS NOT NULL AND e.id_jogador > 0 AND e.clube IS NOT NULL AND trim(e.clube) != ''
+            GROUP BY e.id_jogador, e.clube
+            UNION
+            SELECT g.id_jogador, g.clube, MAX(p.data) as dt
+            FROM gols g
+            JOIN partidas p ON g.id_partida = p.id_partida
+            WHERE g.id_jogador IS NOT NULL AND g.id_jogador > 0 AND g.clube IS NOT NULL AND trim(g.clube) != ''
+            GROUP BY g.id_jogador, g.clube
+        )
+        SELECT id_jogador, clube, MAX(dt) as ultima_data
+        FROM partidas_clubes
+        GROUP BY id_jogador, clube
+        ORDER BY id_jogador, ultima_data DESC;
+    """)
+
+    linhas_clubes = c.execute("SELECT id_jogador, clube FROM temp_clubes_atletas ORDER BY id_jogador, ultima_data DESC;").fetchall()
+    from collections import defaultdict
+    mapa_clubes_recentes = defaultdict(list)
+    for jid, clb in linhas_clubes:
+        c_clean = clb.strip().replace('Atlético Mineiro', 'Atlético-MG').replace('Athletico Paranaense', 'Athletico-PR')
+        if c_clean and c_clean not in mapa_clubes_recentes[jid]:
+            mapa_clubes_recentes[jid].append(c_clean)
+
+    atletas_db = c.execute("SELECT id_jogador, clubes FROM jogadores_estatisticas;").fetchall()
+    updates_clubes = []
+    for jid, clubes_str in atletas_db:
+        existentes = [cb.strip() for cb in (clubes_str or '').split(',') if cb.strip()]
+        recentes = mapa_clubes_recentes.get(jid, [])
+        if not recentes and not existentes:
+            continue
+        unificados = list(recentes)
+        for ex in existentes:
+            if ex not in unificados:
+                unificados.append(ex)
+        novo_clubes_str = ', '.join(unificados)
+        if novo_clubes_str != (clubes_str or ''):
+            updates_clubes.append((novo_clubes_str, jid))
+
+    c.executemany("UPDATE jogadores_estatisticas SET clubes = ? WHERE id_jogador = ?;", updates_clubes)
+    conn.commit()
+    print(f"  -> {len(updates_clubes)} atletas tiveram seus clubes recentes e atuais reconciliados com sucesso.")
 
     # -------------------------------------------------------------
     # 4. VALIDAÇÃO DE SANIDADE DOS CASOS CRÍTICOS
