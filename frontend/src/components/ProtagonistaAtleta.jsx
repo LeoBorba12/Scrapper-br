@@ -1129,6 +1129,32 @@ export default function ProtagonistaAtleta({
                   </div>
                 </div>
 
+                {/* Esclarecimento de Escopo: Diferença entre Súmulas Catalogadas e Carreira Oficial por Clube */}
+                {carreira?.clubes?.length > 0 && (
+                  <div 
+                    style={{ 
+                      marginBottom: '12px', 
+                      padding: '8px 10px', 
+                      backgroundColor: 'var(--surface-raised)', 
+                      borderRadius: 'var(--radius-control)', 
+                      borderLeft: '3px solid var(--accent)', 
+                      fontSize: '0.72rem', 
+                      color: 'var(--text-secondary)', 
+                      lineHeight: 1.45 
+                    }}
+                  >
+                    <div>
+                      👑 <strong>Histórico Oficial no {carreira.clubes[0].clube}:</strong>{' '}
+                      <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{carreira.clubes[0].jogos} jogos</strong> e{' '}
+                      <strong className="font-mono" style={{ color: 'var(--accent)' }}>{carreira.clubes[0].gols} gols</strong>{' '}
+                      ({(carreira.clubes[0].gols / carreira.clubes[0].jogos).toFixed(2)} gols/jogo).
+                    </div>
+                    <div style={{ marginTop: '3px', fontSize: '0.66rem', color: 'var(--text-muted)' }}>
+                      * O catálogo local contabiliza fichas de partidas com gols auditados no acervo. Na carreira mundial total, são {carreira.jogos || '—'} jogos e {carreira.gols || '—'} gols (consulte a aba Carreira Oficial).
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Gols de Pênalti</span>
