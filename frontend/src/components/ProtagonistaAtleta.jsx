@@ -437,6 +437,9 @@ export default function ProtagonistaAtleta({
   const atleta = playerProfile || {};
   const resumo = atleta.resumo || {};
   const carreira = atleta.carreira_oficial || {};
+  const scoutsPro = atleta.scouts_profissionais || resumo.scouts_profissionais || {};
+  const notaScouting = scoutsPro.score_scouting_global || 75;
+  const classifScouting = scoutsPro.classificacao_scouting || 'Profissional Regular';
   const minutos = atleta.distribuicao_minutos || {};
   const maxMinGols = Math.max(
     ...Object.values(minutos).map(v => Number(v) || 0),
@@ -586,15 +589,52 @@ export default function ProtagonistaAtleta({
             {/* ================= COLUNA 1: IDENTIDADE & IMAGEM (34%) ================= */}
             <div className="protagonista-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <span className="pill-olive">
-                    {atleta.posicao || 'Atacante'}
-                  </span>
-                  {resumo.camisa ? (
-                    <span className="font-mono tabular-nums" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--border-subtle)', lineHeight: 1 }}>
-                      #{resumo.camisa}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="pill-olive" style={{ fontWeight: 700 }}>
+                      {atleta.posicao || 'Atacante'}
                     </span>
-                  ) : null}
+                    {resumo.camisa ? (
+                      <span className="font-mono tabular-nums" style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-muted)', lineHeight: 1 }}>
+                        #{resumo.camisa}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/* Card Badge FIFA/PES de Nota Global de Scouting (0 a 100) */}
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      padding: '4px 10px', 
+                      borderRadius: 'var(--radius-control)', 
+                      background: 'linear-gradient(135deg, rgba(90, 103, 62, 0.22) 0%, rgba(133, 87, 59, 0.22) 100%)',
+                      border: '1px solid var(--accent)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                    }}
+                    title={`Nota Global FutStats: ${notaScouting}/100 • ${classifScouting}`}
+                  >
+                    <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
+                      <div style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.04em' }}>
+                        Nota Global
+                      </div>
+                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        {classifScouting}
+                      </div>
+                    </div>
+                    <div 
+                      className="font-mono tabular-nums" 
+                      style={{ 
+                        fontSize: '1.65rem', 
+                        fontWeight: 900, 
+                        color: 'var(--accent)', 
+                        lineHeight: 1 
+                      }}
+                    >
+                      {notaScouting}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Área da Imagem com dimensões reservadas (com suporte à foto oficial do OGol) */}
@@ -821,89 +861,130 @@ export default function ProtagonistaAtleta({
                 <Activity size={24} color="var(--accent)" />
               </div>
 
-              {/* CARD DE EXPECTED GOALS (xG) & EFICIÊNCIA CLÍNICA */}
-              {(() => {
-                const xgData = atleta.analytics_xg || resumo.analytics_xg;
-                if (!xgData) return null;
-                const isOverperformer = (xgData.delta_xg || 0) >= 0;
-                return (
-                  <div
+              {/* ================= PAINEL DE ANALYTICS PROFISSIONAL (SCOUTING PRO) ================= */}
+              <div
+                style={{
+                  backgroundColor: 'var(--surface-raised)',
+                  padding: '14px',
+                  borderRadius: 'var(--radius-control)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span
                     style={{
-                      backgroundColor: 'var(--surface-raised)',
-                      padding: '12px',
-                      borderRadius: 'var(--radius-control)',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px'
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      color: 'var(--accent)',
+                      letterSpacing: '0.04em'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          color: 'var(--accent)',
-                          backgroundColor: 'var(--surface-page)',
-                          padding: '2px 6px',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        <Target size={12} /> Expected Goals (xG)
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          color: isOverperformer ? 'var(--positive)' : 'var(--text-secondary)'
-                        }}
-                      >
-                        {xgData.perfil_clinico}
-                      </span>
+                    <Target size={13} /> Analytics Profissional (Scouting Pro)
+                  </span>
+                  <span className="pill-olive" style={{ fontSize: '0.64rem', fontWeight: 700 }}>
+                    Fórmulas Oficiais
+                  </span>
+                </div>
+
+                {/* Grid 2x2 dos 4 KPIs de Alto Nível */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                  {/* KPI 1: Gols por 90 Min (G/90) */}
+                  <div style={{ backgroundColor: 'var(--surface-page)', padding: '10px', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Gols / 90 Min (G/90)</span>
+                      <span className="pill-neutral" style={{ fontSize: '0.6rem', padding: '1px 5px' }}>P/90: {scoutsPro.participacoes_por_90 ?? '—'}</span>
                     </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
-                      <div style={{ backgroundColor: 'var(--surface-page)', padding: '6px', borderRadius: '4px' }}>
-                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>xG Estimado</div>
-                        <div className="font-mono tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                          {xgData.xg_acumulado}
-                        </div>
-                      </div>
-
-                      <div style={{ backgroundColor: 'var(--surface-page)', padding: '6px', borderRadius: '4px' }}>
-                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>G - xG</div>
-                        <div
-                          className="font-mono tabular-nums"
-                          style={{
-                            fontSize: '1.05rem',
-                            fontWeight: 800,
-                            color: isOverperformer ? 'var(--positive)' : 'var(--negative, #C62828)'
-                          }}
-                        >
-                          {xgData.delta_xg >= 0 ? `+${xgData.delta_xg}` : xgData.delta_xg}
-                        </div>
-                      </div>
-
-                      <div style={{ backgroundColor: 'var(--surface-page)', padding: '6px', borderRadius: '4px' }}>
-                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)' }}>Conversão</div>
-                        <div className="font-mono tabular-nums" style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--accent)' }}>
-                          {xgData.taxa_conversao_pct}%
-                        </div>
-                      </div>
+                    <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: 'var(--accent)', lineHeight: 1.15 }}>
+                      {scoutsPro.gols_por_90 ?? '—'}
                     </div>
-
-                    <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
-                      {isOverperformer
-                        ? `Supera as chances estatísticas esperadas em +${xgData.delta_xg} gols (finalizador clínico).`
-                        : `Finalizador com alto volume de finalizações (${xgData.chutes_totais || '—'} chutes registrados).`}
+                    <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Frequência de gols em 90 min de jogo
                     </div>
                   </div>
-                );
-              })()}
+
+                  {/* KPI 2: Eficiência Clínica (G - xG) */}
+                  <div style={{ backgroundColor: 'var(--surface-page)', padding: '10px', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Eficiência Clínica (G - xG)</span>
+                      <span className="pill-neutral" style={{ fontSize: '0.6rem', padding: '1px 5px' }}>Conv: {scoutsPro.taxa_conversao_pct ?? 0}%</span>
+                    </div>
+                    <div 
+                      className="font-mono tabular-nums" 
+                      style={{ 
+                        fontSize: '1.45rem', 
+                        fontWeight: 900, 
+                        color: (scoutsPro.delta_xg || 0) >= 0 ? 'var(--positive, #4E8A3E)' : 'var(--negative, #C62828)',
+                        lineHeight: 1.15 
+                      }}
+                    >
+                      {(scoutsPro.delta_xg || 0) >= 0 ? `+${scoutsPro.delta_xg}` : scoutsPro.delta_xg ?? '—'}
+                    </div>
+                    <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {scoutsPro.perfil_clinico || 'Esperado vs Real'}
+                    </div>
+                  </div>
+
+                  {/* KPI 3: Qualidade da Finalização (xG / Chute) */}
+                  <div style={{ backgroundColor: 'var(--surface-page)', padding: '10px', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '2px' }}>
+                      Qualidade Finalização (xG/Chute)
+                    </div>
+                    <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.15 }}>
+                      {scoutsPro.xg_por_chute ?? '—'}
+                    </div>
+                    <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.25 }}>
+                      {scoutsPro.qualidade_finalizacao_desc || 'Média por finalização'}
+                    </div>
+                  </div>
+
+                  {/* KPI 4: Poder de Decisão (Clutch Score) */}
+                  <div style={{ backgroundColor: 'var(--surface-page)', padding: '10px', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Poder de Decisão (Clutch)</span>
+                      <span className="pill-neutral" style={{ fontSize: '0.6rem', padding: '1px 5px' }}>80'+: {resumo.gols_decisivos_80mais || 0}G</span>
+                    </div>
+                    <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#C86D3B', lineHeight: 1.15 }}>
+                      {scoutsPro.indice_clutch ?? '—'} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ 100</span>
+                    </div>
+                    <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.25 }}>
+                      {scoutsPro.clutch_desc || 'Impacto em momentos decisivos'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Barra Inferior: Assistências Esperadas (xA) & xG Acumulado */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    flexWrap: 'wrap', 
+                    gap: '8px',
+                    padding: '8px 10px',
+                    backgroundColor: 'var(--surface-page)',
+                    borderRadius: 'var(--radius-control)',
+                    fontSize: '0.7rem',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  <div>
+                    🎯 xG Acumulado: <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{scoutsPro.xg_acumulado ?? '—'}</strong>
+                  </div>
+                  <div>
+                    🅰️ xA Estimado: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{scoutsPro.xa_estimado ?? '—'}</strong> ({scoutsPro.xa_por_90 ?? 0} xA/90)
+                  </div>
+                  <div>
+                    ⏱️ Minutos Estimados: <strong className="font-mono">{scoutsPro.minutos_estimados ?? '—'}'</strong>
+                  </div>
+                </div>
+              </div>
             </div>
 
 

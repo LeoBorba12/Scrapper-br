@@ -2044,6 +2044,161 @@ def _calcular_radar_pes(posicao, resumo, carreira):
     return {"eixos": eixos, "ovr": ovr}
 
 
+def _calcular_scouts_profissionais(posicao_raw, resumo, carreira, stats_meta, analytics_xg=None):
+    """
+    Computa métricas analíticas e de scouting de padrão profissional:
+    G/90, P/90, xG Híbrido, Delta xG, xG/Chute, xA Estimado, Índice Clutch e Nota Global de Scouting (0-100).
+    """
+    pos = (posicao_raw or "Atacante").lower()
+    is_goleiro = "gol" in pos
+    is_defensor = "zag" in pos or "lat" in pos or "def" in pos
+    is_meia = "mei" in pos or "vol" in pos
+
+    gols_carreira = carreira.get("gols")
+    jogos_carreira = carreira.get("jogos")
+    assists_carreira = carreira.get("assistencias")
+
+    gols_oficiais = gols_carreira if (gols_carreira is not None and gols_carreira > 0) else resumo.get("total_gols", 0)
+    jogos_oficiais = jogos_carreira if (jogos_carreira is not None and jogos_carreira > 0) else max(resumo.get("jogos_registrados", 1), 1)
+    assists_oficiais = assists_carreira if (assists_carreira is not None) else resumo.get("total_assistencias", 0)
+
+    titular = resumo.get("jogos_titular", 0)
+    reserva = resumo.get("jogos_reserva", 0)
+    minutos_est = max((titular * 82) + (reserva * 25), jogos_oficiais * 75, 90)
+
+    gols_por_90 = round((gols_oficiais / minutos_est) * 90, 2)
+    participacoes_por_90 = round(((gols_oficiais + assists_oficiais) / minutos_est) * 90, 2)
+
+    if not analytics_xg:
+        chutes_alvo = stats_meta.get("chutes_ao_gol") or 0
+        chutes_tot = stats_meta.get("finalizacoes_totais") or 0
+        penaltis = stats_meta.get("penaltis_cobrados") or stats_meta.get("gols_penalti") or 0
+        if chutes_tot > 0:
+            chutes_fora = max(0, chutes_tot - chutes_alvo)
+            chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
+            xg_acumulado = round((penaltis * 0.79) + (chutes_alvo_abertos * 0.315) + (chutes_fora * 0.045), 1)
+            taxa_conversao = round((gols_oficiais / chutes_tot) * 100, 1)
+        else:
+            xg_acumulado = round(gols_oficiais * 0.93, 1) if gols_oficiais > 0 else round(jogos_oficiais * 0.35, 1)
+            taxa_conversao = round((gols_oficiais / max(1, jogos_oficiais * 2.8)) * 100, 1)
+        delta_xg = round(gols_oficiais - xg_acumulado, 1)
+        if delta_xg >= 4.0:
+            perfil_clinico = "Finalizador Clínico de Elite (+xG)"
+            status_xg = "overperformer"
+        elif delta_xg >= 0.5:
+            perfil_clinico = "Finalizador Eficiente (Acima da média)"
+            status_xg = "eficiente"
+        elif delta_xg >= -2.0:
+            perfil_clinico = "Finalizador Equilibrado (Neutro)"
+            status_xg = "neutro"
+        else:
+            perfil_clinico = "Volume Shooter (Abaixo do xG esperado)"
+            status_xg = "underperformer"
+    else:
+        xg_acumulado = analytics_xg.get("xg_acumulado", 0.0)
+        delta_xg = analytics_xg.get("delta_xg", 0.0)
+        taxa_conversao = analytics_xg.get("taxa_conversao_pct", 0.0)
+        perfil_clinico = analytics_xg.get("perfil_clinico", "Finalizador Equilibrado (Neutro)")
+        status_xg = analytics_xg.get("status_xg", "neutro")
+
+    chutes_tot = stats_meta.get("finalizacoes_totais") or max(gols_oficiais * 4, jogos_oficiais * 2, 1)
+    xg_por_chute = round(xg_acumulado / max(chutes_tot, 1), 3)
+    if xg_por_chute >= 0.150:
+        qualidade_finalizacao_desc = "Infiltração de Alta Periculosidade (Grande Área)"
+    elif xg_por_chute >= 0.100:
+        qualidade_finalizacao_desc = "Finalizador Equilibrado de Meia-Distância"
+    else:
+        qualidade_finalizacao_desc = "Finalizador de Longo Alcance (Chutes Difíceis)"
+
+    xa_estimado = round((assists_oficiais * 0.88) + (jogos_oficiais * 0.08), 1)
+    xa_por_90 = round((xa_estimado / minutos_est) * 90, 2)
+
+    gols_80mais = resumo.get("gols_decisivos_80mais", 0)
+    hat_tricks = resumo.get("hat_tricks", 0)
+    dobletes = resumo.get("dobletes", 0)
+    peso_clutch = (gols_80mais * 1.5) + (hat_tricks * 2.0) + (dobletes * 1.0)
+    fator_clutch = peso_clutch / max(gols_oficiais, 1)
+    indice_clutch = min(99, max(45, round(50 + (fator_clutch * 35), 1)))
+
+    if indice_clutch >= 85:
+        clutch_desc = "Extremamente Decisivo (Gols nos Finais e Hattricks)"
+    elif indice_clutch >= 70:
+        clutch_desc = "Alta Capacidade Decisiva em Momentos Críticos"
+    elif indice_clutch >= 55:
+        clutch_desc = "Decisivo Regular"
+    else:
+        clutch_desc = "Impacto Constante ao Longo da Partida"
+
+    aprov_raw = resumo.get("aproveitamento_pontos")
+    aprov = float(aprov_raw) if (aprov_raw is not None and float(aprov_raw) > 10.0) else 62.0
+
+    if is_goleiro:
+        base = 72 + (aprov * 0.15)
+        if gols_oficiais >= 50:
+            base += 14  # Goleiro artilheiro histórico único (ex: Rogério Ceni)
+        if jogos_oficiais > 500:
+            base += 6
+        elif jogos_oficiais > 200:
+            base += 3
+    elif is_defensor:
+        cartoes_ratio = (resumo.get("amarelos", 0) + resumo.get("vermelhos", 0) * 2) / max(jogos_oficiais, 1)
+        disc_score = max(50, 95 - int(cartoes_ratio * 120))
+        base = 56 + (aprov * 0.22) + (disc_score * 0.16)
+        if jogos_oficiais > 200:
+            base += 5
+    elif is_meia:
+        score_p90 = min(99, 48 + int(participacoes_por_90 * 40))
+        score_gols = min(99, 46 + int(gols_por_90 * 48))
+        score_xa = min(99, 46 + int(xa_por_90 * 70))
+        base = (score_p90 * 0.40) + (score_gols * 0.25) + (score_xa * 0.23) + (aprov * 0.12)
+    else:
+        # Atacante
+        score_g90 = min(99, 48 + int(gols_por_90 * 50))
+        score_p90 = min(99, 48 + int(participacoes_por_90 * 36))
+        score_clinico = min(99, 50 + int(taxa_conversao * 1.6) + int(max(0, delta_xg) * 1.0))
+        base = (score_g90 * 0.45) + (score_p90 * 0.25) + (score_clinico * 0.15) + (indice_clutch * 0.15)
+
+    # Bônus histórico de longevidade e consagração oficial mundial
+    if gols_oficiais >= 500 or (jogos_oficiais >= 700 and gols_oficiais >= 300):
+        base += 9
+    elif gols_oficiais >= 350 or jogos_oficiais >= 550:
+        base += 7
+    elif gols_oficiais >= 200 or jogos_oficiais >= 350:
+        base += 4
+    elif gols_oficiais >= 100 or jogos_oficiais >= 180:
+        base += 2
+
+    score_scouting_global = int(round(min(99, max(52, base))))
+
+    if score_scouting_global >= 90:
+        classificacao_scouting = "Classe Mundial / Lenda"
+    elif score_scouting_global >= 84:
+        classificacao_scouting = "Destaque de Elite"
+    elif score_scouting_global >= 76:
+        classificacao_scouting = "Titular Notável"
+    else:
+        classificacao_scouting = "Profissional Regular"
+
+    return {
+        "score_scouting_global": score_scouting_global,
+        "classificacao_scouting": classificacao_scouting,
+        "gols_por_90": gols_por_90,
+        "participacoes_por_90": participacoes_por_90,
+        "xg_acumulado": xg_acumulado,
+        "delta_xg": delta_xg,
+        "status_xg": status_xg,
+        "perfil_clinico": perfil_clinico,
+        "taxa_conversao_pct": taxa_conversao,
+        "xg_por_chute": xg_por_chute,
+        "qualidade_finalizacao_desc": qualidade_finalizacao_desc,
+        "xa_estimado": xa_estimado,
+        "xa_por_90": xa_por_90,
+        "indice_clutch": indice_clutch,
+        "clutch_desc": clutch_desc,
+        "minutos_estimados": minutos_est
+    }
+
+
 COMPETICOES_COMPARADOR = [
     {"id": "todos", "label": "Carreira Completa", "icone": "🌐", "descricao": "Histórico mundial oficial e acervo completo"},
     {"id": "brasileirao", "label": "Brasileirão Série A", "icone": "🏆", "descricao": "Campeonato Brasileiro Série A e unificados"},
@@ -2475,6 +2630,8 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     resumo_dados["analytics_xg"] = analytics_xg
 
     radar_pes = _calcular_radar_pes(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial)
+    scouts_profissionais = _calcular_scouts_profissionais(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial, stats_meta, analytics_xg)
+    resumo_dados["scouts_profissionais"] = scouts_profissionais
 
     return {
         "id_jogador": target_id,
@@ -2499,6 +2656,7 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "premios": json.loads(stats_meta['premios']) if stats_meta.get('premios') else [],
         "resumo": resumo_dados,
         "analytics_xg": analytics_xg,
+        "scouts_profissionais": scouts_profissionais,
         "carreira_oficial": carreira_oficial,
         "radar_pes": radar_pes,
         "top_vitimas": top_vitimas,
@@ -2618,6 +2776,8 @@ def comparar_jogadores():
     c2 = perfil2["carreira_oficial"]
     r1 = perfil1["resumo"]
     r2 = perfil2["resumo"]
+    sp1 = perfil1.get("scouts_profissionais") or {}
+    sp2 = perfil2.get("scouts_profissionais") or {}
 
     is_filtro_camp = bool(campeonato and campeonato not in ('todos', 'carreira', 'all'))
     nome_camp_curto = {
@@ -2640,6 +2800,16 @@ def comparar_jogadores():
         cat_recorte = f"Recorte: {nome_camp_curto}"
 
         matriz_scouts = [
+            {
+                "chave": "score_scouting",
+                "categoria": "Scouting Pro",
+                "label": "Nota Global de Scouting (0 a 100)",
+                "val1": sp1.get("score_scouting_global", 75),
+                "val2": sp2.get("score_scouting_global", 75),
+                "formato": "numero",
+                "unidade": "pts",
+                "inverso": False
+            },
             {
                 "chave": "gols_comp",
                 "categoria": cat_recorte,
@@ -2671,6 +2841,16 @@ def comparar_jogadores():
                 "inverso": False
             },
             {
+                "chave": "gols_por_90",
+                "categoria": "Scouting Pro",
+                "label": f"Gols por 90 Min (G/90) ({nome_camp_curto})",
+                "val1": sp1.get("gols_por_90", 0.0),
+                "val2": sp2.get("gols_por_90", 0.0),
+                "formato": "decimal",
+                "unidade": "G/90",
+                "inverso": False
+            },
+            {
                 "chave": "gols_decisivos",
                 "categoria": "Decisão & Clutch",
                 "label": f"Gols Decisivos nos Finais (80'+) {prep_comp} {nome_camp_curto}",
@@ -2678,6 +2858,16 @@ def comparar_jogadores():
                 "val2": r2.get("gols_decisivos_80mais", 0),
                 "formato": "numero",
                 "unidade": "gols",
+                "inverso": False
+            },
+            {
+                "chave": "indice_clutch",
+                "categoria": "Decisão & Clutch",
+                "label": "Poder de Decisão (Clutch Score 0–100)",
+                "val1": sp1.get("indice_clutch", 50),
+                "val2": sp2.get("indice_clutch", 50),
+                "formato": "numero",
+                "unidade": "clutch",
                 "inverso": False
             },
             {
@@ -2720,6 +2910,66 @@ def comparar_jogadores():
         media_carreira_2 = round(gols_carreira_2 / max(jogos_carreira_2, 1), 2)
 
         matriz_scouts = [
+        {
+            "chave": "score_scouting",
+            "categoria": "Scouting Pro",
+            "label": "Nota Global de Scouting (0 a 100)",
+            "val1": sp1.get("score_scouting_global", 75),
+            "val2": sp2.get("score_scouting_global", 75),
+            "formato": "numero",
+            "unidade": "pts",
+            "inverso": False
+        },
+        {
+            "chave": "gols_por_90",
+            "categoria": "Scouting Pro",
+            "label": "Gols por 90 Min (G/90)",
+            "val1": sp1.get("gols_por_90", 0.0),
+            "val2": sp2.get("gols_por_90", 0.0),
+            "formato": "decimal",
+            "unidade": "G/90",
+            "inverso": False
+        },
+        {
+            "chave": "participacoes_por_90",
+            "categoria": "Scouting Pro",
+            "label": "Participações por 90 Min (P/90)",
+            "val1": sp1.get("participacoes_por_90", 0.0),
+            "val2": sp2.get("participacoes_por_90", 0.0),
+            "formato": "decimal",
+            "unidade": "P/90",
+            "inverso": False
+        },
+        {
+            "chave": "xg_por_chute",
+            "categoria": "Scouting Pro",
+            "label": "Qualidade da Finalização (xG/Chute)",
+            "val1": sp1.get("xg_por_chute", 0.0),
+            "val2": sp2.get("xg_por_chute", 0.0),
+            "formato": "decimal",
+            "unidade": "xG/chute",
+            "inverso": False
+        },
+        {
+            "chave": "indice_clutch",
+            "categoria": "Decisão & Clutch",
+            "label": "Poder de Decisão (Clutch Score 0–100)",
+            "val1": sp1.get("indice_clutch", 50),
+            "val2": sp2.get("indice_clutch", 50),
+            "formato": "numero",
+            "unidade": "clutch",
+            "inverso": False
+        },
+        {
+            "chave": "xa_estimado",
+            "categoria": "Scouting Pro",
+            "label": "Assistências Esperadas (xA Estimado)",
+            "val1": sp1.get("xa_estimado", 0.0),
+            "val2": sp2.get("xa_estimado", 0.0),
+            "formato": "decimal",
+            "unidade": "xA",
+            "inverso": False
+        },
         {
             "chave": "gols_carreira",
             "categoria": "Carreira Oficial",
@@ -2919,7 +3169,8 @@ def comparar_jogadores():
             "situacao": perfil1["situacao"],
             "resumo": perfil1["resumo"],
             "carreira_oficial": perfil1["carreira_oficial"],
-            "radar_pes": perfil1["radar_pes"]
+            "radar_pes": perfil1["radar_pes"],
+            "scouts_profissionais": perfil1.get("scouts_profissionais")
         },
         "atleta2": {
             "id_jogador": perfil2["id_jogador"],
@@ -2934,7 +3185,8 @@ def comparar_jogadores():
             "situacao": perfil2["situacao"],
             "resumo": perfil2["resumo"],
             "carreira_oficial": perfil2["carreira_oficial"],
-            "radar_pes": perfil2["radar_pes"]
+            "radar_pes": perfil2["radar_pes"],
+            "scouts_profissionais": perfil2.get("scouts_profissionais")
         },
         "placar_geral": {
             "vitorias_atleta1": placar_vitorias_1,

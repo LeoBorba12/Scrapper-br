@@ -239,6 +239,12 @@ export default function AthleteCompareView({
 
   const atleta1 = compareData?.atleta1 || {};
   const atleta2 = compareData?.atleta2 || {};
+  const sp1 = atleta1.scouts_profissionais || atleta1.resumo?.scouts_profissionais || {};
+  const sp2 = atleta2.scouts_profissionais || atleta2.resumo?.scouts_profissionais || {};
+  const notaScouting1 = sp1.score_scouting_global || 75;
+  const notaScouting2 = sp2.score_scouting_global || 75;
+  const classifScouting1 = sp1.classificacao_scouting || 'Profissional Regular';
+  const classifScouting2 = sp2.classificacao_scouting || 'Profissional Regular';
   const placar = compareData?.placar_geral || {};
   const matrizScouts = compareData?.matriz_scouts || [];
   const h2hJogos = compareData?.h2h_jogos || [];
@@ -770,43 +776,69 @@ export default function AthleteCompareView({
                 boxShadow: 'var(--shadow-editorial)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(90, 103, 62, 0.2)',
+                      border: '2px solid #7C8F52',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      fontSize: '1.1rem',
+                      color: '#7C8F52',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                  >
+                    {atleta1.foto_url ? (
+                      <img src={atleta1.foto_url} alt={atleta1.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      atleta1.nome?.substring(0, 2).toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      {atleta1.nome}
+                    </h2>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      {atleta1.nome_completo || atleta1.nome}
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                      <span className="pill-neutral" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(90, 103, 62, 0.15)', color: '#7C8F52' }}>
+                        {atleta1.posicao || 'Atleta'}
+                      </span>
+                      <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>
+                        {atleta1.situacao || 'Ativo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Badge Nota Global Atleta 1 */}
                 <div
                   style={{
-                    width: '54px',
-                    height: '54px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(90, 103, 62, 0.2)',
-                    border: '2px solid #7C8F52',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 900,
-                    fontSize: '1.1rem',
-                    color: '#7C8F52',
-                    overflow: 'hidden'
+                    gap: '6px',
+                    padding: '4px 8px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: 'rgba(90, 103, 62, 0.15)',
+                    border: '1px solid #7C8F52',
+                    flexShrink: 0
                   }}
+                  title={`Nota Global FutStats: ${notaScouting1}/100 • ${classifScouting1}`}
                 >
-                  {atleta1.foto_url ? (
-                    <img src={atleta1.foto_url} alt={atleta1.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    atleta1.nome?.substring(0, 2).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    {atleta1.nome}
-                  </h2>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {atleta1.nome_completo || atleta1.nome}
+                  <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
+                    <div style={{ fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', color: '#7C8F52' }}>Nota</div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{classifScouting1}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                    <span className="pill-neutral" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(90, 103, 62, 0.15)', color: '#7C8F52' }}>
-                      {atleta1.posicao || 'Atleta'}
-                    </span>
-                    <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>
-                      {atleta1.situacao || 'Ativo'}
-                    </span>
+                  <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#7C8F52', lineHeight: 1 }}>
+                    {notaScouting1}
                   </div>
                 </div>
               </div>
@@ -907,43 +939,69 @@ export default function AthleteCompareView({
                 boxShadow: 'var(--shadow-editorial)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(133, 87, 59, 0.2)',
+                      border: '2px solid #B87550',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      fontSize: '1.1rem',
+                      color: '#B87550',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                  >
+                    {atleta2.foto_url ? (
+                      <img src={atleta2.foto_url} alt={atleta2.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      atleta2.nome?.substring(0, 2).toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      {atleta2.nome}
+                    </h2>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      {atleta2.nome_completo || atleta2.nome}
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                      <span className="pill-neutral" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(133, 87, 59, 0.15)', color: '#B87550' }}>
+                        {atleta2.posicao || 'Atleta'}
+                      </span>
+                      <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>
+                        {atleta2.situacao || 'Ativo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Badge Nota Global Atleta 2 */}
                 <div
                   style={{
-                    width: '54px',
-                    height: '54px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(133, 87, 59, 0.2)',
-                    border: '2px solid #B87550',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 900,
-                    fontSize: '1.1rem',
-                    color: '#B87550',
-                    overflow: 'hidden'
+                    gap: '6px',
+                    padding: '4px 8px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: 'rgba(133, 87, 59, 0.15)',
+                    border: '1px solid #B87550',
+                    flexShrink: 0
                   }}
+                  title={`Nota Global FutStats: ${notaScouting2}/100 • ${classifScouting2}`}
                 >
-                  {atleta2.foto_url ? (
-                    <img src={atleta2.foto_url} alt={atleta2.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    atleta2.nome?.substring(0, 2).toUpperCase()
-                  )}
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    {atleta2.nome}
-                  </h2>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    {atleta2.nome_completo || atleta2.nome}
+                  <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
+                    <div style={{ fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', color: '#B87550' }}>Nota</div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{classifScouting2}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                    <span className="pill-neutral" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(133, 87, 59, 0.15)', color: '#B87550' }}>
-                      {atleta2.posicao || 'Atleta'}
-                    </span>
-                    <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>
-                      {atleta2.situacao || 'Ativo'}
-                    </span>
+                  <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#B87550', lineHeight: 1 }}>
+                    {notaScouting2}
                   </div>
                 </div>
               </div>
@@ -1046,6 +1104,7 @@ export default function AthleteCompareView({
 
                     const formatVal = (v) => {
                       if (v == null) return '—';
+                      if (item.chave === 'xg_por_chute') return Number(v).toFixed(3);
                       if (item.formato === 'decimal') return Number(v).toFixed(2);
                       if (item.formato === 'porcentagem') return `${Number(v).toFixed(1)}%`;
                       return Number(v).toLocaleString('pt-BR');
@@ -1091,7 +1150,12 @@ export default function AthleteCompareView({
 
                         {/* Label da Métrica */}
                         <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--text-primary)' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.82rem' }}>{item.label}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            {item.categoria === 'Scouting Pro' && (
+                              <span className="pill-olive" style={{ fontSize: '0.58rem', padding: '1px 5px', fontWeight: 800 }}>PRO</span>
+                            )}
+                            <span>{item.label}</span>
+                          </div>
                           <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>{item.categoria}</div>
                         </td>
 
