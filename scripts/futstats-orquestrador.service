@@ -1,0 +1,22 @@
+[Unit]
+Description=FutStats - Orquestrador Mestre 24x7 (Scraping, Integridade e Analytics)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Scrapper-br
+ExecStart=/home/ubuntu/Scrapper-br/.venv/bin/python3 scripts/orquestrador_mestre_24x7.py
+Restart=always
+RestartSec=15
+StandardOutput=append:/var/log/futstats_orquestrador.log
+StandardError=append:/var/log/futstats_orquestrador_err.log
+
+# Proteções contra travamento e OOM da VM Oracle Cloud:
+MemoryMax=850M
+MemoryHigh=750M
+CPUWeight=80
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
