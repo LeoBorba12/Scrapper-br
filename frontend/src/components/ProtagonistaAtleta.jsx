@@ -1153,17 +1153,31 @@ export default function ProtagonistaAtleta({
                     </div>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Jogos no Catálogo</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      {resumo.jogos_rotulo || (resumo.acervo_parcial || (resumo.jogos_registrados === resumo.total_gols && Number(resumo.total_gols) > 0 && Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados)) ? 'Jogos c/ Gol' : 'Jogos no Catálogo')}
+                    </span>
                     <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                       {resumo.jogos_registrados ?? 0}
                     </div>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média Local</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      {resumo.acervo_parcial || (resumo.jogos_registrados === resumo.total_gols && Number(resumo.total_gols) > 0 && Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados)) ? 'Média Carreira' : 'Média Local'}
+                    </span>
                     <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
-                      {resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0
-                        ? (Number(resumo.total_gols || 0) / Number(resumo.jogos_registrados)).toFixed(2)
-                        : (resumo.media_gols != null && !isNaN(Number(resumo.media_gols)) ? Number(resumo.media_gols).toFixed(2) : '—')}
+                      {(() => {
+                        const isParcial = resumo.acervo_parcial || (resumo.jogos_registrados === resumo.total_gols && Number(resumo.total_gols) > 0 && Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados));
+                        if (isParcial && carreira?.jogos && Number(carreira.jogos) > 0) {
+                          return (Number(carreira.gols || resumo.total_gols) / Number(carreira.jogos)).toFixed(2);
+                        }
+                        if (isParcial && resumo.media_oficial_carreira) {
+                          return Number(resumo.media_oficial_carreira).toFixed(2);
+                        }
+                        if (resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0 && !isParcial) {
+                          return (Number(resumo.total_gols || 0) / Number(resumo.jogos_registrados)).toFixed(2);
+                        }
+                        return (resumo.media_gols != null && !isNaN(Number(resumo.media_gols)) && !isParcial ? Number(resumo.media_gols).toFixed(2) : '—');
+                      })()}
                     </div>
                   </div>
                 </div>

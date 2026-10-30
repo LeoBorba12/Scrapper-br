@@ -2693,6 +2693,9 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "maior_vitima_clube": (top_vitimas[0]['clube'] if top_vitimas else None),
         "estadio_favorito": stats_meta.get('estadio_favorito'),
         "media_gols": round(total_gols_final / max(total_jogos, 1), 2),
+        "acervo_parcial": bool(total_jogos == total_gols_final and total_gols_final > 0 and (raw_jogos_carreira > total_jogos or (stats_meta.get('ano_inicio') and stats_meta.get('ano_inicio') < 2018))),
+        "jogos_rotulo": "Jogos c/ Gol" if bool(total_jogos == total_gols_final and total_gols_final > 0 and (raw_jogos_carreira > total_jogos or (stats_meta.get('ano_inicio') and stats_meta.get('ano_inicio') < 2018))) else "Jogos",
+        "media_oficial_carreira": round(carreira_oficial["gols"] / max(carreira_oficial["jogos"], 1), 2) if carreira_oficial.get("jogos") and carreira_oficial["jogos"] > 0 else None,
         "ano_min": ano_min,
         "ano_max": ano_max,
         "filtro_campeonato": campeonato_filtro or "todos"
