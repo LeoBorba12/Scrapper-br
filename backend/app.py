@@ -2748,19 +2748,17 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     if target_id:
         try:
             s_row = c.execute("""
-                SELECT rating_medio, jogos_avaliados, ultimas_notas_json, xg_acumulado, xg_por_jogo, assistencias, chutes_no_gol_por_jogo, passes_decisivos_por_jogo
+                SELECT rating_medio, jogos_avaliados, notas_ultimos_jogos_json, xg_acumulado, xa_acumulado, assistencias
                 FROM atleta_sofascore_ratings WHERE id_jogador = ? LIMIT 1;
             """, (target_id,)).fetchone()
             if s_row:
                 sofascore_data = {
                     "rating_medio": s_row["rating_medio"],
                     "jogos_avaliados": s_row["jogos_avaliados"],
-                    "ultimas_notas": json.loads(s_row["ultimas_notas_json"] or "[]"),
+                    "ultimas_notas": json.loads(s_row["notas_ultimos_jogos_json"] or "[]"),
                     "xg_acumulado": s_row["xg_acumulado"],
-                    "xg_por_jogo": s_row["xg_por_jogo"],
-                    "assistencias": s_row["assistencias"],
-                    "chutes_no_gol_por_jogo": s_row["chutes_no_gol_por_jogo"],
-                    "passes_decisivos_por_jogo": s_row["passes_decisivos_por_jogo"]
+                    "xa_acumulado": s_row["xa_acumulado"],
+                    "assistencias": s_row["assistencias"]
                 }
         except Exception:
             pass
