@@ -601,38 +601,77 @@ export default function ProtagonistaAtleta({
                     ) : null}
                   </div>
 
-                  {/* Card Badge FIFA/PES de Nota Global de Scouting (0 a 100) */}
-                  <div 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px', 
-                      padding: '4px 10px', 
-                      borderRadius: 'var(--radius-control)', 
-                      background: 'linear-gradient(135deg, rgba(90, 103, 62, 0.22) 0%, rgba(133, 87, 59, 0.22) 100%)',
-                      border: '1px solid var(--accent)',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
-                    }}
-                    title={`Nota Global FutStats: ${notaScouting}/100 • ${classifScouting}`}
-                  >
-                    <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
-                      <div style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.04em' }}>
-                        Nota Global
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    {/* Badge Oficial Sofascore (0 a 10.0) */}
+                    {resumo.sofascore && (
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '6px', 
+                          padding: '4px 10px', 
+                          borderRadius: 'var(--radius-control)', 
+                          background: 'rgba(34, 197, 94, 0.12)',
+                          border: '1px solid rgba(34, 197, 94, 0.4)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                        title={`Rating Sofascore: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`}
+                      >
+                        <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
+                          <div style={{ fontSize: '0.60rem', fontWeight: 800, textTransform: 'uppercase', color: '#22c55e', letterSpacing: '0.04em' }}>
+                            Sofascore
+                          </div>
+                          <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                            {resumo.sofascore.jogos_avaliados}j avaliados
+                          </div>
+                        </div>
+                        <div 
+                          className="font-mono tabular-nums" 
+                          style={{ 
+                            fontSize: '1.45rem', 
+                            fontWeight: 900, 
+                            color: '#22c55e', 
+                            lineHeight: 1 
+                          }}
+                        >
+                          {resumo.sofascore.rating_medio}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                        {classifScouting}
-                      </div>
-                    </div>
+                    )}
+
+                    {/* Card Badge FIFA/PES de Nota Global de Scouting (0 a 100) */}
                     <div 
-                      className="font-mono tabular-nums" 
                       style={{ 
-                        fontSize: '1.65rem', 
-                        fontWeight: 900, 
-                        color: 'var(--accent)', 
-                        lineHeight: 1 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px', 
+                        padding: '4px 10px', 
+                        borderRadius: 'var(--radius-control)', 
+                        background: 'linear-gradient(135deg, rgba(90, 103, 62, 0.22) 0%, rgba(133, 87, 59, 0.22) 100%)',
+                        border: '1px solid var(--accent)',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
                       }}
+                      title={`Nota Global FutStats: ${notaScouting}/100 • ${classifScouting}`}
                     >
-                      {notaScouting}
+                      <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
+                        <div style={{ fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '0.04em' }}>
+                          Nota Global
+                        </div>
+                        <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          {classifScouting}
+                        </div>
+                      </div>
+                      <div 
+                        className="font-mono tabular-nums" 
+                        style={{ 
+                          fontSize: '1.65rem', 
+                          fontWeight: 900, 
+                          color: 'var(--accent)', 
+                          lineHeight: 1 
+                        }}
+                      >
+                        {notaScouting}
+                      </div>
                     </div>
                   </div>
                 </div>

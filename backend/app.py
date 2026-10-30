@@ -2743,6 +2743,29 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     scouts_profissionais = _calcular_scouts_profissionais(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial, stats_meta, analytics_xg)
     resumo_dados["scouts_profissionais"] = scouts_profissionais
 
+    # Enriquecimento com Dados Oficiais Sofascore (0 a 10.0)
+    sofascore_data = None
+    if target_id:
+        try:
+            s_row = c.execute("""
+                SELECT rating_medio, jogos_avaliados, ultimas_notas_json, xg_acumulado, xg_por_jogo, assistencias, chutes_no_gol_por_jogo, passes_decisivos_por_jogo
+                FROM atleta_sofascore_ratings WHERE id_jogador = ? LIMIT 1;
+            """, (target_id,)).fetchone()
+            if s_row:
+                sofascore_data = {
+                    "rating_medio": s_row["rating_medio"],
+                    "jogos_avaliados": s_row["jogos_avaliados"],
+                    "ultimas_notas": json.loads(s_row["ultimas_notas_json"] or "[]"),
+                    "xg_acumulado": s_row["xg_acumulado"],
+                    "xg_por_jogo": s_row["xg_por_jogo"],
+                    "assistencias": s_row["assistencias"],
+                    "chutes_no_gol_por_jogo": s_row["chutes_no_gol_por_jogo"],
+                    "passes_decisivos_por_jogo": s_row["passes_decisivos_por_jogo"]
+                }
+        except Exception:
+            pass
+    resumo_dados["sofascore"] = sofascore_data
+
     return {
         "id_jogador": target_id,
         "nome": nome_exib,
