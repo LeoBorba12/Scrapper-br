@@ -217,6 +217,7 @@ def ciclo_mestre(numero_ciclo: int):
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "scraper_odds_sofascore_24x7.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "minerar_estatisticas_e_odds_vivas.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "minerar_odds_e_mercados.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "scraper_sofascore_ratings_pipeline.py")])
     if numero_ciclo % 5 == 0:
         safe_print("\n>>> [FASE A2] Enriquecendo Métricas Avançadas de Jogo (Chutes, Faltas, Escanteios) <<<")
         executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "enriquecer_metricas_avancadas.py")])
