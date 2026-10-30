@@ -165,7 +165,6 @@ TABELAS_PERMITIDAS = {
     "artilharia_historica",
     "jogadores",
     "jogadores_estatisticas",
-    "jogadores_resumo",
     "estatisticas_arbitros",
     "estatisticas_partidas",
     "odds_partidas",

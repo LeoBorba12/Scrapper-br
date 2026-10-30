@@ -1,0 +1,290 @@
+--- a/backend/calculo_xg_discreto.py
++++ b/backend/calculo_xg_discreto.py
+@@ -104,6 +104,17 @@
+     # 4. Neutro: Atua dentro da margem estatística esperada (0.80 a 1.05)
+     return "Neutro"
+ 
++def classificar_perfil_finalizador(
++    total_chutes: int,
++    gols_reais: int,
++    xg_acumulado: float,
++    xg_por_chute: float,
++    delta_xg: float
++) -> str:
++    """Alias retrocompatível para classificar_perfil_clinico."""
++    return classificar_perfil_clinico(total_chutes, gols_reais, xg_acumulado, xg_por_chute, delta_xg)
++
++
+ def analisar_performance_xg_atleta(finalizacoes: List[ShotEvent]) -> Dict[str, Any]:
+     """
+     Processa uma lista de finalizações de um atleta, calcula xG acumulado,
+@@ -169,3 +180,95 @@
+         "historico_chutes": historico_detalhado
+     }
+ 
++def estimar_xg_gols_atleta(
++    gols_lista: List[Dict[str, Any]],
++    stats_meta: Dict[str, Any],
++    total_jogos: int = 0
++) -> Dict[str, Any]:
++    """
++    Estima xG, npxG, Delta xG e perfil clínico usando calibração discreta Opta
++    para atletas a partir do histórico de gols e scouts consolidados.
++    """
++    gols_calc = len(gols_lista) if gols_lista else (stats_meta.get("total_gols") or 0)
++    chutes_tot = stats_meta.get("finalizacoes_totais") or 0
++    chutes_alvo = stats_meta.get("chutes_ao_gol") or 0
++    penaltis = stats_meta.get("penaltis_cobrados") or stats_meta.get("gols_penalti") or 0
++
++    if penaltis == 0 and gols_lista:
++        penaltis = sum(1 for g in gols_lista if any(p in (g.get("tipo_de_gol") or "").lower() for p in ["penalti", "pênalti", "penalty"]))
++
++    if chutes_tot == 0 and gols_calc == 0:
++        return {
++            "xg_acumulado": 0.0,
++            "xg_nao_penalti_npxg": 0.0,
++            "gols_reais": 0,
++            "delta_xg": 0.0,
++            "taxa_conversao_pct": 0.0,
++            "chutes_totais": 0,
++            "chutes_ao_gol": 0,
++            "xg_por_chute": 0.0,
++            "perfil_clinico": "Neutro (Amostra Insuficiente)",
++            "status_xg": "neutro"
++        }
++
++    if chutes_tot > 0:
++        chutes_fora = max(0, chutes_tot - chutes_alvo)
++        chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
++        xg_penaltis = penaltis * PENALTY_XG
++        npxg_acumulado = round((chutes_alvo_abertos * 0.205) + (chutes_fora * 0.035), 1)
++        xg_acumulado = round(xg_penaltis + npxg_acumulado, 1)
++    else:
++        chutes_tot = max(gols_calc * 5, total_jogos * 2, 1)
++        chutes_alvo = max(gols_calc * 2, int(chutes_tot * 0.40))
++        xg_penaltis = penaltis * PENALTY_XG
++        npxg_acumulado = round(max(0.0, (gols_calc - penaltis) * 0.78), 1)
++        xg_acumulado = round(xg_penaltis + npxg_acumulado, 1)
++
++    delta_xg = round(gols_calc - xg_acumulado, 1)
++    taxa_conversao = round((gols_calc / max(chutes_tot, 1)) * 100, 1) if chutes_tot > 0 else 0.0
++    xg_por_chute = round(xg_acumulado / max(chutes_tot, 1), 3)
++
++    perfil = classificar_perfil_clinico(
++        total_chutes=chutes_tot,
++        gols_reais=gols_calc,
++        xg_acumulado=xg_acumulado,
++        xg_por_chute=xg_por_chute,
++        delta_xg=delta_xg
++    )
++
++    status_xg = "overperformer" if delta_xg >= 0.5 else ("underperformer" if delta_xg <= -2.0 else "neutro")
++
++    return {
++        "xg_acumulado": xg_acumulado,
++        "xg_nao_penalti_npxg": npxg_acumulado,
++        "gols_reais": gols_calc,
++        "delta_xg": delta_xg,
++        "taxa_conversao_pct": taxa_conversao,
++        "chutes_totais": chutes_tot,
++        "chutes_ao_gol": chutes_alvo,
++        "xg_por_chute": xg_por_chute,
++        "perfil_clinico": perfil,
++        "status_xg": status_xg
++    }
++
++def calcular_xg_partida(
++    chutes_mandante: int,
++    chutes_no_gol_m: int,
++    chutes_visitante: int,
++    chutes_no_gol_v: int,
++    penaltis_m: int = 0,
++    penaltis_v: int = 0
++) -> Dict[str, Any]:
++    """Calcula xG da partida para mandante e visitante com base no modelo discreto Opta."""
++    fora_m = max(0, chutes_mandante - chutes_no_gol_m)
++    alvo_aberto_m = max(0, chutes_no_gol_m - penaltis_m)
++    xg_m = round((penaltis_m * PENALTY_XG) + (alvo_aberto_m * 0.205) + (fora_m * 0.035), 2)
++
++    fora_v = max(0, chutes_visitante - chutes_no_gol_v)
++    alvo_aberto_v = max(0, chutes_no_gol_v - penaltis_v)
++    xg_v = round((penaltis_v * PENALTY_XG) + (alvo_aberto_v * 0.205) + (fora_v * 0.035), 2)
++
++    soma = max(0.01, xg_m + xg_v)
++    field_tilt_m = round((xg_m / soma) * 100, 1)
++    field_tilt_v = round(100.0 - field_tilt_m, 1)
++    dominio = "Domínio territorial e chances do mandante" if field_tilt_m >= 58.0 else ("Domínio territorial e chances do visitante" if field_tilt_v >= 58.0 else "Confronto equilibrado territorialmente")
++
++    return {
++        "xg_mandante": xg_m,
++        "xg_visitante": xg_v,
++        "field_tilt": {"mandante_pct": field_tilt_m, "visitante_pct": field_tilt_v, "dominio": dominio}
++    }
+--- a/backend/app.py
++++ b/backend/app.py
+@@ -18,6 +18,17 @@
+ from flask import Flask, request, jsonify, send_from_directory, g
++try:
++    from backend.calculo_xg_discreto import (
++        calcular_xg_finalizacao, classificar_perfil_clinico,
++        classificar_perfil_finalizador, analisar_performance_xg_atleta,
++        estimar_xg_gols_atleta, calcular_xg_partida,
++        ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
++    )
++except ImportError:
++    from calculo_xg_discreto import (
++        calcular_xg_finalizacao, classificar_perfil_clinico,
++        classificar_perfil_finalizador, analisar_performance_xg_atleta,
++        estimar_xg_gols_atleta, calcular_xg_partida,
++        ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
++    )
+@@ -2147,27 +2158,16 @@
+     if not analytics_xg:
+-        chutes_alvo = stats_meta.get("chutes_ao_gol") or 0
+-        chutes_tot = stats_meta.get("finalizacoes_totais") or 0
+-        penaltis = stats_meta.get("penaltis_cobrados") or stats_meta.get("gols_penalti") or 0
+-        if chutes_tot > 0:
+-            chutes_fora = max(0, chutes_tot - chutes_alvo)
+-            chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
+-            xg_acumulado = round((penaltis * 0.79) + (chutes_alvo_abertos * 0.315) + (chutes_fora * 0.045), 1)
+-            taxa_conversao = round((gols_oficiais / chutes_tot) * 100, 1)
+-        else:
+-            xg_acumulado = round(gols_oficiais * 0.93, 1) if gols_oficiais > 0 else round(jogos_oficiais * 0.35, 1)
+-            taxa_conversao = round((gols_oficiais / max(1, jogos_oficiais * 2.8)) * 100, 1)
+-        delta_xg = round(gols_oficiais - xg_acumulado, 1)
+-        if delta_xg >= 4.0:
+-            perfil_clinico = "Finalizador Clínico de Elite (+xG)"
+-            status_xg = "overperformer"
+-        elif delta_xg >= 0.5:
+-            perfil_clinico = "Finalizador Eficiente (Acima da média)"
+-            status_xg = "eficiente"
+-        elif delta_xg >= -2.0:
+-            perfil_clinico = "Finalizador Equilibrado (Neutro)"
+-            status_xg = "neutro"
+-        else:
+-            perfil_clinico = "Volume Shooter (Abaixo do xG esperado)"
+-            status_xg = "underperformer"
++        est = estimar_xg_gols_atleta([], stats_meta, jogos_oficiais)
++        xg_acumulado = est["xg_acumulado"]
++        delta_xg = est["delta_xg"]
++        taxa_conversao = est["taxa_conversao_pct"]
++        perfil_clinico = est["perfil_clinico"]
++        status_xg = est["status_xg"]
+     else:
+         xg_acumulado = analytics_xg.get("xg_acumulado", 0.0)
+         delta_xg = analytics_xg.get("delta_xg", 0.0)
+         taxa_conversao = analytics_xg.get("taxa_conversao_pct", 0.0)
+-        perfil_clinico = analytics_xg.get("perfil_clinico", "Finalizador Equilibrado (Neutro)")
++        perfil_clinico = analytics_xg.get("perfil_clinico", "Neutro")
+         status_xg = analytics_xg.get("status_xg", "neutro")
+@@ -2704,65 +2704,49 @@
+-    # Cálculo Analítico de Expected Goals (xG) & Eficiência Clínica
+-    chutes_alvo = stats_meta.get('chutes_ao_gol') or 0
+-    chutes_tot = stats_meta.get('finalizacoes_totais') or 0
+-    penaltis = stats_meta.get('penaltis_cobrados') or stats_meta.get('gols_penalti') or 0
+-    gols_calc = total_gols_final or 0
+-
+-    if chutes_tot > 0:
+-        chutes_fora = max(0, chutes_tot - chutes_alvo)
+-        chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
+-        xg_acumulado = round((penaltis * 0.79) + (chutes_alvo_abertos * 0.315) + (chutes_fora * 0.045), 1)
+-        taxa_conversao = round((gols_calc / chutes_tot) * 100, 1)
+-    else:
+-        xg_acumulado = round(gols_calc * 0.93, 1) if gols_calc > 0 else round(total_jogos * 0.35, 1)
+-        taxa_conversao = round((gols_calc / max(1, total_jogos * 2.8)) * 100, 1)
+-
+-    delta_xg = round(gols_calc - xg_acumulado, 1)
+-    if delta_xg >= 4.0:
+-        perfil_clinico = "Finalizador Clínico de Elite (+xG)"
+-        status_xg = "overperformer"
+-    elif delta_xg >= 0.5:
+-        perfil_clinico = "Finalizador Eficiente (Acima da média)"
+-        status_xg = "eficiente"
+-    elif delta_xg >= -2.0:
+-        perfil_clinico = "Finalizador Equilibrado (Neutro)"
+-        status_xg = "neutro"
+-    else:
+-        perfil_clinico = "Volume Shooter (Abaixo do xG esperado)"
+-        status_xg = "underperformer"
+-
+-    analytics_xg = {
+-        "xg_acumulado": xg_acumulado,
+-        "gols_reais": gols_calc,
+-        "delta_xg": delta_xg,
+-        "taxa_conversao_pct": taxa_conversao,
+-        "chutes_totais": chutes_tot,
+-        "chutes_ao_gol": chutes_alvo,
+-        "perfil_clinico": perfil_clinico,
+-        "status_xg": status_xg
+-    }
+-    resumo_dados["analytics_xg"] = analytics_xg
+-
+-    radar_pes = _calcular_radar_pes(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial)
+-    scouts_profissionais = _calcular_scouts_profissionais(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial, stats_meta, analytics_xg)
+-    resumo_dados["scouts_profissionais"] = scouts_profissionais
+-
+     # Enriquecimento com Dados Oficiais Sofascore (0 a 10.0)
+     sofascore_data = None
++    s_row = None
+     if target_id:
+         try:
+             s_row = c.execute("""
+-                SELECT rating_medio, jogos_avaliados, notas_ultimos_jogos_json, xg_acumulado, xa_acumulado, assistencias
++                SELECT rating_medio, jogos_avaliados, notas_ultimos_jogos_json,
++                       xg_acumulado, xa_acumulado, assistencias,
++                       npxg_acumulado, delta_xg, perfil_clinico, taxa_conversao_pct
+                 FROM atleta_sofascore_ratings WHERE id_jogador = ? LIMIT 1;
+             """, (target_id,)).fetchone()
+             if s_row:
+                 sofascore_data = {
+                     "rating_medio": s_row["rating_medio"],
+                     "jogos_avaliados": s_row["jogos_avaliados"],
++                    "fonte": "sofascore",
+                     "ultimas_notas": json.loads(s_row["notas_ultimos_jogos_json"] or "[]"),
+                     "xg_acumulado": s_row["xg_acumulado"],
+                     "xa_acumulado": s_row["xa_acumulado"],
+                     "assistencias": s_row["assistencias"]
+                 }
+         except Exception:
+             pass
+     resumo_dados["sofascore"] = sofascore_data
++
++    # Cálculo Analítico de Expected Goals (xG) & Eficiência Clínica (Feature 9)
++    gols_calc = total_gols_final or 0
++    chutes_tot = stats_meta.get('finalizacoes_totais') or 0
++    chutes_alvo = stats_meta.get('chutes_ao_gol') or 0
++
++    if s_row and s_row["perfil_clinico"] and not is_filtro_camp and not clube_filtro:
++        xg_acumulado = round(float(s_row["xg_acumulado"] or 0.0), 1)
++        npxg_acumulado = round(float(s_row["npxg_acumulado"] or 0.0), 1)
++        delta_xg = round(float(s_row["delta_xg"] or 0.0), 1)
++        perfil_clinico = s_row["perfil_clinico"]
++        taxa_conversao = round(float(s_row["taxa_conversao_pct"] or 0.0), 1)
++        status_xg = "overperformer" if delta_xg >= 0.5 else ("underperformer" if delta_xg <= -2.0 else "neutro")
++    else:
++        xg_calc_res = estimar_xg_gols_atleta(gols, stats_meta, total_jogos)
++        xg_acumulado = xg_calc_res["xg_acumulado"]
++        npxg_acumulado = xg_calc_res["xg_nao_penalti_npxg"]
++        delta_xg = xg_calc_res["delta_xg"]
++        perfil_clinico = xg_calc_res["perfil_clinico"]
++        taxa_conversao = xg_calc_res["taxa_conversao_pct"]
++        chutes_tot = xg_calc_res["chutes_totais"]
++        chutes_alvo = xg_calc_res["chutes_ao_gol"]
++        status_xg = xg_calc_res["status_xg"]
++
++    analytics_xg = {
++        "xg_acumulado": xg_acumulado,
++        "xg_nao_penalti_npxg": npxg_acumulado,
++        "gols_reais": gols_calc,
++        "delta_xg": delta_xg,
++        "taxa_conversao_pct": taxa_conversao,
++        "chutes_totais": chutes_tot,
++        "chutes_ao_gol": chutes_alvo,
++        "perfil_clinico": perfil_clinico,
++        "status_xg": status_xg
++    }
++    resumo_dados["analytics_xg"] = analytics_xg
++
++    radar_pes = _calcular_radar_pes(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial)
++    scouts_profissionais = _calcular_scouts_profissionais(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial, stats_meta, analytics_xg)
++    resumo_dados["scouts_profissionais"] = scouts_profissionais

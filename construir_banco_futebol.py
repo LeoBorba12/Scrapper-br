@@ -145,7 +145,7 @@ def criar_tabelas(conn):
     """)
 
     # Índices para buscas em milissegundos
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_partidas_data ON partidas(data);")
+    # cursor.execute("CREATE INDEX IF NOT EXISTS idx_partidas_data ON partidas(data);")  # Redundante com idx_partidas_data_mandante/visitante
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_partidas_mandante ON partidas(mandante);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_partidas_visitante ON partidas(visitante);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_partidas_arbitro ON partidas(arbitro);")
@@ -153,7 +153,7 @@ def criar_tabelas(conn):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_gols_atleta ON gols(atleta);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_cartoes_partida ON cartoes(id_partida);")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_escalacoes_partida ON escalacoes(id_partida);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_escalacoes_atleta ON escalacoes(atleta);")
+    # cursor.execute("CREATE INDEX IF NOT EXISTS idx_escalacoes_atleta ON escalacoes(atleta);")  # Substituído por idx_escalacoes_id_jogador
     
     conn.commit()
 

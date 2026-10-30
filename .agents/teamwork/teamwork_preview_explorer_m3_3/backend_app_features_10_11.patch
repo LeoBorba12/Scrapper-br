@@ -1,0 +1,128 @@
+--- a/backend/app.py
++++ b/backend/app.py
+@@ -2018,22 +2018,44 @@
+-def _calcular_radar_pes(posicao, resumo, carreira):
+-    pos = (posicao or '').lower()
+-    total_gols = carreira.get('gols') if (carreira.get('jogos') and carreira.get('jogos') > 0) else resumo.get('total_gols', 0)
+-    total_jogos = carreira.get('jogos') if (carreira.get('jogos') and carreira.get('jogos') > 0) else resumo.get('jogos_registrados', 1)
+-    if not total_jogos:
+-        total_jogos = 1
+-    media_gols = total_gols / total_jogos if total_jogos > 0 else 0
++def _calcular_radar_pes(posicao, resumo=None, carreira=None):
++    resumo = resumo or {}
++    carreira = carreira or {}
++    pos = (posicao or 'Atacante').lower()
++
++    cgols = carreira.get('gols')
++    cjogos = carreira.get('jogos')
++    rgols = resumo.get('total_gols')
++    rjogos = resumo.get('jogos_registrados')
++
++    if cjogos is not None and cjogos > 0 and cgols is not None:
++        total_gols = float(cgols)
++        total_jogos = float(cjogos)
++    else:
++        total_gols = float(rgols) if rgols is not None else 0.0
++        total_jogos = float(rjogos) if (rjogos is not None and rjogos > 0) else 1.0
++
++    if total_jogos <= 0:
++        total_jogos = 1.0
++
++    media_gols = total_gols / total_jogos if total_jogos > 0 else 0.0
+     if total_jogos > 10 and media_gols > 2.0:
+-        if resumo.get('total_gols') and resumo.get('jogos_registrados') and resumo.get('jogos_registrados') > 0:
+-            media_gols = resumo['total_gols'] / resumo['jogos_registrados']
++        if rgols is not None and rjogos is not None and rjogos > 0:
++            media_gols = float(rgols) / float(rjogos)
+         else:
+             media_gols = min(media_gols, 1.4)
+ 
+-    total_assists = carreira.get('assistencias') or resumo.get('total_assistencias', 0)
+-    pontaria = resumo.get('pontaria_chutes_pct') or 60.0
+-    amarelos = resumo.get('amarelos', 0)
+-    vermelhos = resumo.get('vermelhos', 0)
+-    clutch = resumo.get('gols_decisivos_80mais', 0)
++    cassists = carreira.get('assistencias')
++    rassists = resumo.get('total_assistencias')
++    total_assists = float(cassists) if cassists is not None else (float(rassists) if rassists is not None else 0.0)
++
++    pontaria_raw = resumo.get('pontaria_chutes_pct')
++    try:
++        pontaria = float(pontaria_raw) if (pontaria_raw is not None and 0 <= float(pontaria_raw) <= 100) else 60.0
++    except (ValueError, TypeError):
++        pontaria = 60.0
++
++    amarelos = float(resumo.get('amarelos') or 0.0)
++    vermelhos = float(resumo.get('vermelhos') or 0.0)
++    clutch = float(resumo.get('gols_decisivos_80mais') or 0.0)
++    jogos_titular = float(resumo.get('jogos_titular') or 0.0)
+@@ -2095,3 +2117,3 @@
+-    if resumo.get('jogos_titular', 0) > 100: fis += 5
++    if jogos_titular > 100: fis += 5
+@@ -2110,1 +2132,7 @@
+-    clamp = lambda v: max(40, min(99, int(round(v))))
++    def clamp(v):
++        try:
++            val = float(v)
++            if math.isnan(val): return 50
++            return max(40, min(99, int(round(val))))
++        except Exception:
++            return 50
+@@ -2620,22 +2648,25 @@
+     is_filtro_camp = bool(campeonato_filtro and campeonato_filtro not in ('todos', 'carreira', 'all'))
++    raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
++    raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
++    raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
+     if is_filtro_camp:
+         total_gols_final = len(gols)
+         total_assists_final = 0
+         carreira_oficial = {
+             "gols": total_gols_final,
+             "jogos": total_jogos,
+             "assistencias": total_assists_final,
+             "clubes": sorted(list(stats_por_clube.keys()))
+         }
+     else:
+         total_gols_final = stats_meta.get('total_gols') or len(gols)
+         total_assists_final = stats_meta.get('total_assistencias') or 0
+-        raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
+-        raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
+-        raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
+         carreira_oficial = {
+             "gols": max(raw_gols_carreira, total_gols_final),
+             "jogos": max(raw_jogos_carreira, total_jogos),
+             "assistencias": max(raw_assists_carreira, total_assists_final),
+             "clubes": json.loads(stats_meta['detalhe_carreira_clubes']) if stats_meta.get('detalhe_carreira_clubes') else []
+         }
+@@ -2669,4 +2700,23 @@
+     aproveitamento_calc = round((vitorias * 3 + empates) / max(total_jogos * 3, 1) * 100, 1) if total_jogos > 0 else 0.0
++
++    # Determinação de acervo parcial e média autêntica de carreira (Feature 11):
++    media_oficial_carreira = (
++        round(carreira_oficial["gols"] / max(carreira_oficial["jogos"], 1), 2)
++        if (carreira_oficial.get("jogos") and carreira_oficial["jogos"] > 0 and carreira_oficial.get("gols") is not None)
++        else None
++    )
++
++    is_acervo_parcial = bool(
++        not is_filtro_camp and (
++            (raw_jogos_carreira > total_jogos and raw_jogos_carreira > 0) or
++            (total_jogos <= total_gols_final and total_gols_final > 0)
++        )
++    )
++
++    if is_acervo_parcial and media_oficial_carreira is not None:
++        media_gols_retorno = media_oficial_carreira
++    else:
++        media_gols_retorno = round(total_gols_final / max(total_jogos, 1), 2)
++
++    jogos_rotulo_retorno = "Jogos c/ Gol" if is_acervo_parcial else "Jogos"
+@@ -2695,4 +2745,4 @@
+-        "media_gols": round(total_gols_final / max(total_jogos, 1), 2),
+-        "acervo_parcial": bool(total_jogos == total_gols_final and total_gols_final > 0 and (raw_jogos_carreira > total_jogos or (stats_meta.get('ano_inicio') and stats_meta.get('ano_inicio') < 2018))),
+-        "jogos_rotulo": "Jogos c/ Gol" if bool(total_jogos == total_gols_final and total_gols_final > 0 and (raw_jogos_carreira > total_jogos or (stats_meta.get('ano_inicio') and stats_meta.get('ano_inicio') < 2018))) else "Jogos",
+-        "media_oficial_carreira": round(carreira_oficial["gols"] / max(carreira_oficial["jogos"], 1), 2) if carreira_oficial.get("jogos") and carreira_oficial["jogos"] > 0 else None,
++        "media_gols": media_gols_retorno,
++        "acervo_parcial": is_acervo_parcial,
++        "jogos_rotulo": jogos_rotulo_retorno,
++        "media_oficial_carreira": media_oficial_carreira,

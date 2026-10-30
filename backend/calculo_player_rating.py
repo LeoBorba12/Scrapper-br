@@ -3,7 +3,7 @@ FutStats - Motor Matemático de Player Rating Estilo Sofascore (0.0 a 10.0)
 Baseado em matriz de pesos posicionais, decaimento marginal e compressão assintótica (tanh).
 """
 import math
-from typing import Dict, Any, TypedDict, Optional
+from typing import Dict, Any, TypedDict, Optional, List
 
 class PlayerMatchStats(TypedDict, total=False):
     minutos_jogados: int
@@ -76,17 +76,17 @@ WEIGHT_MATRIX["Meio-Campo"] = WEIGHT_MATRIX["Meia"]
 def normalizar_posicao(pos_raw: Optional[str]) -> str:
     """Mapeia qualquer string de posição para uma das chaves da WEIGHT_MATRIX."""
     p = (pos_raw or "Atacante").lower()
-    if "gol" in p or "guarda" in p:
+    if "gol" in p or "guarda" in p or "keeper" in p:
         return "Goleiro"
-    if "zag" in p or "beque" in p:
+    if "zag" in p or "beque" in p or "defen" in p:
         return "Zagueiro"
-    if "lat" in p or "ala" in p:
+    if "lat" in p or "ala" in p or "back" in p:
         return "Lateral"
-    if "vol" in p or "trinco" in p:
+    if "vol" in p or "trinco" in p or "dm" in p:
         return "Volante"
-    if "mei" in p or "armador" in p:
+    if "mei" in p or "armador" in p or "midfield" in p:
         return "Meia"
-    if "pont" in p or "extremo" in p:
+    if "pont" in p or "extremo" in p or "wing" in p:
         return "Ponta"
     return "Centroavante"
 
@@ -189,3 +189,33 @@ def calcular_nota_partida_sofascore(stats: PlayerMatchStats) -> Dict[str, Any]:
         "breakdown_negativo": breakdown_negativo,
         "status": "Avaliado"
     }
+
+
+def calcular_rating_medio_temporada(notas: List[float]) -> float:
+    """Calcula a média aritmética calibrada das notas da temporada."""
+    validas = [n for n in notas if n is not None and isinstance(n, (int, float)) and n > 0]
+    if not validas:
+        return 6.50
+    return round(sum(validas) / len(validas), 2)
+
+
+def calcular_impacto_tatico(stats: PlayerMatchStats) -> Dict[str, Any]:
+    """Calcula o impacto tático e a decomposição de performance do atleta em uma partida."""
+    resultado = calcular_nota_partida_sofascore(stats)
+    saldo = resultado.get("saldo_bruto", 0.0)
+    if saldo >= 1.5:
+        status = "Protagonista Decisivo"
+    elif saldo >= 0.3:
+        status = "Contribuição Positiva"
+    elif saldo >= -0.5:
+        status = "Regular / Neutro"
+    else:
+        status = "Abaixo da Média Tática"
+    return {
+        "saldo_bruto": saldo,
+        "impacto_positivo": resultado.get("total_positivo", 0.0),
+        "impacto_negativo": resultado.get("total_negativo", 0.0),
+        "status_tatico": status,
+        "nota_final": resultado.get("nota_final")
+    }
+

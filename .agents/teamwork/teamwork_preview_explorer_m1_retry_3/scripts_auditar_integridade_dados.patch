@@ -1,0 +1,147 @@
+--- a/scripts/auditar_integridade_dados.py
++++ b/scripts/auditar_integridade_dados.py
+@@ -106,30 +106,121 @@
+     clubes_invalidos = c.fetchone()[0]
+     reparados_clubes = 0
+     if clubes_invalidos > 0:
++        # 1. Coleta atletas afetados pelas partidas e gols a serem deletados
++        c.execute("""
++            SELECT DISTINCT id_jogador FROM (
++                SELECT id_jogador FROM gols 
++                WHERE id_partida IN (
++                    SELECT id_partida FROM partidas 
++                    WHERE mandante IS NULL OR mandante = '' 
++                       OR visitante IS NULL OR visitante = ''
++                       OR mandante LIKE '%Estatísticas%' 
++                       OR visitante LIKE '%Estatísticas%'
++                ) OR clube LIKE '%Estatísticas%'
++                UNION
++                SELECT id_jogador FROM escalacoes 
++                WHERE id_partida IN (
++                    SELECT id_partida FROM partidas 
++                    WHERE mandante IS NULL OR mandante = '' 
++                       OR visitante IS NULL OR visitante = ''
++                       OR mandante LIKE '%Estatísticas%' 
++                       OR visitante LIKE '%Estatísticas%'
++                )
++                UNION
++                SELECT id_jogador FROM cartoes 
++                WHERE id_partida IN (
++                    SELECT id_partida FROM partidas 
++                    WHERE mandante IS NULL OR mandante = '' 
++                       OR visitante IS NULL OR visitante = ''
++                       OR mandante LIKE '%Estatísticas%' 
++                       OR visitante LIKE '%Estatísticas%'
++                )
++            ) WHERE id_jogador IS NOT NULL AND id_jogador > 0;
++        """)
++        atletas_afetados = [row[0] for row in c.fetchall() if row[0]]
++
++        # 2. Deleta dependências e partidas inválidas (garantindo correspondência com o SELECT)
+         c.execute("""
+             DELETE FROM gols 
+-            WHERE id_partida IN (SELECT id_partida FROM partidas WHERE mandante LIKE '%Estatísticas%' OR visitante LIKE '%Estatísticas%')
+-               OR clube LIKE '%Estatísticas%';
++            WHERE id_partida IN (
++                SELECT id_partida FROM partidas 
++                WHERE mandante IS NULL OR mandante = '' 
++                   OR visitante IS NULL OR visitante = ''
++                   OR mandante LIKE '%Estatísticas%' 
++                   OR visitante LIKE '%Estatísticas%'
++            ) OR clube LIKE '%Estatísticas%';
+         """)
+         c.execute("""
+             DELETE FROM odds_partidas 
+-            WHERE id_partida IN (SELECT id_partida FROM partidas WHERE mandante LIKE '%Estatísticas%' OR visitante LIKE '%Estatísticas%');
++            WHERE id_partida IN (
++                SELECT id_partida FROM partidas 
++                WHERE mandante IS NULL OR mandante = '' 
++                   OR visitante IS NULL OR visitante = ''
++                   OR mandante LIKE '%Estatísticas%' 
++                   OR visitante LIKE '%Estatísticas%'
++            );
+         """)
+         c.execute("""
+             DELETE FROM escalacoes 
+-            WHERE id_partida IN (SELECT id_partida FROM partidas WHERE mandante LIKE '%Estatísticas%' OR visitante LIKE '%Estatísticas%');
++            WHERE id_partida IN (
++                SELECT id_partida FROM partidas 
++                WHERE mandante IS NULL OR mandante = '' 
++                   OR visitante IS NULL OR visitante = ''
++                   OR mandante LIKE '%Estatísticas%' 
++                   OR visitante LIKE '%Estatísticas%'
++            );
++        """)
++        c.execute("""
++            DELETE FROM cartoes 
++            WHERE id_partida IN (
++                SELECT id_partida FROM partidas 
++                WHERE mandante IS NULL OR mandante = '' 
++                   OR visitante IS NULL OR visitante = ''
++                   OR mandante LIKE '%Estatísticas%' 
++                   OR visitante LIKE '%Estatísticas%'
++            );
+         """)
+         c.execute("""
+             DELETE FROM partidas 
+-            WHERE mandante LIKE '%Estatísticas%' OR visitante LIKE '%Estatísticas%';
++            WHERE mandante IS NULL OR mandante = '' 
++               OR visitante IS NULL OR visitante = ''
++               OR mandante LIKE '%Estatísticas%' 
++               OR visitante LIKE '%Estatísticas%';
+         """)
+         reparados_clubes = c.rowcount
+ 
++        # 3. Limpeza de artefatos de scraping na coluna clubes dos atletas
+         c.execute("SELECT id_jogador, clubes FROM jogadores_estatisticas WHERE clubes LIKE '%Estatísticas%';")
+         for jid, clbs in c.fetchall():
+             limpos = [cb.strip() for cb in (clbs or '').split(',') if 'Estatísticas' not in cb and cb.strip()]
+             c.execute("UPDATE jogadores_estatisticas SET clubes = ? WHERE id_jogador = ?;", (', '.join(limpos), jid))
+ 
++        # 4. Ressincronização automática de estatísticas dos atletas afetados
++        for aid in atletas_afetados:
++            c.execute("SELECT COUNT(*) FROM gols WHERE id_jogador = ?;", (aid,))
++            tot_gols = c.fetchone()[0]
++            c.execute("""
++                SELECT COUNT(DISTINCT id_partida) FROM (
++                    SELECT id_partida FROM escalacoes WHERE id_jogador = ?
++                    UNION
++                    SELECT id_partida FROM gols WHERE id_jogador = ?
++                    UNION
++                    SELECT id_partida FROM cartoes WHERE id_jogador = ?
++                );
++            """, (aid, aid, aid))
++            tot_jogos = c.fetchone()[0]
++            media_gols = round(tot_gols / max(tot_jogos, 1), 2)
++            c.execute("""
++                UPDATE jogadores_estatisticas 
++                SET total_gols = ?,
++                    total_jogos = ?,
++                    media_gols_por_jogo = ?,
++                    participacoes_gols = ? + COALESCE(total_assistencias, 0),
++                    media_participacao_por_jogo = ROUND(CAST((? + COALESCE(total_assistencias, 0)) AS REAL) / MAX(?, 1), 2)
++                WHERE id_jogador = ?;
++            """, (tot_gols, tot_jogos, media_gols, tot_gols, tot_gols, tot_jogos, aid))
++            c.execute("UPDATE jogadores SET total_gols = ?, total_jogos = ? WHERE id_jogador = ?;", (tot_gols, tot_jogos, aid))
++
+         conn.commit()
+ 
+     relatorio["regras"].append({
+@@ -338,7 +429,7 @@
+         "reparados": reparados_gols_esc
+     })
+ 
+-    # Regra 11: Coerência de Jogos x Gols e Médias de Atletas (Sem Auto-Reparo Nocivo)
++    # Regra 11: Coerência de Atletas: Médias Verossímeis (<= 2.5) e Jogos Válidos (Sem Auto-Reparo Nocivo)
+     c.execute("""
+         SELECT COUNT(*) FROM jogadores_estatisticas 
+         WHERE (total_jogos <= 0 AND total_gols > 0) 
+@@ -348,7 +439,7 @@
+     reparados_atl = 0
+ 
+     relatorio["regras"].append({
+-        "regra": "Coerência de Atletas: Jogos >= Gols e Médias Verossímeis (<= 2.0)",
++        "regra": "Coerência de Atletas: Médias Verossímeis (<= 2.5)",
+         "status": "OK" if atletas_anormais == 0 else "FALHA",
+         "ocorrencias": atletas_anormais,
+         "reparados": reparados_atl

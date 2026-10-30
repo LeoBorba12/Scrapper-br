@@ -168,3 +168,108 @@ def analisar_performance_xg_atleta(finalizacoes: List[ShotEvent]) -> Dict[str, A
         "perfil_clinico": perfil,
         "historico_chutes": historico_detalhado
     }
+
+
+def classificar_perfil_finalizador(
+    total_chutes: int,
+    gols_reais: int,
+    xg_acumulado: float,
+    xg_por_chute: float,
+    delta_xg: float
+) -> str:
+    """Alias retrocompatível para classificar_perfil_clinico."""
+    return classificar_perfil_clinico(total_chutes, gols_reais, xg_acumulado, xg_por_chute, delta_xg)
+
+
+def estimar_xg_gols_atleta(
+    gols_lista: List[Dict[str, Any]],
+    stats_meta: Dict[str, Any],
+    total_jogos: int = 0
+) -> Dict[str, Any]:
+    """
+    Estima xG, npxG, Delta xG e perfil clínico usando calibração discreta Opta
+    para atletas a partir do histórico de gols e scouts consolidados.
+    """
+    gols_calc = len(gols_lista) if gols_lista else (stats_meta.get("total_gols") or 0)
+    chutes_tot = stats_meta.get("finalizacoes_totais") or 0
+    chutes_alvo = stats_meta.get("chutes_ao_gol") or 0
+    penaltis = stats_meta.get("penaltis_cobrados") or stats_meta.get("gols_penalti") or 0
+
+    if penaltis == 0 and gols_lista:
+        penaltis = sum(1 for g in gols_lista if any(p in (g.get("tipo_de_gol") or "").lower() for p in ["penalti", "pênalti", "penalty"]))
+
+    pos = (stats_meta.get("posicao") or "").lower()
+    is_gk = stats_meta.get("is_goleiro") or ("gol" in pos or "keeper" in pos)
+    if is_gk and gols_calc == 0:
+        return {
+            "xg_acumulado": 0.0,
+            "xg_nao_penalti_npxg": 0.0,
+            "gols_reais": 0,
+            "delta_xg": 0.0,
+            "taxa_conversao_pct": 0.0,
+            "chutes_totais": 0,
+            "chutes_ao_gol": 0,
+            "xg_por_chute": 0.0,
+            "perfil_clinico": "Neutro (Amostra Insuficiente)",
+            "status_xg": "neutro"
+        }
+
+    if chutes_tot == 0 and gols_calc == 0:
+        return {
+            "xg_acumulado": 0.0,
+            "xg_nao_penalti_npxg": 0.0,
+            "gols_reais": 0,
+            "delta_xg": 0.0,
+            "taxa_conversao_pct": 0.0,
+            "chutes_totais": 0,
+            "chutes_ao_gol": 0,
+            "xg_por_chute": 0.0,
+            "perfil_clinico": "Neutro (Amostra Insuficiente)",
+            "status_xg": "neutro"
+        }
+
+    if chutes_tot > 0:
+        chutes_fora = max(0, chutes_tot - chutes_alvo)
+        chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
+        xg_penaltis = penaltis * PENALTY_XG
+        npxg_acumulado = round((chutes_alvo_abertos * 0.205) + (chutes_fora * 0.035), 1)
+        xg_acumulado = round(xg_penaltis + npxg_acumulado, 1)
+    else:
+        chutes_tot = max(gols_calc * 5, total_jogos * 2, 1)
+        chutes_alvo = max(gols_calc * 2, int(chutes_tot * 0.40))
+        xg_penaltis = penaltis * PENALTY_XG
+        npxg_acumulado = round(max(0.0, (gols_calc - penaltis) * 0.78), 1)
+        xg_acumulado = round(xg_penaltis + npxg_acumulado, 1)
+
+    delta_xg = round(gols_calc - xg_acumulado, 1)
+    taxa_conversao = round((gols_calc / max(chutes_tot, 1)) * 100, 1) if chutes_tot > 0 else 0.0
+    xg_por_chute = round(xg_acumulado / max(chutes_tot, 1), 3)
+
+    perfil = classificar_perfil_clinico(
+        total_chutes=chutes_tot,
+        gols_reais=gols_calc,
+        xg_acumulado=xg_acumulado,
+        xg_por_chute=xg_por_chute,
+        delta_xg=delta_xg
+    )
+
+    status_xg = "overperformer" if delta_xg >= 0.5 else ("underperformer" if delta_xg <= -2.0 else "neutro")
+
+    return {
+        "xg_acumulado": xg_acumulado,
+        "xg_nao_penalti_npxg": npxg_acumulado,
+        "gols_reais": gols_calc,
+        "delta_xg": delta_xg,
+        "taxa_conversao_pct": taxa_conversao,
+        "chutes_totais": chutes_tot,
+        "chutes_ao_gol": chutes_alvo,
+        "xg_por_chute": xg_por_chute,
+        "perfil_clinico": perfil,
+        "status_xg": status_xg
+    }
+
+
+def calcular_xg_partida(chutes_partida: List[Dict[str, Any]]) -> float:
+    """Calcula o xG total de uma equipe/partida a partir de uma lista de eventos."""
+    return round(sum(calcular_xg_finalizacao(c) for c in chutes_partida), 2)
+

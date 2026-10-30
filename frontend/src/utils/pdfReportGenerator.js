@@ -13,10 +13,39 @@ export function exportarRelatorioScoutingPDF(atleta) {
   const clubes = atleta.clubes || atleta.clube || 'Clubes Diversos';
   const anos = (atleta.ano_inicio && atleta.ano_fim) ? `${atleta.ano_inicio} a ${atleta.ano_fim}` : 'Histórico Consolidado';
 
-  const gCar = atleta.gols_carreira_oficiais || atleta.gols || atleta.total_gols || 0;
-  const jCar = atleta.jogos_carreira_oficiais || atleta.jogos || atleta.total_jogos || 0;
-  const aCar = atleta.assistencias_carreira_oficiais || atleta.assistencias || 0;
-  const medG = jCar > 0 ? (gCar / jCar).toFixed(2) : '0.00';
+  const isAcervoParcial = Boolean(
+    atleta.resumo?.acervo_parcial ||
+    atleta.acervo_parcial ||
+    (atleta.resumo?.jogos_rotulo === 'Jogos c/ Gol')
+  );
+  const rotuloJogos = atleta.resumo?.jogos_rotulo || (isAcervoParcial ? 'Jogos c/ Gol' : 'Jogos Oficiais');
+
+  // Prioriza estrutura canônica da API (/api/jogadores/perfil: carreira_oficial e resumo) com fallback flat
+  const gCar = atleta.carreira_oficial?.gols || atleta.gols_carreira_oficiais || atleta.resumo?.total_gols || atleta.gols || atleta.total_gols || 0;
+  const jCar = (isAcervoParcial && !atleta.carreira_oficial?.jogos && !atleta.jogos_carreira_oficiais)
+    ? (atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0)
+    : (atleta.carreira_oficial?.jogos || atleta.jogos_carreira_oficiais || atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0);
+  const aCar = atleta.carreira_oficial?.assistencias || atleta.assistencias_carreira_oficiais || atleta.resumo?.total_assistencias || atleta.assistencias || 0;
+
+  // Priorização da média autêntica do backend (resumo.media_gols / media_oficial_carreira) para expurgar 1.00 ou 1.06 artificial
+  const medG = (() => {
+    if (atleta.resumo?.media_gols != null && !isNaN(Number(atleta.resumo.media_gols))) {
+      return Number(atleta.resumo.media_gols).toFixed(2);
+    }
+    if (atleta.resumo?.media_oficial_carreira != null && !isNaN(Number(atleta.resumo.media_oficial_carreira))) {
+      return Number(atleta.resumo.media_oficial_carreira).toFixed(2);
+    }
+    if (atleta.media_oficial_carreira != null && !isNaN(Number(atleta.media_oficial_carreira))) {
+      return Number(atleta.media_oficial_carreira).toFixed(2);
+    }
+    if (atleta.media_gols != null && !isNaN(Number(atleta.media_gols))) {
+      return Number(atleta.media_gols).toFixed(2);
+    }
+    if (jCar > 0 && !isAcervoParcial) {
+      return (gCar / jCar).toFixed(2);
+    }
+    return '0.00';
+  })();
   const partG = (Number(gCar) || 0) + (Number(aCar) || 0);
 
   const xgEstimado = (Number(gCar) * 0.88 + (Number(atleta.gols_penalti) || 0) * 0.79).toFixed(1);
@@ -212,9 +241,9 @@ export function exportarRelatorioScoutingPDF(atleta) {
       <div class="kpi-sub">Total na carreira</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Jogos Oficiais</div>
+      <div class="kpi-label">${rotuloJogos}</div>
       <div class="kpi-value">${jCar}</div>
-      <div class="kpi-sub">Partidas registradas</div>
+      <div class="kpi-sub">${isAcervoParcial ? 'Súmulas com gol' : 'Partidas registradas'}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-label">Assistências</div>
@@ -222,9 +251,9 @@ export function exportarRelatorioScoutingPDF(atleta) {
       <div class="kpi-sub">Passes para gol</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-label">Média Gols / Jogo</div>
+      <div class="kpi-label">${isAcervoParcial ? 'Média Carreira' : 'Média Gols / Jogo'}</div>
       <div class="kpi-value" style="color:#85573B;">${medG}</div>
-      <div class="kpi-sub">Eficiência de baliza</div>
+      <div class="kpi-sub">${isAcervoParcial ? 'Média oficial ponderada' : 'Eficiência de baliza'}</div>
     </div>
   </div>
 

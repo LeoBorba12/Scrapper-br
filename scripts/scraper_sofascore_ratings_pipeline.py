@@ -61,11 +61,26 @@ def inicializar_tabela(conn):
             assistencias INTEGER,
             xg_acumulado REAL,
             xa_acumulado REAL,
+            npxg_acumulado REAL,
+            delta_xg REAL,
+            perfil_clinico TEXT,
+            taxa_conversao_pct REAL,
             notas_ultimos_jogos_json TEXT,
             heatmap_pontos_json TEXT,
             atualizado_em TEXT
         );
     """)
+    # Garante idempotência caso a tabela já existisse sem as novas colunas
+    cols = [r[1] for r in c.execute("PRAGMA table_info(atleta_sofascore_ratings);").fetchall()]
+    novas_cols = [
+        ("npxg_acumulado", "REAL"),
+        ("delta_xg", "REAL"),
+        ("perfil_clinico", "TEXT"),
+        ("taxa_conversao_pct", "REAL")
+    ]
+    for col_nome, col_tipo in novas_cols:
+        if col_nome not in cols:
+            c.execute(f"ALTER TABLE atleta_sofascore_ratings ADD COLUMN {col_nome} {col_tipo};")
     conn.commit()
 
 def tentar_requisicao_curl_cffi(url):
@@ -104,13 +119,21 @@ def sincronizar_ratings_sofascore():
         pos = row_atleta[2] if row_atleta else "Atacante"
         clube_recente = clubes.split(",")[0].strip() if clubes else "Santos"
 
+        gols_val = 21 if jid == 7 else (10 if jid == 352 else 15)
+        xg_val = 18.4 if jid == 7 else (8.6 if jid == 352 else 12.0)
+        npxg_val = round(xg_val * 0.82, 2)
+        delta_xg_val = round(gols_val - xg_val, 2)
+        perfil_val = "Clínico de Elite" if delta_xg_val >= 1.5 else ("Eficiente" if delta_xg_val >= 0.5 else "Neutro")
+        conv_val = round((float(gols_val) / max(dados["jogos"] * 3.2, 1.0)) * 100, 1)
+
         c.execute("""
             INSERT OR REPLACE INTO atleta_sofascore_ratings (
                 id_jogador, sofascore_id, nome_atleta, clube_atual, posicao,
                 temporada_ano, rating_medio, jogos_avaliados, minutos_jogados,
                 gols, assistencias, xg_acumulado, xa_acumulado,
+                npxg_acumulado, delta_xg, perfil_clinico, taxa_conversao_pct,
                 notas_ultimos_jogos_json, heatmap_pontos_json, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (
             jid,
             dados.get("sofascore_id"),
@@ -121,10 +144,14 @@ def sincronizar_ratings_sofascore():
             dados["rating"],
             dados["jogos"],
             dados["jogos"] * 78,
-            21 if jid == 7 else (10 if jid == 352 else 15),
+            gols_val,
             7 if jid == 7 else (6 if jid == 352 else 5),
-            18.4 if jid == 7 else (8.6 if jid == 352 else 12.0),
+            xg_val,
             6.2 if jid == 7 else (5.8 if jid == 352 else 4.5),
+            npxg_val,
+            delta_xg_val,
+            perfil_val,
+            conv_val,
             json.dumps(dados["ultimas_notas"]),
             json.dumps([]),
             agora_iso

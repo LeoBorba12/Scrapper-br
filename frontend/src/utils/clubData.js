@@ -548,3 +548,180 @@ export function getClubInfo(nome) {
     badge: ''
   };
 }
+
+/**
+ * Conjunto de clubes estrangeiros de torneios Conmebol que frequentemente
+ * poluem perfis de atletas brasileiros devido a inversões históricas de súmula.
+ */
+export const CLUBES_CONMEBOL_ESPURIOS = new Set([
+  'river plate',
+  'river',
+  'universidad de chile',
+  'u. de chile',
+  'guabira',
+  'guabirá',
+  'san lorenzo',
+  'boca juniors',
+  'boca',
+  'oriente petrolero',
+  'the strongest',
+  'bolivar',
+  'bolívar',
+  'cerro porteno',
+  'cerro porteño',
+  'olimpia',
+  'libertad',
+  'sporting cristal',
+  'alianza lima',
+  'deportivo tachira',
+  'deportivo táchira'
+]);
+
+/**
+ * Normaliza e sanitiza lista de clubes da carreira do atleta.
+ * Protege contra:
+ * - Arrays de objetos ou strings mistas
+ * - Strings JSON brutas ou malformadas ('[{"clube": "..."}]', '[object Object]')
+ * - Strings separadas por vírgula
+ * - Clubes espúrios de competições Conmebol
+ * - Entradas duplicadas ou nulas
+ */
+export function sanitizarListaClubes(clubesRaw, detalheRaw = null) {
+  const result = [];
+  const seen = new Set();
+
+  const extrairNome = (item) => {
+    if (!item) return '';
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      if (!trimmed || trimmed === '[object Object]' || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'None') {
+        return '';
+      }
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            parsed.forEach(p => {
+              const n = extrairNome(p);
+              if (n) adicionar(n);
+            });
+            return '';
+          } else if (parsed && typeof parsed === 'object') {
+            return extrairNome(parsed.clube || parsed.nome || parsed.name || '');
+          }
+        } catch (_) {}
+      }
+      return trimmed;
+    }
+    if (typeof item === 'object') {
+      return extrairNome(item.clube || item.nome || item.name || '');
+    }
+    return String(item).trim();
+  };
+
+  const adicionar = (nomeClube) => {
+    if (!nomeClube) return;
+    const trimmed = typeof nomeClube === 'string' ? nomeClube.trim() : String(nomeClube).trim();
+    if (!trimmed || trimmed === '[object Object]' || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'None') return;
+    const norm = normalizeClubName(trimmed);
+    if (!norm || norm === '[object object]') return;
+    if (CLUBES_CONMEBOL_ESPURIOS.has(norm)) return;
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      result.push(trimmed);
+    }
+  };
+
+  if (Array.isArray(clubesRaw)) {
+    clubesRaw.forEach(c => {
+      const nome = extrairNome(c);
+      if (nome) adicionar(nome);
+    });
+  } else if (typeof clubesRaw === 'string' && clubesRaw.trim()) {
+    const rawTrim = clubesRaw.trim();
+    if ((rawTrim.startsWith('[') && rawTrim.endsWith(']')) || (rawTrim.startsWith('{') && rawTrim.endsWith('}'))) {
+      try {
+        const parsed = JSON.parse(rawTrim);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(c => {
+            const nome = extrairNome(c);
+            if (nome) adicionar(nome);
+          });
+        }
+      } catch (_) {
+        rawTrim.split(',').map(s => s.trim()).filter(Boolean).forEach(adicionar);
+      }
+    } else {
+      rawTrim.split(',').map(s => s.trim()).filter(Boolean).forEach(adicionar);
+    }
+  }
+
+  if (result.length === 0 && detalheRaw) {
+    let detalhes = detalheRaw;
+    if (typeof detalheRaw === 'string') {
+      try {
+        detalhes = JSON.parse(detalheRaw);
+      } catch (_) {
+        detalhes = [];
+      }
+    }
+    if (Array.isArray(detalhes)) {
+      detalhes.forEach(d => {
+        const nome = extrairNome(d);
+        if (nome) adicionar(nome);
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Normaliza a estrutura tabular da carreira oficial (detalhe_carreira_clubes).
+ * Garante que cada item seja um objeto seguro com números válidos e sem clubes espúrios.
+ */
+export function sanitizarCarreiraClubes(carreiraClubesRaw) {
+  let list = carreiraClubesRaw;
+  if (typeof list === 'string') {
+    try {
+      list = JSON.parse(list);
+    } catch (_) {
+      list = [];
+    }
+  }
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .map(item => {
+      if (!item) return null;
+      let clube = '';
+      let periodo = '—';
+      let jogos = 0;
+      let gols = 0;
+      let assistencias = 0;
+
+      if (typeof item === 'string') {
+        clube = item.trim();
+      } else if (typeof item === 'object') {
+        clube = String(item.clube || item.nome || '').trim();
+        periodo = item.periodo || '—';
+        jogos = Number(item.jogos) || 0;
+        gols = Number(item.gols) || 0;
+        assistencias = Number(item.assistencias) || 0;
+      }
+
+      if (!clube || clube === '[object Object]') return null;
+      const norm = normalizeClubName(clube);
+      if (CLUBES_CONMEBOL_ESPURIOS.has(norm)) return null;
+
+      return {
+        clube,
+        periodo,
+        jogos,
+        gols,
+        assistencias
+      };
+    })
+    .filter(Boolean);
+}
+

@@ -214,12 +214,20 @@ export default function AthleteCareerBarChart({
                 <div className="font-mono" style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.gols || 0}</div>
               </div>
               <div>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Jogos</span>
-                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{item.jogos || 0}</div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                  {item.jogos_rotulo || (item.acervo_parcial ? 'Jogos c/ Gol' : 'Jogos')}
+                </span>
+                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  {item.jogos || 0}{item.acervo_parcial ? '*' : ''}
+                </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média</span>
-                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent)' }}>{item.media_gols || '0.00'}</div>
+                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                  {item.media_gols != null
+                    ? (typeof item.media_gols === 'number' ? item.media_gols.toFixed(2) : item.media_gols)
+                    : (item.acervo_parcial ? '—' : (item.jogos > 0 ? (item.gols / item.jogos).toFixed(2) : '0.00'))}
+                </div>
               </div>
             </div>
           </div>

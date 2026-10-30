@@ -3,6 +3,8 @@ import { RadarDualPES } from './charts';
 import MobileBottomSheet from './MobileBottomSheet';
 import { SlidersHorizontal, ArrowLeftRight, Sparkles, Check } from 'lucide-react';
 import SpatialPitchMap from './SpatialPitchMap';
+import ClubBadge from './ClubBadge';
+import { sanitizarListaClubes } from '../utils/clubData';
 
 const DUELOS_CLASSICOS = [
   { label: 'Pedro x Gabigol', id1: 10, id2: 7, pos: 'Atacantes' },
@@ -864,13 +866,23 @@ export default function AthleteCompareView({
                   Clubes Registrados
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {atleta1.clubes && atleta1.clubes.length > 0 ? (
-                    atleta1.clubes.map((c, i) => (
-                      <span key={i} className="pill-neutral" style={{ fontSize: '0.7rem' }}>{c}</span>
-                    ))
-                  ) : (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sem histórico de clubes</span>
-                  )}
+                  {(() => {
+                    const clubes1 = sanitizarListaClubes(atleta1.clubes, atleta1.carreira_oficial?.clubes);
+                    return clubes1.length > 0 ? (
+                      clubes1.map((c, i) => (
+                        <span 
+                          key={i} 
+                          className="pill-neutral" 
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}
+                        >
+                          <ClubBadge nome={c} size={13} />
+                          <span>{c}</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sem histórico de clubes</span>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -1027,13 +1039,23 @@ export default function AthleteCompareView({
                   Clubes Registrados
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {atleta2.clubes && atleta2.clubes.length > 0 ? (
-                    atleta2.clubes.map((c, i) => (
-                      <span key={i} className="pill-neutral" style={{ fontSize: '0.7rem' }}>{c}</span>
-                    ))
-                  ) : (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sem histórico de clubes</span>
-                  )}
+                  {(() => {
+                    const clubes2 = sanitizarListaClubes(atleta2.clubes, atleta2.carreira_oficial?.clubes);
+                    return clubes2.length > 0 ? (
+                      clubes2.map((c, i) => (
+                        <span 
+                          key={i} 
+                          className="pill-neutral" 
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem' }}
+                        >
+                          <ClubBadge nome={c} size={13} />
+                          <span>{c}</span>
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sem histórico de clubes</span>
+                    );
+                  })()}
                 </div>
               </div>
 

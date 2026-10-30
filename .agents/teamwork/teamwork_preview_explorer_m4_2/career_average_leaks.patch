@@ -1,0 +1,187 @@
+diff --git a/frontend/src/components/charts/AthleteCareerBarChart.jsx b/frontend/src/components/charts/AthleteCareerBarChart.jsx
+index 47d233a..9eb3fac 100644
+--- a/frontend/src/components/charts/AthleteCareerBarChart.jsx
++++ b/frontend/src/components/charts/AthleteCareerBarChart.jsx
+@@ -214,12 +214,20 @@ export default function AthleteCareerBarChart({
+                 <div className="font-mono" style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{item.gols || 0}</div>
+               </div>
+               <div>
+-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Jogos</span>
+-                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{item.jogos || 0}</div>
++                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
++                  {item.jogos_rotulo || (item.acervo_parcial ? 'Jogos c/ Gol' : 'Jogos')}
++                </span>
++                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
++                  {item.jogos || 0}{item.acervo_parcial ? '*' : ''}
++                </div>
+               </div>
+               <div>
+                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Média</span>
+-                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent)' }}>{item.media_gols || '0.00'}</div>
++                <div className="font-mono" style={{ fontWeight: 700, color: 'var(--accent)' }}>
++                  {item.media_gols != null
++                    ? (typeof item.media_gols === 'number' ? item.media_gols.toFixed(2) : item.media_gols)
++                    : (item.acervo_parcial ? '—' : (item.jogos > 0 ? (item.gols / item.jogos).toFixed(2) : '0.00'))}
++                </div>
+               </div>
+             </div>
+           </div>
+diff --git a/frontend/src/components/charts/AthleteCareerTimeline.jsx b/frontend/src/components/charts/AthleteCareerTimeline.jsx
+index f8b7ba0..19fbb58 100644
+--- a/frontend/src/components/charts/AthleteCareerTimeline.jsx
++++ b/frontend/src/components/charts/AthleteCareerTimeline.jsx
+@@ -222,16 +222,20 @@ export default function AthleteCareerTimeline({
+                 </div>
+ 
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+-                  <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jogos:</span>
++                  <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
++                    {temp.jogos_rotulo ? `${temp.jogos_rotulo}:` : (temp.acervo_parcial ? 'Jogos c/ Gol:' : 'Jogos:')}
++                  </span>
+                   <span className="font-mono tabular-nums" style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+-                    {temp.jogos || 0} j
++                    {temp.jogos || 0} j{temp.acervo_parcial ? '*' : ''}
+                   </span>
+                 </div>
+ 
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                   <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Média:</span>
+                   <span className="font-mono tabular-nums" style={{ fontSize: '0.76rem', color: 'var(--accent)', fontWeight: 700 }}>
+-                    {temp.media_gols != null ? temp.media_gols : (temp.jogos > 0 ? (temp.gols / temp.jogos).toFixed(2) : '0.00')}
++                    {temp.media_gols != null
++                      ? (typeof temp.media_gols === 'number' ? temp.media_gols.toFixed(2) : temp.media_gols)
++                      : (temp.acervo_parcial ? '—' : (temp.jogos > 0 ? (temp.gols / temp.jogos).toFixed(2) : '0.00'))}
+                   </span>
+                 </div>
+               </div>
+diff --git a/frontend/src/utils/cardGenerator.js b/frontend/src/utils/cardGenerator.js
+index 1d92e68..b098bc1 100644
+--- a/frontend/src/utils/cardGenerator.js
++++ b/frontend/src/utils/cardGenerator.js
+@@ -196,17 +196,48 @@ export function exportarDossieScoutingAtletaPNG(atleta) {
+   ctx.fillText(`${posicao.toUpperCase()} • ${anos} • ${clubes.slice(0, 65)}`, 60, offsetClubesY);
+ 
+   // 4. Bento Grid de Números Mestres Globais (Carreira Inteira)
+-  const gCar = atleta.gols_carreira_oficiais || atleta.gols || atleta.total_gols || 0;
+-  const jCar = atleta.jogos_carreira_oficiais || atleta.jogos || atleta.total_jogos || 0;
+-  const aCar = atleta.assistencias_carreira_oficiais || atleta.assistencias || 0;
+-  const medG = jCar > 0 ? (gCar / jCar).toFixed(2) : '0.00';
++  const isAcervoParcial = Boolean(
++    atleta.resumo?.acervo_parcial ||
++    atleta.acervo_parcial ||
++    (atleta.resumo?.jogos_rotulo === 'Jogos c/ Gol')
++  );
++  const rotuloJogos = atleta.resumo?.jogos_rotulo
++    ? atleta.resumo.jogos_rotulo.toUpperCase()
++    : (isAcervoParcial ? 'JOGOS C/ GOL' : 'JOGOS TOTAIS');
++
++  // Prioriza estrutura canônica da API (/api/jogadores/perfil: carreira_oficial e resumo) com fallback flat
++  const gCar = atleta.carreira_oficial?.gols || atleta.gols_carreira_oficiais || atleta.resumo?.total_gols || atleta.gols || atleta.total_gols || 0;
++  const jCar = (isAcervoParcial && !atleta.carreira_oficial?.jogos && !atleta.jogos_carreira_oficiais)
++    ? (atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0)
++    : (atleta.carreira_oficial?.jogos || atleta.jogos_carreira_oficiais || atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0);
++  const aCar = atleta.carreira_oficial?.assistencias || atleta.assistencias_carreira_oficiais || atleta.resumo?.total_assistencias || atleta.assistencias || 0;
++
++  // Priorização da média autêntica do backend (resumo.media_gols / media_oficial_carreira) para expurgar 1.00 ou 1.06 artificial
++  const medG = (() => {
++    if (atleta.resumo?.media_gols != null && !isNaN(Number(atleta.resumo.media_gols))) {
++      return Number(atleta.resumo.media_gols).toFixed(2);
++    }
++    if (atleta.resumo?.media_oficial_carreira != null && !isNaN(Number(atleta.resumo.media_oficial_carreira))) {
++      return Number(atleta.resumo.media_oficial_carreira).toFixed(2);
++    }
++    if (atleta.media_oficial_carreira != null && !isNaN(Number(atleta.media_oficial_carreira))) {
++      return Number(atleta.media_oficial_carreira).toFixed(2);
++    }
++    if (atleta.media_gols != null && !isNaN(Number(atleta.media_gols))) {
++      return Number(atleta.media_gols).toFixed(2);
++    }
++    if (jCar > 0 && !isAcervoParcial) {
++      return (gCar / jCar).toFixed(2);
++    }
++    return '0.00';
++  })();
+   const partG = (Number(gCar) || 0) + (Number(aCar) || 0);
+ 
+   const kpis = [
+     { label: 'GOLS OFICIAIS', val: String(gCar), cor: '#C59B27', sub: 'Na carreira' },
+-    { label: 'JOGOS TOTAIS', val: String(jCar), cor: '#F1E8DE', sub: 'Partidas oficiais' },
++    { label: rotuloJogos, val: String(jCar), cor: '#F1E8DE', sub: isAcervoParcial ? 'Súmulas com gol' : 'Partidas oficiais' },
+     { label: 'ASSISTÊNCIAS', val: String(aCar), cor: '#7D8D5C', sub: 'Passes para gol' },
+-    { label: 'MÉDIA GOLS/JOGO', val: String(medG), cor: '#D48459', sub: 'Eficiência direta' }
++    { label: isAcervoParcial ? 'MÉDIA CARREIRA' : 'MÉDIA GOLS/JOGO', val: String(medG), cor: '#D48459', sub: isAcervoParcial ? 'Média da carreira' : 'Eficiência direta' }
+   ];
+ 
+   const gridY = offsetClubesY + 30;
+diff --git a/frontend/src/utils/pdfReportGenerator.js b/frontend/src/utils/pdfReportGenerator.js
+index fc86f66..bc43616 100644
+--- a/frontend/src/utils/pdfReportGenerator.js
++++ b/frontend/src/utils/pdfReportGenerator.js
+@@ -13,10 +13,39 @@ export function exportarRelatorioScoutingPDF(atleta) {
+   const clubes = atleta.clubes || atleta.clube || 'Clubes Diversos';
+   const anos = (atleta.ano_inicio && atleta.ano_fim) ? `${atleta.ano_inicio} a ${atleta.ano_fim}` : 'Histórico Consolidado';
+ 
+-  const gCar = atleta.gols_carreira_oficiais || atleta.gols || atleta.total_gols || 0;
+-  const jCar = atleta.jogos_carreira_oficiais || atleta.jogos || atleta.total_jogos || 0;
+-  const aCar = atleta.assistencias_carreira_oficiais || atleta.assistencias || 0;
+-  const medG = jCar > 0 ? (gCar / jCar).toFixed(2) : '0.00';
++  const isAcervoParcial = Boolean(
++    atleta.resumo?.acervo_parcial ||
++    atleta.acervo_parcial ||
++    (atleta.resumo?.jogos_rotulo === 'Jogos c/ Gol')
++  );
++  const rotuloJogos = atleta.resumo?.jogos_rotulo || (isAcervoParcial ? 'Jogos c/ Gol' : 'Jogos Oficiais');
++
++  // Prioriza estrutura canônica da API (/api/jogadores/perfil: carreira_oficial e resumo) com fallback flat
++  const gCar = atleta.carreira_oficial?.gols || atleta.gols_carreira_oficiais || atleta.resumo?.total_gols || atleta.gols || atleta.total_gols || 0;
++  const jCar = (isAcervoParcial && !atleta.carreira_oficial?.jogos && !atleta.jogos_carreira_oficiais)
++    ? (atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0)
++    : (atleta.carreira_oficial?.jogos || atleta.jogos_carreira_oficiais || atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0);
++  const aCar = atleta.carreira_oficial?.assistencias || atleta.assistencias_carreira_oficiais || atleta.resumo?.total_assistencias || atleta.assistencias || 0;
++
++  // Priorização da média autêntica do backend (resumo.media_gols / media_oficial_carreira) para expurgar 1.00 ou 1.06 artificial
++  const medG = (() => {
++    if (atleta.resumo?.media_gols != null && !isNaN(Number(atleta.resumo.media_gols))) {
++      return Number(atleta.resumo.media_gols).toFixed(2);
++    }
++    if (atleta.resumo?.media_oficial_carreira != null && !isNaN(Number(atleta.resumo.media_oficial_carreira))) {
++      return Number(atleta.resumo.media_oficial_carreira).toFixed(2);
++    }
++    if (atleta.media_oficial_carreira != null && !isNaN(Number(atleta.media_oficial_carreira))) {
++      return Number(atleta.media_oficial_carreira).toFixed(2);
++    }
++    if (atleta.media_gols != null && !isNaN(Number(atleta.media_gols))) {
++      return Number(atleta.media_gols).toFixed(2);
++    }
++    if (jCar > 0 && !isAcervoParcial) {
++      return (gCar / jCar).toFixed(2);
++    }
++    return '0.00';
++  })();
+   const partG = (Number(gCar) || 0) + (Number(aCar) || 0);
+ 
+   const xgEstimado = (Number(gCar) * 0.88 + (Number(atleta.gols_penalti) || 0) * 0.79).toFixed(1);
+@@ -212,9 +241,9 @@ export function exportarRelatorioScoutingPDF(atleta) {
+       <div class="kpi-sub">Total na carreira</div>
+     </div>
+     <div class="kpi-card">
+-      <div class="kpi-label">Jogos Oficiais</div>
++      <div class="kpi-label">${rotuloJogos}</div>
+       <div class="kpi-value">${jCar}</div>
+-      <div class="kpi-sub">Partidas registradas</div>
++      <div class="kpi-sub">${isAcervoParcial ? 'Súmulas com gol' : 'Partidas registradas'}</div>
+     </div>
+     <div class="kpi-card">
+       <div class="kpi-label">Assistências</div>
+@@ -222,9 +251,9 @@ export function exportarRelatorioScoutingPDF(atleta) {
+       <div class="kpi-sub">Passes para gol</div>
+     </div>
+     <div class="kpi-card">
+-      <div class="kpi-label">Média Gols / Jogo</div>
++      <div class="kpi-label">${isAcervoParcial ? 'Média Carreira' : 'Média Gols / Jogo'}</div>
+       <div class="kpi-value" style="color:#85573B;">${medG}</div>
+-      <div class="kpi-sub">Eficiência de baliza</div>
++      <div class="kpi-sub">${isAcervoParcial ? 'Média oficial ponderada' : 'Eficiência de baliza'}</div>
+     </div>
+   </div>
+ 

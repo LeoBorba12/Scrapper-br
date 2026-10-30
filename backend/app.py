@@ -17,6 +17,31 @@ import datetime
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory, g
 
+try:
+    from backend.calculo_player_rating import (
+        calcular_nota_partida_sofascore,
+        normalizar_posicao,
+        calcular_rating_medio_temporada
+    )
+    from backend.calculo_xg_discreto import (
+        calcular_xg_finalizacao, classificar_perfil_clinico,
+        classificar_perfil_finalizador, analisar_performance_xg_atleta,
+        estimar_xg_gols_atleta, calcular_xg_partida,
+        ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
+    )
+except ImportError:
+    from calculo_player_rating import (
+        calcular_nota_partida_sofascore,
+        normalizar_posicao,
+        calcular_rating_medio_temporada
+    )
+    from calculo_xg_discreto import (
+        calcular_xg_finalizacao, classificar_perfil_clinico,
+        classificar_perfil_finalizador, analisar_performance_xg_atleta,
+        estimar_xg_gols_atleta, calcular_xg_partida,
+        ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
+    )
+
 class TTLCache:
     """Cache thread-safe em memória com TTL para endpoints analíticos (python-performance-optimization)."""
     def __init__(self, default_ttl=1800):
@@ -2015,24 +2040,47 @@ def gerar_dados_espaciais_atleta(id_jogador, posicao, gols_lista):
 
     return shotmap, heatmap, telemetria
 
-def _calcular_radar_pes(posicao, resumo, carreira):
-    pos = (posicao or '').lower()
-    total_gols = carreira.get('gols') if (carreira.get('jogos') and carreira.get('jogos') > 0) else resumo.get('total_gols', 0)
-    total_jogos = carreira.get('jogos') if (carreira.get('jogos') and carreira.get('jogos') > 0) else resumo.get('jogos_registrados', 1)
-    if not total_jogos:
-        total_jogos = 1
-    media_gols = total_gols / total_jogos if total_jogos > 0 else 0
+def _calcular_radar_pes(posicao, resumo=None, carreira=None):
+    resumo = resumo or {}
+    carreira = carreira or {}
+    pos = (posicao or 'Atacante').lower()
+
+    cgols = carreira.get('gols')
+    cjogos = carreira.get('jogos')
+    rgols = resumo.get('total_gols')
+    rjogos = resumo.get('jogos_registrados')
+
+    if cjogos is not None and cjogos > 0 and cgols is not None:
+        total_gols = float(cgols)
+        total_jogos = float(cjogos)
+    else:
+        total_gols = float(rgols) if rgols is not None else 0.0
+        total_jogos = float(rjogos) if (rjogos is not None and rjogos > 0) else 1.0
+
+    if total_jogos <= 0:
+        total_jogos = 1.0
+
+    media_gols = total_gols / total_jogos if total_jogos > 0 else 0.0
     if total_jogos > 10 and media_gols > 2.0:
-        if resumo.get('total_gols') and resumo.get('jogos_registrados') and resumo.get('jogos_registrados') > 0:
-            media_gols = resumo['total_gols'] / resumo['jogos_registrados']
+        if rgols is not None and rjogos is not None and rjogos > 0:
+            media_gols = float(rgols) / float(rjogos)
         else:
             media_gols = min(media_gols, 1.4)
 
-    total_assists = carreira.get('assistencias') or resumo.get('total_assistencias', 0)
-    pontaria = resumo.get('pontaria_chutes_pct') or 60.0
-    amarelos = resumo.get('amarelos', 0)
-    vermelhos = resumo.get('vermelhos', 0)
-    clutch = resumo.get('gols_decisivos_80mais', 0)
+    cassists = carreira.get('assistencias')
+    rassists = resumo.get('total_assistencias')
+    total_assists = float(cassists) if cassists is not None else (float(rassists) if rassists is not None else 0.0)
+
+    pontaria_raw = resumo.get('pontaria_chutes_pct')
+    try:
+        pontaria = float(pontaria_raw) if (pontaria_raw is not None and 0 <= float(pontaria_raw) <= 100) else 60.0
+    except (ValueError, TypeError):
+        pontaria = 60.0
+
+    amarelos = float(resumo.get('amarelos') or 0.0)
+    vermelhos = float(resumo.get('vermelhos') or 0.0)
+    clutch = float(resumo.get('gols_decisivos_80mais') or 0.0)
+    jogos_titular = float(resumo.get('jogos_titular') or 0.0)
 
     is_atacante = any(k in pos for k in ['atacante', 'centroavante', 'ponta']) or media_gols > 0.3 or total_gols > 30
     is_meia = any(k in pos for k in ['meia', 'meio', 'armador'])
@@ -2092,7 +2140,7 @@ def _calcular_radar_pes(posicao, resumo, carreira):
     elif total_jogos > 250: fis += 18
     elif total_jogos > 150: fis += 12
     elif total_jogos > 60: fis += 6
-    if resumo.get('jogos_titular', 0) > 100: fis += 5
+    if jogos_titular > 100: fis += 5
 
     # 5. Defesa / Disciplina
     if is_goleiro:
@@ -2107,7 +2155,15 @@ def _calcular_radar_pes(posicao, resumo, carreira):
         if cartoes_por_jogo < 0.12: def_val += 8
         elif cartoes_por_jogo > 0.25: def_val -= 6
 
-    clamp = lambda v: max(40, min(99, int(round(v))))
+    def clamp(v):
+        try:
+            val = float(v)
+            if math.isnan(val):
+                return 50
+            return max(40, min(99, int(round(val))))
+        except Exception:
+            return 50
+
     eixos = [
         {"key": "atk", "label": "Ataque", "valor": clamp(atk), "desc": "Presença e volume ofensivo"},
         {"key": "fin", "label": "Finalização", "valor": clamp(fin), "desc": "Conversão e precisão no arremate"},
@@ -2145,35 +2201,17 @@ def _calcular_scouts_profissionais(posicao_raw, resumo, carreira, stats_meta, an
     participacoes_por_90 = round(((gols_oficiais + assists_oficiais) / minutos_est) * 90, 2)
 
     if not analytics_xg:
-        chutes_alvo = stats_meta.get("chutes_ao_gol") or 0
-        chutes_tot = stats_meta.get("finalizacoes_totais") or 0
-        penaltis = stats_meta.get("penaltis_cobrados") or stats_meta.get("gols_penalti") or 0
-        if chutes_tot > 0:
-            chutes_fora = max(0, chutes_tot - chutes_alvo)
-            chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
-            xg_acumulado = round((penaltis * 0.79) + (chutes_alvo_abertos * 0.315) + (chutes_fora * 0.045), 1)
-            taxa_conversao = round((gols_oficiais / chutes_tot) * 100, 1)
-        else:
-            xg_acumulado = round(gols_oficiais * 0.93, 1) if gols_oficiais > 0 else round(jogos_oficiais * 0.35, 1)
-            taxa_conversao = round((gols_oficiais / max(1, jogos_oficiais * 2.8)) * 100, 1)
-        delta_xg = round(gols_oficiais - xg_acumulado, 1)
-        if delta_xg >= 4.0:
-            perfil_clinico = "Finalizador Clínico de Elite (+xG)"
-            status_xg = "overperformer"
-        elif delta_xg >= 0.5:
-            perfil_clinico = "Finalizador Eficiente (Acima da média)"
-            status_xg = "eficiente"
-        elif delta_xg >= -2.0:
-            perfil_clinico = "Finalizador Equilibrado (Neutro)"
-            status_xg = "neutro"
-        else:
-            perfil_clinico = "Volume Shooter (Abaixo do xG esperado)"
-            status_xg = "underperformer"
+        est = estimar_xg_gols_atleta([], stats_meta, jogos_oficiais)
+        xg_acumulado = est["xg_acumulado"]
+        delta_xg = est["delta_xg"]
+        taxa_conversao = est["taxa_conversao_pct"]
+        perfil_clinico = est["perfil_clinico"]
+        status_xg = est["status_xg"]
     else:
         xg_acumulado = analytics_xg.get("xg_acumulado", 0.0)
         delta_xg = analytics_xg.get("delta_xg", 0.0)
         taxa_conversao = analytics_xg.get("taxa_conversao_pct", 0.0)
-        perfil_clinico = analytics_xg.get("perfil_clinico", "Finalizador Equilibrado (Neutro)")
+        perfil_clinico = analytics_xg.get("perfil_clinico", "Neutro")
         status_xg = analytics_xg.get("status_xg", "neutro")
 
     chutes_tot = stats_meta.get("finalizacoes_totais") or max(gols_oficiais * 4, jogos_oficiais * 2, 1)
@@ -2618,6 +2656,10 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     ano_max = stats_meta.get('ano_fim') or (max(anos) if anos else None)
 
     is_filtro_camp = bool(campeonato_filtro and campeonato_filtro not in ('todos', 'carreira', 'all'))
+    raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
+    raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
+    raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
+
     if is_filtro_camp:
         total_gols_final = len(gols)
         total_assists_final = 0
@@ -2630,9 +2672,6 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     else:
         total_gols_final = stats_meta.get('total_gols') or len(gols)
         total_assists_final = stats_meta.get('total_assistencias') or 0
-        raw_gols_carreira = stats_meta.get('gols_carreira_oficiais') or 0
-        raw_jogos_carreira = stats_meta.get('jogos_carreira_oficiais') or 0
-        raw_assists_carreira = stats_meta.get('assistencias_carreira_oficiais') or 0
         carreira_oficial = {
             "gols": max(raw_gols_carreira, total_gols_final),
             "jogos": max(raw_jogos_carreira, total_jogos),
@@ -2668,6 +2707,27 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
 
     aproveitamento_calc = round((vitorias * 3 + empates) / max(total_jogos * 3, 1) * 100, 1) if total_jogos > 0 else 0.0
 
+    # Determinação de acervo parcial e média autêntica de carreira (Feature 11)
+    media_oficial_carreira = (
+        round(carreira_oficial["gols"] / max(carreira_oficial["jogos"], 1), 2)
+        if (carreira_oficial.get("jogos") and carreira_oficial["jogos"] > 0 and carreira_oficial.get("gols") is not None)
+        else None
+    )
+
+    is_acervo_parcial = bool(
+        not is_filtro_camp and (
+            (raw_jogos_carreira > total_jogos and raw_jogos_carreira > 0) or
+            (total_jogos <= total_gols_final and total_gols_final > 0)
+        )
+    )
+
+    if is_acervo_parcial and media_oficial_carreira is not None:
+        media_gols_retorno = media_oficial_carreira
+    else:
+        media_gols_retorno = round(total_gols_final / max(total_jogos, 1), 2)
+
+    jogos_rotulo_retorno = "Jogos c/ Gol" if is_acervo_parcial else "Jogos"
+
     resumo_dados = {
         "total_gols": total_gols_final,
         "total_assistencias": total_assists_final,
@@ -2692,46 +2752,144 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "penaltis_perdidos": stats_meta.get('penaltis_perdidos', 0),
         "maior_vitima_clube": (top_vitimas[0]['clube'] if top_vitimas else None),
         "estadio_favorito": stats_meta.get('estadio_favorito'),
-        "media_gols": round(total_gols_final / max(total_jogos, 1), 2),
-        "acervo_parcial": bool(total_jogos == total_gols_final and total_gols_final > 0 and (raw_jogos_carreira > total_jogos or (stats_meta.get('ano_inicio') and stats_meta.get('ano_inicio') < 2018))),
-        "jogos_rotulo": "Jogos c/ Gol" if bool(total_jogos == total_gols_final and total_gols_final > 0 and (raw_jogos_carreira > total_jogos or (stats_meta.get('ano_inicio') and stats_meta.get('ano_inicio') < 2018))) else "Jogos",
-        "media_oficial_carreira": round(carreira_oficial["gols"] / max(carreira_oficial["jogos"], 1), 2) if carreira_oficial.get("jogos") and carreira_oficial["jogos"] > 0 else None,
+        "media_gols": media_gols_retorno,
+        "acervo_parcial": is_acervo_parcial,
+        "jogos_rotulo": jogos_rotulo_retorno,
+        "media_oficial_carreira": media_oficial_carreira,
         "ano_min": ano_min,
         "ano_max": ano_max,
         "filtro_campeonato": campeonato_filtro or "todos"
     }
 
-    # Cálculo Analítico de Expected Goals (xG) & Eficiência Clínica
-    chutes_alvo = stats_meta.get('chutes_ao_gol') or 0
-    chutes_tot = stats_meta.get('finalizacoes_totais') or 0
-    penaltis = stats_meta.get('penaltis_cobrados') or stats_meta.get('gols_penalti') or 0
+    # Enriquecimento com Dados Oficiais Sofascore (0 a 10.0) ou Cálculo Dinâmico de Rating (Feature 8)
+    sofascore_data = None
+    s_row = None
+    if target_id:
+        try:
+            s_row = c.execute("""
+                SELECT rating_medio, jogos_avaliados, notas_ultimos_jogos_json,
+                       xg_acumulado, xa_acumulado, assistencias,
+                       npxg_acumulado, delta_xg, perfil_clinico, taxa_conversao_pct
+                FROM atleta_sofascore_ratings WHERE id_jogador = ? LIMIT 1;
+            """, (target_id,)).fetchone()
+            if s_row and s_row["rating_medio"] is not None:
+                sofascore_data = {
+                    "rating_medio": s_row["rating_medio"],
+                    "jogos_avaliados": s_row["jogos_avaliados"],
+                    "fonte": "sofascore",
+                    "ultimas_notas": json.loads(s_row["notas_ultimos_jogos_json"] or "[]"),
+                    "xg_acumulado": s_row["xg_acumulado"],
+                    "xa_acumulado": s_row["xa_acumulado"],
+                    "assistencias": s_row["assistencias"]
+                }
+        except Exception:
+            pass
+
+    # Fallback dinâmico: quando não houver registro pré-calculado em atleta_sofascore_ratings,
+    # calcula o rating das partidas locais usando o motor matemático com compressão assintótica (tanh).
+    if not sofascore_data and partidas_ordenadas:
+        try:
+            pos_padrao = stats_meta.get('posicao') or 'Atacante'
+            is_goleiro_atleta = 'gol' in pos_padrao.lower() or 'keeper' in pos_padrao.lower()
+            notas_dinamicas = []
+
+            for p in partidas_ordenadas:
+                esc = p.get('escalacao')
+                if esc:
+                    titular = bool(esc.get('titular'))
+                    minutos = 90 if titular else 25
+                    pos_esc = esc.get('posicao') or ''
+                    if esc.get('is_goleiro') or 'gol' in pos_esc.lower() or 'keeper' in pos_esc.lower():
+                        pos_partida = 'Goleiro'
+                    elif pos_esc.lower() in ('titular', 'reserva', 'substitute', 'jogador', ''):
+                        pos_partida = pos_padrao
+                    else:
+                        pos_partida = pos_esc
+                else:
+                    titular = True
+                    minutos = 90
+                    pos_partida = pos_padrao
+
+                if is_goleiro_atleta:
+                    pos_partida = 'Goleiro'
+
+                clube_atleta = None
+                if esc and esc.get('clube'):
+                    clube_atleta = esc['clube']
+                elif p.get('gols') and p['gols'][0].get('clube'):
+                    clube_atleta = p['gols'][0]['clube']
+                elif p.get('cartoes') and p['cartoes'][0].get('clube'):
+                    clube_atleta = p['cartoes'][0]['clube']
+
+                gols_sofridos = 0
+                placar = p.get('placar') or ''
+                m_placar = re.search(r'(\d+)\s*[xX\-–]\s*(\d+)', placar)
+                if m_placar:
+                    gm = int(m_placar.group(1))
+                    gv = int(m_placar.group(2))
+                    if clube_atleta:
+                        clb_low = clube_atleta.lower()
+                        mand_low = (p.get('mandante') or '').lower()
+                        is_mandante = (clb_low in mand_low) or (mand_low in clb_low)
+                        gols_sofridos = gv if is_mandante else gm
+                    else:
+                        gols_sofridos = min(gm, gv)
+
+                gols_jogo = len(p.get('gols', []))
+                amarelos_jogo = len([ct for ct in p.get('cartoes', []) if 'amarelo' in (ct.get('cartao') or '').lower()])
+                vermelhos_jogo = len([ct for ct in p.get('cartoes', []) if 'vermelho' in (ct.get('cartao') or '').lower()])
+
+                res_nota = calcular_nota_partida_sofascore({
+                    'minutos_jogados': minutos,
+                    'posicao': pos_partida,
+                    'gols': gols_jogo,
+                    'assistencias': 0,
+                    'cartoes_amarelos': amarelos_jogo,
+                    'cartoes_vermelhos': vermelhos_jogo,
+                    'gols_sofridos': gols_sofridos
+                })
+                if res_nota.get('nota_final') is not None:
+                    notas_dinamicas.append(res_nota['nota_final'])
+
+            if notas_dinamicas:
+                total_avaliados = len(notas_dinamicas)
+                sofascore_data = {
+                    "rating_medio": round(sum(notas_dinamicas) / total_avaliados, 2),
+                    "jogos_avaliados": total_avaliados,
+                    "fonte": "futstats_scouting",
+                    "ultimas_notas": notas_dinamicas[:5]
+                }
+        except Exception:
+            pass
+
+    resumo_dados["sofascore"] = sofascore_data
+
+    # Cálculo Analítico de Expected Goals (xG) & Eficiência Clínica (Feature 9)
     gols_calc = total_gols_final or 0
+    chutes_tot = stats_meta.get('finalizacoes_totais') or 0
+    chutes_alvo = stats_meta.get('chutes_ao_gol') or 0
 
-    if chutes_tot > 0:
-        chutes_fora = max(0, chutes_tot - chutes_alvo)
-        chutes_alvo_abertos = max(0, chutes_alvo - penaltis)
-        xg_acumulado = round((penaltis * 0.79) + (chutes_alvo_abertos * 0.315) + (chutes_fora * 0.045), 1)
-        taxa_conversao = round((gols_calc / chutes_tot) * 100, 1)
+    if s_row and s_row["perfil_clinico"] and not is_filtro_camp and not clube_filtro:
+        xg_acumulado = round(float(s_row["xg_acumulado"] or 0.0), 1)
+        npxg_acumulado = round(float(s_row["npxg_acumulado"] or 0.0), 1)
+        delta_xg = round(float(s_row["delta_xg"] or 0.0), 1)
+        perfil_clinico = s_row["perfil_clinico"]
+        taxa_conversao = round(float(s_row["taxa_conversao_pct"] or 0.0), 1)
+        status_xg = "overperformer" if delta_xg >= 0.5 else ("underperformer" if delta_xg <= -2.0 else "neutro")
     else:
-        xg_acumulado = round(gols_calc * 0.93, 1) if gols_calc > 0 else round(total_jogos * 0.35, 1)
-        taxa_conversao = round((gols_calc / max(1, total_jogos * 2.8)) * 100, 1)
-
-    delta_xg = round(gols_calc - xg_acumulado, 1)
-    if delta_xg >= 4.0:
-        perfil_clinico = "Finalizador Clínico de Elite (+xG)"
-        status_xg = "overperformer"
-    elif delta_xg >= 0.5:
-        perfil_clinico = "Finalizador Eficiente (Acima da média)"
-        status_xg = "eficiente"
-    elif delta_xg >= -2.0:
-        perfil_clinico = "Finalizador Equilibrado (Neutro)"
-        status_xg = "neutro"
-    else:
-        perfil_clinico = "Volume Shooter (Abaixo do xG esperado)"
-        status_xg = "underperformer"
+        xg_calc_res = estimar_xg_gols_atleta(gols, stats_meta, total_jogos)
+        xg_acumulado = xg_calc_res["xg_acumulado"]
+        npxg_acumulado = xg_calc_res["xg_nao_penalti_npxg"]
+        delta_xg = xg_calc_res["delta_xg"]
+        perfil_clinico = xg_calc_res["perfil_clinico"]
+        taxa_conversao = xg_calc_res["taxa_conversao_pct"]
+        chutes_tot = xg_calc_res["chutes_totais"]
+        chutes_alvo = xg_calc_res["chutes_ao_gol"]
+        status_xg = xg_calc_res["status_xg"]
 
     analytics_xg = {
         "xg_acumulado": xg_acumulado,
+        "xg_nao_penalti_npxg": npxg_acumulado,
         "gols_reais": gols_calc,
         "delta_xg": delta_xg,
         "taxa_conversao_pct": taxa_conversao,
@@ -2745,27 +2903,6 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     radar_pes = _calcular_radar_pes(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial)
     scouts_profissionais = _calcular_scouts_profissionais(stats_meta.get('posicao') or 'Atacante', resumo_dados, carreira_oficial, stats_meta, analytics_xg)
     resumo_dados["scouts_profissionais"] = scouts_profissionais
-
-    # Enriquecimento com Dados Oficiais Sofascore (0 a 10.0)
-    sofascore_data = None
-    if target_id:
-        try:
-            s_row = c.execute("""
-                SELECT rating_medio, jogos_avaliados, notas_ultimos_jogos_json, xg_acumulado, xa_acumulado, assistencias
-                FROM atleta_sofascore_ratings WHERE id_jogador = ? LIMIT 1;
-            """, (target_id,)).fetchone()
-            if s_row:
-                sofascore_data = {
-                    "rating_medio": s_row["rating_medio"],
-                    "jogos_avaliados": s_row["jogos_avaliados"],
-                    "ultimas_notas": json.loads(s_row["notas_ultimos_jogos_json"] or "[]"),
-                    "xg_acumulado": s_row["xg_acumulado"],
-                    "xa_acumulado": s_row["xa_acumulado"],
-                    "assistencias": s_row["assistencias"]
-                }
-        except Exception:
-            pass
-    resumo_dados["sofascore"] = sofascore_data
 
     return {
         "id_jogador": target_id,

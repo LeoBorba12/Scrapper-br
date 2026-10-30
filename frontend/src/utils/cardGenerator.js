@@ -196,17 +196,48 @@ export function exportarDossieScoutingAtletaPNG(atleta) {
   ctx.fillText(`${posicao.toUpperCase()} • ${anos} • ${clubes.slice(0, 65)}`, 60, offsetClubesY);
 
   // 4. Bento Grid de Números Mestres Globais (Carreira Inteira)
-  const gCar = atleta.gols_carreira_oficiais || atleta.gols || atleta.total_gols || 0;
-  const jCar = atleta.jogos_carreira_oficiais || atleta.jogos || atleta.total_jogos || 0;
-  const aCar = atleta.assistencias_carreira_oficiais || atleta.assistencias || 0;
-  const medG = jCar > 0 ? (gCar / jCar).toFixed(2) : '0.00';
+  const isAcervoParcial = Boolean(
+    atleta.resumo?.acervo_parcial ||
+    atleta.acervo_parcial ||
+    (atleta.resumo?.jogos_rotulo === 'Jogos c/ Gol')
+  );
+  const rotuloJogos = atleta.resumo?.jogos_rotulo
+    ? atleta.resumo.jogos_rotulo.toUpperCase()
+    : (isAcervoParcial ? 'JOGOS C/ GOL' : 'JOGOS TOTAIS');
+
+  // Prioriza estrutura canônica da API (/api/jogadores/perfil: carreira_oficial e resumo) com fallback flat
+  const gCar = atleta.carreira_oficial?.gols || atleta.gols_carreira_oficiais || atleta.resumo?.total_gols || atleta.gols || atleta.total_gols || 0;
+  const jCar = (isAcervoParcial && !atleta.carreira_oficial?.jogos && !atleta.jogos_carreira_oficiais)
+    ? (atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0)
+    : (atleta.carreira_oficial?.jogos || atleta.jogos_carreira_oficiais || atleta.resumo?.jogos_registrados || atleta.jogos || atleta.total_jogos || 0);
+  const aCar = atleta.carreira_oficial?.assistencias || atleta.assistencias_carreira_oficiais || atleta.resumo?.total_assistencias || atleta.assistencias || 0;
+
+  // Priorização da média autêntica do backend (resumo.media_gols / media_oficial_carreira) para expurgar 1.00 ou 1.06 artificial
+  const medG = (() => {
+    if (atleta.resumo?.media_gols != null && !isNaN(Number(atleta.resumo.media_gols))) {
+      return Number(atleta.resumo.media_gols).toFixed(2);
+    }
+    if (atleta.resumo?.media_oficial_carreira != null && !isNaN(Number(atleta.resumo.media_oficial_carreira))) {
+      return Number(atleta.resumo.media_oficial_carreira).toFixed(2);
+    }
+    if (atleta.media_oficial_carreira != null && !isNaN(Number(atleta.media_oficial_carreira))) {
+      return Number(atleta.media_oficial_carreira).toFixed(2);
+    }
+    if (atleta.media_gols != null && !isNaN(Number(atleta.media_gols))) {
+      return Number(atleta.media_gols).toFixed(2);
+    }
+    if (jCar > 0 && !isAcervoParcial) {
+      return (gCar / jCar).toFixed(2);
+    }
+    return '0.00';
+  })();
   const partG = (Number(gCar) || 0) + (Number(aCar) || 0);
 
   const kpis = [
     { label: 'GOLS OFICIAIS', val: String(gCar), cor: '#C59B27', sub: 'Na carreira' },
-    { label: 'JOGOS TOTAIS', val: String(jCar), cor: '#F1E8DE', sub: 'Partidas oficiais' },
+    { label: rotuloJogos, val: String(jCar), cor: '#F1E8DE', sub: isAcervoParcial ? 'Súmulas com gol' : 'Partidas oficiais' },
     { label: 'ASSISTÊNCIAS', val: String(aCar), cor: '#7D8D5C', sub: 'Passes para gol' },
-    { label: 'MÉDIA GOLS/JOGO', val: String(medG), cor: '#D48459', sub: 'Eficiência direta' }
+    { label: isAcervoParcial ? 'MÉDIA CARREIRA' : 'MÉDIA GOLS/JOGO', val: String(medG), cor: '#D48459', sub: isAcervoParcial ? 'Média da carreira' : 'Eficiência direta' }
   ];
 
   const gridY = offsetClubesY + 30;

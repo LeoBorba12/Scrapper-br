@@ -10,15 +10,27 @@ import React, { useState } from 'react';
  * 5. Defesa / Disciplina (Disciplina tática, baixo número de cartões, desarme)
  */
 export default function RadarPentagonPES({
-  atleta,
+  atleta = {},
   resumo = {},
   carreira = {},
+  radar_pes = null,
   size = 320
 }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
+  const AXIS_ORDER = ['atk', 'fin', 'cri', 'fis', 'def'];
+  const DEFAULT_META = {
+    atk: { label: 'Ataque', desc: 'Presença e volume ofensivo' },
+    fin: { label: 'Finalização', desc: 'Conversão e precisão no arremate' },
+    cri: { label: 'Criação / Passe', desc: 'Visão de jogo e assistências' },
+    fis: { label: 'Físico / Presença', desc: 'Resistência, minutagem e solidez' },
+    def: { label: 'Defesa / Disciplina', desc: 'Combate e disciplina tática' }
+  };
+
+  const clamp = (v) => Math.max(40, Math.min(99, Math.round(Number(v) || 50)));
+
   // Calcula atributos com base nos dados reais do atleta (escala 40 a 99 estilo PES)
-  const calcAttributes = () => {
+  const calcFallbackAttributes = () => {
     // Paridade estrita de escopo para cálculo de atributos:
     // Nunca misturar gols de carreira com jogos locais para cálculo de média
     let totalGols = 0;
@@ -139,10 +151,124 @@ export default function RadarPentagonPES({
     ];
   };
 
-  const eixos = calcAttributes();
+  // 1. Resolução do Radar a partir do payload backend (prioridade absoluta)
+  const backendRadar = radar_pes || atleta?.radar_pes;
+  const temBackendValido = Boolean(
+    backendRadar &&
+    Array.isArray(backendRadar.eixos) &&
+    backendRadar.eixos.length === 5 &&
+    backendRadar.eixos.every(e => e && e.valor != null && !isNaN(Number(e.valor)))
+  );
 
-  // Média Geral (Overall Rating no estilo Winning Eleven)
-  const ovr = Math.round(eixos.reduce((acc, e) => acc + e.valor, 0) / eixos.length);
+  // 2. Verificação de dados catalogados reais
+  const totalJogosAtividade = Number(resumo?.jogos_registrados || 0) + Number(carreira?.jogos || 0);
+  const totalGolsAtividade = Number(resumo?.total_gols || 0) + Number(carreira?.gols || 0);
+  const temDadosReais = totalJogosAtividade > 0 || totalGolsAtividade > 0;
+
+  // 3. Container Honesto de Empty State (Editorial 2026 & WCAG 2.2 AA)
+  if (!temBackendValido && !temDadosReais) {
+    return (
+      <div
+        className="radar-pes-empty-container"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          width: '100%',
+          maxWidth: `${size}px`,
+          minHeight: `${size}px`,
+          margin: '0 auto',
+          padding: '24px 16px',
+          boxSizing: 'border-box',
+          backgroundColor: 'var(--surface-raised)',
+          border: '1px dashed var(--border-subtle)',
+          borderRadius: 'var(--radius-card)',
+          textAlign: 'center',
+          gap: '12px'
+        }}
+      >
+        <div
+          style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(90, 103, 62, 0.08)',
+            border: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-muted)'
+          }}
+          aria-hidden="true"
+        >
+          <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+            <polygon
+              points="20,4 36,16 30,34 10,34 4,16"
+              stroke="var(--text-muted)"
+              strokeWidth="1.5"
+              strokeDasharray="3,3"
+              fill="none"
+              opacity="0.6"
+            />
+            <circle cx="20" cy="20" r="2.5" fill="var(--text-muted)" opacity="0.5" />
+          </svg>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span className="pill-neutral" style={{ fontSize: '0.66rem', fontWeight: 700, margin: '0 auto', color: 'var(--text-secondary)' }}>
+            Amostragem Insuficiente
+          </span>
+          <h4
+            className="font-editorial"
+            style={{
+              fontSize: '1rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '2px 0 0 0'
+            }}
+          >
+            Radar Pentagonal Indisponível
+          </h4>
+          <p
+            style={{
+              fontSize: '0.74rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.4,
+              margin: 0,
+              maxWidth: '220px'
+            }}
+          >
+            O atleta ainda não possui scouts atômicos suficientes no catálogo para calibração dos 5 eixos táticos (PES / WE).
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. Mapeamento Canônico dos 5 Eixos e OVR
+  let eixos = [];
+  let ovr = 75;
+
+  if (temBackendValido) {
+    eixos = AXIS_ORDER.map(key => {
+      const found = backendRadar.eixos.find(e => e.key === key);
+      const meta = DEFAULT_META[key];
+      return {
+        key,
+        label: found?.label || meta.label,
+        valor: clamp(found?.valor),
+        desc: found?.desc || meta.desc
+      };
+    });
+    ovr = (typeof backendRadar.ovr === 'number' && !isNaN(backendRadar.ovr) && backendRadar.ovr >= 40 && backendRadar.ovr <= 99)
+      ? Math.round(backendRadar.ovr)
+      : Math.round(eixos.reduce((acc, e) => acc + e.valor, 0) / eixos.length);
+  } else {
+    eixos = calcFallbackAttributes();
+    ovr = Math.round(eixos.reduce((acc, e) => acc + e.valor, 0) / eixos.length);
+  }
 
   // Parâmetros do SVG Pentagonal
   const center = size / 2;

@@ -11,6 +11,7 @@ import SpatialPitchMap from './SpatialPitchMap';
 import GoalMouthMap from './GoalMouthMap';
 import { exportarDossieScoutingAtletaPNG } from '../utils/cardGenerator';
 import { exportarRelatorioScoutingPDF } from '../utils/pdfReportGenerator';
+import { sanitizarListaClubes, sanitizarCarreiraClubes } from '../utils/clubData';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -437,6 +438,8 @@ export default function ProtagonistaAtleta({
   const atleta = playerProfile || {};
   const resumo = atleta.resumo || {};
   const carreira = atleta.carreira_oficial || {};
+  const clubesLimpos = sanitizarListaClubes(atleta.clubes, carreira.clubes);
+  const carreiraClubesLimpos = sanitizarCarreiraClubes(carreira.clubes);
   const scoutsPro = atleta.scouts_profissionais || resumo.scouts_profissionais || {};
   const notaScouting = scoutsPro.score_scouting_global || 75;
   const classifScouting = scoutsPro.classificacao_scouting || 'Profissional Regular';
@@ -602,7 +605,7 @@ export default function ProtagonistaAtleta({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    {/* Badge Oficial Sofascore (0 a 10.0) */}
+                    {/* Badge Oficial Sofascore ou FutStats Scouting (0 a 10.0) */}
                     {resumo.sofascore && (
                       <div 
                         style={{ 
@@ -611,15 +614,18 @@ export default function ProtagonistaAtleta({
                           gap: '6px', 
                           padding: '4px 10px', 
                           borderRadius: 'var(--radius-control)', 
-                          background: 'rgba(34, 197, 94, 0.12)',
-                          border: '1px solid rgba(34, 197, 94, 0.4)',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          background: 'var(--positive-bg)',
+                          border: '1px solid var(--positive)',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                         }}
-                        title={`Rating Sofascore: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`}
+                        title={resumo.sofascore.fonte === 'futstats_scouting'
+                          ? `Rating FutStats Scouting: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`
+                          : `Rating Sofascore: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`
+                        }
                       >
                         <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
-                          <div style={{ fontSize: '0.60rem', fontWeight: 800, textTransform: 'uppercase', color: '#22c55e', letterSpacing: '0.04em' }}>
-                            Sofascore
+                          <div style={{ fontSize: '0.60rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--positive)', letterSpacing: '0.04em' }}>
+                            {resumo.sofascore.fonte === 'futstats_scouting' ? 'Scouting' : 'Sofascore'}
                           </div>
                           <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                             {resumo.sofascore.jogos_avaliados}j avaliados
@@ -630,7 +636,7 @@ export default function ProtagonistaAtleta({
                           style={{ 
                             fontSize: '1.45rem', 
                             fontWeight: 900, 
-                            color: '#22c55e', 
+                            color: 'var(--positive)', 
                             lineHeight: 1 
                           }}
                         >
@@ -793,16 +799,22 @@ export default function ProtagonistaAtleta({
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {(atleta.clubes || []).map((c, idx) => (
-                    <span 
-                      key={idx} 
-                      className="pill-neutral"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px' }}
-                    >
-                      <ClubBadge nome={c} size={15} />
-                      <span>{c}</span>
+                  {clubesLimpos.length > 0 ? (
+                    clubesLimpos.map((c, idx) => (
+                      <span 
+                        key={idx} 
+                        className="pill-neutral"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px' }}
+                      >
+                        <ClubBadge nome={c} size={15} />
+                        <span>{c}</span>
+                      </span>
+                    ))
+                  ) : (
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      Sem histórico consolidado de clubes
                     </span>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -1091,7 +1103,11 @@ export default function ProtagonistaAtleta({
                       {temCarreira && jogosCarreira ? (
                         <span>Média Oficial: <strong className="tabular-nums font-mono" style={{ color: 'var(--accent)' }}>{(golsCarreira / jogosCarreira).toFixed(2)}</strong> gols/jogo</span>
                       ) : !temCarreira && jogosCatalogo > 0 ? (
-                        <span>Média no Catálogo: <strong className="tabular-nums font-mono" style={{ color: 'var(--accent)' }}>{(golsCatalogo / jogosCatalogo).toFixed(2)}</strong> gols/jogo</span>
+                        resumo.acervo_parcial || (golsCatalogo >= jogosCatalogo && golsCatalogo > 0) ? (
+                          <span>Média no Catálogo: <span className="pill-neutral" style={{ fontSize: '0.64rem', padding: '1px 6px' }}>Acervo Parcial*</span></span>
+                        ) : (
+                          <span>Média no Catálogo: <strong className="tabular-nums font-mono" style={{ color: 'var(--accent)' }}>{(golsCatalogo / jogosCatalogo).toFixed(2)}</strong> gols/jogo</span>
+                        )
                       ) : null}
                     </div>
 
@@ -1118,7 +1134,7 @@ export default function ProtagonistaAtleta({
                         Assistências: <strong className="tabular-nums">{assistCarreira ?? (assistCatalogo > 0 ? `${assistCatalogo} (catálogo)` : '—')}</strong>
                       </span>
                       <span>
-                        Clubes: <strong className="tabular-nums">{carreira.clubes?.length || (atleta.clubes || []).length}</strong>
+                        Clubes: <strong className="tabular-nums">{carreiraClubesLimpos.length || clubesLimpos.length}</strong>
                       </span>
                     </div>
                   </div>
@@ -1154,7 +1170,13 @@ export default function ProtagonistaAtleta({
                   </div>
                   <div>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                      {resumo.jogos_rotulo || (resumo.acervo_parcial || (resumo.jogos_registrados === resumo.total_gols && Number(resumo.total_gols) > 0 && Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados)) ? 'Jogos c/ Gol' : 'Jogos no Catálogo')}
+                      {Boolean(
+                        resumo.acervo_parcial ||
+                        (Number(resumo.total_gols) >= Number(resumo.jogos_registrados) && Number(resumo.total_gols) > 0) ||
+                        (Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados))
+                      )
+                        ? (resumo.jogos_rotulo && resumo.jogos_rotulo !== 'Jogos' ? resumo.jogos_rotulo : 'Jogos c/ Gol')
+                        : (resumo.jogos_rotulo || 'Jogos no Catálogo')}
                     </span>
                     <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                       {resumo.jogos_registrados ?? 0}
@@ -1162,28 +1184,39 @@ export default function ProtagonistaAtleta({
                   </div>
                   <div>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                      {resumo.acervo_parcial || (resumo.jogos_registrados === resumo.total_gols && Number(resumo.total_gols) > 0 && Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados)) ? 'Média Carreira' : 'Média Local'}
+                      {Boolean(
+                        resumo.acervo_parcial ||
+                        (Number(resumo.total_gols) >= Number(resumo.jogos_registrados) && Number(resumo.total_gols) > 0) ||
+                        (Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados))
+                      ) ? 'Média Carreira' : 'Média Local'}
                     </span>
                     <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-secondary)' }}>
                       {(() => {
-                        const isParcial = resumo.acervo_parcial || (resumo.jogos_registrados === resumo.total_gols && Number(resumo.total_gols) > 0 && Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados));
+                        const isParcial = Boolean(
+                          resumo.acervo_parcial ||
+                          (Number(resumo.total_gols) >= Number(resumo.jogos_registrados) && Number(resumo.total_gols) > 0) ||
+                          (Number(carreira?.jogos || 0) > Number(resumo.jogos_registrados))
+                        );
+                        if (resumo.media_gols != null && !isNaN(Number(resumo.media_gols))) {
+                          return Number(resumo.media_gols).toFixed(2);
+                        }
+                        if (isParcial && resumo.media_oficial_carreira != null && !isNaN(Number(resumo.media_oficial_carreira))) {
+                          return Number(resumo.media_oficial_carreira).toFixed(2);
+                        }
                         if (isParcial && carreira?.jogos && Number(carreira.jogos) > 0) {
                           return (Number(carreira.gols || resumo.total_gols) / Number(carreira.jogos)).toFixed(2);
                         }
-                        if (isParcial && resumo.media_oficial_carreira) {
-                          return Number(resumo.media_oficial_carreira).toFixed(2);
-                        }
-                        if (resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0 && !isParcial) {
+                        if (!isParcial && resumo.jogos_registrados && Number(resumo.jogos_registrados) > 0) {
                           return (Number(resumo.total_gols || 0) / Number(resumo.jogos_registrados)).toFixed(2);
                         }
-                        return (resumo.media_gols != null && !isNaN(Number(resumo.media_gols)) && !isParcial ? Number(resumo.media_gols).toFixed(2) : '—');
+                        return '—';
                       })()}
                     </div>
                   </div>
                 </div>
 
                 {/* Esclarecimento de Escopo: Diferença entre Súmulas Catalogadas e Carreira Oficial por Clube */}
-                {carreira?.clubes?.length > 0 && (
+                {carreiraClubesLimpos.length > 0 && (
                   <div 
                     style={{ 
                       marginBottom: '12px', 
@@ -1197,10 +1230,10 @@ export default function ProtagonistaAtleta({
                     }}
                   >
                     <div>
-                      👑 <strong>Histórico Oficial no {carreira.clubes[0].clube}:</strong>{' '}
-                      <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{carreira.clubes[0].jogos} jogos</strong> e{' '}
-                      <strong className="font-mono" style={{ color: 'var(--accent)' }}>{carreira.clubes[0].gols} gols</strong>{' '}
-                      ({(carreira.clubes[0].gols / carreira.clubes[0].jogos).toFixed(2)} gols/jogo).
+                      👑 <strong>Histórico Oficial no {carreiraClubesLimpos[0].clube}:</strong>{' '}
+                      <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{carreiraClubesLimpos[0].jogos} jogos</strong> e{' '}
+                      <strong className="font-mono" style={{ color: 'var(--accent)' }}>{carreiraClubesLimpos[0].gols} gols</strong>{' '}
+                      ({carreiraClubesLimpos[0].jogos > 0 ? (carreiraClubesLimpos[0].gols / carreiraClubesLimpos[0].jogos).toFixed(2) : '0.00'} gols/jogo).
                     </div>
                     <div style={{ marginTop: '3px', fontSize: '0.66rem', color: 'var(--text-muted)' }}>
                       * O catálogo local contabiliza fichas de partidas com gols auditados no acervo. Na carreira mundial total, são {carreira.jogos || '—'} jogos e {carreira.gols || '—'} gols (consulte a aba Carreira Oficial).
@@ -1309,7 +1342,7 @@ export default function ProtagonistaAtleta({
             <div role="tablist" aria-label="Estatísticas detalhadas do atleta" style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', overflowX: 'auto' }}>
               {[
                 { id: 'partidas', label: `Partidas Catalogadas (${(atleta.partidas || []).length})` },
-                { id: 'carreira_ogol', label: `Carreira Oficial OGol (${(carreira.clubes || []).length})` },
+                { id: 'carreira_ogol', label: `Carreira Oficial OGol (${carreiraClubesLimpos.length})` },
                 { id: 'titulos', label: `Títulos & Prêmios (${(atleta.titulos || []).length + (atleta.premios || []).length})` },
                 { id: 'temporadas', label: `Por Temporada (${(atleta.historico_temporadas || []).length})` },
                 { id: 'torneios', label: `Competições (${(atleta.historico_torneios || []).length})` },
@@ -1664,7 +1697,7 @@ export default function ProtagonistaAtleta({
               {/* Sub-aba Carreira Oficial OGol */}
               {subTab === 'carreira_ogol' && (
                 <div style={{ overflowX: 'auto' }}>
-                  {(carreira.clubes || []).length === 0 ? (
+                  {carreiraClubesLimpos.length === 0 ? (
                     <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                       Nenhum histórico consolidado de clubes disponível no momento.
                     </div>
@@ -1681,7 +1714,7 @@ export default function ProtagonistaAtleta({
                         </tr>
                       </thead>
                       <tbody>
-                        {carreira.clubes.map((c_item, idx) => {
+                        {carreiraClubesLimpos.map((c_item, idx) => {
                           const media = c_item.jogos > 0 ? (c_item.gols / c_item.jogos).toFixed(2) : '0.00';
                           return (
                             <tr key={idx}>

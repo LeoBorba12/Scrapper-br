@@ -222,16 +222,20 @@ export default function AthleteCareerTimeline({
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Jogos:</span>
+                  <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    {temp.jogos_rotulo ? `${temp.jogos_rotulo}:` : (temp.acervo_parcial ? 'Jogos c/ Gol:' : 'Jogos:')}
+                  </span>
                   <span className="font-mono tabular-nums" style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                    {temp.jogos || 0} j
+                    {temp.jogos || 0} j{temp.acervo_parcial ? '*' : ''}
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                   <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Média:</span>
                   <span className="font-mono tabular-nums" style={{ fontSize: '0.76rem', color: 'var(--accent)', fontWeight: 700 }}>
-                    {temp.media_gols != null ? temp.media_gols : (temp.jogos > 0 ? (temp.gols / temp.jogos).toFixed(2) : '0.00')}
+                    {temp.media_gols != null
+                      ? (typeof temp.media_gols === 'number' ? temp.media_gols.toFixed(2) : temp.media_gols)
+                      : (temp.acervo_parcial ? '—' : (temp.jogos > 0 ? (temp.gols / temp.jogos).toFixed(2) : '0.00'))}
                   </span>
                 </div>
               </div>
