@@ -34,6 +34,7 @@ data/cache_rankinghistorico/
 # Ferramentas locais e extensões
 .tools/
 *.vsix
+*.bak*
 
 # Bancos de dados de referência e ground truth (apenas VM / local)
 data/futebol_referencia.db*
