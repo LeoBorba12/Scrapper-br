@@ -72,6 +72,8 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 9. `grill-me`: Entrevista estratégica pré-implementação para eliminar suposições e retrabalho.
 10. `git-guardrails`: Proteção de repositório, bloqueio de comandos perigosos e vigilância do teto de 95 MB.
 11. `karpathy-guidelines`: Simplicidade radical, diagnósticos de causa-raiz e modificações cirúrgicas mínimas.
+12. `brainstorming`: Transforma ideias brutas em designs validados antes de qualquer implementação (Socratic dialogue, YAGNI, understanding lock).
+13. `multi-agent-brainstorming`: Revisão sequencial por papéis (Challenger, Constraint Guardian, User Advocate) para blindar designs complexos.
 
 ---
 
