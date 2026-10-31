@@ -4009,7 +4009,7 @@ def get_brasileirao_aovivo():
             vis = equipes.get('visitante') if isinstance(equipes.get('visitante'), dict) else {}
             transmissao = j.get('transmissao') if isinstance(j.get('transmissao'), dict) else {}
             broadcast = transmissao.get('broadcast') if isinstance(transmissao.get('broadcast'), dict) else {}
-            sede = j.get('sede') if isinstance(j.get('sede'), dict) else {}
+            url_tr = j.get('url_tempo_real') or transmissao.get('url') or ''
 
             jogos_rodada.append({
                 "id": j.get('id'),
@@ -4019,6 +4019,7 @@ def get_brasileirao_aovivo():
                 "status": broadcast.get('id', 'SCHEDULED'),
                 "status_label": broadcast.get('label') or transmissao.get('label') or '',
                 "estadio": sede.get('nome_popular') or '',
+                "url_tempo_real": url_tr,
                 "mandante": {
                     "nome": mand.get('nome_popular') or 'A definir',
                     "sigla": mand.get('sigla') or '???',
@@ -4042,8 +4043,8 @@ def get_brasileirao_aovivo():
             "jogos_rodada": jogos_rodada
         }
 
-        # Cache de 10 minutos (600s) para garantir dados frescos e proteger contra rate limit do GE
-        api_cache.set(cache_key, resultado, ttl=600)
+        # Cache de 5 minutos (300s) para garantir dados frescos e proteger contra rate limit do GE
+        api_cache.set(cache_key, resultado, ttl=300)
         return jsonify(resultado)
 
     except Exception as e:
@@ -4056,6 +4057,104 @@ def get_brasileirao_aovivo():
             "jogos_rodada": [],
             "error": f"Dados em tempo real temporariamente indisponíveis: {str(e)}"
         }), 200
+
+@app.route('/api/brasileirao/tempo-real', methods=['GET'])
+def get_brasileirao_tempo_real():
+    """Retorna os lances ao vivo e estatísticas detalhadas de uma partida do Brasileirão."""
+    url = request.args.get('url', '').strip()
+    if not url or not url.startswith('https://ge.globo.com/'):
+        return jsonify({"error": "URL inválida ou ausente"}), 400
+
+    cache_key = f"tempo_real_{url}"
+    cached = api_cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    import urllib.request
+    import json
+    import ssl
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    }
+
+    try:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=7) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+
+        # 1. Extrair lances de plays: Array.from([...])
+        idx = html.find('plays: Array.from(')
+        lances = []
+        if idx != -1:
+            start = html.find('[', idx)
+            depth = 0
+            end = -1
+            for i in range(start, len(html)):
+                if html[i] == '[':
+                    depth += 1
+                elif html[i] == ']':
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        break
+            if end != -1:
+                raw_plays = html[start:end]
+                plays_data = json.loads(raw_plays)
+                for p in plays_data:
+                    blocks = p.get('body', {}).get('blocks', []) if isinstance(p.get('body'), dict) else []
+                    texto = ' '.join(b.get('text', '') for b in blocks if isinstance(b, dict)).strip()
+                    pt = p.get('playType') or {}
+                    periodo = p.get('period') or {}
+                    lances.append({
+                        "id": p.get('id'),
+                        "momento": p.get('moment') or '',
+                        "periodo": periodo.get('label') or '',
+                        "tipo_id": pt.get('id') or 'LANCE',
+                        "tipo_label": pt.get('label') or 'Lance',
+                        "titulo": p.get('title') or '',
+                        "texto": texto,
+                        "fixado": p.get('isPinned', False)
+                    })
+
+        # 2. Extrair estatísticas se existirem
+        stats_obj = {}
+        pos_stats = html.find('"statistics"')
+        if pos_stats != -1:
+            s_start = html.find('{', pos_stats)
+            s_depth = 0
+            s_end = -1
+            for i in range(s_start, len(html)):
+                if html[i] == '{':
+                    s_depth += 1
+                elif html[i] == '}':
+                    s_depth -= 1
+                    if s_depth == 0:
+                        s_end = i + 1
+                        break
+            if s_end != -1:
+                try:
+                    stats_obj = json.loads(html[s_start:s_end])
+                except Exception:
+                    stats_obj = {}
+
+        resultado = {
+            "lances": lances,
+            "total_lances": len(lances),
+            "estatisticas": stats_obj,
+            "url": url
+        }
+
+        # Cache de 20 segundos para lances ao vivo
+        api_cache.set(cache_key, resultado, ttl=20)
+        return jsonify(resultado)
+
+    except Exception as e:
+        return jsonify({"error": f"Falha ao carregar lances em tempo real: {str(e)}", "lances": []}), 500
 
 @app.route('/api/odds/zebras', methods=['GET'])
 def get_maiores_zebras():

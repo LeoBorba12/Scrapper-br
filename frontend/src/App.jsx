@@ -16,6 +16,7 @@ import ProtagonistaAtleta from './components/ProtagonistaAtleta';
 import BettingHubView from './components/BettingHubView';
 import AthleteCompareView from './components/AthleteCompareView';
 import RefereeScoutView from './components/RefereeScoutView';
+import ModalLanceALance from './components/ModalLanceALance';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
 
 export default function App() {
@@ -197,6 +198,7 @@ export default function App() {
   const [aovivoData, setAovivoData] = useState(null);
   const [aovivoSerie, setAovivoSerie] = useState('a');
   const [aovivoLoading, setAovivoLoading] = useState(false);
+  const [selectedLiveMatch, setSelectedLiveMatch] = useState(null);
 
   // Tab: Análise de Times & Histórico Recente
   const [timesAnalise, setTimesAnalise] = useState([]);
@@ -2288,14 +2290,32 @@ export default function App() {
                       {(aovivoData.jogos_rodada || []).map((j, idx) => (
                         <div 
                           key={j.id || idx} 
-                          className="soft-card" 
-                          style={{ padding: '14px', border: '1px solid var(--border)' }}
+                          className="soft-card touch-tactile" 
+                          style={{ 
+                            padding: '14px', 
+                            border: '1px solid var(--border)', 
+                            cursor: j.url_tempo_real ? 'pointer' : 'default',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onClick={() => {
+                            if (j.url_tempo_real) {
+                              setSelectedLiveMatch(j);
+                            }
+                          }}
+                          title={j.url_tempo_real ? "Clique para abrir o Radar & Lance a Lance ao vivo" : "Partida sem cobertura minuto a minuto"}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
                             <span>{j.data || 'Data a confirmar'} {j.hora ? `• ${j.hora}` : ''}</span>
-                            <span style={{ fontWeight: '600', color: j.status === 'live' ? '#EF4444' : '#64748B' }}>
-                              {j.status_label || (j.comecou ? 'ENCERRADO' : 'AGENDADO')}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontWeight: '600', color: j.status === 'live' ? '#EF4444' : '#64748B' }}>
+                                {j.status_label || (j.comecou ? 'ENCERRADO' : 'AGENDADO')}
+                              </span>
+                              {j.url_tempo_real && (
+                                <span className="badge badge-green" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                                  ⚡ Lance a Lance
+                                </span>
+                              )}
+                            </div>
                           </div>
 
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
@@ -2512,6 +2532,14 @@ export default function App() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* MODAL LANCE A LANCE (TEMPO REAL) */}
+      {selectedLiveMatch && (
+        <ModalLanceALance 
+          jogo={selectedLiveMatch} 
+          onClose={() => setSelectedLiveMatch(null)} 
+        />
       )}
 
       </AppShell>
