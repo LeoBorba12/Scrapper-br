@@ -1636,7 +1636,21 @@ MAPA_APELIDOS_ATLETAS = {
     'paulinho flamengo': 'Paulinho (Flamengo)',
     'paulinho moccelin': 'Paulinho Moccelin',
     'paulinho criciuma': 'Paulinho Criciúma',
-    'paulinho paula': 'Paulinho Paula'
+    'paulinho paula': 'Paulinho Paula',
+    'marcos': 'Marcos (São Marcos)',
+    'marcos goleiro': 'Marcos (São Marcos)',
+    'sao marcos': 'Marcos (São Marcos)',
+    'são marcos': 'Marcos (São Marcos)',
+    'marcos palmeiras': 'Marcos (São Marcos)',
+    'marcao': 'Marcos (São Marcos)',
+    'marcão': 'Marcos (São Marcos)',
+    'cassio': 'Cássio',
+    'cássio': 'Cássio',
+    'dida': 'Dida',
+    'taffarel': 'Taffarel',
+    'zetti': 'Zetti',
+    'fabio': 'Fábio',
+    'fábio': 'Fábio'
 }
 
 @app.route('/api/jogadores/busca', methods=['GET'])
@@ -1689,8 +1703,18 @@ def buscar_jogadores():
         rows = c.execute(sql, params).fetchall()
     else:
         canonico = MAPA_APELIDOS_ATLETAS.get(q.lower(), q)
+        tokens = [t.strip() for t in q.lower().split() if len(t.strip()) >= 2]
         param_like_q = f"%{q}%"
         param_like_c = f"%{canonico}%"
+
+        # Suporte a busca inteligente por tokens (ex: "Marcos Palmeiras" ou "Marcos goleiro")
+        token_clauses = []
+        token_params = []
+        for tok in tokens:
+            token_clauses.append("(LOWER(nome_exibicao) LIKE ? OR LOWER(nome_completo) LIKE ? OR LOWER(apelido) LIKE ? OR LOWER(clubes) LIKE ? OR LOWER(posicao) LIKE ?)")
+            token_params.extend([f"%{tok}%", f"%{tok}%", f"%{tok}%", f"%{tok}%", f"%{tok}%"])
+        
+        token_sql = " AND ".join(token_clauses) if token_clauses else "1=1"
 
         sql = f"""
             SELECT 
@@ -1705,26 +1729,33 @@ def buscar_jogadores():
                 aproveitamento_pontos,
                 cartoes_amarelos as amarelos,
                 cartoes_vermelhos as vermelhos,
-                total_jogos as jogos
+                total_jogos as jogos,
+                COALESCE(jogos_carreira_oficiais, total_jogos, 0) as jogos_totais_carreira
             FROM jogadores_estatisticas
-            WHERE (nome_exibicao LIKE ? OR nome_completo LIKE ? OR apelido LIKE ? OR nome_exibicao LIKE ?) {pos_filter}
+            WHERE (
+                (nome_exibicao LIKE ? OR nome_completo LIKE ? OR apelido LIKE ? OR nome_exibicao LIKE ?)
+                OR ({token_sql})
+            ) {pos_filter}
             ORDER BY 
                 CASE 
                     WHEN LOWER(nome_exibicao) = LOWER(?) THEN 1
                     WHEN LOWER(nome_exibicao) = LOWER(?) THEN 2
                     WHEN LOWER(nome_exibicao) LIKE LOWER(? || ' %') THEN 3
                     WHEN LOWER(nome_exibicao) LIKE LOWER(? || ' %') THEN 4
-                    ELSE 5 
+                    WHEN LOWER(apelido) LIKE LOWER('%' || ? || '%') THEN 5
+                    ELSE 6 
                 END,
+                CASE WHEN LOWER(posicao) = 'goleiro' THEN 1 ELSE 2 END,
                 total_gols DESC,
-                participacoes_gols DESC,
-                total_jogos DESC
+                jogos_totais_carreira DESC,
+                participacoes_gols DESC
             LIMIT ?;
         """
         base_params = [param_like_q, param_like_q, param_like_q, param_like_c]
+        base_params.extend(token_params)
         if pos_param:
             base_params.append(pos_param)
-        base_params.extend([canonico, q, canonico, q, limit])
+        base_params.extend([canonico, q, canonico, q, q, limit])
         rows = c.execute(sql, base_params).fetchall()
     
     resultados = []
