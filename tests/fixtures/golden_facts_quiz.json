@@ -1,0 +1,48 @@
+{
+  "golden_facts": [
+    {
+      "id": "pele_artilheiro_paulista_1964",
+      "pergunta": "Quem foi o artilheiro do Campeonato Paulista de 1964 e com quantos gols?",
+      "artilheiro_esperado": "Pelé",
+      "clube_esperado": "Santos",
+      "ano": 1964,
+      "gols_esperados": 34
+    },
+    {
+      "id": "valdivia_palmeiras_gols",
+      "pergunta": "Quantos gols o Valdivia tem com a camisa do Palmeiras?",
+      "atleta_esperado": "Jorge Valdivia",
+      "clube_esperado": "Palmeiras",
+      "id_jogador": 15934,
+      "gols_carreira_palmeiras_esperados": 41,
+      "jogos_carreira_palmeiras_esperados": 241
+    },
+    {
+      "id": "final_paulistao_2020",
+      "pergunta": "Quem marcou os gols das finais do Paulista de 2020 e quem foi o campeão?",
+      "ano": 2020,
+      "campeao_esperado": "Palmeiras",
+      "confronto_final": "Palmeiras x Corinthians",
+      "data_volta": "2020-08-08",
+      "goleadores_volta": [
+        {"atleta": "Luiz Adriano", "clube": "Palmeiras", "minuto_prefix": "49"},
+        {"atleta": "Jô", "clube": "Corinthians", "minuto_prefix": "90"}
+      ]
+    },
+    {
+      "id": "bragantino_paulista_1991",
+      "pergunta": "Quantos gols o Bragantino fez no Paulista de 1991?",
+      "ano": 1991,
+      "clube": "Bragantino",
+      "jogos_minimos": 26,
+      "gols_pro_esperados": 24
+    },
+    {
+      "id": "edmundo_brasileirao_serie_a",
+      "pergunta": "Quantos gols o Edmundo tem na história do Campeonato Brasileiro Série A?",
+      "atleta": "Edmundo",
+      "id_jogador": 5168,
+      "gols_serie_a_esperados": 153
+    }
+  ]
+}
