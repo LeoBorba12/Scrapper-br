@@ -466,42 +466,14 @@ def importar_copa_do_brasil():
     print(f" -> {total_gols_inseridos} gols oficiais inseridos com autor e minuto")
     print(f" -> {total_cartoes_inseridos} cartões registrados")
     print("="*65)
-
-    # Reconstroi jogadores_resumo
-    print("\nRecalculando tabela jogadores_resumo...")
-    c.execute("""
-        UPDATE jogadores_resumo
-        SET total_gols = COALESCE((
-            SELECT COUNT(*) FROM gols WHERE gols.atleta = jogadores_resumo.nome
-        ), 0),
-        total_amarelos = COALESCE((
-            SELECT COUNT(*) FROM cartoes WHERE cartoes.atleta = jogadores_resumo.nome AND cartoes.cartao LIKE '%Amarelo%'
-        ), 0),
-        total_vermelhos = COALESCE((
-            SELECT COUNT(*) FROM cartoes WHERE cartoes.atleta = jogadores_resumo.nome AND cartoes.cartao LIKE '%Vermelho%'
-        ), 0)
-    """)
     conn.commit()
-
-    # Confere principais craques
-    print("\nTotais atualizados dos principais jogadores:")
-    for nome in ["Gabriel Barbosa", "Pedro", "Giorgian De Arrascaeta", "Hulk", "Raphael Veiga", "Germán Cano"]:
-        c.execute("""
-            SELECT nome, total_gols, total_amarelos, total_vermelhos,
-                   (SELECT COUNT(*) FROM gols g JOIN partidas p ON g.id_partida = p.id_partida WHERE g.atleta = jr.nome AND p.campeonato LIKE '%Copa do Brasil%' AND p.ano BETWEEN 2020 AND 2024) as gols_cdb
-            FROM jogadores_resumo jr
-            WHERE nome = ?
-        """, (nome,))
-        row = c.fetchone()
-        if row:
-            print(f"  {row[0]:<25}: {row[1]} gols no total (sendo {row[4]} gols na Copa do Brasil 2020-2024)")
-
     conn.close()
 
-    # Sincroniza para api/data/futebol.db
-    print(f"\nSincronizando {DB_LOCAL} -> {DB_API}...")
-    shutil.copy2(DB_LOCAL, DB_API)
-    print("Sincronização concluída com sucesso!")
+    # Sincroniza para api/data/futebol.db se existir o diretório
+    if os.path.exists("api/data"):
+        print(f"\nSincronizando {DB_LOCAL} -> {DB_API}...")
+        shutil.copy2(DB_LOCAL, DB_API)
+        print("Sincronização concluída com sucesso!")
 
 if __name__ == "__main__":
     importar_copa_do_brasil()

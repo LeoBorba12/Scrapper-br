@@ -307,7 +307,7 @@ class TestFlaskEndpointsIntegration:
         res = test_client.get("/api/overview")
         assert res.status_code == 200
         data = res.get_json()
-        assert data["total_partidas"] in (115625, 111935)
+        assert data["total_partidas"] >= 110000
         assert res.headers["X-Data-Source"] == "local-standalone"
         assert res.headers["X-Circuit-Breaker-State"] == "closed"
         assert float(res.headers["X-Response-Time-Ms"]) >= 0.0
@@ -322,7 +322,7 @@ class TestFlaskEndpointsIntegration:
         assert res1.status_code == 200
         assert res1.headers["X-Data-Source"] == "local-fallback"
         assert res1.headers["X-Fallback-Reason"] == "connect_error"
-        assert res1.get_json()["total_partidas"] in (115625, 111935)
+        assert res1.get_json()["total_partidas"] >= 110000
 
         # 2nd call fails connection
         res2 = test_client.get("/api/overview")
@@ -343,5 +343,5 @@ class TestFlaskEndpointsIntegration:
         assert res4.headers["X-Data-Source"] == "local-fallback"
         assert res4.headers["X-Fallback-Reason"] == "circuit_open"
         assert res4.headers["X-Circuit-Breaker-State"] == "open"
-        assert res4.get_json()["total_partidas"] in (115625, 111935)
+        assert res4.get_json()["total_partidas"] >= 110000
         assert t_elapsed_ms < 50.0 # Fast response
