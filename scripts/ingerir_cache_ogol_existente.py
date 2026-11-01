@@ -219,9 +219,10 @@ def ingerir_cache(db_path: str = DB_PATH, incluir_estaduais: bool = False) -> Di
         best_dist = 999
 
         for p in cand_list:
-            p_camp = clean_name(p.get("campeonato", ""))
-            if "brasileir" not in p_camp and "seriea" not in p_camp:
-                continue
+            if not incluir_estaduais:
+                p_camp = clean_name(p.get("campeonato", ""))
+                if "brasileir" not in p_camp and "seriea" not in p_camp:
+                    continue
             home_ok = (n_home in p["norm_m"] or p["norm_m"] in n_home)
             away_ok = (n_away in p["norm_v"] or p["norm_v"] in n_away)
             if home_ok and away_ok:
