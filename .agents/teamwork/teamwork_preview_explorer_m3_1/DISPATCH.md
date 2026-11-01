@@ -1,51 +1,30 @@
-# Task Assignment — Explorer M3-1 (Player Rating Integration & Dynamic Fallback Engine)
+## 2026-11-01T16:45:45Z
+You are teamwork_preview_explorer_m3_1, an Explorer investigating Athlete Career Totals & Clamping Removal for Milestone 3.
 
-## Identity
-- **Role**: Explorer (teamwork_preview_explorer)
-- **Milestone**: M3 (Motores Matemáticos de Ratings, xG & Backend APIs)
-- **Working Directory**: `/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_1`
+Working directory: /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_1
+Maintain progress.md in your working directory with 'Last visited: [timestamp]'.
 
-## Mission
-Investigate and formulate the exact code modifications for `backend/app.py` to integrate the Player Rating engine (Feature 8 of PROJECT.md):
-1. Inspect `backend/calculo_player_rating.py`:
-   - Understand the mathematical model: asymptotic `tanh` compression (range 0.0 - 10.0, base 6.50).
-   - Functions: `calcular_nota_partida_sofascore`, `calcular_rating_medio_temporada`, `calcular_impacto_tatico`.
-2. Inspect `backend/app.py`:
-   - Locate where `resumo["sofascore"]` is constructed in `/api/jogadores/perfil` (around lines 2680-2720).
-   - Currently, if `atleta_sofascore_ratings` has no record for the player, does it return `None` or an empty object?
-   - How should `backend/app.py` fall back dynamically to calculating the player rating from local appearances when no precomputed row exists in `atleta_sofascore_ratings`?
-   - Ensure the structure matches the interface contract:
-     ```json
-     {
-       "rating_medio": 7.45,
-       "jogos_avaliados": 158,
-       "fonte": "sofascore" | "futstats_scouting",
-       "ultimas_notas": [...]
-     }
-     ```
-3. Formulate the exact code diff for `backend/app.py` with imports and fallback logic.
-4. Test your logic using a Python snippet against test athletes (e.g. Luís Fabiano ID 9033, Pedro ID 10, Mycael ID 2066).
-5. Write your complete report with code diffs to `handoff.md` in your working directory and notify parent via `send_message`.
+Authoritative user request:
+Read /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/ORIGINAL_REQUEST.md (specifically see section ## 2026-11-01T14:16:05Z).
 
-## Authoritative Reference
-- `/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/ORIGINAL_REQUEST.md`
-- `/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/PROJECT.md`
+Project Blueprint:
+Read /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/PROJECT.md (Milestone 3).
 
-## 2026-10-30T20:50:51Z
-You are Explorer M3-1 (Player Rating Integration Investigator).
-Your working directory is:
-/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_1
+Mission & Scope:
+You are in READ-ONLY mode. Do NOT modify source code or run destructive operations.
+Investigate Feature 8 (Career Totals Reconciliation & 1.00 Ratio Removal):
+1. Examine `jogadores_estatisticas` table in `data/futebol.db`:
+   - Inspect columns (`id_jogador`, `nome_exibicao`, `total_jogos`, `total_gols`, `media_gols_por_jogo`, `clubes`, etc.).
+   - Query for athletes where `total_jogos == total_gols` (e.g. Paulinho Criciúma ID 6, and others). How many athletes currently have `total_jogos == total_gols`?
+   - Identify where in the codebase the artificial clamping `total_jogos = max(total_jogos, total_gols)` occurs (search scripts/, backend/, etc.).
+2. Investigate how to compute authentic appearances:
+   - Check `escalacoes` table: how many distinct matches does each `id_jogador` appear in?
+   - Check `jogadores_historicos` or career tables if present: what metadata exists?
+   - For athletes who have cataloged goals but 0 or fewer appearances than goals (because not all historical lineups exist), what is the statistically sound, realistic formula for estimated appearances (e.g. using minutes, known seasons, or official career appearances) so `media_gols_por_jogo` is realistic (never forced to 1.00)?
+3. Review `tests/test_e2e_decoupled.py::TestTier1FeatureCoverage::test_t1_reconcile_no_forced_jogos_equals_gols_systemwide` and `test_t1_reconcile_realistic_goals_per_game_ratio` to ensure the proposed implementation satisfies all assertions.
+4. Formulate an exact schema update, calculation algorithm, and reconciliation design.
 
-Please read your dispatch instructions at:
-/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_1/DISPATCH.md
-And PROJECT.md at:
-/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/PROJECT.md
-And ORIGINAL_REQUEST.md at:
-/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/ORIGINAL_REQUEST.md
+Write your findings and recommendations to:
+/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_1/handoff.md
 
-Your goal is to investigate backend/calculo_player_rating.py and backend/app.py for Feature 8:
-1. Understand the tanh asymptotic compression rating model (0.0-10.0, base 6.50).
-2. Connect backend/calculo_player_rating.py into backend/app.py: populate resumo["sofascore"] using atleta_sofascore_ratings when available, and dynamically calculate fallback rating from match events when not available.
-3. Formulate the exact code diff for backend/app.py.
-4. Test your logic on reference athletes (Luís Fabiano ID 9033, Pedro ID 10, Mycael ID 2066).
-5. Write your complete report with verified code diffs to handoff.md in your working directory and notify parent via send_message.
+When complete, notify parent da7384f3-57a9-4b6b-9373-94dcd5a6f441 via send_message.

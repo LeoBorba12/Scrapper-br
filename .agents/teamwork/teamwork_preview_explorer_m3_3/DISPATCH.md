@@ -69,3 +69,21 @@ Your goal is to investigate backend/app.py for Features 10 and 11, plus relation
 **Context**: Milestone M3 — Explorer M3-3 (Radar 5 Axes & Honest Career Average API)
 **Content**: Checking in on your status. Explorers M3-1 and M3-2 have completed their investigations and delivered their verified code diffs for Features 8 and 9. Please report your current progress on Features 10 (Radar PES), 11 (Honest Label "Jogos c/ Gol" & Career Average), and the total_gols resync queries, and let me know when we can expect your handoff.md.
 **Action**: Reply with your status or deliver handoff.md.
+
+## 2026-11-01T16:45:45Z
+Investigate Relational Governance, Storage Budget & E2E Reconcile Architecture for Milestone 3:
+1. Examine `scripts/auditar_integridade_dados.py`:
+   - Specifically Rule 1 (jogadores orfaos), Rule 4 (jogos vs gols), Rule 8 (medias irreais), Rule 10 (consistencia relacional).
+   - Ensure the reconciliation in M3 will preserve 12/12 rules OK with 0 anomalies.
+2. Examine `tests/test_model_evals.py`:
+   - Confirm which tables feed the Dixon-Coles and predictive models (`partidas`, `clubes_metricas`, etc.) and ensure modifying `jogadores_estatisticas` does not cause drift in the 22 model tests.
+3. Examine all 4 reconciliation tests in `tests/test_e2e_decoupled.py`:
+   - `test_t1_reconcile_no_forced_jogos_equals_gols_systemwide`
+   - `test_t1_reconcile_marcos_9488_homonym_disambiguation`
+   - `test_t1_reconcile_realistic_goals_per_game_ratio`
+   - `test_t1_reconcile_historic_scorers_career_totals`
+   - Map exact required conditions, schema adjustments, and data structures.
+4. Storage budget:
+   - Database size is currently 84.75 MB. Limit is 94.0 MB.
+   - How should `scripts/reconciliar_carreira_universal.py` execute (transactions, indexing, VACUUM) to ensure final size remains < 90 MB?
+5. Outline the architecture and execution plan for `scripts/reconciliar_carreira_universal.py`.

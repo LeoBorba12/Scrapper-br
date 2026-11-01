@@ -1,41 +1,35 @@
-# BRIEFING — 2026-10-30T21:01:30Z
+# BRIEFING — 2026-11-01T16:46:15Z
 
 ## Mission
-Investigate backend/calculo_player_rating.py and backend/app.py for Feature 8 (Player Rating Integration with tanh asymptotic compression and dynamic fallback), formulate exact code diffs, test against reference athletes, and deliver complete handoff report.
+Investigate Athlete Career Totals & Clamping Removal (Feature 8) for Milestone 3, producing an evidence-backed handoff with schema updates, reconciliation algorithms, and test compliance.
 
 ## 🔒 My Identity
 - Archetype: explorer
 - Roles: investigation, synthesis
 - Working directory: /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_1
-- Original parent: 9c2d948a-bd66-4e27-83b1-9e8d50e60942
-- Milestone: M3 (Motores Matemáticos de Ratings, xG & Backend APIs)
+- Original parent: da7384f3-57a9-4b6b-9373-94dcd5a6f441
+- Milestone: Milestone 3
 
 ## 🔒 Key Constraints
-- Read-only investigation — do NOT modify application source code directly (only metadata/handoffs in own folder)
-- Ensure exact interface contract matching for resumo["sofascore"]
-- Support both precomputed Sofascore ratings and dynamic fallback rating calculation
-- Verify with reference athletes (Luís Fabiano ID 9033, Pedro ID 10, Mycael ID 2066)
+- Read-only investigation — do NOT implement
+- Do NOT modify source code or run destructive operations
+- Maintain progress.md with 'Last visited: [timestamp]'
+- Produce 5-component handoff report (Observation, Logic Chain, Caveats, Conclusion, Verification Method)
+- Communicate via send_message to parent da7384f3-57a9-4b6b-9373-94dcd5a6f441
 
 ## Current Parent
-- Conversation ID: 9c2d948a-bd66-4e27-83b1-9e8d50e60942
-- Updated: not yet
+- Conversation ID: da7384f3-57a9-4b6b-9373-94dcd5a6f441
+- Updated: 2026-11-01T16:46:15Z
 
 ## Investigation State
-- **Explored paths**: `PROJECT.md`, `ORIGINAL_REQUEST.md`, `backend/calculo_player_rating.py`, `backend/app.py`, `tests/test_e2e_futstats.py`, `tests/test_model_evals.py`, `scripts/scraper_sofascore_ratings_pipeline.py`, `data/futebol.db`
-- **Key findings**:
-  1. `backend/app.py:2750-2769` only reads from `atleta_sofascore_ratings` (which has only 8 athletes) and returns `null` for all others (including Luís Fabiano 9033 and Mycael 2066). Missing `"fonte"` key as well.
-  2. `backend/calculo_player_rating.py` implements the tanh asymptotic compression rating model (base 6.50, range 0.0-10.0, K_POS=2.65, K_NEG=4.50).
-  3. `normalizar_posicao` defaults `'Goalkeeper'` to `'Centroavante'` because it checks `'gol'` and `'guarda'`, but not `'keeper'`. Defensive normalization needed in `calculo_player_rating.py` and `app.py`.
-  4. In `app.py`, `partidas_ordenadas` is already built in-memory inside `_construir_perfil_jogador` with minutes, goals, cards, and team score/conceded goals. Dynamic fallback evaluates each match with zero additional DB latency.
-  5. Verified against Pedro (ID 10, rating 7.38 from DB, fonte: "sofascore"), Luís Fabiano (ID 9033, rating 7.80, 158 jogos, fonte: "futstats_scouting"), and Mycael (ID 2066, rating 6.02, 29 jogos, fonte: "futstats_scouting").
-- **Unexplored areas**: None. Full evidence chain established.
+- **Explored paths**: None yet
+- **Key findings**: None yet
+- **Unexplored areas**: `jogadores_estatisticas` schema & queries, clamping occurrences in codebase, `escalacoes` & career appearance data, test requirements in `tests/test_e2e_decoupled.py`
 
 ## Key Decisions Made
-- Formulated exact unified code diffs for `backend/app.py` and enhancements for `backend/calculo_player_rating.py`.
-- Verified in-memory patch with `app.test_client()` passing status 200 and generating exact contract payloads.
+- Starting systematic investigation of database tables and codebase references.
 
 ## Artifact Index
-- DISPATCH.md — Task assignment and instructions
-- BRIEFING.md — Working memory and situational awareness
-- progress.md — Liveness heartbeat
-- handoff.md — Complete 5-component handoff report
+- DISPATCH.md — Stored dispatch
+- BRIEFING.md — Situational awareness
+- progress.md — Liveness tracker

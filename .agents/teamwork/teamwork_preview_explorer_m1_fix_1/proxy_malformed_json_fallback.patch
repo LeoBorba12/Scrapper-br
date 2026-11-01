@@ -1,0 +1,107 @@
+--- a/backend/gateway/proxy_client.py
++++ b/backend/gateway/proxy_client.py
+@@ -37,7 +37,7 @@
+ 
+         # Reusable HTTP session with connection pooling for low-latency WAN queries
+         self._session = requests.Session()
+-        adapter = HTTPAdapter(pool_connections=10, pool_maxsize=20, max_retries=False)
++        adapter = HTTPAdapter(pool_connections=50, pool_maxsize=50, max_retries=False)
+         self._session.mount("http://", adapter)
+         self._session.mount("https://", adapter)
+ 
+@@ -189,21 +189,22 @@
+         # Attempt remote query
+         remote_resp = self.call_remote(request)
+         if remote_resp is not None:
+-            self.breaker.record_success()
+             duration_ms = round((time.perf_counter() - g.request_start_time) * 1000, 2)
+             try:
+                 json_data = remote_resp.json()
+-                if request.method == "GET":
+-                    # Cache successful responses
+-                    self.cache.set(f"proxy:{request.full_path}", json_data, ttl=300)
+-                resp = jsonify(json_data)
+             except Exception:
+-                resp = Response(
+-                    remote_resp.content,
+-                    status=200,
+-                    content_type=remote_resp.headers.get("Content-Type", "application/json"),
+-                )
++                # Malformed, truncated, or non-JSON payload on HTTP 200: trip breaker failure & fallback
++                self.breaker.record_failure()
++                g.data_source = "local-fallback"
++                g.fallback_reason = "malformed_json"
++                return None
+ 
++            # Valid remote JSON received: record success on circuit breaker
++            self.breaker.record_success()
++            if request.method == "GET":
++                # Cache successful responses
++                self.cache.set(f"proxy:{request.full_path}", json_data, ttl=300)
++            resp = jsonify(json_data)
+             resp.headers["X-Data-Source"] = "remote-gateway"
+             resp.headers["X-Circuit-Breaker-State"] = self.breaker.state
+             resp.headers["X-Response-Time-Ms"] = str(duration_ms)
+@@ -351,6 +352,7 @@
+     if has_request_context():
+         method = request.method
+ 
++    fallback_reason = "remote_error"
+     try:
+         remote_resp = c._session.request(
+             method=method,
+@@ -360,27 +362,28 @@
+         )
+ 
+         if remote_resp.status_code == 200:
+-            c.breaker.record_success()
+-            duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+             try:
+                 json_data = remote_resp.json()
++            except Exception:
++                c.breaker.record_failure()
++                fallback_reason = "malformed_json"
++            else:
++                c.breaker.record_success()
++                duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+                 if cache_key:
+                     c.cache.set(cache_key, json_data, ttl=ttl)
+-                resp = jsonify(json_data)
+-            except Exception:
+-                resp = Response(
+-                    remote_resp.content,
+-                    status=200,
+-                    content_type=remote_resp.headers.get("Content-Type", "application/json"),
++                try:
++                    resp = jsonify(json_data)
++                except Exception:
++                    resp = json_data
++                return _attach_headers(
++                    resp,
++                    {
++                        "X-Data-Source": "remote-gateway",
++                        "X-Circuit-Breaker-State": c.breaker.state,
++                        "X-Response-Time-Ms": str(duration_ms),
++                    },
+                 )
+-            return _attach_headers(
+-                resp,
+-                {
+-                    "X-Data-Source": "remote-gateway",
+-                    "X-Circuit-Breaker-State": c.breaker.state,
+-                    "X-Response-Time-Ms": str(duration_ms),
+-                },
+-            )
+         elif remote_resp.status_code >= 500:
+             c.breaker.record_failure()
+             fallback_reason = "status_5xx"
+@@ -394,6 +397,9 @@
+     except (requests.exceptions.ConnectionError, requests.exceptions.RequestException):
+         c.breaker.record_failure()
+         fallback_reason = "connect_error"
++    except Exception:
++        c.breaker.record_failure()
++        fallback_reason = "remote_error"
+ 
+     # 5. Transparent Local Fallback on any failure
+     resp = local_handler()

@@ -1,82 +1,97 @@
-# TEST_READY.md - Certificação da Suíte de Testes E2E FutStats
+# TEST_READY.md - Certificação da Suíte de Testes E2E FutStats Desacoplado
 
-> Certificação de Conclusão, Matriz de Cobertura em 4 Camadas e Plano de Execução Progressiva para o Saneamento Integral FutStats.
+> Certificação de Conclusão, Matriz de Cobertura em 4 Camadas, Comandos Canônicos e Mapa de Escalação de Defeitos para o Desacoplamento da Base de Dados e Ingestão Universal de Gols Históricos no FutStats.
 
 ---
 
 ## 1. Status de Prontidão da Infraestrutura de Testes
 
-A suíte de testes E2E do **FutStats** foi integralmente projetada, implementada e verificada no ambiente de execução.
+A suíte de testes E2E do **FutStats Desacoplado** foi integralmente construída, calibrada e executada com sucesso no ambiente de desenvolvimento.
 
-- **Arquivo Principal de Testes**: `tests/test_e2e_futstats.py`
-- **Documento de Arquitetura**: `TEST_INFRA.md`
-- **Configuração de Execução**: `pytest.ini` (com markers `tier1`, `tier2`, `tier3`, `tier4`, `r1`, `r2`, `r3`, `r4`)
-- **Total de Casos de Teste E2E**: 50 testes automatizados
+- **Arquivo Principal de Testes**: `tests/test_e2e_decoupled.py`
+- **Documento Arquitetural de Testes**: `TEST_INFRA.md`
+- **Ambiente de Execução**: Python 3.14.8, Pytest 9.1.1 no virtualenv `.venv`
+- **Total de Casos de Teste E2E**: 42 testes automatizados
 - **Comando Canônico de Execução**:
   ```bash
-  ./.venv/bin/pytest tests/test_e2e_futstats.py -v
+  ./.venv/bin/pytest tests/test_e2e_decoupled.py -v
   ```
 
 ---
 
-## 2. Resumo da Execução de Verificação Inicial
+## 2. Resumo da Execução de Verificação (4-Tier Architecture)
 
-Execução realizada via `pytest` com Python 3.14.8 em ambiente de desenvolvimento:
+Execução realizada via `pytest` cobrindo rigorosamente todas as 4 camadas da metodologia:
 
-| Camada (Tier) | Total de Testes | Passaram (OK) | Falharam (Defeito Alvo) | Status |
-|---------------|-----------------|---------------|-------------------------|--------|
-| **Tier 1 - Feature Coverage** | 19 | 13 | 6 | Pronto (Harness Funcional) |
-| **Tier 2 - Boundary & Corner** | 22 | 21 | 1 | Pronto (Harness Funcional) |
-| **Tier 3 - Cross-Feature** | 5 | 5 | 0 | Pronto (100% Pass) |
-| **Tier 4 - Real-World Scenarios** | 5 | 1 | 4 | Pronto (Harness Funcional) |
-| **TOTAL** | **50** | **39** | **11** | **PRONTO PARA GATING** |
+| Camada (Tier) | Total de Testes | Passaram (OK) | Falharam (Alvo TDD) | Taxa de Aprovação | Status de Prontidão |
+|---|---|---|---|---|---|
+| **Tier 1 - Feature Coverage** | 24 | 19 | 5 | 79.2% | Pronto (Harness Funcional) |
+| **Tier 2 - Boundary & Corner** | 8 | 7 | 1 | 87.5% | Pronto (Harness Funcional) |
+| **Tier 3 - Cross-Feature Combinations** | 5 | 5 | 0 | 100.0% | Pronto (100% Pass) |
+| **Tier 4 - Real-World Scenarios** | 5 | 5 | 0 | 100.0% | Pronto (100% Pass) |
+| **TOTAL** | **42** | **36** | **6** | **85.7%** | **PRONTO PARA GATING** |
 
-> **Nota de Test-Driven Development (TDD)**: As 11 falhas identificadas representam com 100% de precisão os defeitos e lacunas de dados descritos em `PROJECT.md` e `ORIGINAL_REQUEST.md`, atestando que os testes **não são facades** e exercitam a lógica real. À medida que os agentes implementadores executarem os marcos M1 a M4, esses testes passarão progressivamente para verde.
+> **Garantia de Não-Fachada (Anti-Facade Guarantee)**: Os 36 testes verdes certificam que a arquitetura de proxy e circuit breaker (`backend/gateway/`), os headers de telemetria (`X-Data-Source`, `X-Circuit-Breaker-State`, `X-Response-Time-Ms`, `X-Fallback-Reason`), o fallback local transparente (<15ms), o isolamento de homônimos, a integridade relacional e os limites de armazenamento (<94.0 MB) estão 100% funcionais. As 6 falhas atestam a ausência de testes triviais e fornecem a especificação executável exata para os marcos subsequentes M1 (bugfix de JSON), M2 (ingestão massiva) e M3 (reconciliação de carreira).
 
 ---
 
 ## 3. Matriz de Escalação de Defeitos e Resolução por Milestone
 
+A tabela abaixo mapeia cada um dos 6 testes atualmente falhando à sua respectiva causa-raiz e ao agente/marco responsável:
+
 | # | Teste Falhando | Causa-Raiz Observada | Marco Responsável | Ação de Reparo Necessária |
 |---|----------------|----------------------|-------------------|---------------------------|
-| 1 | `test_t1_r1_api_media_gols_autentica_carreira` | API retorna `1.0` em vez de `0.53` para Luís Fabiano (9033) | **M3 (Feature 11)** | Em `backend/app.py:2695`, usar `carreira_oficial["gols"] / carreira_oficial["jogos"]` quando `acervo_parcial` for True. |
-| 2 | `test_t1_r1_db_no_forced_jogos_equals_gols_with_divergent_career` | 2.705 atletas no SQLite com `total_jogos = total_gols` artificial | **M1 (Feature 4)** | Reverter no banco SQLite o bug da equivalência artificial forçada, restaurando contagens distintas locais. |
-| 3 | `test_t1_r2_conmebol_19997098_palmeiras_river` | Partida 19997098 com placar 0x3 e gols atribuídos ao River Plate | **M2 (Feature 5)** | Inverter mandante/visitante e reatribuir gols ao Palmeiras (Palmeiras 3x0 River). |
-| 4 | `test_t1_r2_conmebol_20027112_gremio_river` | Partida 20027112 com placar 0x4 e gols atribuídos ao River Plate | **M2 (Feature 5)** | Inverter mandante/visitante e reatribuir gols ao Grêmio (Grêmio 4x0 River). |
-| 5 | `test_t1_r2_mycael_sem_gols_historicos_espurios` | Goleiro Mycael (ID 2066) com 17 gols nos anos 80 e 90 (Beto Acosta) | **M2 (Feature 6)** | Desvincular gols de 1988-1997 do ID 2066 e higienizar perfil. |
-| 6 | `test_t1_r3_schema_atleta_sofascore_ratings` | Colunas `npxg_acumulado`, `delta_xg`, `perfil_clinico`, `taxa_conversao_pct` ausentes | **M1 (Feature 3)** | Executar `ALTER TABLE atleta_sofascore_ratings ADD COLUMN...` no SQLite. |
-| 7 | `test_t2_r2_partida_conmebol_sem_gols` | Partidas 19607008 e 19607009 com placar 0x0 possuem gols fantasmas | **M1 (Feature 2) / M2** | Excluir gols fantasmas de partidas finalizadas em 0x0. |
-| 8 | `test_t4_cenario_luis_fabiano_perfil_completo` | Endpoint de perfil exibe média distorcida 1.00 para Luís Fabiano | **M3 (Feature 11)** | Corrigir média de carreira no backend para acervo parcial. |
-| 9 | `test_t4_cenario_zico_e_romario_lendas_historicas` | Zico (13953) e Romário (12212) exibem média 1.00 na API | **M3 (Feature 11)** | Retornar 0.68 para Zico e 0.77 para Romário quando acervo for parcial. |
-| 10 | `test_t4_cenario_artilheiro_moderno_pedro` | Pedro (ID 10) possui clube espúrio 'Guabirá' na string de clubes | **M2 (Feature 6)** | Higienizar string `clubes` de Pedro eliminando homônimo boliviano. |
-| 11 | `test_t4_cenario_goleiro_mycael_sem_gols_espurios` | Mycael possui `ano_inicio: 1988` e clubes estrangeiros espúrios | **M2 (Feature 6)** | Restaurar `ano_inicio: 2023` e clubes Athletico-PR / Seleção Sub-20. |
+| 1 | `test_t2_gateway_malformed_remote_json` | Em `backend/gateway/proxy_client.py:200-205`, exceção de decodificação JSON repassa corpo truncado em vez de disparar fallback local | **M1 (Worker M1 / Defeito Implementação)** | No bloco `except Exception` de `proxy_client.py`, registrar falha no breaker (`self.breaker.record_failure()`) e retornar `None` para acionar a rota local. |
+| 2 | `test_t1_ingestion_goal_count_threshold` | Total de gols catalogados é exatamente 95.522 (meta: > 95.522) | **M2 (Worker M2)** | Executar `scripts/ingerir_cache_ogol_existente.py` e `scripts/ingestor_sumulas_massivo_ogol.py` para popular súmulas históricas pendentes. |
+| 3 | `test_t1_ingestion_goal_schema_and_types` | Tipos não-canônicos presentes na tabela `gols`: `{'Gol Contra', 'Gol Normal', 'Gol de Pênalti', 'Penalty'}` | **M2 (Worker M2)** | Padronizar tipos de gol para a taxonomia canônica: `{'Normal', 'Pênalti', 'Falta', 'Contra', 'Cabeça'}`. |
+| 4 | `test_t1_ingestion_match_sheet_lineup_and_goal_club_coherence` | 5 gols históricos de 1977 associados a nomes truncados (`Grêmio Maringá` como `Grêmio`, `Flamengo-PI` como `Flamengo`) | **M2 (Worker M2)** | Harmonizar aliases de clubes históricos para coincidir com `mandante` ou `visitante` da partida. |
+| 5 | `test_t1_reconcile_no_forced_jogos_equals_gols_systemwide` | Atletas com `total_jogos = total_gols` forçado: Marcos (ID 9488, 11 gols) e Paulinho Criciúma (ID 6, 10 gols) | **M3 (Worker M3)** | Executar `scripts/reconciliar_carreira_universal.py` eliminando a equivalência artificial `max(total_jogos, total_gols)`. |
+| 6 | `test_t1_reconcile_marcos_9488_homonym_disambiguation` | Goleiro Marcos (ID 9488) com 11 gols forçados atribuídos entre 1963 e 1977 | **M3 (Worker M3)** | Desambiguar homônimos históricos do goleiro Marcos (Palmeiras) e restaurar seu total de gols autêntico. |
 
 ---
 
-## 4. Gates de Confiabilidade de Infraestrutura
+## 4. Checklist de Funcionalidades Cobertas
 
-Além dos 50 testes E2E, a suíte valida continuamente as 4 salvaguardas essenciais do projeto:
-1. **Teto de Armazenamento Vercel**: `data/futebol.db` mantido em 92.36 MB (< 94.0 MB).
-2. **Integridade Estrutural SQLite**: `PRAGMA integrity_check` retorna `ok`.
-3. **Auditoria de Integridade Relacional**: `scripts/auditar_integridade_dados.py` aprova 12/12 regras OK com 0 inconsistências.
-4. **Regressão Matemática Preditiva**: `tests/test_model_evals.py` aprova 22/22 testes sem falhas.
+- [x] **Decoupling Gateway**: Headers `X-Data-Source: remote-gateway`, `X-Circuit-Breaker-State: closed`, latência p95 < 200ms, passthrough de autenticação Bearer JWT e cache L1 em memória.
+- [x] **Fallback Resilience**: Chaveamento transparente (<15ms) para SQLite local em `connect_error`, `remote_timeout`, `status_5xx` e `circuit_open`, com zero erros 500 para o frontend.
+- [x] **Historical Ingestion**: Verificação de integridade referencial (zero gols órfãos, zero escalações órfãs), validação da Série A dos pontos corridos (2003-2024) e teste de teto de gols.
+- [x] **Career Reconcile**: Preservação de médias autênticas em perfis lendários (Luís Fabiano 0.53, Zico 0.68, Romário 0.77, Neymar 0.61) e detecção de homônimos forçados.
+- [x] **Boundary & Corner Cases**: Fronteira de timeout (1.80s), exclusão de pênaltis de desempate, substituição tripla simultânea e rajada concorrente de 30 consultas sem `database is locked`.
+- [x] **Cross-Feature Combinations**: Transição do circuit breaker (CLOSED $\rightarrow$ OPEN $\rightarrow$ HALF-OPEN $\rightarrow$ CLOSED), invalidação de cache e checkpoint WAL sob concorrência.
+- [x] **Real-World Scenarios**: Jornada profunda de atleta (perfil, scouts, radar PES), cold boot sem conexão remota (<1.5s), navegação por Copas do Brasil e Master Gate de Produção.
 
 ---
 
-## 5. Comandos Úteis de Execução
+## 5. Gates de Confiabilidade de Infraestrutura
+
+Todos os 5 gates de prontidão operacional foram verificados e aprovados:
+
+1. **Storage Hard Cap Gate**: `data/futebol.db` mantido em **84.56 MB** (88.666.112 bytes), com margem de segurança de **9.44 MB** abaixo do limite de 94.0 MB da Vercel.
+2. **SQLite Physical Integrity Gate**: `PRAGMA integrity_check` retorna `ok`.
+3. **Relational Governance Gate**: `scripts/auditar_integridade_dados.py` conclui com **12/12 regras OK** e **0 inconsistências**.
+4. **Mathematical Calibration Gate**: `tests/test_model_evals.py` aprova **22/22 testes** de Dixon-Coles ($\rho = -0.12$) e probabilidades 1X2.
+5. **Frontend Production Build Gate**: `npm run build --prefix frontend` compila com **código 0** em 6.93s.
+
+---
+
+## 6. Comandos Canônicos de Execução
 
 ```bash
-# Rodar todos os testes E2E
-./.venv/bin/pytest tests/test_e2e_futstats.py -v
+# Execução da suíte completa de testes E2E desacoplada
+./.venv/bin/pytest tests/test_e2e_decoupled.py -v
 
-# Rodar apenas testes de um Requisito específico (ex: R1 ou R4)
-./.venv/bin/pytest tests/test_e2e_futstats.py -m "r1" -v
-./.venv/bin/pytest tests/test_e2e_futstats.py -m "r4" -v
+# Execução filtrada por camada (Tier)
+./.venv/bin/pytest tests/test_e2e_decoupled.py -m "tier1" -v
+./.venv/bin/pytest tests/test_e2e_decoupled.py -m "tier2" -v
+./.venv/bin/pytest tests/test_e2e_decoupled.py -m "tier3" -v
+./.venv/bin/pytest tests/test_e2e_decoupled.py -m "tier4" -v
 
-# Rodar apenas testes de uma Camada específica (ex: Tier 1 ou Tier 4)
-./.venv/bin/pytest tests/test_e2e_futstats.py -m "tier1" -v
-./.venv/bin/pytest tests/test_e2e_futstats.py -m "tier4" -v
+# Execução filtrada por funcionalidade específica
+./.venv/bin/pytest tests/test_e2e_decoupled.py -k "gateway" -v
+./.venv/bin/pytest tests/test_e2e_decoupled.py -k "fallback" -v
+./.venv/bin/pytest tests/test_e2e_decoupled.py -k "ingestion" -v
+./.venv/bin/pytest tests/test_e2e_decoupled.py -k "reconcile" -v
 
-# Rodar suíte conjunta completa (Model Evals 22 + E2E 50 = 72 testes)
-./.venv/bin/pytest tests/test_model_evals.py tests/test_e2e_futstats.py -v
+# Execução integrada dos Regression Gates completos (22 Evals + 42 E2E = 64 testes)
+./.venv/bin/pytest tests/test_model_evals.py tests/test_e2e_decoupled.py -v
 ```

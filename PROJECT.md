@@ -1,75 +1,93 @@
-# Project: Saneamento Integral FutStats
+# Project: FutStats Database Decoupling & Universal Historical Goals Ingestion
 
 ## Architecture
-- **Data Layer (`data/futebol.db`)**: SQLite 3 database containing 115k+ matches (`partidas`), 152k+ lineups (`escalacoes`), 95k+ goals (`gols`), cards (`cartoes`), odds (`odds_partidas`), player profiles (`jogadores_estatisticas`) and official scouting ratings (`atleta_sofascore_ratings`).
-- **Backend Services (`backend/`)**: Flask REST application (`app.py`), mathematical model for match predictions (Dixon-Coles / Poisson bivariate in `test_model_evals.py`), player rating algorithm (`calculo_player_rating.py` with tanh asymptotic compression), discrete Opta expected goals model (`calculo_xg_discreto.py`).
-- **Frontend Presentation (`frontend/`)**: Vite + React 18 single page application, editorial design system (Areia `#F1E8DE`, Carvão `#1B1A17`, Oliva `#5A673E`, Terracota `#85573B`), modular components (`ProtagonistaAtleta.jsx`, `AthleteCompareView.jsx`), native SVG charts (`RadarPentagonPES.jsx`, `AthleteCareerTimeline.jsx`, `AthleteCareerBarChart.jsx`), report generators (`cardGenerator.js`, `pdfReportGenerator.js`).
-- **Integrity & Verification Scripts (`scripts/`)**: `auditar_integridade_dados.py` (12 relational consistency rules).
+- **Two-Tier Decoupled Data Architecture**:
+  - **Tier 1 (Master Historical Archive - Remote Database Gateway)**:
+    - Hosted on the 24/7 Oracle Cloud VM (`163.176.87.218`, Ashburn us-east-1).
+    - Hosts the master archive database without storage limits (>50 GB disk capacity), receiving all 69,777 historical match sheets, all 207,658 goals, and complete lineups.
+    - Serves REST API queries via `scripts/remote_gateway_daemon.py` on Waitress/Uvicorn, answering queries in 1 HTTP hop (~35-40ms).
+  - **Tier 2 (Resilient Edge Proxy & Local Fallback on Vercel)**:
+    - Operates as a serverless proxy in `backend/gateway/` (`proxy_client.py`, `circuit_breaker.py`, `cache_manager.py`).
+    - 3-tier defense: In-Memory TTL Cache (<3ms), Upstream Remote Gateway with Circuit Breaker (timeout 1.8s, trips to OPEN after 3 failures for 60s), and Instantaneous Transparent Fallback to local bundled SQLite (`data/futebol.db`) on any error or timeout (<15ms).
+    - Local fallback database maintained strictly < 91.0 MB (below Vercel's 94.0 MB limit) with VACUUM.
+    - Zero UI errors, zero changes required to frontend `apiFetch`.
+- **Universal Historical Goals Ingestion Pipeline**:
+  - `scripts/ingerir_cache_ogol_existente.py`: Instant harvest of 6,225 cached match sheets and 16,535 goals in `data/cache_ogol_brasileirao/`.
+  - `scripts/consolidar_duplicatas_partidas.py`: Resolves 3,710 almost-duplicate matches across Serie A and Copa do Brasil.
+  - `scripts/ingestor_sumulas_massivo_ogol.py`: Batch ingestion pipeline for Serie A points era (2003-present) and Copa do Brasil, capturing goalscorers, minutes, goal types, and lineups (`escalacoes`).
+  - `scripts/reconciliar_carreira_universal.py`: Recalculates player career appearances and totals, removes artificial 1.00 clamping `max(total_jogos, total_gols)`, resolves homonym collisions (such as Marcos ID 9488), and guarantees authentic career averages (0.35-0.65).
+- **Quality Assurance & Relational Governance**:
+  - `scripts/auditar_integridade_dados.py`: Enforces 12/12 relational integrity rules with 0 anomalies.
+  - `tests/test_model_evals.py`: 22/22 mathematical regression tests for Dixon-Coles ($\rho = -0.12$), probabilities, and +EV gating.
+  - `frontend/`: `npm run build` exits with code 0.
+  - `tests/test_e2e_decoupled.py`: Comprehensive 4-Tier E2E test suite (Feature coverage, Boundary/Corner, Cross-feature, Real-world application).
 
 ## Feature Inventory
+Every feature from the Survey phase appears here with its assigned milestone:
 | # | Feature | Description | Milestone | Source |
-|---|---------|-------------|-----------|--------|
-| 1 | SQLite Storage Optimization (<94 MB) | Drop redundant indexes (`idx_partidas_data`, `idx_escalacoes_atleta`), drop legacy table `jogadores_resumo`, run VACUUM to reduce DB from 96.9 MB to ~88.5 MB (>5.4 MB margin below Vercel 94 MB limit). | M1 | Survey DB |
-| 2 | Relational Audit Script Saneamento | Fix `scripts/auditar_integridade_dados.py`: renumber 1-12 sequentially, remove harmful auto-repair `SET total_jogos = MAX(total_jogos, total_gols)`, add checks for 0x0 matches with ghost goals and clubs with scraping titles. | M1 | Survey DB |
-| 3 | Schema Expansion `atleta_sofascore_ratings` | Add columns `npxg_acumulado REAL`, `delta_xg REAL`, `perfil_clinico TEXT`, `taxa_conversao_pct REAL` to table `atleta_sofascore_ratings`. | M1 | Survey DB |
-| 4 | Reversão do Bug Jogos=Gols no SQLite | Restore authentic `total_jogos` in `jogadores_estatisticas` based on distinct appearances in catalog for the 2,705 athletes artificially forced to total_jogos = total_gols, while preserving `gols_carreira_oficiais` and `jogos_carreira_oficiais`. | M1 | Survey DB / Backend |
-| 5 | Reparo de Partidas Conmebol Invertidas | Fix reversed scores and teams in historical Conmebol matches (19997098 Palmeiras 3x0 River, 20027112 Grêmio 4x0 River) and sanitize ghost scraping matches. | M2 | Survey Backend / DB |
-| 6 | Higienização de Homônimos e Clubes Espúrios | Disassociate invalid cross-linked goals/lineups (Mycael ID 2066 vs Beto Acosta, Pedro ID 10 vs Guabirá) and purge foreign clubs (River Plate, U. de Chile, Boca, San Lorenzo, etc.) from Brazilian players' career club strings. | M2 | Survey DB / Backend |
-| 7 | Validação de Carreira Limpa Luís Fabiano | Guarantee Luís Fabiano (ID 9033) exhibits strictly genuine clubs (Vasco, São Paulo, Ponte Preta) with zero foreign Conmebol clubs. | M2 | Survey DB / User Req |
-| 8 | Backend Player Rating Integration (tanh) | Connect `backend/calculo_player_rating.py` (asymptotic tanh 0.0-10.0 compression, base 6.50) into `backend/app.py` as default rating engine for all athletes, using `atleta_sofascore_ratings` when available and dynamic calculation as fallback. | M3 | Survey Backend |
-| 9 | Backend xG/npxG/Delta xG & Clinical Profile | Connect `backend/calculo_xg_discreto.py` in `backend/app.py`: replace flawed inline formula (which forced negative delta xG), calculate authentic xG, npxG, Delta xG, and classify elite strikers correctly as "Clínico de Elite". | M3 | Survey Backend |
-| 10 | Backend Radar Pentagonal PES Eixos | Compute 5 defensive axes (`atk`, `fin`, `cri`, `fis`, `def`) with overall `ovr` (40-99 scale) in `backend/app.py` ensuring zero nulls for key athletes. | M3 | Survey Backend |
-| 11 | Backend Rótulo Honesto e Média Carreira | In `_construir_perfil_jogador`, when `acervo_parcial` is true, return authentic career average `media_gols` (`carreira_oficial["gols"] / carreira_oficial["jogos"]`, e.g. 0.53 for Luís Fabiano) and `jogos_rotulo: "Jogos c/ Gol"`. | M3 | Survey Backend |
-| 12 | Frontend Badge Sofascore / Rating WCAG 2.2 AA | Update `ProtagonistaAtleta.jsx` badge from illegal neon green `#22c55e` (contrast 1.73:1) to editorial tokens `var(--positive)` (`#526337`, contrast 5.31:1) and support both Sofascore and FutStats ratings. | M4 | Survey Frontend |
-| 13 | Frontend Média Leak Elimination | Fix average calculation bypasses in `AthleteCareerTimeline.jsx:234`, `AthleteCareerBarChart.jsx:222`, `cardGenerator.js:199`, and `pdfReportGenerator.js:16` to prevent revival of 1.00 average. | M4 | Survey Frontend |
-| 14 | Frontend Radar Pentagonal & Empty State | Connect `RadarPentagonPES.jsx` to API payload `atleta.radar_pes` and implement honest empty state container when athlete lacks data. | M4 | Survey Frontend |
-| 15 | Frontend Club List Defensive Shielding | Verify and render authentic career clubs in `ProtagonistaAtleta.jsx` and `AthleteCompareView.jsx`. | M4 | Survey Frontend |
-| 16 | Frontend Build Verification | Verify `npm run build` exits with code 0 without rollup/bundle errors. | M4 | Survey Frontend |
-| 17 | E2E Testing Suite (Tiers 1-4) | Comprehensive opaque-box test suite verifying all 4 requirements, generating `TEST_READY.md`. | M5 | E2E Test Track |
-| 18 | Final Acceptance Verification | Verify 22/22 pytest in `tests/test_model_evals.py`, 12/12 in `scripts/auditar_integridade_dados.py`, database size < 94.0 MB, and frontend build code 0. | M5 | User Req |
+|---|---|---|---|---|
+| 1 | Resilient Proxy & Circuit Breaker Architecture | Implement `backend/gateway/` (`circuit_breaker.py`, `proxy_client.py`, `cache_manager.py`) with 3-state circuit breaker (closed/open/half-open) and 1.8s timeout. | M1 | Survey Infra |
+| 2 | Telemetry Headers & Fallback Reason Routing | Add `X-Data-Source`, `X-Circuit-Breaker-State`, `X-Response-Time-Ms`, and `X-Fallback-Reason` to all API responses without breaking frontend contract. | M1 | Survey Infra |
+| 3 | Remote API Gateway Daemon & Systemd Service | Create `scripts/remote_gateway_daemon.py` and `scripts/futstats-gateway.service` for high-performance Oracle Cloud VM deployment. | M1 | Survey Infra |
+| 4 | Decoupled 24/7 Daemon Sync | Update `scripts/orquestrador_mestre_24x7.py` to write heavy database updates to the remote master database while keeping local git commits under 91 MB. | M1 | Survey Infra |
+| 5 | Cache Harvest Ingestion (6,225 sheets, 16,535 goals) | Process `data/cache_ogol_brasileirao/` into `gols` and `escalacoes`, exceeding the 95,522 goals threshold immediately without network calls. | M2 | Survey Data |
+| 6 | Match Deduplication & Canonical Consolidation | Canonicalize and deduplicate 3,710 almost-duplicate matches across Serie A and Copa do Brasil caused by name/date jitter. | M2 | Survey Data |
+| 7 | Massive Historical Match Sheet & Goals Ingestion | Ingest Serie A (2003-present) and Copa do Brasil match sheets with goal types, exact minutes, and lineups into master archive and local DB. | M2 | Survey Data / Req R2 |
+| 8 | Systematic Career Reconciliation & 1.00 Ratio Removal | Eliminate `max(total_jogos, total_gols)` artificial clamping, compute authentic career appearances, and fix homonyms (Marcos ID 9488). | M3 | Survey Data / Req R2 |
+| 9 | Relational Integrity Preservation (12/12 Rules OK) | Ensure all 12 rules of `scripts/auditar_integridade_dados.py` report 100% OK with 0 anomalies across all 115k+ matches. | M3 | Survey QA / Req R3 |
+| 10 | Mathematical Regression Preservation (22/22 Passed) | Ensure all 22 tests in `tests/test_model_evals.py` remain passed with 0 drift in Dixon-Coles parameters. | M3 | Survey QA / Req R3 |
+| 11 | Frontend Production Build Verification (Code 0) | Ensure `npm run build` in `frontend/` compiles with 0 errors and bundle meets Vercel limits. | M3 | Survey QA / Req R3 |
+| 12 | 4-Tier E2E Testing Suite Implementation | Implement comprehensive test suite in `tests/test_e2e_decoupled.py` (Tier 1: Feature, Tier 2: Boundary, Tier 3: Cross, Tier 4: Real-world) and publish `TEST_READY.md`. | E2E | E2E Testing Track |
+| 13 | Final Milestone: 100% E2E Pass & Adversarial Hardening | Validate 100% pass of Tiers 1-4 tests, followed by Tier 5 adversarial stress testing and coverage hardening. | M4 | Final Milestone |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | SQLite Storage, Audit Script & Schema Saneamento | Features 1, 2, 3, 4: Redundant index pruning, VACUUM (<88.6 MB), schema update `atleta_sofascore_ratings`, `auditar_integridade_dados.py` fixes, undo artificial total_jogos = total_gols in DB. | none | IN_PROGRESS |
-| M2 | Auto-Cura de Clubes Espúrios, Conmebol & Homônimos | Features 5, 6, 7: Conmebol match corrections (19997098, 20027112), homonym split (Mycael/Pedro), club string sanitization (Luís Fabiano 9033, Zinho, Ganso, etc.). | M1 | PLANNED |
-| M3 | Motores Matemáticos de Ratings, xG & Backend APIs | Features 8, 9, 10, 11: Connect `calculo_player_rating.py` (tanh 0-10) and `calculo_xg_discreto.py` in `backend/app.py`, fix Delta xG / Clínico de Elite, compute radar_pes, return honest career average and "Jogos c/ Gol". | M1, M2 | PLANNED |
-| M4 | Apresentação Visual no Frontend & WCAG 2.2 AA | Features 12, 13, 14, 15, 16: Update `ProtagonistaAtleta.jsx` badge with WCAG 2.2 AA token (`#526337`), eliminate 1.00 leaks in timeline/bar chart/card/PDF generators, radar parity, clean clubs display, `npm run build`. | M3 | PLANNED |
-| M5 | E2E Testing Suite & Final Acceptance Hardening | Features 17, 18: Dual track test suite (Tiers 1-4, `TEST_READY.md`), 22/22 pytest `test_model_evals.py`, 12/12 `auditar_integridade_dados.py`, DB < 94 MB, final victory report. | M4 | PLANNED |
+| E2E | E2E Testing Track | Feature 12: Comprehensive 4-Tier Opaque-Box E2E Test Suite (`TEST_INFRA.md`, `tests/test_e2e_decoupled.py`, `TEST_READY.md`) | none | DONE |
+| M1 | Resilient Database Decoupling & Remote Gateway | Features 1, 2, 3, 4: `backend/gateway/`, circuit breaker, fallback engine, gateway daemon, telemetry headers | none | DONE |
+| M2 | Massive Historical Match Sheets & Goals Ingestion | Features 5, 6, 7: Cache harvest, deduplication of 3,710 matches, Serie A & Copa do Brasil match sheets, goals > 95,522 | M1 | DONE |
+| M3 | Career Totals Reconciliation & Relational Governance | Features 8, 9, 10, 11: Reconcile player careers (remove 1.00 ratio, fix Marcos 9488), 12/12 audit OK, 22/22 math evals, build code 0 | M2 | IN_PROGRESS |
+| M4 | Final Milestone: 100% E2E Pass & Adversarial Hardening | Feature 13: Phase 1 (100% pass of Tiers 1-4 E2E tests) + Phase 2 (Tier 5 Challenger-driven adversarial coverage hardening) | E2E, M3 | PLANNED |
 
 ## Interface Contracts
-### Database ↔ Backend (`backend/app.py`)
-- `atleta_sofascore_ratings` columns: `id_jogador INT PRIMARY KEY, sofascore_id INT, nome_atleta TEXT, clube_atual TEXT, posicao TEXT, temporada_ano INT, rating_medio REAL, jogos_avaliados INT, minutos_jogados INT, gols INT, assistencias INT, xg_acumulado REAL, xa_acumulado REAL, npxg_acumulado REAL, delta_xg REAL, perfil_clinico TEXT, taxa_conversao_pct REAL, notas_ultimos_jogos_json TEXT, heatmap_pontos_json TEXT, atualizado_em TEXT`.
-- `jogadores_estatisticas` fields: `id_jogador, nome_exibicao, total_jogos (real local appearances), total_gols, media_gols_por_jogo, gols_carreira_oficiais, jogos_carreira_oficiais, detalhe_carreira_clubes (JSON), clubes (comma-separated, clean Brazilian/official clubs only)`.
+### Gateway ↔ Vercel Proxy
+- **Environment Variables**:
+  - `FUTSTATS_REMOTE_GATEWAY_URL`: Upstream base URL (e.g. `http://163.176.87.218:8000`). If empty, standalone local.
+  - `FUTSTATS_GATEWAY_SECRET`: Preshared authentication token.
+  - `FUTSTATS_GATEWAY_TIMEOUT_SEC`: Upstream timeout threshold (default: 1.8s).
+  - `FUTSTATS_CIRCUIT_MAX_FAILURES`: Failure threshold before circuit trips (default: 3).
+  - `FUTSTATS_CIRCUIT_RESET_SEC`: Cooldown period before half-open attempt (default: 60s).
+- **HTTP Response Headers**:
+  - `X-Data-Source`: `remote-gateway` | `local-fallback` | `local-standalone` | `cache`
+  - `X-Circuit-Breaker-State`: `closed` | `open` | `half-open`
+  - `X-Response-Time-Ms`: Duration in ms
+  - `X-Fallback-Reason`: `remote_timeout` | `connect_error` | `status_5xx` | `circuit_open`
 
-### Backend ↔ Frontend API (`/api/jogadores/perfil`)
-- `resumo`:
-  - `media_gols`: Number (career average if acervo_parcial is true, else local average)
-  - `acervo_parcial`: Boolean (`true` if local games != official career games)
-  - `jogos_rotulo`: String (`"Jogos c/ Gol"` if acervo_parcial else `"Jogos"`)
-  - `jogos_registrados`: Integer (local matches count)
-  - `media_oficial_carreira`: Number (e.g. 0.53 for Luís Fabiano)
-  - `sofascore`: Object or `null` (`{"rating_medio": Float, "jogos_avaliados": Int, "fonte": "sofascore" | "futstats_scouting", "ultimas_notas": [...]}`)
-- `radar_pes`:
-  - `eixos`: Array of 5 objects `[{"key": "atk", "label": "Ataque", "valor": Int(40-99), "desc": String}, ...]`
-  - `ovr`: Integer (40-99)
-- `analytics_xg`:
-  - `xg_acumulado`: Float
-  - `xg_nao_penalti_npxg`: Float
-  - `delta_xg`: Float
-  - `perfil_clinico`: String (`"Clínico de Elite"` | `"Volume Shooter"` | `"Eficiente"` | `"Neutro"`)
+### Match Sheet & Goals Ingestion Contract
+- `gols` schema: `id_gol INTEGER PRIMARY KEY AUTOINCREMENT, id_partida INT, id_jogador INT, atleta TEXT, clube TEXT, minuto INT, tempo TEXT, tipo_de_gol TEXT`
+  - Valid `tipo_de_gol`: `'Normal'`, `'Pênalti'`, `'Falta'`, `'Contra'`, `'Cabeça'`
+  - Relational constraint: `gols.id_partida` must exist in `partidas.id_partida`; `gols.clube` must match either `partidas.mandante` or `partidas.visitante`.
+- `escalacoes` schema: `id_escalacao INTEGER PRIMARY KEY AUTOINCREMENT, id_partida INT, id_jogador INT, atleta TEXT, clube TEXT, numero INT, posicao TEXT, titular INT, saiu_minuto INT, entrou_minuto INT`
+
+### Player Career Schema Contract
+- `jogadores_estatisticas` schema: `id_jogador INT PRIMARY KEY, nome_exibicao TEXT, total_jogos INT, total_gols INT, media_gols_por_jogo REAL, gols_carreira_oficiais INT, jogos_carreira_oficiais INT, clubes TEXT`
+  - Invariant: `total_jogos` represents authentic cataloged appearances; no artificial forced equality `total_jogos = total_gols`.
+  - Invariant: `media_gols_por_jogo` is realistic ($\le 2.5$).
 
 ## Code Layout
-- `data/futebol.db`: SQLite database
-- `backend/app.py`: Flask application, profile route `/api/jogadores/perfil`, radar calculation
-- `backend/calculo_player_rating.py`: Player rating calculation engine (tanh asymptotic compression)
-- `backend/calculo_xg_discreto.py`: Discrete Opta expected goals calculation engine
-- `scripts/auditar_integridade_dados.py`: Relational integrity verification script (12 rules)
-- `frontend/src/components/ProtagonistaAtleta.jsx`: Main athlete profile component
-- `frontend/src/components/AthleteCompareView.jsx`: Head-to-head athlete comparison
-- `frontend/src/components/charts/RadarPentagonPES.jsx`: 5-axis PES radar chart
-- `frontend/src/components/charts/AthleteCareerTimeline.jsx`: Career seasons timeline chart
-- `frontend/src/components/charts/AthleteCareerBarChart.jsx`: Career goals bar chart
-- `frontend/src/utils/cardGenerator.js`: Shareable athlete card generator (PNG)
-- `frontend/src/utils/pdfReportGenerator.js`: Scout dossier report generator (PDF)
-- `tests/test_model_evals.py`: 22 predictive evaluation regression tests
+- `backend/app.py`: Flask application, main endpoints
+- `backend/gateway/`: Modular proxy, circuit breaker, cache manager
+  - `backend/gateway/__init__.py`
+  - `backend/gateway/circuit_breaker.py`
+  - `backend/gateway/proxy_client.py`
+  - `backend/gateway/cache_manager.py`
+- `scripts/remote_gateway_daemon.py`: Standalone gateway server for Oracle Cloud VM
+- `scripts/futstats-gateway.service`: Systemd service unit definition
+- `scripts/ingerir_cache_ogol_existente.py`: Ingestion script for local cached match sheets
+- `scripts/consolidar_duplicatas_partidas.py`: Match deduplication script
+- `scripts/ingestor_sumulas_massivo_ogol.py`: Live and historical batch ingestion pipeline
+- `scripts/reconciliar_carreira_universal.py`: Player career totals and appearance reconciler
+- `scripts/auditar_integridade_dados.py`: Relational integrity verification (12 rules)
+- `tests/test_model_evals.py`: 22 mathematical evaluation regression tests
+- `tests/test_e2e_decoupled.py`: 4-Tier E2E test suite
+- `data/futebol.db`: Bundled local fallback SQLite database (< 91.0 MB)

@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "cartographer.graph.v2",
+  "root": "/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional",
+  "generatedAt": "2026-10-31T22:48:29.503Z",
+  "scanner": {
+    "name": "cartographer",
+    "version": "0.1.0"
+  },
+  "git": {
+    "commit": "67bbcacbd36dce703172f59f42eac7faba0b4c29",
+    "dirty": true,
+    "trackedFiles": 775,
+    "untrackedFiles": 4,
+    "modifiedFiles": 2,
+    "deletedFiles": 2
+  },
+  "totals": {
+    "files": 775,
+    "packages": 1,
+    "nodes": 962,
+    "edges": 1854,
+    "findings": 0
+  },
+  "ignorePatterns": [
+    "node_modules/**",
+    "**/node_modules/**",
+    "dist/**",
+    "**/dist/**",
+    ".git/**",
+    ".bun-tmp/**",
+    ".claude/**",
+    ".cartographer/**",
+    "docs/codegraph/**",
+    "supabase/.temp/**",
+    "supabase/.branches/**",
+    "e2e/playwright-report/**",
+    "e2e/test-results/**",
+    "e2e/reports/**",
+    "specs/states/**",
+    "**/states/**",
+    "*_TTrace_*",
+    "*.st",
+    "*.fp",
+    "specs/tla2tools.jar"
+  ],
+  "defaultProvenance": {
+    "source": "syntax",
+    "confidence": "parser-backed",
+    "freshness": "fresh",
+    "snapshotCommit": "67bbcacbd36dce703172f59f42eac7faba0b4c29",
+    "scannerVersion": "0.1.0"
+  }
+}

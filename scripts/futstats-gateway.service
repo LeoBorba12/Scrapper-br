@@ -1,0 +1,39 @@
+[Unit]
+Description=FutStats Remote API Gateway Daemon (Milestone 1 Decoupled Master Archive)
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=opc
+Group=opc
+WorkingDirectory=/home/opc/scrapper-br
+Environment="PATH=/home/opc/scrapper-br/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/opc/scrapper-br"
+Environment="GATEWAY_PORT=8000"
+Environment="GATEWAY_HOST=0.0.0.0"
+Environment="GATEWAY_THREADS=4"
+Environment="IS_REMOTE_GATEWAY=1"
+EnvironmentFile=-/home/opc/scrapper-br/.env
+
+# Execution
+ExecStart=/home/opc/scrapper-br/.venv/bin/python scripts/remote_gateway_daemon.py --port 8000 --threads 4
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Stability and Auto-Healing
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# Memory protection strictly aligned with Oracle VM 1GB RAM budget
+MemoryMax=850M
+MemoryHigh=800M
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=futstats-gateway
+
+[Install]
+WantedBy=multi-user.target

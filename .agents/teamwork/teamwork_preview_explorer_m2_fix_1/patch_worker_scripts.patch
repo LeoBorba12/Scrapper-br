@@ -1,0 +1,88 @@
+--- scripts/ingestor_sumulas_massivo_ogol.py
++++ scripts/ingestor_sumulas_massivo_ogol.py
+@@ -370,6 +370,18 @@
+ 
+             cand_list = partidas_by_ano.get(ano, [])
+ 
++            def comp_matches(target_comp: str, camp_str: str) -> bool:
++                if not camp_str:
++                    return False
++                c_norm = clean_key(camp_str)
++                if target_comp == "CdB":
++                    return "copadobrasil" in c_norm
++                elif target_comp == "Serie_A":
++                    return ("brasileir" in c_norm or "seriea" in c_norm) and "serieb" not in c_norm and "seriec" not in c_norm
++                elif target_comp == "Serie_B":
++                    return "serieb" in c_norm
++                return True
++
+             for gid, g in jogos_ano.items():
+                 home_raw = g.get("Home", "").strip()
+                 away_raw = g.get("Away", "").strip()
+@@ -397,6 +409,8 @@
+                 for p in cand_list:
++                    if not comp_matches(comp, p.get("campeonato", "")):
++                        continue
+                     home_ok = (n_home in p["norm_m"] or p["norm_m"] in n_home)
+                     away_ok = (n_away in p["norm_v"] or p["norm_v"] in n_away)
+                     if home_ok and away_ok:
+@@ -434,6 +448,8 @@
+                 existentes_pid = gols_count_by_pid.get(pid, 0)
+                 expected_goals = (best_match["gols_mandante"] or 0) + (best_match["gols_visitante"] or 0)
++                if expected_goals == 0:
++                    continue
+ 
+                 for raw_gol in goals_list:
+                     parsed = parse_cbf_goal_line(raw_gol, home_raw, away_raw)
+@@ -465,3 +481,3 @@
+                     # Clamping de scoreline para não inflacionar acima do placar real
+-                    if existentes_pid >= expected_goals and expected_goals > 0:
++                    if existentes_pid >= expected_goals:
+                         continue
+
+--- scripts/ingerir_cache_ogol_existente.py
++++ scripts/ingerir_cache_ogol_existente.py
+@@ -221,6 +221,9 @@
+         for p in cand_list:
++            p_camp = clean_name(p.get("campeonato", ""))
++            if "brasileir" not in p_camp and "seriea" not in p_camp:
++                continue
+             home_ok = (n_home in p["norm_m"] or p["norm_m"] in n_home)
+             away_ok = (n_away in p["norm_v"] or p["norm_v"] in n_away)
+             if home_ok and away_ok:
+@@ -265,6 +268,8 @@
+         existentes_pid = gols_count_by_pid.get(pid, 0)
+         expected_goals = (best_match["gols_mandante"] or 0) + (best_match["gols_visitante"] or 0)
++        if expected_goals == 0:
++            continue
+ 
+         # Se já temos todos os gols ou mais, e nenhum é novo, podemos pular inserções redundantes
+         for g in cache_gols:
+@@ -274,6 +279,11 @@
+             minuto_raw = str(g.get("minuto", "")).strip()
++            sub_minutos = [m.strip() for m in re.split(r'\s{2,}', minuto_raw) if m.strip()]
++            if not sub_minutos:
++                sub_minutos = [minuto_raw]
++
++            for sub_min in sub_minutos:
+                 tempo_raw = g.get("tempo", "1T").strip()
+                 tipo_raw = g.get("tipo_de_gol", "Normal")
+                 tipo_canonico = canonicalize_goal_type(tipo_raw)
+@@ -303,5 +313,5 @@
+-            if (pid, atl_key, minuto_raw) in gols_existentes:
++            if (pid, atl_key, sub_min) in gols_existentes:
+                 continue
+ 
+             # Se a partida já atingiu ou excedeu a contagem esperada do placar, não inflacionar
+-            if existentes_pid >= expected_goals and expected_goals > 0:
++            if existentes_pid >= expected_goals:
+                 continue
+@@ -315,5 +325,5 @@
+                 INSERT INTO gols (id_partida, rodada, clube, atleta, minuto, tempo, tipo_de_gol, id_jogador)
+-                VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+-            """, (pid, clube_harmonizado, atleta_raw, minuto_raw, tempo_raw, tipo_canonico, id_jogador))
++                VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
++            """, (pid, clube_harmonizado, atleta_raw, sub_min, tempo_raw, tipo_canonico, id_jogador))
+ 
+-            gols_existentes.add((pid, atl_key, minuto_raw))
++            gols_existentes.add((pid, atl_key, sub_min))

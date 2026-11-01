@@ -1,33 +1,30 @@
-# Task Assignment — Explorer M3-2 (Discrete Opta xG Engine & Clinical Profile Restoration)
+## 2026-11-01T16:45:45Z
+You are teamwork_preview_explorer_m3_2, an Explorer investigating Homonym Disambiguation for Milestone 3.
 
-## Identity
-- **Role**: Explorer (teamwork_preview_explorer)
-- **Milestone**: M3 (Motores Matemáticos de Ratings, xG & Backend APIs)
-- **Working Directory**: `/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_2`
+Working directory: /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_2
+Maintain progress.md in your working directory with 'Last visited: [timestamp]'.
 
-## Mission
-Investigate and formulate the exact code modifications for `backend/app.py` to integrate the discrete Opta xG engine (Feature 9 of PROJECT.md):
-1. Inspect `backend/calculo_xg_discreto.py`:
-   - Understand the discrete zone model: `calcular_xg_partida`, `estimar_xg_gols_atleta`, `classificar_perfil_finalizador`.
-   - Metrics: `xg_acumulado`, `xg_nao_penalti_npxg`, `delta_xg`, `taxa_conversao_pct`, `perfil_clinico` ("Clínico de Elite", "Volume Shooter", "Eficiente", "Neutro").
-2. Inspect `backend/app.py`:
-   - Locate lines 2700-2730 where flawed inline calculation is performed:
-     `xg = 1.08 * gols` or similar, which artificially created negative Delta xG for top scorers and erroneously labeled elite strikers as "Volume Shooters".
-   - Replace this with genuine calls to `backend/calculo_xg_discreto.py` (or pulling from `atleta_sofascore_ratings` columns `npxg_acumulado`, `delta_xg`, `perfil_clinico`, `taxa_conversao_pct` added in M1, with fallback to `calculo_xg_discreto.py`).
-   - Ensure the structure matches the interface contract:
-     ```json
-     {
-       "xg_acumulado": 28.4,
-       "xg_nao_penalti_npxg": 24.1,
-       "delta_xg": 3.6,
-       "perfil_clinico": "Clínico de Elite",
-       "taxa_conversao_pct": 21.4
-     }
-     ```
-3. Formulate the exact code diff for `backend/app.py`.
-4. Test your logic using a Python script on athletes like Pedro (ID 10) and Luís Fabiano (ID 9033), verifying that elite finishers get positive Delta xG and "Clínico de Elite".
-5. Write your complete report with code diffs to `handoff.md` in your working directory and notify parent via `send_message`.
+Authoritative user request:
+Read /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/ORIGINAL_REQUEST.md (specifically see section ## 2026-11-01T14:16:05Z).
 
-## Authoritative Reference
-- `/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/ORIGINAL_REQUEST.md`
-- `/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/PROJECT.md`
+Project Blueprint:
+Read /mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/PROJECT.md (Milestone 3).
+
+Mission & Scope:
+You are in READ-ONLY mode. Do NOT modify source code or run destructive operations.
+Investigate historical homonym collisions and resolution in `data/futebol.db`:
+1. Investigate goalkeeper Marcos (ID 9488, Marcos Roberto Silveira Reis):
+   - What goals in `gols` are linked to `id_jogador = 9488`?
+   - Inspect their dates, tournaments, and clubs (e.g. 1963-1977 goals for Santos, Coritiba, etc.).
+   - Identify who the actual historical player was for those goals (e.g. Marcos Pereira Martins, forward/winger).
+   - What should goalkeeper Marcos's authentic goal tally be in Brazilian championships/official matches (e.g. 0 goals in Brasileirão/Copa do Brasil, or penalty kicks if any)?
+   - See `tests/test_e2e_decoupled.py::TestTier1FeatureCoverage::test_t1_reconcile_marcos_9488_homonym_disambiguation` for exact test assertions!
+2. Investigate Paulinho Criciúma (ID 6):
+   - Check games and goals attributed to ID 6 vs other "Paulinho"s in Brazilian football history (Paulinho McLaren, Paulinho Cascavel, etc.).
+3. Query `gols` and `jogadores_estatisticas` to identify any other notable homonym collisions (e.g. Zico, Fred, Neymar, Romário, Ronaldo).
+4. Formulate an exact SQL update and disambiguation procedure for `scripts/reconciliar_carreira_universal.py`.
+
+Write your findings and recommendations to:
+/mnt/jogos_f/Antigravity_Projetos_e_Ferramentas/Guia profissional/.agents/teamwork/teamwork_preview_explorer_m3_2/handoff.md
+
+When complete, notify parent da7384f3-57a9-4b6b-9373-94dcd5a6f441 via send_message.

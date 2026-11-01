@@ -42,32 +42,28 @@ except ImportError:
         ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
     )
 
-class TTLCache:
-    """Cache thread-safe em memória com TTL para endpoints analíticos (python-performance-optimization)."""
-    def __init__(self, default_ttl=1800):
-        self._cache = {}
-        self._lock = threading.Lock()
-        self._default_ttl = default_ttl
-
-    def get(self, key):
-        with self._lock:
-            item = self._cache.get(key)
-            if not item:
-                return None
-            val, exp = item
-            if time.time() > exp:
-                del self._cache[key]
-                return None
-            return val
-
-    def set(self, key, value, ttl=None):
-        with self._lock:
-            exp = time.time() + (ttl if ttl is not None else self._default_ttl)
-            self._cache[key] = (value, exp)
-
-    def clear(self):
-        with self._lock:
-            self._cache.clear()
+try:
+    from backend.gateway import (
+        CircuitBreaker,
+        CacheManager,
+        TTLCache,
+        ProxyClient,
+        proxy_client,
+        default_circuit_breaker,
+        default_cache_manager,
+        dispatch_with_fallback,
+    )
+except ImportError:
+    from gateway import (
+        CircuitBreaker,
+        CacheManager,
+        TTLCache,
+        ProxyClient,
+        proxy_client,
+        default_circuit_breaker,
+        default_cache_manager,
+        dispatch_with_fallback,
+    )
 
 api_cache = TTLCache(default_ttl=1800)
 
@@ -306,16 +302,14 @@ def handle_exception(err):
 @app.before_request
 def start_request_timer():
     g._req_start_time = time.perf_counter()
+    return proxy_client.before_request_hook()
 
 @app.after_request
 def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
-    if hasattr(g, '_req_start_time'):
-        latency_ms = (time.perf_counter() - g._req_start_time) * 1000.0
-        response.headers['X-Response-Time-Ms'] = f"{latency_ms:.2f}"
-    return response
+    return proxy_client.after_request_hook(response)
 
 @app.route('/api/health', methods=['GET'])
 def api_health():
@@ -350,6 +344,12 @@ def api_health():
             "query_latency_ms": query_latency_ms,
             "slo_p95_target_ms": 200,
             "slo_healthy": query_latency_ms < 200
+        },
+        "gateway": {
+            "remote_configured": proxy_client.is_remote_configured(),
+            "remote_url": proxy_client.remote_url if proxy_client.is_remote_configured() else None,
+            "circuit_breaker": default_circuit_breaker.to_dict(),
+            "cache": proxy_client.cache.stats(),
         },
         "version": "2026.1",
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
