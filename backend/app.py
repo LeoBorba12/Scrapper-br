@@ -4009,6 +4009,7 @@ def get_brasileirao_aovivo():
             vis = equipes.get('visitante') if isinstance(equipes.get('visitante'), dict) else {}
             transmissao = j.get('transmissao') if isinstance(j.get('transmissao'), dict) else {}
             broadcast = transmissao.get('broadcast') if isinstance(transmissao.get('broadcast'), dict) else {}
+            sede = j.get('sede') if isinstance(j.get('sede'), dict) else {}
             url_tr = j.get('url_tempo_real') or transmissao.get('url') or ''
 
             jogos_rodada.append({
