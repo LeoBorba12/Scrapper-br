@@ -267,10 +267,15 @@ def executar_saneamento():
     """)
 
     # Atualizar total_jogos no acervo
-    # Regra: total_jogos = MAX(presencas_unificadas, partidas_com_gol, total_gols quando total_gols > total_jogos_acervo)
+    # Regra: Se o atleta tem carreira oficial ampla (jogos_carreira_oficiais > total_gols * 1.5) mas o acervo local só possui
+    # partidas onde ele marcou gol (gerando média espúria 1.00), estima as presenças proporcionais à taxa de conversão da carreira.
     c.execute("""
         UPDATE jogadores_estatisticas
         SET total_jogos = CASE
+            WHEN jogos_carreira_oficiais > total_gols * 1.5 
+                 AND COALESCE((SELECT tpa.total_jogos_acervo FROM temp_presencas_atletas tpa WHERE tpa.id_jogador = jogadores_estatisticas.id_jogador), total_jogos) <= total_gols
+                 AND gols_carreira_oficiais > 0 THEN
+                CAST(ROUND(total_gols / MIN(MAX(CAST(gols_carreira_oficiais AS REAL) / jogos_carreira_oficiais, 0.15), 0.95)) AS INTEGER)
             WHEN (SELECT tpa.total_jogos_acervo FROM temp_presencas_atletas tpa WHERE tpa.id_jogador = jogadores_estatisticas.id_jogador) IS NOT NULL THEN
                 MAX(
                     (SELECT tpa.total_jogos_acervo FROM temp_presencas_atletas tpa WHERE tpa.id_jogador = jogadores_estatisticas.id_jogador),

@@ -369,6 +369,7 @@ def auditar_e_reparar_dados():
         JOIN partidas p ON g.id_partida = p.id_partida
         WHERE ((g.clube = p.mandante AND e.clube = p.visitante) OR (g.clube = p.visitante AND e.clube = p.mandante))
           AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+          AND ((e.clube = p.mandante AND p.gols_mandante > 0) OR (e.clube = p.visitante AND p.gols_visitante > 0))
           AND (SELECT COUNT(DISTINCT e2.clube) FROM escalacoes e2 WHERE e2.id_partida = g.id_partida AND e2.id_jogador = g.id_jogador) = 1;
     """)
     gols_inv_escalacao = c.fetchone()[0]
@@ -381,6 +382,7 @@ def auditar_e_reparar_dados():
             JOIN partidas p ON g.id_partida = p.id_partida
             WHERE ((g.clube = p.mandante AND e.clube = p.visitante) OR (g.clube = p.visitante AND e.clube = p.mandante))
               AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+              AND ((e.clube = p.mandante AND p.gols_mandante > 0) OR (e.clube = p.visitante AND p.gols_visitante > 0))
               AND (SELECT COUNT(DISTINCT e2.clube) FROM escalacoes e2 WHERE e2.id_partida = g.id_partida AND e2.id_jogador = g.id_jogador) = 1;
         """)
         atletas_afetados = [row[0] for row in c.fetchall() if row[0]]
@@ -400,6 +402,7 @@ def auditar_e_reparar_dados():
                 JOIN partidas p ON g.id_partida = p.id_partida
                 WHERE ((g.clube = p.mandante AND e.clube = p.visitante) OR (g.clube = p.visitante AND e.clube = p.mandante))
                   AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+                  AND ((e.clube = p.mandante AND p.gols_mandante > 0) OR (e.clube = p.visitante AND p.gols_visitante > 0))
                   AND (SELECT COUNT(DISTINCT e2.clube) FROM escalacoes e2 WHERE e2.id_partida = g.id_partida AND e2.id_jogador = g.id_jogador) = 1
             );
         """)
