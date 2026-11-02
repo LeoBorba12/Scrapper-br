@@ -319,4 +319,111 @@ def test_gaucho_artilharia_e_gols_diego_souza():
     assert gols_totais >= 200, f"Diego Souza com {gols_totais} gols no acervo (esperado >= 200)"
     assert row["gols_carreira_oficiais"] == 310, f"Carreira oficial de Diego Souza: {row['gols_carreira_oficiais']} (esperado 310)"
 
+# ==============================================================================
+# CAMPEONATO MINEIRO (1915 a 2026) - TESTES FACTUAIS DE OURO
+# ==============================================================================
+
+def test_mineiro_maior_artilheiro_galo_reinaldo():
+    """Valida que Reinaldo (ID 90610) é homologado como maior artilheiro da história do Galo (255 gols) e 16 gols em clássicos."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT gols_carreira_oficiais, jogos_carreira_oficiais, premios, total_gols FROM jogadores_estatisticas WHERE id_jogador = 90610;")
+    row = cur.fetchone()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90610 
+        AND ((p.mandante = 'Atlético-MG' AND p.visitante = 'Cruzeiro') OR (p.mandante = 'Cruzeiro' AND p.visitante = 'Atlético-MG'));
+    """)
+    gols_classicos = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Reinaldo não encontrado no banco"
+    assert "255" in row["premios"], "Registro de 255 gols históricos do Galo ausente"
+    assert gols_classicos >= 16, f"Reinaldo com {gols_classicos} gols em clássicos (esperado >= 16)"
+    assert row["total_gols"] >= 60, f"Reinaldo com {row['total_gols']} gols no acervo (esperado >= 60)"
+
+def test_mineiro_maior_artilheiro_cruzeiro_tostao():
+    """Valida que Tostão (ID 90601) é homologado como maior artilheiro da história do Cruzeiro (249 gols) e tricampeão da artilharia."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT gols_carreira_oficiais, premios, total_gols, detalhe_carreira_clubes FROM jogadores_estatisticas WHERE id_jogador = 90601;")
+    row = cur.fetchone()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90601 AND p.ano IN (1966, 1967, 1968)
+        AND lower(p.campeonato) LIKE '%mineiro%';
+    """)
+    gols_tri = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Tostão não encontrado no banco"
+    assert "249" in str(row["premios"]) or "249" in str(row["detalhe_carreira_clubes"]), "Registro de 249 gols no Cruzeiro ausente"
+    assert gols_tri >= 50, f"Tostão com {gols_tri} gols no tricampeonato 66-68 (esperado >= 50)"
+    assert row["total_gols"] >= 80, f"Tostão com {row['total_gols']} gols no acervo (esperado >= 80)"
+
+def test_mineiro_artilheiro_ronaldo_fenomeno_1994():
+    """Valida que Ronaldo Fenômeno (ID 90615) possui exatamente 22 gols oficiais em 18 jogos no Mineiro 1994 e hat-trick no clássico."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90615 AND p.ano = 1994 AND lower(p.campeonato) LIKE '%mineiro%';
+    """)
+    gols_1994 = cur.fetchone()[0]
+    cur.execute("SELECT count(*) FROM gols WHERE id_partida = 202432907 AND id_jogador = 90615;")
+    gols_classico = cur.fetchone()[0]
+    cur.execute("SELECT gols_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = 90615;")
+    gols_carreira = cur.fetchone()[0]
+    conn.close()
+    assert gols_1994 == 22, f"Ronaldo com {gols_1994} gols no Mineiro 1994 (esperado 22)"
+    assert gols_classico == 3, f"Ronaldo com {gols_classico} gols no clássico 1994 (esperado hat-trick com 3 gols)"
+    assert gols_carreira == 414, f"Carreira oficial de Ronaldo: {gols_carreira} (esperado 414)"
+
+def test_mineiro_dada_maravilha_e_dirceu_lopes():
+    """Valida Dadá Maravilha (ID 90207) artilheiro de 1969 com 29 gols e Dirceu Lopes (ID 90602) com gol do título de 1969."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90207 AND p.ano = 1969 AND lower(p.campeonato) LIKE '%mineiro%';
+    """)
+    gols_dada_1969 = cur.fetchone()[0]
+    cur.execute("SELECT atleta FROM gols WHERE id_partida = 202440482 AND id_jogador = 90602;")
+    gol_dirceu = cur.fetchone()
+    conn.close()
+    assert gols_dada_1969 == 29, f"Dadá Maravilha com {gols_dada_1969} gols em 1969 (esperado 29)"
+    assert gol_dirceu is not None, "Gol do título de Dirceu Lopes na final de 1969 ausente"
+
+def test_mineiro_hegemonia_hulk_e_artilheiros_modernos():
+    """Valida hegemonia de Hulk (ID 9) com 4 artilharias e Diego Tardelli (ID 90620) artilheiro de 2009 com 16 gols."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT premios, total_gols FROM jogadores_estatisticas WHERE id_jogador = 9;")
+    row_hulk = cur.fetchone()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 9 AND lower(p.campeonato) LIKE '%mineiro%';
+    """)
+    gols_hulk_mineiro = cur.fetchone()[0]
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90620 AND p.ano = 2009 AND lower(p.campeonato) LIKE '%mineiro%';
+    """)
+    gols_tardelli_2009 = cur.fetchone()[0]
+    conn.close()
+    assert "2022" in row_hulk["premios"] and "2023" in row_hulk["premios"] and "2024" in row_hulk["premios"], "Artilharias de Hulk ausentes"
+    assert gols_hulk_mineiro >= 35, f"Hulk com {gols_hulk_mineiro} gols no Mineiro (esperado >= 35)"
+    assert gols_tardelli_2009 == 16, f"Diego Tardelli com {gols_tardelli_2009} gols em 2009 (esperado 16)"
+
+
 
