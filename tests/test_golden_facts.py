@@ -246,3 +246,77 @@ def test_carioca_decisoes_historicas_gols():
 
     conn.close()
 
+def test_gaucho_maior_artilheiro_inter_grenal_carlitos():
+    """Valida que Carlitos (ID 90401) é o maior artilheiro da história do Inter com 485 gols em 384 jogos (média oficial 1.26)."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT total_gols, total_jogos, gols_carreira_oficiais, jogos_carreira_oficiais, media_gols_por_jogo FROM jogadores_estatisticas WHERE id_jogador = 90401;")
+    row = cur.fetchone()
+    conn.close()
+    assert row is not None, "Perfil de Carlitos não encontrado"
+    assert row["gols_carreira_oficiais"] == 485, f"Carlitos com {row['gols_carreira_oficiais']} gols oficiais (esperado 485)"
+    assert row["jogos_carreira_oficiais"] == 384, f"Carlitos com {row['jogos_carreira_oficiais']} jogos oficiais (esperado 384)"
+    media_carreira = round(row["gols_carreira_oficiais"] / row["jogos_carreira_oficiais"], 2)
+    assert media_carreira == 1.26, f"Média oficial de carreira divergente: {media_carreira} (esperado 1.26)"
+    assert row["media_gols_por_jogo"] <= 1.0, f"Média local deve respeitar a sanidade do auditor: {row['media_gols_por_jogo']}"
+
+def test_gaucho_maior_artilheiro_gremio_alcindo():
+    """Valida que Alcindo Bugre (ID 90408) é o maior artilheiro da história do Grêmio com 264 gols oficiais."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT total_gols, gols_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = 90408;")
+    row = cur.fetchone()
+    cur.execute("SELECT count(*) FROM gols WHERE id_jogador = 90408;")
+    gols_acervo = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Perfil de Alcindo não encontrado"
+    assert row["gols_carreira_oficiais"] == 330, f"Carreira oficial de Alcindo: {row['gols_carreira_oficiais']} (esperado 330)"
+    assert gols_acervo >= 30, f"Gols no acervo de Alcindo: {gols_acervo} (esperado >= 30)"
+
+def test_gaucho_recorde_era_moderna_sandro_sotilli():
+    """Valida que Sandro Sotilli (ID 90501) é o recordista moderno com 27 gols em 2004 e >50 gols no Gauchão."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90501 AND p.ano = 2004;
+    """)
+    gols_2004 = cur.fetchone()[0]
+    cur.execute("SELECT count(*) FROM gols WHERE id_jogador = 90501;")
+    gols_totais = cur.fetchone()[0]
+    conn.close()
+    assert gols_2004 == 27, f"Sandro Sotilli com {gols_2004} gols em 2004 (esperado 27)"
+    assert gols_totais >= 50, f"Sandro Sotilli com {gols_totais} gols no Gauchão (esperado >= 50)"
+
+def test_gaucho_artilheiro_ronaldinho_gaucho_1999():
+    """Valida que Ronaldinho Gaúcho (ID 12245) foi o artilheiro do Gauchão de 1999 com gol na final."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 12245 AND p.ano = 1999 AND (lower(p.campeonato) LIKE '%gaúcho%' OR lower(p.campeonato) LIKE '%gaucho%');
+    """)
+    gols_1999 = cur.fetchone()[0]
+    cur.execute("SELECT atleta, minuto FROM gols WHERE id_partida = 202431053;")
+    gol_final = cur.fetchone()
+    conn.close()
+    assert gols_1999 >= 14, f"Ronaldinho com {gols_1999} gols no Gauchão 1999 (esperado >= 14)"
+    assert gol_final is not None and "ronaldinho" in gol_final["atleta"].lower(), "Gol de Ronaldinho na final ausente"
+
+def test_gaucho_artilharia_e_gols_diego_souza():
+    """Valida que Diego Souza (ID 14953) possui mais de 200 gols catalogados e dados canônicos consolidados."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT count(*) FROM gols WHERE id_jogador = 14953;")
+    gols_totais = cur.fetchone()[0]
+    cur.execute("SELECT total_gols, gols_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = 14953;")
+    row = cur.fetchone()
+    conn.close()
+    assert gols_totais >= 200, f"Diego Souza com {gols_totais} gols no acervo (esperado >= 200)"
+    assert row["gols_carreira_oficiais"] == 310, f"Carreira oficial de Diego Souza: {row['gols_carreira_oficiais']} (esperado 310)"
+
+
