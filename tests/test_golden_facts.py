@@ -425,5 +425,92 @@ def test_mineiro_hegemonia_hulk_e_artilheiros_modernos():
     assert gols_hulk_mineiro >= 35, f"Hulk com {gols_hulk_mineiro} gols no Mineiro (esperado >= 35)"
     assert gols_tardelli_2009 == 16, f"Diego Tardelli com {gols_tardelli_2009} gols em 2009 (esperado 16)"
 
+# ==============================================================================
+# FUTEBOL BAIANO & COPA DO NORDESTE (1905 a 2026) - TESTES FACTUAIS DE OURO
+# ==============================================================================
+
+def test_baiano_maior_artilheiro_bahia_carlito():
+    """Valida que Carlito (ID 90701) é homologado como maior artilheiro da história do Bahia (253 gols) e 21 gols em Ba-Vis."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT gols_carreira_oficiais, jogos_carreira_oficiais, premios, titulos FROM jogadores_estatisticas WHERE id_jogador = 90701;")
+    row = cur.fetchone()
+    conn.close()
+    assert row is not None, "Carlito não encontrado no banco"
+    assert row["gols_carreira_oficiais"] == 253, f"Gols oficiais de Carlito: {row['gols_carreira_oficiais']} (esperado 253)"
+    assert row["jogos_carreira_oficiais"] == 341, f"Jogos oficiais de Carlito: {row['jogos_carreira_oficiais']} (esperado 341)"
+    assert "21" in row["premios"], "Registro de 21 gols em Ba-Vis ausente"
+
+def test_baiano_maior_artilheiro_bavi_juvenal():
+    """Valida que Juvenal (ID 90702) é homologado como maior artilheiro da história do clássico Ba-Vi (25 gols) e 150 gols no Vitória."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT gols_carreira_oficiais, premios FROM jogadores_estatisticas WHERE id_jogador = 90702;")
+    row = cur.fetchone()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90702;
+    """)
+    gols_acervo = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Juvenal não encontrado no banco"
+    assert "25" in row["premios"], "Registro de 25 gols em Ba-Vis ausente"
+    assert "150" in row["premios"], "Registro de 150 gols no Vitória ausente"
+    assert gols_acervo >= 4, f"Juvenal com {gols_acervo} gols nas decisões catalogadas (esperado >= 4)"
+
+def test_baiano_recordista_gols_edicao_neto_baiano_2012():
+    """Valida que Neto Baiano (ID 90712) é homologado como recordista histórico com 27 gols em 2012 e mais de 50 no Barradão."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT gols_carreira_oficiais, premios FROM jogadores_estatisticas WHERE id_jogador = 90712;")
+    row = cur.fetchone()
+    cur.execute("SELECT count(*) FROM gols WHERE id_jogador = 90712;")
+    gols_acervo = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Neto Baiano não encontrado no banco"
+    assert "27" in row["premios"], "Registro de 27 gols no Baiano 2012 ausente"
+    assert gols_acervo >= 3, f"Neto Baiano com {gols_acervo} gols em clássicos 2012 (esperado >= 3)"
+
+def test_nordestao_artilheiro_bicampeao_nonato():
+    """Valida que Nonato (ID 90708) é homologado com 125 gols no Bahia e bicampeão da artilharia do Nordestão (2001 e 2002)."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT gols_carreira_oficiais, premios, total_gols FROM jogadores_estatisticas WHERE id_jogador = 90708;")
+    row = cur.fetchone()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90708 AND lower(p.campeonato) LIKE '%nordeste%';
+    """)
+    gols_nordeste = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Nonato não encontrado no banco"
+    assert "125" in row["premios"], "Registro de 125 gols no Bahia ausente"
+    assert "2001" in row["premios"] and "2002" in row["premios"], "Bicampeonato de artilharia da Copa do Nordeste ausente"
+    assert gols_nordeste >= 20, f"Nonato com {gols_nordeste} gols no Nordestão (esperado >= 20)"
+
+def test_nordestao_artilheiro_bicampeao_gilberto():
+    """Valida que Gilberto (ID 52) é homologado com 83 gols no Bahia e bicampeão da artilharia do Nordestão (2019 e 2021)."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT premios, total_gols FROM jogadores_estatisticas WHERE id_jogador = 52;")
+    row = cur.fetchone()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 52 AND lower(p.campeonato) LIKE '%nordeste%';
+    """)
+    gols_nordeste = cur.fetchone()[0]
+    conn.close()
+    assert row is not None, "Gilberto não encontrado no banco"
+    assert "83" in row["premios"], "Registro de 83 gols no Bahia ausente"
+    assert "2019" in row["premios"] and "2021" in row["premios"], "Bicampeonato de artilharia de Gilberto no Nordestão ausente"
+    assert gols_nordeste >= 15, f"Gilberto com {gols_nordeste} gols no Nordestão (esperado >= 15)"
+
+
 
 
