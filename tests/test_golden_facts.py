@@ -159,3 +159,90 @@ def test_fact_5_edmundo_brasileirao_serie_a(golden_facts):
 
     assert perfil is not None, "Perfil de Edmundo não encontrado"
     assert gols_serie_a == fact["gols_serie_a_esperados"], f"Edmundo com {gols_serie_a} gols na Série A (esperado {fact['gols_serie_a_esperados']})"
+
+def test_carioca_maior_artilheiro_roberto_dinamite():
+    """Valida que Roberto Dinamite (ID 11967) é o maior artilheiro histórico do Campeonato Carioca."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 11967 AND lower(p.campeonato) LIKE '%carioca%';
+    """)
+    gols_carioca = cur.fetchone()[0]
+    conn.close()
+    assert gols_carioca >= 270, f"Dinamite com {gols_carioca} gols no Carioca (esperado >= 270)"
+
+def test_carioca_segundo_maior_artilheiro_zico():
+    """Valida que Zico (ID 13953) é o segundo maior artilheiro histórico do Carioca com mais de 220 gols."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 13953 AND lower(p.campeonato) LIKE '%carioca%';
+    """)
+    gols_carioca = cur.fetchone()[0]
+    conn.close()
+    assert gols_carioca >= 220, f"Zico com {gols_carioca} gols no Carioca (esperado >= 220)"
+
+def test_carioca_recordista_artilharias_romario():
+    """Valida que Romário (ID 12212) possui mais de 200 gols no Carioca e perfil com 744 gols oficiais."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 12212 AND lower(p.campeonato) LIKE '%carioca%';
+    """)
+    gols_carioca = cur.fetchone()[0]
+    cur.execute("SELECT gols_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = 12212;")
+    gols_carreira = cur.fetchone()[0]
+    conn.close()
+    assert gols_carioca >= 200, f"Romário com {gols_carioca} gols no Carioca (esperado >= 200)"
+    assert gols_carreira == 744, f"Carreira oficial de Romário: {gols_carreira} (esperado 744)"
+
+def test_carioca_recorde_absoluto_sylvio_pirillo_1941():
+    """Valida que Sylvio Pirillo (ID 90104) tem exatamente 39 gols no Carioca de 1941 pelo Flamengo."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT count(*) 
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE g.id_jogador = 90104 AND p.ano = 1941 AND lower(p.campeonato) LIKE '%carioca%';
+    """)
+    gols = cur.fetchone()[0]
+    conn.close()
+    assert gols == 39, f"Sylvio Pirillo com {gols} gols em 1941 (esperado 39)"
+
+def test_carioca_decisoes_historicas_gols():
+    """Valida gols marcantes das decisões: 1989 (Maurício), 1995 (Gol de Barriga Renato Gaúcho) e 2001 (Petkovic falta)."""
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 1989: Botafogo 1x0 Flamengo (Maurício)
+    cur.execute("SELECT atleta, id_jogador FROM gols WHERE id_partida = 202434418;")
+    gols_89 = cur.fetchall()
+    assert len(gols_89) == 1
+    assert "maurício" in gols_89[0]["atleta"].lower() or "mauricio" in gols_89[0]["atleta"].lower()
+
+    # 1995: Fluminense 3x2 Flamengo (Renato Gaúcho)
+    cur.execute("SELECT atleta, tipo_de_gol, id_jogador FROM gols WHERE id_partida = 202423699;")
+    gols_95 = cur.fetchall()
+    assert len(gols_95) == 5
+    barriga = [g for g in gols_95 if g["tipo_de_gol"] == "Barriga"]
+    assert len(barriga) == 1 and "renato" in barriga[0]["atleta"].lower()
+
+    # 2001: Vasco 1x3 Flamengo (Petkovic e Edílson)
+    cur.execute("SELECT atleta, tipo_de_gol, id_jogador FROM gols WHERE id_partida = 202430360;")
+    gols_01 = cur.fetchall()
+    assert len(gols_01) == 4
+    falta = [g for g in gols_01 if g["tipo_de_gol"] == "Falta"]
+    assert len(falta) == 1 and "petkovic" in falta[0]["atleta"].lower()
+
+    conn.close()
+
