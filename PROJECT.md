@@ -46,7 +46,8 @@ Every feature from the Survey phase appears here with its assigned milestone:
 | E2E | E2E Testing Track | Feature 12: Comprehensive 4-Tier Opaque-Box E2E Test Suite (`TEST_INFRA.md`, `tests/test_e2e_decoupled.py`, `TEST_READY.md`) | none | DONE |
 | M1 | Resilient Database Decoupling & Remote Gateway | Features 1, 2, 3, 4: `backend/gateway/`, circuit breaker, fallback engine, gateway daemon, telemetry headers | none | DONE |
 | M2 | Massive Historical Match Sheets & Goals Ingestion | Features 5, 6, 7: Cache harvest, deduplication of 3,710 matches, Serie A & Copa do Brasil match sheets, goals > 95,522 | M1 | DONE |
-| M3 | Career Totals Reconciliation & Relational Governance | Features 8, 9, 10, 11: Reconcile player careers (remove 1.00 ratio, fix Marcos 9488), 12/12 audit OK, 22/22 math evals, build code 0 | M2 | IN_PROGRESS |
+| M3 | Career Totals Reconciliation & Relational Governance | Features 8, 9, 10, 11: Reconcile player careers (remove 1.00 ratio, fix Marcos 9488, Pedro Raul 54), 12/12 audit OK, 22/22 math evals, build code 0, 42/42 E2E passed | M2 | DONE |
+| M3.5 | Enriquecimento de Goleiros, Palmarés & Comparador H2H | Goleiros históricos (São Marcos, Ceni, Cássio, Fábio, Dida), títulos/prêmios OGol, clean sheets/pênaltis defendidos, ratings Sofascore e comparador especializado de goleiros (`/api/jogadores/comparar` e `AthleteCompareView.jsx`) | M3 | DONE |
 | M4 | Final Milestone: 100% E2E Pass & Adversarial Hardening | Feature 13: Phase 1 (100% pass of Tiers 1-4 E2E tests) + Phase 2 (Tier 5 Challenger-driven adversarial coverage hardening) | E2E, M3 | PLANNED |
 
 ## Interface Contracts

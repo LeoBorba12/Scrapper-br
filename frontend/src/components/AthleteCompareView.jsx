@@ -8,10 +8,13 @@ import { sanitizarListaClubes } from '../utils/clubData';
 
 const DUELOS_CLASSICOS = [
   { label: 'Pedro x Gabigol', id1: 10, id2: 7, pos: 'Atacantes' },
-  { label: 'Pelé x Zico', id1: null, id2: null, nome1: 'Pelé', nome2: 'Zico', pos: 'Históricos' },
+  { label: 'Pelé x Zico', id1: 11220, id2: 13953, nome1: 'Pelé', nome2: 'Zico', pos: 'Históricos' },
   { label: 'Romário x Neymar', id1: null, id2: null, nome1: 'Romário', nome2: 'Neymar', pos: 'Atacantes' },
   { label: 'Arrascaeta x Paulo Baier', id1: null, id2: null, nome1: 'Arrascaeta', nome2: 'Paulo Baier', pos: 'Meias' },
-  { label: 'Rogério Ceni x Marcos', id1: null, id2: null, nome1: 'Rogério Ceni', nome2: 'Marcos', pos: 'Goleiros' }
+  { label: 'Nelinho x Rafinha', id1: 10433, id2: 11502, nome1: 'Nelinho', nome2: 'Rafinha', pos: 'Defensores' },
+  { label: 'Rogério Ceni x Marcos', id1: 12170, id2: 102003, nome1: 'Rogério Ceni', nome2: 'Marcos', pos: 'Goleiros' },
+  { label: 'Cássio x Fábio', id1: 18603, id2: 19015, nome1: 'Cássio', nome2: 'Fábio', pos: 'Goleiros' },
+  { label: 'Dida x Zetti', id1: 102004, id2: 102005, nome1: 'Dida', nome2: 'Zetti', pos: 'Goleiros' }
 ];
 
 const FILTROS_POSICAO = [
@@ -242,6 +245,118 @@ export default function AthleteCompareView({
 
   const atleta1 = compareData?.atleta1 || {};
   const atleta2 = compareData?.atleta2 || {};
+  const isGol1 = /gol|keeper/i.test(atleta1.posicao || '');
+  const isGol2 = /gol|keeper/i.test(atleta2.posicao || '');
+  const ambosGoleiros = Boolean(compareData?.ambos_goleiros || (isGol1 && isGol2));
+
+  const categoriaDuelo = compareData?.categoria_duelo || (ambosGoleiros ? 'goleiro' : 'misto');
+  const cat1 = compareData?.categoria_atleta1 || (isGol1 ? 'goleiro' : (/zag|lat|def/i.test(atleta1.posicao || '') ? 'defensor' : (/mei|vol/i.test(atleta1.posicao || '') ? 'meia' : 'atacante')));
+  const cat2 = compareData?.categoria_atleta2 || (isGol2 ? 'goleiro' : (/zag|lat|def/i.test(atleta2.posicao || '') ? 'defensor' : (/mei|vol/i.test(atleta2.posicao || '') ? 'meia' : 'atacante')));
+
+  const matrizHeaderInfo = {
+    goleiro: {
+      titulo: '📊 Matriz de Goleiros (Clean Sheets, Pênaltis & Defesas)',
+      desc: 'Comparativo especializado de paredões: jogos sem sofrer gols, defesas de pênalti, palmarés oficial e notas Sofascore.'
+    },
+    defensor: {
+      titulo: '📊 Matriz de Defensores (Zagueiros, Laterais & Solidez)',
+      desc: 'Comparativo defensivo: score de scouting, rating Sofascore, impacto de pontos, gols de bola parada, assistências e disciplina.'
+    },
+    meia: {
+      titulo: '📊 Matriz de Meio-Campo (Maestros, Criação & P/90)',
+      desc: 'Comparativo de maestros: participações por 90 min (P/90), assistências na carreira, xA projetado, clutch score e títulos.'
+    },
+    atacante: {
+      titulo: '📊 Matriz de Artilheiros (Gols, Eficiência xG & Conversão)',
+      desc: 'Comparativo de finalizadores: Gols/90, participações G+A, xG/chute, conversão clínica, pontaria e poder decisivo (clutch).'
+    },
+    misto: {
+      titulo: '📊 Matriz de Confronto Estatístico Direto (Multidimensional)',
+      desc: 'Comparativo abrangente entre atletas de diferentes setores: scouts pro, métricas consolidadas, títulos e telemetria.'
+    }
+  };
+
+  const renderPositionalCardStats = (atleta, cat, isTerracota = false) => {
+    const primaryColor = isTerracota ? '#B87550' : '#7C8F52';
+    const bgSoft = isTerracota ? 'rgba(133, 87, 59, 0.12)' : 'rgba(90, 103, 62, 0.12)';
+    const borderSoft = isTerracota ? 'rgba(133, 87, 59, 0.3)' : 'rgba(90, 103, 62, 0.3)';
+    const resumo = atleta.resumo || {};
+
+    if (cat === 'goleiro') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
+          <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
+            <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Clean Sheets</div>
+            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+              {resumo.clean_sheets || 0}
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Pênaltis Def.</div>
+            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+              {resumo.penaltis_defendidos || 0}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (cat === 'defensor') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
+          <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
+            <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Gols Carreira</div>
+            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+              {atleta.gols || resumo.total_gols || 0}
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Assistências</div>
+            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+              {resumo.assistencias || 0}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (cat === 'meia') {
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
+          <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
+            <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Assistências</div>
+            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+              {resumo.assistencias || 0}
+            </div>
+          </div>
+          <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Gols Carreira</div>
+            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+              {atleta.gols || resumo.total_gols || 0}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
+        <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
+          <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Gols Oficiais</div>
+          <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+            {atleta.gols || resumo.total_gols || 0}
+          </div>
+        </div>
+        <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Média / Jogo</div>
+          <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+            {resumo.media_gols_por_jogo != null ? Number(resumo.media_gols_por_jogo).toFixed(2) : '—'}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const sp1 = atleta1.scouts_profissionais || atleta1.resumo?.scouts_profissionais || {};
   const sp2 = atleta2.scouts_profissionais || atleta2.resumo?.scouts_profissionais || {};
   const notaScouting1 = sp1.score_scouting_global || 75;
@@ -860,6 +975,30 @@ export default function AthleteCompareView({
                 </div>
               </div>
 
+              {/* Scouts e Métricas Chave da Posição Atleta 1 */}
+              {renderPositionalCardStats(atleta1, cat1, false)}
+
+              {/* Palmarés & Selos Especiais Atleta 1 */}
+              {((atleta1.titulos && atleta1.titulos.length > 0) || (atleta1.premios && atleta1.premios.length > 0) || atleta1.sofascore_rating || atleta1.resumo?.sofascore_rating) && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {atleta1.titulos?.length > 0 && (
+                    <span className="pill-neutral" style={{ fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(90, 103, 62, 0.15)', color: '#7C8F52' }}>
+                      🏆 {atleta1.titulos.length} {atleta1.titulos.length === 1 ? 'Título' : 'Títulos'}
+                    </span>
+                  )}
+                  {atleta1.premios?.length > 0 && (
+                    <span className="pill-neutral" style={{ fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(133, 87, 59, 0.15)', color: '#B87550' }}>
+                      🎖️ {atleta1.premios.length} {atleta1.premios.length === 1 ? 'Prêmio' : 'Prêmios'}
+                    </span>
+                  )}
+                  {(atleta1.sofascore_rating || atleta1.resumo?.sofascore_rating) && (
+                    <span className="pill-neutral font-mono" style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                      ⭐ Sofascore {Number(atleta1.sofascore_rating || atleta1.resumo?.sofascore_rating).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Clubes Atleta 1 */}
               <div>
                 <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
@@ -925,7 +1064,13 @@ export default function AthleteCompareView({
                 <span style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
                   ⭐ Radar Dual Sobreposto
                 </span>
-                <span className="pill-neutral" style={{ fontSize: '0.66rem' }}>Estilo Winning Eleven</span>
+                <span className="pill-neutral" style={{ fontSize: '0.66rem' }}>
+                  {categoriaDuelo === 'goleiro' && '🛡️ Duelo de Paredões (Goleiros)'}
+                  {categoriaDuelo === 'defensor' && '🛡️ Duelo Defensivo (Zagueiros & Laterais)'}
+                  {categoriaDuelo === 'meia' && '🧠 Duelo de Maestros (Meio-Campo & Criação)'}
+                  {categoriaDuelo === 'atacante' && '⚡ Duelo de Artilheiros (Volume & Eficiência)'}
+                  {categoriaDuelo === 'misto' && '⚔️ Duelo Tático Cruzado (Posições Distintas)'}
+                </span>
               </div>
 
               <RadarDualPES
@@ -1033,6 +1178,30 @@ export default function AthleteCompareView({
                 </div>
               </div>
 
+              {/* Scouts e Métricas Chave da Posição Atleta 2 */}
+              {renderPositionalCardStats(atleta2, cat2, true)}
+
+              {/* Palmarés & Selos Especiais Atleta 2 */}
+              {((atleta2.titulos && atleta2.titulos.length > 0) || (atleta2.premios && atleta2.premios.length > 0) || atleta2.sofascore_rating || atleta2.resumo?.sofascore_rating) && (
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {atleta2.titulos?.length > 0 && (
+                    <span className="pill-neutral" style={{ fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(90, 103, 62, 0.15)', color: '#7C8F52' }}>
+                      🏆 {atleta2.titulos.length} {atleta2.titulos.length === 1 ? 'Título' : 'Títulos'}
+                    </span>
+                  )}
+                  {atleta2.premios?.length > 0 && (
+                    <span className="pill-neutral" style={{ fontSize: '0.7rem', fontWeight: 700, backgroundColor: 'rgba(133, 87, 59, 0.15)', color: '#B87550' }}>
+                      🎖️ {atleta2.premios.length} {atleta2.premios.length === 1 ? 'Prêmio' : 'Prêmios'}
+                    </span>
+                  )}
+                  {(atleta2.sofascore_rating || atleta2.resumo?.sofascore_rating) && (
+                    <span className="pill-neutral font-mono" style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                      ⭐ Sofascore {Number(atleta2.sofascore_rating || atleta2.resumo?.sofascore_rating).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {/* Clubes Atleta 2 */}
               <div>
                 <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
@@ -1094,10 +1263,10 @@ export default function AthleteCompareView({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
               <div>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  📊 Matriz de Confronto Estatístico Direto
+                  {(matrizHeaderInfo[categoriaDuelo] || matrizHeaderInfo.misto).titulo}
                 </h3>
                 <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Comparativo de métricas oficiais de carreira, dados auditados do acervo nacional e índices de disciplina.
+                  {(matrizHeaderInfo[categoriaDuelo] || matrizHeaderInfo.misto).desc}
                 </p>
               </div>
               <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>
@@ -1376,71 +1545,73 @@ export default function AthleteCompareView({
           </div>
 
           {/* Comparativo de Evolução Temporada a Temporada */}
-          <div
-            style={{
-              backgroundColor: 'var(--surface-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-card)',
-              padding: '20px',
-              boxShadow: 'var(--shadow-editorial)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                  📈 Linha do Tempo Comparativa (Gols Ano a Ano)
-                </h3>
-                <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Volume de gols registrados no acervo temporada a temporada.
-                </p>
+          {(!ambosGoleiros || (atleta1.carreira_oficial?.gols > 0 || atleta2.carreira_oficial?.gols > 0)) && (
+            <div
+              style={{
+                backgroundColor: 'var(--surface-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-card)',
+                padding: '20px',
+                boxShadow: 'var(--shadow-editorial)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    📈 Linha do Tempo Comparativa (Gols Ano a Ano)
+                  </h3>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Volume de gols registrados no acervo temporada a temporada.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#7C8F52', fontWeight: 700 }}>■ {atleta1.nome}</span>
+                  <span style={{ fontSize: '0.72rem', color: '#B87550', fontWeight: 700 }}>■ {atleta2.nome}</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <span style={{ fontSize: '0.72rem', color: '#7C8F52', fontWeight: 700 }}>■ {atleta1.nome}</span>
-                <span style={{ fontSize: '0.72rem', color: '#B87550', fontWeight: 700 }}>■ {atleta2.nome}</span>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {evolucaoTemporadas.slice(0, 15).map((temp) => {
-                const maxGolsAno = Math.max(
-                  ...evolucaoTemporadas.map((t) => Math.max(t.gols1 || 0, t.gols2 || 0)),
-                  1
-                );
-                const pct1 = Math.round(((temp.gols1 || 0) / maxGolsAno) * 100);
-                const pct2 = Math.round(((temp.gols2 || 0) / maxGolsAno) * 100);
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {evolucaoTemporadas.slice(0, 15).map((temp) => {
+                  const maxGolsAno = Math.max(
+                    ...evolucaoTemporadas.map((t) => Math.max(t.gols1 || 0, t.gols2 || 0)),
+                    1
+                  );
+                  const pct1 = Math.round(((temp.gols1 || 0) / maxGolsAno) * 100);
+                  const pct2 = Math.round(((temp.gols2 || 0) / maxGolsAno) * 100);
 
-                return (
-                  <div key={temp.ano} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem' }}>
-                    <span className="font-mono" style={{ width: '42px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                      {temp.ano}
-                    </span>
-
-                    {/* Barra Atleta 1 (Esquerda) */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                      <span className="font-mono" style={{ fontWeight: 700, color: '#7C8F52' }}>
-                        {temp.gols1 || 0}
+                  return (
+                    <div key={temp.ano} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem' }}>
+                      <span className="font-mono" style={{ width: '42px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        {temp.ano}
                       </span>
-                      <div style={{ width: '100%', maxWidth: '140px', height: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: '4px', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
-                        <div style={{ width: `${pct1}%`, height: '100%', backgroundColor: '#7C8F52', borderRadius: '4px' }} />
+
+                      {/* Barra Atleta 1 (Esquerda) */}
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                        <span className="font-mono" style={{ fontWeight: 700, color: '#7C8F52' }}>
+                          {temp.gols1 || 0}
+                        </span>
+                        <div style={{ width: '100%', maxWidth: '140px', height: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: '4px', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
+                          <div style={{ width: `${pct1}%`, height: '100%', backgroundColor: '#7C8F52', borderRadius: '4px' }} />
+                        </div>
+                      </div>
+
+                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>vs</span>
+
+                      {/* Barra Atleta 2 (Direita) */}
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px' }}>
+                        <div style={{ width: '100%', maxWidth: '140px', height: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct2}%`, height: '100%', backgroundColor: '#B87550', borderRadius: '4px' }} />
+                        </div>
+                        <span className="font-mono" style={{ fontWeight: 700, color: '#B87550' }}>
+                          {temp.gols2 || 0}
+                        </span>
                       </div>
                     </div>
-
-                    <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>vs</span>
-
-                    {/* Barra Atleta 2 (Direita) */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px' }}>
-                      <div style={{ width: '100%', maxWidth: '140px', height: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${pct2}%`, height: '100%', backgroundColor: '#B87550', borderRadius: '4px' }} />
-                      </div>
-                      <span className="font-mono" style={{ fontWeight: 700, color: '#B87550' }}>
-                        {temp.gols2 || 0}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 

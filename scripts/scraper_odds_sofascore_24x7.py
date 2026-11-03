@@ -39,6 +39,8 @@ def carregar_env():
 carregar_env()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+# Controle de envio de alertas de apostas (+EV) no Telegram (desativado por padrão conforme solicitado)
+ALERTAS_APOSTAS_TELEGRAM_ATIVO = os.getenv("ALERTAS_APOSTAS_TELEGRAM_ATIVO", "false").lower() in ("true", "1", "t")
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
@@ -194,6 +196,12 @@ def processar_odds_e_alertas():
                 for ev in events:
                     nome_jogo = ev.get("name", "")
                     data_iso = ev.get("date", "")[:10]
+                    status_info = ev.get("status", {}).get("type", {})
+                    # Ignora jogos concluídos ou que já começaram/passaram para novas entradas de aposta
+                    is_completed = status_info.get("completed", False) or status_info.get("state") in ("post", "final")
+                    if is_completed or (data_iso and data_iso < hoje_str):
+                        continue
+
                     competitions = ev.get("competitions", [{}])[0]
                     competitors = competitions.get("competitors", [])
 
@@ -322,26 +330,30 @@ def processar_odds_e_alertas():
 
     print(f"\n[OK] Varredura concluída: {odds_atualizadas} partidas com odds atualizadas.")
 
-    # Se foram detectadas apostas de alto valor (+EV), dispara alerta para o canal do Telegram
+    # Se foram detectadas apostas de alto valor (+EV), avalia envio para o Telegram
     if apostas_ev_detectadas:
-        linhas_alerta = []
-        for ap in apostas_ev_detectadas[:5]:
-            linhas_alerta.append(
-                f"⚽ *{ap['jogo']}* ({ap['torneio']})\n"
-                f"🎯 *Entrada:* `{ap['selecao']}` @ *{ap['odd']}*\n"
-                f"📊 *Prob. FutStats:* `{ap['prob_futstats']}` | *Valor (+EV):* `{ap['ev']}`\n"
-                f"💰 *Stake Sugerida (1/4 Kelly):* `{ap['kelly']}` da banca\n"
-            )
+        print(f"[*] {len(apostas_ev_detectadas)} apostas +EV detectadas.")
+        if ALERTAS_APOSTAS_TELEGRAM_ATIVO:
+            linhas_alerta = []
+            for ap in apostas_ev_detectadas[:5]:
+                linhas_alerta.append(
+                    f"⚽ *{ap['jogo']}* ({ap['torneio']})\n"
+                    f"🎯 *Entrada:* `{ap['selecao']}` @ *{ap['odd']}*\n"
+                    f"📊 *Prob. FutStats:* `{ap['prob_futstats']}` | *Valor (+EV):* `{ap['ev']}`\n"
+                    f"💰 *Stake Sugerida (1/4 Kelly):* `{ap['kelly']}` da banca\n"
+                )
 
-        corpo_msg = "\n".join(linhas_alerta)
-        msg_telegram = (
-            f"⚡ *[RADAR +EV FUTSTATS - OPORTUNIDADES DETECTADAS]*\n\n"
-            f"{corpo_msg}\n"
-            f"Auditoria matemática via Dixon-Coles calibrado (115k jogos).\n"
-            f"🔗 Acesse o Hub: https://futstats.vercel.app"
-        )
-        notificar_telegram(msg_telegram)
-        print("[TELEGRAM] Alerta de apostas +EV enviado com sucesso!")
+            corpo_msg = "\n".join(linhas_alerta)
+            msg_telegram = (
+                f"⚡ *[RADAR +EV FUTSTATS - OPORTUNIDADES DETECTADAS]*\n\n"
+                f"{corpo_msg}\n"
+                f"Auditoria matemática via Dixon-Coles calibrado (115k jogos).\n"
+                f"🔗 Acesse o Hub: https://futstats.vercel.app"
+            )
+            notificar_telegram(msg_telegram)
+            print("[TELEGRAM] Alerta de apostas +EV enviado com sucesso!")
+        else:
+            print("[TELEGRAM] Alertas de apostas desativados por configuração (ALERTAS_APOSTAS_TELEGRAM_ATIVO=False). Nenhuma mensagem enviada ao Telegram.")
 
 if __name__ == "__main__":
     processar_odds_e_alertas()

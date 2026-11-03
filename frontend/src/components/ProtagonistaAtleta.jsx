@@ -438,6 +438,7 @@ export default function ProtagonistaAtleta({
   const atleta = playerProfile || {};
   const resumo = atleta.resumo || {};
   const carreira = atleta.carreira_oficial || {};
+  const isGoleiro = (atleta.posicao || '').toLowerCase().includes('gol') || (atleta.posicao || '').toLowerCase().includes('keep');
   const clubesLimpos = sanitizarListaClubes(atleta.clubes, carreira.clubes);
   const carreiraClubesLimpos = sanitizarCarreiraClubes(carreira.clubes);
   const scoutsPro = atleta.scouts_profissionais || resumo.scouts_profissionais || {};
@@ -1162,12 +1163,37 @@ export default function ProtagonistaAtleta({
                     borderBottom: '1px solid var(--border-subtle)' 
                   }}
                 >
-                  <div>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Gols no Catálogo</span>
-                    <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
-                      {resumo.total_gols ?? 0}
+                  {isGoleiro ? (
+                    <>
+                      <div>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Clean Sheets</span>
+                        <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#5A673E' }}>
+                          {resumo.clean_sheets ?? 0}
+                        </div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Pênaltis Defendidos</span>
+                        <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+                          {resumo.penaltis_defendidos ?? 0}
+                        </div>
+                      </div>
+                      {Number(resumo.total_gols) > 0 && (
+                        <div>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Gols Marcados</span>
+                          <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            {resumo.total_gols}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Gols no Catálogo</span>
+                      <div className="tabular-nums font-mono" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent)' }}>
+                        {resumo.total_gols ?? 0}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                       {Boolean(

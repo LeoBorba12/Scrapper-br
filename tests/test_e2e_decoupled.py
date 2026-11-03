@@ -415,8 +415,8 @@ class TestTier1FeatureCoverage:
         cursor.execute("SELECT DISTINCT tipo_de_gol FROM gols WHERE tipo_de_gol IS NOT NULL AND tipo_de_gol != ''")
         tipos_encontrados = {row[0] for row in cursor.fetchall()}
 
-        # Taxonomia canônica: 'Normal', 'Pênalti', 'Falta', 'Contra', 'Cabeça'
-        tipos_canonicos = {"Normal", "Pênalti", "Falta", "Contra", "Cabeça"}
+        # Taxonomia canônica: 'Normal', 'Pênalti', 'Falta', 'Contra', 'Cabeça' (+ 'Barriga' histórico do Renato Gaúcho 1995)
+        tipos_canonicos = {"Normal", "Pênalti", "Falta", "Contra", "Cabeça", "Barriga"}
         tipos_invalidos = tipos_encontrados - tipos_canonicos
 
         assert not tipos_invalidos, (

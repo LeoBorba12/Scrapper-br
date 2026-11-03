@@ -2113,10 +2113,85 @@ def _calcular_radar_pes(posicao, resumo=None, carreira=None):
     clutch = float(resumo.get('gols_decisivos_80mais') or 0.0)
     jogos_titular = float(resumo.get('jogos_titular') or 0.0)
 
-    is_atacante = any(k in pos for k in ['atacante', 'centroavante', 'ponta']) or media_gols > 0.3 or total_gols > 30
-    is_meia = any(k in pos for k in ['meia', 'meio', 'armador'])
-    is_defensor = any(k in pos for k in ['zagueiro', 'lateral', 'defensor', 'volante'])
-    is_goleiro = 'goleiro' in pos
+    def clamp(v):
+        try:
+            val = float(v)
+            if math.isnan(val):
+                return 50
+            return max(40, min(99, int(round(val))))
+        except Exception:
+            return 50
+
+    is_goleiro = any(k in pos for k in ['goleiro', 'gol', 'keeper'])
+
+    # Eixos especializados de PES para Goleiros
+    if is_goleiro:
+        clean_sheets = float(resumo.get('clean_sheets') or 0.0)
+        penaltis_defendidos = float(resumo.get('penaltis_defendidos') or 0.0)
+        aproveitamento = float(resumo.get('aproveitamento_pontos') or 0.0)
+        cs_ratio = clean_sheets / total_jogos if total_jogos > 0 else 0.0
+
+        # 1. Reflexos (Elasticidade e velocidade de reação)
+        ref = 80.0
+        if clean_sheets >= 180: ref += 12
+        elif clean_sheets >= 100: ref += 8
+        elif clean_sheets >= 50: ref += 5
+        elif clean_sheets >= 20: ref += 2
+        if cs_ratio >= 0.40: ref += 5
+        elif cs_ratio >= 0.30: ref += 3
+        if penaltis_defendidos >= 15: ref += 2
+
+        # 2. Pênaltis (Efetividade histórica na cal)
+        pen = 70.0
+        if penaltis_defendidos >= 40: pen += 28
+        elif penaltis_defendidos >= 30: pen += 25
+        elif penaltis_defendidos >= 20: pen += 18
+        elif penaltis_defendidos >= 10: pen += 12
+        elif penaltis_defendidos >= 5: pen += 7
+        elif penaltis_defendidos >= 1: pen += 3
+        if penaltis_defendidos >= 15 and total_jogos > 300: pen += 2
+
+        # 3. Muralha (Jogos sem sofrer gols e consistência defensiva)
+        mur = 75.0
+        if clean_sheets >= 250: mur += 21
+        elif clean_sheets >= 180: mur += 17
+        elif clean_sheets >= 100: mur += 12
+        elif clean_sheets >= 50: mur += 7
+        elif clean_sheets >= 15: mur += 3
+        if cs_ratio >= 0.42: mur += 3
+        if aproveitamento >= 55.0: mur += 2
+
+        # 4. Posicionamento (Colocação sob as traves e leitura aérea)
+        pos_val = 76.0
+        if total_jogos >= 700: pos_val += 18
+        elif total_jogos >= 450: pos_val += 14
+        elif total_jogos >= 250: pos_val += 10
+        elif total_jogos >= 100: pos_val += 6
+        elif total_jogos >= 40: pos_val += 2
+        if aproveitamento >= 58.0: pos_val += 5
+        elif aproveitamento >= 50.0: pos_val += 3
+
+        # 5. Regularidade (Longevidade e solidez em jogos oficiais)
+        lon = 70.0
+        if total_jogos >= 1000: lon += 28
+        elif total_jogos >= 600: lon += 24
+        elif total_jogos >= 400: lon += 18
+        elif total_jogos >= 200: lon += 12
+        elif total_jogos >= 80: lon += 6
+
+        eixos_goleiro = [
+            {"key": "ref", "label": "Reflexos", "valor": clamp(ref), "desc": "Elasticidade, velocidade de reação e defesas difíceis"},
+            {"key": "pen", "label": "Pênaltis", "valor": clamp(pen), "desc": "Efetividade histórica e defesas de pênalti"},
+            {"key": "mur", "label": "Muralha", "valor": clamp(mur), "desc": "Clean sheets e jogos oficiais sem sofrer gols"},
+            {"key": "pos", "label": "Posicionamento", "valor": clamp(pos_val), "desc": "Colocação sob as traves, comando de área e leitura"},
+            {"key": "lon", "label": "Regularidade", "valor": clamp(lon), "desc": "Longevidade, solidez sob pressão e partidas oficiais"}
+        ]
+        ovr_gol = round(sum(e["valor"] for e in eixos_goleiro) / len(eixos_goleiro))
+        return {"eixos": eixos_goleiro, "ovr": ovr_gol}
+
+    is_defensor = any(k in pos for k in ['zagueiro', 'lateral', 'defensor', 'zag', 'lat', 'def'])
+    is_meia = any(k in pos for k in ['meia', 'meio', 'volante', 'armador', 'vol', 'mei'])
+    is_atacante = any(k in pos for k in ['atacante', 'centroavante', 'ponta', 'ata', 'cen', 'pon', 'striker', 'forward']) or (not is_defensor and not is_meia and (media_gols > 0.3 or total_gols > 30))
 
     # 1. Ataque
     if is_atacante:
@@ -2125,8 +2200,6 @@ def _calcular_radar_pes(posicao, resumo=None, carreira=None):
         atk = 74 + min(18, round(media_gols * 18) + (5 if total_assists > 20 else 2))
     elif is_defensor:
         atk = 48 + min(22, round(media_gols * 25))
-    elif is_goleiro:
-        atk = 40
     else:
         atk = 60 + min(25, round(media_gols * 22))
 
@@ -2144,8 +2217,6 @@ def _calcular_radar_pes(posicao, resumo=None, carreira=None):
         if media_gols > 0.25: fin += 6
     elif is_defensor:
         fin = 45 + min(20, round(total_gols * 1.5))
-    elif is_goleiro:
-        fin = 40
     else:
         fin = 55 + (12 if total_gols > 20 else 4)
 
@@ -2174,9 +2245,7 @@ def _calcular_radar_pes(posicao, resumo=None, carreira=None):
     if jogos_titular > 100: fis += 5
 
     # 5. Defesa / Disciplina
-    if is_goleiro:
-        def_val = 92
-    elif is_defensor:
+    if is_defensor:
         def_val = 82 + (8 if total_jogos > 100 else 4)
     elif is_meia:
         def_val = 80 if 'volante' in pos else 58
@@ -2185,15 +2254,6 @@ def _calcular_radar_pes(posicao, resumo=None, carreira=None):
         cartoes_por_jogo = (amarelos + vermelhos * 2) / total_jogos if total_jogos > 0 else 0
         if cartoes_por_jogo < 0.12: def_val += 8
         elif cartoes_por_jogo > 0.25: def_val -= 6
-
-    def clamp(v):
-        try:
-            val = float(v)
-            if math.isnan(val):
-                return 50
-            return max(40, min(99, int(round(val))))
-        except Exception:
-            return 50
 
     eixos = [
         {"key": "atk", "label": "Ataque", "valor": clamp(atk), "desc": "Presença e volume ofensivo"},
@@ -2278,6 +2338,16 @@ def _calcular_scouts_profissionais(posicao_raw, resumo, carreira, stats_meta, an
 
     if is_goleiro:
         base = 72 + (aprov * 0.15)
+        clean_sheets_val = stats_meta.get('clean_sheets') or 0
+        penaltis_val = stats_meta.get('penaltis_defendidos') or 0
+        if clean_sheets_val >= 100 or jogos_oficiais > 400:
+            base += 6
+        elif clean_sheets_val >= 30 or jogos_oficiais > 150:
+            base += 3
+        if penaltis_val >= 25:
+            base += 6
+        elif penaltis_val >= 10:
+            base += 3
         if gols_oficiais >= 50:
             base += 14  # Goleiro artilheiro histórico único (ex: Rogério Ceni)
         if jogos_oficiais > 500:
@@ -2326,6 +2396,8 @@ def _calcular_scouts_profissionais(posicao_raw, resumo, carreira, stats_meta, an
     return {
         "score_scouting_global": score_scouting_global,
         "classificacao_scouting": classificacao_scouting,
+        "clean_sheets": stats_meta.get('clean_sheets') or 0,
+        "penaltis_defendidos": stats_meta.get('penaltis_defendidos') or 0,
         "gols_por_90": gols_por_90,
         "participacoes_por_90": participacoes_por_90,
         "xg_acumulado": xg_acumulado,
@@ -2368,6 +2440,23 @@ def _obter_condicao_campeonato(filtro):
         return " AND (p.campeonato LIKE '%Libertadores%' OR p.campeonato LIKE '%Sul-Americana%' OR p.campeonato LIKE '%Mercosul%' OR p.campeonato LIKE '%Supercopa%' OR p.campeonato LIKE '%Mundial%')", []
     else:
         return " AND p.campeonato LIKE ?", [f"%{filtro}%"]
+
+
+def _safe_json_parse(raw_val, default=None):
+    if not raw_val:
+        return default if default is not None else []
+    if isinstance(raw_val, (list, dict)):
+        return raw_val
+    val_str = str(raw_val).strip()
+    if not val_str:
+        return default if default is not None else []
+    try:
+        return json.loads(val_str)
+    except Exception:
+        if ',' in val_str or ';' in val_str:
+            sep = ';' if ';' in val_str else ','
+            return [{"titulo": item.strip()} for item in val_str.split(sep) if item.strip()]
+        return [{"titulo": val_str}]
 
 
 def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None, limit_partidas=100, campeonato_filtro=None):
@@ -2707,7 +2796,7 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
             "gols": max(raw_gols_carreira, total_gols_final),
             "jogos": max(raw_jogos_carreira, total_jogos),
             "assistencias": max(raw_assists_carreira, total_assists_final),
-            "clubes": json.loads(stats_meta['detalhe_carreira_clubes']) if stats_meta.get('detalhe_carreira_clubes') else []
+            "clubes": _safe_json_parse(stats_meta.get('detalhe_carreira_clubes'), [])
         }
 
     # Aproveitamento sob filtro específico
@@ -2781,6 +2870,8 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "pontaria_chutes_pct": stats_meta.get('pontaria_chutes_pct', 0.0),
         "penaltis_cobrados": stats_meta.get('penaltis_cobrados', 0),
         "penaltis_perdidos": stats_meta.get('penaltis_perdidos', 0),
+        "clean_sheets": stats_meta.get('clean_sheets') or 0,
+        "penaltis_defendidos": stats_meta.get('penaltis_defendidos') or 0,
         "maior_vitima_clube": (top_vitimas[0]['clube'] if top_vitimas else None),
         "estadio_favorito": stats_meta.get('estadio_favorito'),
         "media_gols": media_gols_retorno,
@@ -2954,8 +3045,8 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "pe_preferencial": stats_meta.get('pe_preferencial'),
         "clubes": [cb.strip() for cb in (stats_meta.get('clubes') or '').split(',') if cb.strip()],
         "clube_filtro": clube_filtro,
-        "titulos": json.loads(stats_meta['titulos']) if stats_meta.get('titulos') else [],
-        "premios": json.loads(stats_meta['premios']) if stats_meta.get('premios') else [],
+        "titulos": _safe_json_parse(stats_meta.get('titulos'), []),
+        "premios": _safe_json_parse(stats_meta.get('premios'), []),
         "resumo": resumo_dados,
         "analytics_xg": analytics_xg,
         "scouts_profissionais": scouts_profissionais,
@@ -2992,6 +3083,199 @@ def get_jogador_perfil():
         return jsonify({"error": "Atleta não encontrado no acervo"}), 404
 
     return jsonify(dados)
+
+
+def _detectar_categoria_posicao(pos_raw):
+    p = (pos_raw or 'Atacante').lower()
+    if any(k in p for k in ['goleiro', 'gol', 'keeper']):
+        return 'goleiro'
+    if any(k in p for k in ['zagueiro', 'lateral', 'defensor', 'zag', 'lat', 'def']):
+        return 'defensor'
+    if any(k in p for k in ['meia', 'meio', 'volante', 'armador', 'vol', 'mei']):
+        return 'meia'
+    return 'atacante'
+
+
+def _montar_matriz_scouts_h2h(perfil1, perfil2, campeonato=None):
+    cat1 = _detectar_categoria_posicao(perfil1.get('posicao'))
+    cat2 = _detectar_categoria_posicao(perfil2.get('posicao'))
+    mesma_categoria = cat1 if cat1 == cat2 else 'misto'
+
+    c1 = perfil1.get("carreira_oficial") or {}
+    c2 = perfil2.get("carreira_oficial") or {}
+    r1 = perfil1.get("resumo") or {}
+    r2 = perfil2.get("resumo") or {}
+    sp1 = perfil1.get("scouts_profissionais") or {}
+    sp2 = perfil2.get("scouts_profissionais") or {}
+    axg1 = r1.get("analytics_xg") or {}
+    axg2 = r2.get("analytics_xg") or {}
+
+    is_filtro_camp = bool(campeonato and campeonato not in ('todos', 'carreira', 'all'))
+    nome_camp_curto = {
+        'brasileirao': 'Brasileirão',
+        'copa_do_brasil': 'Copa do Brasil',
+        'libertadores': 'Libertadores',
+        'estaduais': 'Estaduais',
+        'internacionais': 'Torneios Internacionais'
+    }.get((campeonato or '').lower(), campeonato or '')
+
+    prep_comp = "no" if nome_camp_curto == "Brasileirão" else ("na" if "Copa" in nome_camp_curto or "Libertadores" in nome_camp_curto else "em")
+    cat_recorte = f"Recorte: {nome_camp_curto}" if is_filtro_camp else "Carreira Oficial"
+
+    if is_filtro_camp:
+        gols_1 = r1.get("total_gols", 0)
+        gols_2 = r2.get("total_gols", 0)
+        jogos_1 = r1.get("jogos_registrados", 0)
+        jogos_2 = r2.get("jogos_registrados", 0)
+        media_1 = r1.get("media_gols", 0.0)
+        media_2 = r2.get("media_gols", 0.0)
+        assists_1 = r1.get("total_assistencias", 0)
+        assists_2 = r2.get("total_assistencias", 0)
+    else:
+        gols_1 = c1.get("gols") or r1.get("total_gols", 0)
+        gols_2 = c2.get("gols") or r2.get("total_gols", 0)
+        jogos_1 = c1.get("jogos") or r1.get("jogos_registrados", 1)
+        jogos_2 = c2.get("jogos") or r2.get("jogos_registrados", 1)
+        media_1 = round(gols_1 / max(jogos_1, 1), 2)
+        media_2 = round(gols_2 / max(jogos_2, 1), 2)
+        assists_1 = c1.get("assistencias") or r1.get("total_assistencias", 0)
+        assists_2 = c2.get("assistencias") or r2.get("total_assistencias", 0)
+
+    partic_1 = r1.get("participacoes_gols") or (gols_1 + assists_1)
+    partic_2 = r2.get("participacoes_gols") or (gols_2 + assists_2)
+    rating_s1 = (r1.get("sofascore") or {}).get("rating_medio") or round(sp1.get("score_scouting_global", 75) / 10.0, 2)
+    rating_s2 = (r2.get("sofascore") or {}).get("rating_medio") or round(sp2.get("score_scouting_global", 75) / 10.0, 2)
+    tits_1 = len(perfil1.get("titulos") or [])
+    tits_2 = len(perfil2.get("titulos") or [])
+    prem_1 = len(perfil1.get("premios") or [])
+    prem_2 = len(perfil2.get("premios") or [])
+    cs_1 = r1.get("clean_sheets", 0)
+    cs_2 = r2.get("clean_sheets", 0)
+    pct_cs1 = round((cs_1 / max(jogos_1, 1)) * 100, 1)
+    pct_cs2 = round((cs_2 / max(jogos_2, 1)) * 100, 1)
+
+    matriz = []
+
+    # 1. GOLEIRO X GOLEIRO
+    if mesma_categoria == 'goleiro':
+        if is_filtro_camp:
+            matriz = [
+                {"chave": "score_scouting", "categoria": "Scouting Pro", "label": f"Nota Global de Scouting ({nome_camp_curto})", "val1": sp1.get("score_scouting_global", 75), "val2": sp2.get("score_scouting_global", 75), "formato": "numero", "unidade": "pts", "inverso": False},
+                {"chave": "jogos_comp", "categoria": cat_recorte, "label": f"Jogos {prep_comp} {nome_camp_curto}", "val1": jogos_1, "val2": jogos_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+                {"chave": "aproveitamento_pontos", "categoria": "Impacto em Campo", "label": f"Aproveitamento de Pontos ({nome_camp_curto})", "val1": r1.get("aproveitamento_pontos", 0.0), "val2": r2.get("aproveitamento_pontos", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False},
+                {"chave": "clean_sheets", "categoria": "Muralha & Defesa", "label": "Clean Sheets Oficiais (Carreira)", "val1": cs_1, "val2": cs_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+                {"chave": "penaltis_defendidos", "categoria": "Especialista em Pênaltis", "label": "Pênaltis Defendidos (Carreira)", "val1": r1.get("penaltis_defendidos", 0), "val2": r2.get("penaltis_defendidos", 0), "formato": "numero", "unidade": "defesas", "inverso": False},
+                {"chave": "titulos_conquistados", "categoria": "Palmarés & Glórias", "label": "Títulos Oficiais Conquistados", "val1": tits_1, "val2": tits_2, "formato": "numero", "unidade": "troféus", "inverso": False},
+                {"chave": "premios_individuais", "categoria": "Palmarés & Glórias", "label": "Prêmios Individuais Conquistados", "val1": prem_1, "val2": prem_2, "formato": "numero", "unidade": "prêmios", "inverso": False},
+                {"chave": "cartoes_amarelos", "categoria": "Disciplina Tática", "label": f"Cartões Amarelos ({nome_camp_curto})", "val1": r1.get("amarelos", 0), "val2": r2.get("amarelos", 0), "formato": "numero", "unidade": "amarelos", "inverso": True},
+                {"chave": "cartoes_vermelhos", "categoria": "Disciplina Tática", "label": f"Cartões Vermelhos ({nome_camp_curto})", "val1": r1.get("vermelhos", 0), "val2": r2.get("vermelhos", 0), "formato": "numero", "unidade": "vermelhos", "inverso": True}
+            ]
+        else:
+            matriz = [
+                {"chave": "score_scouting", "categoria": "Scouting Pro", "label": "Nota Global de Scouting (0 a 100)", "val1": sp1.get("score_scouting_global", 75), "val2": sp2.get("score_scouting_global", 75), "formato": "numero", "unidade": "pts", "inverso": False},
+                {"chave": "clean_sheets", "categoria": "Muralha & Defesa", "label": "Clean Sheets Oficiais (Jogos sem Sofrer Gol)", "val1": cs_1, "val2": cs_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+                {"chave": "pct_clean_sheets", "categoria": "Muralha & Defesa", "label": "Taxa de Jogos sem Sofrer Gols (% Clean Sheets)", "val1": pct_cs1, "val2": pct_cs2, "formato": "porcentagem", "unidade": "%", "inverso": False},
+                {"chave": "penaltis_defendidos", "categoria": "Especialista em Pênaltis", "label": "Pênaltis Defendidos (Tempo Normal e Disputas)", "val1": r1.get("penaltis_defendidos", 0), "val2": r2.get("penaltis_defendidos", 0), "formato": "numero", "unidade": "defesas", "inverso": False},
+                {"chave": "titulos_conquistados", "categoria": "Palmarés & Glórias", "label": "Títulos Oficiais Conquistados", "val1": tits_1, "val2": tits_2, "formato": "numero", "unidade": "troféus", "inverso": False},
+                {"chave": "premios_individuais", "categoria": "Palmarés & Glórias", "label": "Prêmios Individuais Oficiais", "val1": prem_1, "val2": prem_2, "formato": "numero", "unidade": "prêmios", "inverso": False},
+                {"chave": "rating_sofascore", "categoria": "Scouting Pro", "label": "Rating Médio Sofascore (0 a 10.0)", "val1": rating_s1, "val2": rating_s2, "formato": "decimal", "unidade": "rating", "inverso": False},
+                {"chave": "jogos_carreira", "categoria": "Longevidade & Regularidade", "label": "Jogos Oficiais na Carreira", "val1": jogos_1, "val2": jogos_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+                {"chave": "aproveitamento_pontos", "categoria": "Impacto em Campo", "label": "Aproveitamento de Pontos do Time", "val1": r1.get("aproveitamento_pontos", 0.0), "val2": r2.get("aproveitamento_pontos", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False}
+            ]
+            if gols_1 > 0 or gols_2 > 0:
+                matriz.append({"chave": "gols_carreira", "categoria": "Goleiro Artilheiro", "label": "Gols Marcados na Carreira (Faltas e Pênaltis)", "val1": gols_1, "val2": gols_2, "formato": "numero", "unidade": "gols", "inverso": False})
+            matriz.extend([
+                {"chave": "cartoes_amarelos", "categoria": "Disciplina Tática", "label": "Cartões Amarelos Recebidos", "val1": r1.get("amarelos", 0), "val2": r2.get("amarelos", 0), "formato": "numero", "unidade": "amarelos", "inverso": True},
+                {"chave": "cartoes_vermelhos", "categoria": "Disciplina Tática", "label": "Cartões Vermelhos / Expulsões", "val1": r1.get("vermelhos", 0), "val2": r2.get("vermelhos", 0), "formato": "numero", "unidade": "vermelhos", "inverso": True}
+            ])
+
+    # 2. DEFENSORES (Zagueiros / Laterais)
+    elif mesma_categoria == 'defensor':
+        matriz = [
+            {"chave": "score_scouting", "categoria": "Scouting Pro", "label": "Nota Global de Scouting (0 a 100)", "val1": sp1.get("score_scouting_global", 75), "val2": sp2.get("score_scouting_global", 75), "formato": "numero", "unidade": "pts", "inverso": False},
+            {"chave": "rating_sofascore", "categoria": "Scouting Pro", "label": "Rating Médio Sofascore (0 a 10.0)", "val1": rating_s1, "val2": rating_s2, "formato": "decimal", "unidade": "rating", "inverso": False},
+            {"chave": "aproveitamento_pontos", "categoria": "Impacto Defensivo", "label": f"Aproveitamento de Pontos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'do Time'}", "val1": r1.get("aproveitamento_pontos", 0.0), "val2": r2.get("aproveitamento_pontos", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False},
+            {"chave": "titulos_conquistados", "categoria": "Palmarés & Glórias", "label": "Títulos Oficiais Conquistados", "val1": tits_1, "val2": tits_2, "formato": "numero", "unidade": "troféus", "inverso": False},
+            {"chave": "premios_individuais", "categoria": "Palmarés & Glórias", "label": "Prêmios Individuais Oficiais", "val1": prem_1, "val2": prem_2, "formato": "numero", "unidade": "prêmios", "inverso": False},
+            {"chave": "jogos_carreira", "categoria": "Longevidade & Regularidade", "label": f"Jogos Oficiais {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": jogos_1, "val2": jogos_2, "formato": "numero", "unidade": "jogos", "inverso": False}
+        ]
+        if cs_1 > 0 or cs_2 > 0:
+            matriz.append({"chave": "clean_sheets", "categoria": "Impacto Defensivo", "label": "Jogos sem Sofrer Gols (Clean Sheets)", "val1": cs_1, "val2": cs_2, "formato": "numero", "unidade": "jogos", "inverso": False})
+        matriz.extend([
+            {"chave": "gols_carreira", "categoria": "Apoio Ofensivo & Bola Parada", "label": f"Gols Marcados {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": gols_1, "val2": gols_2, "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "assistencias_carreira", "categoria": "Apoio Ofensivo & Bola Parada", "label": "Assistências Oficiais (Carreira)", "val1": assists_1, "val2": assists_2, "formato": "numero", "unidade": "assist.", "inverso": False},
+            {"chave": "participacoes_gols", "categoria": "Apoio Ofensivo & Bola Parada", "label": "Participações Diretas em Gols (G+A)", "val1": partic_1, "val2": partic_2, "formato": "numero", "unidade": "G+A", "inverso": False},
+            {"chave": "gols_decisivos", "categoria": "Decisão & Clutch", "label": f"Gols Decisivos nos Finais (80'+) {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else ''}".strip(), "val1": r1.get("gols_decisivos_80mais", 0), "val2": r2.get("gols_decisivos_80mais", 0), "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "indice_clutch", "categoria": "Decisão & Clutch", "label": "Poder de Decisão (Clutch Score 0–100)", "val1": sp1.get("indice_clutch", 50), "val2": sp2.get("indice_clutch", 50), "formato": "numero", "unidade": "clutch", "inverso": False},
+            {"chave": "cartoes_amarelos", "categoria": "Disciplina Tática", "label": f"Cartões Amarelos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'Recebidos'}", "val1": r1.get("amarelos", 0), "val2": r2.get("amarelos", 0), "formato": "numero", "unidade": "amarelos", "inverso": True},
+            {"chave": "cartoes_vermelhos", "categoria": "Disciplina Tática", "label": f"Cartões Vermelhos {'(' + nome_camp_curto + ')' if is_filtro_camp else '/ Expulsões'}", "val1": r1.get("vermelhos", 0), "val2": r2.get("vermelhos", 0), "formato": "numero", "unidade": "vermelhos", "inverso": True}
+        ])
+
+    # 3. MEIOS (Armadores, Meias, Volantes)
+    elif mesma_categoria == 'meia':
+        matriz = [
+            {"chave": "score_scouting", "categoria": "Scouting Pro", "label": "Nota Global de Scouting (0 a 100)", "val1": sp1.get("score_scouting_global", 75), "val2": sp2.get("score_scouting_global", 75), "formato": "numero", "unidade": "pts", "inverso": False},
+            {"chave": "participacoes_por_90", "categoria": "Scouting Pro", "label": "Participações por 90 Min (P/90)", "val1": sp1.get("participacoes_por_90", 0.0), "val2": sp2.get("participacoes_por_90", 0.0), "formato": "decimal", "unidade": "P/90", "inverso": False},
+            {"chave": "assistencias_carreira", "categoria": "Criação & Visão de Jogo", "label": "Assistências Oficiais (Carreira)", "val1": assists_1, "val2": assists_2, "formato": "numero", "unidade": "assist.", "inverso": False},
+            {"chave": "xa_estimado", "categoria": "Criação & Visão de Jogo", "label": "Assistências Esperadas (xA Estimado)", "val1": sp1.get("xa_estimado", 0.0), "val2": sp2.get("xa_estimado", 0.0), "formato": "decimal", "unidade": "xA", "inverso": False},
+            {"chave": "gols_carreira", "categoria": "Capacidade Artilheira", "label": f"Gols Marcados {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": gols_1, "val2": gols_2, "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "participacoes_gols", "categoria": "Impacto Ofensivo", "label": "Participações Diretas em Gols (G+A)", "val1": partic_1, "val2": partic_2, "formato": "numero", "unidade": "G+A", "inverso": False},
+            {"chave": "media_gols_carreira", "categoria": "Capacidade Artilheira", "label": f"Média de Gols / Jogo {'(' + nome_camp_curto + ')' if is_filtro_camp else ''}".strip(), "val1": media_1, "val2": media_2, "formato": "decimal", "unidade": "gol/jogo", "inverso": False},
+            {"chave": "rating_sofascore", "categoria": "Scouting Pro", "label": "Rating Médio Sofascore (0 a 10.0)", "val1": rating_s1, "val2": rating_s2, "formato": "decimal", "unidade": "rating", "inverso": False},
+            {"chave": "titulos_conquistados", "categoria": "Palmarés & Glórias", "label": "Títulos Oficiais Conquistados", "val1": tits_1, "val2": tits_2, "formato": "numero", "unidade": "troféus", "inverso": False},
+            {"chave": "premios_individuais", "categoria": "Palmarés & Glórias", "label": "Prêmios Individuais Oficiais", "val1": prem_1, "val2": prem_2, "formato": "numero", "unidade": "prêmios", "inverso": False},
+            {"chave": "indice_clutch", "categoria": "Decisão & Clutch", "label": "Poder de Decisão (Clutch Score 0–100)", "val1": sp1.get("indice_clutch", 50), "val2": sp2.get("indice_clutch", 50), "formato": "numero", "unidade": "clutch", "inverso": False},
+            {"chave": "gols_decisivos", "categoria": "Decisão & Clutch", "label": f"Gols Decisivos nos Finais (80'+) {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else ''}".strip(), "val1": r1.get("gols_decisivos_80mais", 0), "val2": r2.get("gols_decisivos_80mais", 0), "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "aproveitamento_pontos", "categoria": "Impacto em Campo", "label": f"Aproveitamento de Pontos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'do Time'}", "val1": r1.get("aproveitamento_pontos", 0.0), "val2": r2.get("aproveitamento_pontos", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False},
+            {"chave": "jogos_carreira", "categoria": "Longevidade & Regularidade", "label": f"Jogos Oficiais {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": jogos_1, "val2": jogos_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+            {"chave": "cartoes_amarelos", "categoria": "Disciplina Tática", "label": f"Cartões Amarelos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'Recebidos'}", "val1": r1.get("amarelos", 0), "val2": r2.get("amarelos", 0), "formato": "numero", "unidade": "amarelos", "inverso": True},
+            {"chave": "cartoes_vermelhos", "categoria": "Disciplina Tática", "label": f"Cartões Vermelhos {'(' + nome_camp_curto + ')' if is_filtro_camp else '/ Expulsões'}", "val1": r1.get("vermelhos", 0), "val2": r2.get("vermelhos", 0), "formato": "numero", "unidade": "vermelhos", "inverso": True}
+        ]
+
+    # 4. ATACANTES (Centroavantes, Pontas, Atacantes)
+    elif mesma_categoria == 'atacante':
+        matriz = [
+            {"chave": "score_scouting", "categoria": "Scouting Pro", "label": "Nota Global de Scouting (0 a 100)", "val1": sp1.get("score_scouting_global", 75), "val2": sp2.get("score_scouting_global", 75), "formato": "numero", "unidade": "pts", "inverso": False},
+            {"chave": "gols_por_90", "categoria": "Scouting Pro", "label": f"Gols por 90 Min (G/90) {'(' + nome_camp_curto + ')' if is_filtro_camp else ''}".strip(), "val1": sp1.get("gols_por_90", 0.0), "val2": sp2.get("gols_por_90", 0.0), "formato": "decimal", "unidade": "G/90", "inverso": False},
+            {"chave": "participacoes_por_90", "categoria": "Scouting Pro", "label": "Participações por 90 Min (P/90)", "val1": sp1.get("participacoes_por_90", 0.0), "val2": sp2.get("participacoes_por_90", 0.0), "formato": "decimal", "unidade": "P/90", "inverso": False},
+            {"chave": "gols_carreira", "categoria": "Poder Artilheiro", "label": f"Gols Oficiais {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": gols_1, "val2": gols_2, "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "media_gols_carreira", "categoria": "Poder Artilheiro", "label": f"Média de Gols / Jogo {'(' + nome_camp_curto + ')' if is_filtro_camp else ''}".strip(), "val1": media_1, "val2": media_2, "formato": "decimal", "unidade": "gol/jogo", "inverso": False},
+            {"chave": "xg_por_chute", "categoria": "Scouting Pro", "label": "Qualidade da Finalização (xG/Chute)", "val1": sp1.get("xg_por_chute", 0.0), "val2": sp2.get("xg_por_chute", 0.0), "formato": "decimal", "unidade": "xG/chute", "inverso": False},
+            {"chave": "delta_xg", "categoria": "Expected Goals (xG)", "label": "Overperformance Clínica (Gols - xG)", "val1": axg1.get("delta_xg", 0.0), "val2": axg2.get("delta_xg", 0.0), "formato": "decimal", "unidade": "G-xG", "inverso": False},
+            {"chave": "taxa_conversao", "categoria": "Precisão & Eficiência", "label": "Taxa de Conversão de Finalizações", "val1": axg1.get("taxa_conversao_pct", 0.0), "val2": axg2.get("taxa_conversao_pct", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False},
+            {"chave": "pontaria_chutes", "categoria": "Precisão & Eficiência", "label": "Pontaria de Chutes no Alvo", "val1": r1.get("pontaria_chutes_pct", 0.0), "val2": r2.get("pontaria_chutes_pct", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False},
+            {"chave": "indice_clutch", "categoria": "Decisão & Clutch", "label": "Poder de Decisão (Clutch Score 0–100)", "val1": sp1.get("indice_clutch", 50), "val2": sp2.get("indice_clutch", 50), "formato": "numero", "unidade": "clutch", "inverso": False},
+            {"chave": "gols_decisivos", "categoria": "Decisão & Clutch", "label": f"Gols Decisivos nos Finais (80'+) {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else ''}".strip(), "val1": r1.get("gols_decisivos_80mais", 0), "val2": r2.get("gols_decisivos_80mais", 0), "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "hat_tricks", "categoria": "Poder Artilheiro", "label": "Hat-tricks Registrados (3+ gols)", "val1": r1.get("hat_tricks", 0), "val2": r2.get("hat_tricks", 0), "formato": "numero", "unidade": "hat-tricks", "inverso": False},
+            {"chave": "titulos_conquistados", "categoria": "Palmarés & Glórias", "label": "Títulos Oficiais Conquistados", "val1": tits_1, "val2": tits_2, "formato": "numero", "unidade": "troféus", "inverso": False},
+            {"chave": "premios_individuais", "categoria": "Palmarés & Glórias", "label": "Prêmios Individuais Oficiais", "val1": prem_1, "val2": prem_2, "formato": "numero", "unidade": "prêmios", "inverso": False},
+            {"chave": "rating_sofascore", "categoria": "Scouting Pro", "label": "Rating Médio Sofascore (0 a 10.0)", "val1": rating_s1, "val2": rating_s2, "formato": "decimal", "unidade": "rating", "inverso": False},
+            {"chave": "assistencias_carreira", "categoria": "Apoio & Assistências", "label": "Assistências Oficiais (Carreira)", "val1": assists_1, "val2": assists_2, "formato": "numero", "unidade": "assist.", "inverso": False},
+            {"chave": "jogos_carreira", "categoria": "Longevidade & Regularidade", "label": f"Jogos Oficiais {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": jogos_1, "val2": jogos_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+            {"chave": "cartoes_amarelos", "categoria": "Disciplina Tática", "label": f"Cartões Amarelos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'Recebidos'}", "val1": r1.get("amarelos", 0), "val2": r2.get("amarelos", 0), "formato": "numero", "unidade": "amarelos", "inverso": True},
+            {"chave": "cartoes_vermelhos", "categoria": "Disciplina Tática", "label": f"Cartões Vermelhos {'(' + nome_camp_curto + ')' if is_filtro_camp else '/ Expulsões'}", "val1": r1.get("vermelhos", 0), "val2": r2.get("vermelhos", 0), "formato": "numero", "unidade": "vermelhos", "inverso": True}
+        ]
+
+    # 5. MISTO (Posições Cruzadas / Diferentes)
+    else:
+        matriz = [
+            {"chave": "score_scouting", "categoria": "Scouting Pro", "label": "Nota Global de Scouting (0 a 100)", "val1": sp1.get("score_scouting_global", 75), "val2": sp2.get("score_scouting_global", 75), "formato": "numero", "unidade": "pts", "inverso": False},
+            {"chave": "rating_sofascore", "categoria": "Scouting Pro", "label": "Rating Médio Sofascore (0 a 10.0)", "val1": rating_s1, "val2": rating_s2, "formato": "decimal", "unidade": "rating", "inverso": False},
+            {"chave": "participacoes_por_90", "categoria": "Scouting Pro", "label": "Participações por 90 Min (P/90)", "val1": sp1.get("participacoes_por_90", 0.0), "val2": sp2.get("participacoes_por_90", 0.0), "formato": "decimal", "unidade": "P/90", "inverso": False},
+            {"chave": "gols_carreira", "categoria": "Volume Ofensivo", "label": f"Gols Oficiais {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": gols_1, "val2": gols_2, "formato": "numero", "unidade": "gols", "inverso": False},
+            {"chave": "assistencias_carreira", "categoria": "Volume Ofensivo", "label": "Assistências Oficiais (Carreira)", "val1": assists_1, "val2": assists_2, "formato": "numero", "unidade": "assist.", "inverso": False},
+            {"chave": "participacoes_gols", "categoria": "Volume Ofensivo", "label": "Participações Diretas em Gols (G+A)", "val1": partic_1, "val2": partic_2, "formato": "numero", "unidade": "G+A", "inverso": False},
+            {"chave": "media_gols_carreira", "categoria": "Volume Ofensivo", "label": f"Média de Gols / Jogo {'(' + nome_camp_curto + ')' if is_filtro_camp else ''}".strip(), "val1": media_1, "val2": media_2, "formato": "decimal", "unidade": "gol/jogo", "inverso": False},
+            {"chave": "titulos_conquistados", "categoria": "Palmarés & Glórias", "label": "Títulos Oficiais Conquistados", "val1": tits_1, "val2": tits_2, "formato": "numero", "unidade": "troféus", "inverso": False},
+            {"chave": "premios_individuais", "categoria": "Palmarés & Glórias", "label": "Prêmios Individuais Oficiais", "val1": prem_1, "val2": prem_2, "formato": "numero", "unidade": "prêmios", "inverso": False},
+            {"chave": "indice_clutch", "categoria": "Decisão & Clutch", "label": "Poder de Decisão (Clutch Score 0–100)", "val1": sp1.get("indice_clutch", 50), "val2": sp2.get("indice_clutch", 50), "formato": "numero", "unidade": "clutch", "inverso": False},
+            {"chave": "aproveitamento_pontos", "categoria": "Impacto em Campo", "label": f"Aproveitamento de Pontos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'do Time'}", "val1": r1.get("aproveitamento_pontos", 0.0), "val2": r2.get("aproveitamento_pontos", 0.0), "formato": "porcentagem", "unidade": "%", "inverso": False},
+            {"chave": "jogos_carreira", "categoria": "Longevidade & Regularidade", "label": f"Jogos Oficiais {prep_comp + ' ' + nome_camp_curto if is_filtro_camp else 'na Carreira'}", "val1": jogos_1, "val2": jogos_2, "formato": "numero", "unidade": "jogos", "inverso": False},
+            {"chave": "cartoes_amarelos", "categoria": "Disciplina Tática", "label": f"Cartões Amarelos {'(' + nome_camp_curto + ')' if is_filtro_camp else 'Recebidos'}", "val1": r1.get("amarelos", 0), "val2": r2.get("amarelos", 0), "formato": "numero", "unidade": "amarelos", "inverso": True},
+            {"chave": "cartoes_vermelhos", "categoria": "Disciplina Tática", "label": f"Cartões Vermelhos {'(' + nome_camp_curto + ')' if is_filtro_camp else '/ Expulsões'}", "val1": r1.get("vermelhos", 0), "val2": r2.get("vermelhos", 0), "formato": "numero", "unidade": "vermelhos", "inverso": True}
+        ]
+
+    return matriz, mesma_categoria, cat1, cat2
 
 
 @app.route('/api/jogadores/comparar', methods=['GET'])
@@ -3074,347 +3358,9 @@ def comparar_jogadores():
 
     conn.close()
 
-    # 2. Matriz de Confronto Estatístico Direto
-    c1 = perfil1["carreira_oficial"]
-    c2 = perfil2["carreira_oficial"]
-    r1 = perfil1["resumo"]
-    r2 = perfil2["resumo"]
-    sp1 = perfil1.get("scouts_profissionais") or {}
-    sp2 = perfil2.get("scouts_profissionais") or {}
-
-    is_filtro_camp = bool(campeonato and campeonato not in ('todos', 'carreira', 'all'))
-    nome_camp_curto = {
-        'brasileirao': 'Brasileirão',
-        'copa_do_brasil': 'Copa do Brasil',
-        'libertadores': 'Libertadores',
-        'estaduais': 'Estaduais',
-        'internacionais': 'Torneios Internacionais'
-    }.get(campeonato.lower(), campeonato)
-
-    prep_comp = "no" if nome_camp_curto == "Brasileirão" else ("na" if "Copa" in nome_camp_curto or "Libertadores" in nome_camp_curto else "em")
-
-    if is_filtro_camp:
-        gols_carreira_1 = r1.get("total_gols", 0)
-        gols_carreira_2 = r2.get("total_gols", 0)
-        jogos_carreira_1 = r1.get("jogos_registrados", 0)
-        jogos_carreira_2 = r2.get("jogos_registrados", 0)
-        media_carreira_1 = r1.get("media_gols", 0.0)
-        media_carreira_2 = r2.get("media_gols", 0.0)
-        cat_recorte = f"Recorte: {nome_camp_curto}"
-
-        matriz_scouts = [
-            {
-                "chave": "score_scouting",
-                "categoria": "Scouting Pro",
-                "label": "Nota Global de Scouting (0 a 100)",
-                "val1": sp1.get("score_scouting_global", 75),
-                "val2": sp2.get("score_scouting_global", 75),
-                "formato": "numero",
-                "unidade": "pts",
-                "inverso": False
-            },
-            {
-                "chave": "gols_comp",
-                "categoria": cat_recorte,
-                "label": f"Gols {prep_comp} {nome_camp_curto}",
-                "val1": gols_carreira_1,
-                "val2": gols_carreira_2,
-                "formato": "numero",
-                "unidade": "gols",
-                "inverso": False
-            },
-            {
-                "chave": "jogos_comp",
-                "categoria": cat_recorte,
-                "label": f"Jogos {prep_comp} {nome_camp_curto}",
-                "val1": jogos_carreira_1,
-                "val2": jogos_carreira_2,
-                "formato": "numero",
-                "unidade": "jogos",
-                "inverso": False
-            },
-            {
-                "chave": "media_gols_comp",
-                "categoria": cat_recorte,
-                "label": f"Média Gols / Jogo ({nome_camp_curto})",
-                "val1": media_carreira_1,
-                "val2": media_carreira_2,
-                "formato": "decimal",
-                "unidade": "gol/jogo",
-                "inverso": False
-            },
-            {
-                "chave": "gols_por_90",
-                "categoria": "Scouting Pro",
-                "label": f"Gols por 90 Min (G/90) ({nome_camp_curto})",
-                "val1": sp1.get("gols_por_90", 0.0),
-                "val2": sp2.get("gols_por_90", 0.0),
-                "formato": "decimal",
-                "unidade": "G/90",
-                "inverso": False
-            },
-            {
-                "chave": "gols_decisivos",
-                "categoria": "Decisão & Clutch",
-                "label": f"Gols Decisivos nos Finais (80'+) {prep_comp} {nome_camp_curto}",
-                "val1": r1.get("gols_decisivos_80mais", 0),
-                "val2": r2.get("gols_decisivos_80mais", 0),
-                "formato": "numero",
-                "unidade": "gols",
-                "inverso": False
-            },
-            {
-                "chave": "indice_clutch",
-                "categoria": "Decisão & Clutch",
-                "label": "Poder de Decisão (Clutch Score 0–100)",
-                "val1": sp1.get("indice_clutch", 50),
-                "val2": sp2.get("indice_clutch", 50),
-                "formato": "numero",
-                "unidade": "clutch",
-                "inverso": False
-            },
-            {
-                "chave": "aproveitamento_pontos",
-                "categoria": "Impacto em Campo",
-                "label": f"Aproveitamento de Pontos ({nome_camp_curto})",
-                "val1": r1.get("aproveitamento_pontos", 0.0),
-                "val2": r2.get("aproveitamento_pontos", 0.0),
-                "formato": "porcentagem",
-                "unidade": "%",
-                "inverso": False
-            },
-            {
-                "chave": "cartoes_amarelos",
-                "categoria": "Disciplina Tática",
-                "label": f"Cartões Amarelos ({nome_camp_curto})",
-                "val1": r1.get("amarelos", 0),
-                "val2": r2.get("amarelos", 0),
-                "formato": "numero",
-                "unidade": "amarelos",
-                "inverso": True
-            },
-            {
-                "chave": "cartoes_vermelhos",
-                "categoria": "Disciplina Tática",
-                "label": f"Cartões Vermelhos ({nome_camp_curto})",
-                "val1": r1.get("vermelhos", 0),
-                "val2": r2.get("vermelhos", 0),
-                "formato": "numero",
-                "unidade": "vermelhos",
-                "inverso": True
-            }
-        ]
-    else:
-        gols_carreira_1 = c1.get("gols") or r1.get("total_gols", 0)
-        gols_carreira_2 = c2.get("gols") or r2.get("total_gols", 0)
-        jogos_carreira_1 = c1.get("jogos") or r1.get("jogos_registrados", 1)
-        jogos_carreira_2 = c2.get("jogos") or r2.get("jogos_registrados", 1)
-        media_carreira_1 = round(gols_carreira_1 / max(jogos_carreira_1, 1), 2)
-        media_carreira_2 = round(gols_carreira_2 / max(jogos_carreira_2, 1), 2)
-
-        matriz_scouts = [
-        {
-            "chave": "score_scouting",
-            "categoria": "Scouting Pro",
-            "label": "Nota Global de Scouting (0 a 100)",
-            "val1": sp1.get("score_scouting_global", 75),
-            "val2": sp2.get("score_scouting_global", 75),
-            "formato": "numero",
-            "unidade": "pts",
-            "inverso": False
-        },
-        {
-            "chave": "gols_por_90",
-            "categoria": "Scouting Pro",
-            "label": "Gols por 90 Min (G/90)",
-            "val1": sp1.get("gols_por_90", 0.0),
-            "val2": sp2.get("gols_por_90", 0.0),
-            "formato": "decimal",
-            "unidade": "G/90",
-            "inverso": False
-        },
-        {
-            "chave": "participacoes_por_90",
-            "categoria": "Scouting Pro",
-            "label": "Participações por 90 Min (P/90)",
-            "val1": sp1.get("participacoes_por_90", 0.0),
-            "val2": sp2.get("participacoes_por_90", 0.0),
-            "formato": "decimal",
-            "unidade": "P/90",
-            "inverso": False
-        },
-        {
-            "chave": "xg_por_chute",
-            "categoria": "Scouting Pro",
-            "label": "Qualidade da Finalização (xG/Chute)",
-            "val1": sp1.get("xg_por_chute", 0.0),
-            "val2": sp2.get("xg_por_chute", 0.0),
-            "formato": "decimal",
-            "unidade": "xG/chute",
-            "inverso": False
-        },
-        {
-            "chave": "indice_clutch",
-            "categoria": "Decisão & Clutch",
-            "label": "Poder de Decisão (Clutch Score 0–100)",
-            "val1": sp1.get("indice_clutch", 50),
-            "val2": sp2.get("indice_clutch", 50),
-            "formato": "numero",
-            "unidade": "clutch",
-            "inverso": False
-        },
-        {
-            "chave": "xa_estimado",
-            "categoria": "Scouting Pro",
-            "label": "Assistências Esperadas (xA Estimado)",
-            "val1": sp1.get("xa_estimado", 0.0),
-            "val2": sp2.get("xa_estimado", 0.0),
-            "formato": "decimal",
-            "unidade": "xA",
-            "inverso": False
-        },
-        {
-            "chave": "gols_carreira",
-            "categoria": "Carreira Oficial",
-            "label": "Gols Oficiais na Carreira",
-            "val1": gols_carreira_1,
-            "val2": gols_carreira_2,
-            "formato": "numero",
-            "unidade": "gols",
-            "inverso": False
-        },
-        {
-            "chave": "jogos_carreira",
-            "categoria": "Carreira Oficial",
-            "label": "Jogos Oficiais na Carreira",
-            "val1": jogos_carreira_1,
-            "val2": jogos_carreira_2,
-            "formato": "numero",
-            "unidade": "jogos",
-            "inverso": False
-        },
-        {
-            "chave": "media_gols_carreira",
-            "categoria": "Carreira Oficial",
-            "label": "Média de Gols / Jogo (Carreira)",
-            "val1": media_carreira_1,
-            "val2": media_carreira_2,
-            "formato": "decimal",
-            "unidade": "gol/jogo",
-            "inverso": False
-        },
-        {
-            "chave": "assistencias_carreira",
-            "categoria": "Carreira Oficial",
-            "label": "Assistências Oficiais (Carreira)",
-            "val1": c1.get("assistencias") or r1.get("total_assistencias", 0),
-            "val2": c2.get("assistencias") or r2.get("total_assistencias", 0),
-            "formato": "numero",
-            "unidade": "assist.",
-            "inverso": False
-        },
-        {
-            "chave": "gols_acervo",
-            "categoria": "Acervo FutStats",
-            "label": "Gols Catalogados (Acervo)",
-            "val1": r1.get("total_gols", 0),
-            "val2": r2.get("total_gols", 0),
-            "formato": "numero",
-            "unidade": "gols",
-            "inverso": False
-        },
-        {
-            "chave": "jogos_acervo",
-            "categoria": "Acervo FutStats",
-            "label": "Jogos Catalogados (Acervo)",
-            "val1": r1.get("jogos_registrados", 0),
-            "val2": r2.get("jogos_registrados", 0),
-            "formato": "numero",
-            "unidade": "jogos",
-            "inverso": False
-        },
-        {
-            "chave": "gols_decisivos",
-            "categoria": "Decisão & Clutch",
-            "label": "Gols Decisivos nos Finais (80'+)",
-            "val1": r1.get("gols_decisivos_80mais", 0),
-            "val2": r2.get("gols_decisivos_80mais", 0),
-            "formato": "numero",
-            "unidade": "gols",
-            "inverso": False
-        },
-        {
-            "chave": "pontaria_chutes",
-            "categoria": "Precisão & Eficiência",
-            "label": "Pontaria de Chutes no Alvo",
-            "val1": r1.get("pontaria_chutes_pct", 0.0),
-            "val2": r2.get("pontaria_chutes_pct", 0.0),
-            "formato": "porcentagem",
-            "unidade": "%",
-            "inverso": False
-        },
-        {
-            "chave": "xg_acumulado",
-            "categoria": "Expected Goals (xG)",
-            "label": "Expected Goals (xG Acumulado)",
-            "val1": (r1.get("analytics_xg") or {}).get("xg_acumulado", 0.0),
-            "val2": (r2.get("analytics_xg") or {}).get("xg_acumulado", 0.0),
-            "formato": "decimal",
-            "unidade": "xG",
-            "inverso": False
-        },
-        {
-            "chave": "delta_xg",
-            "categoria": "Expected Goals (xG)",
-            "label": "Overperformance Clínica (Gols - xG)",
-            "val1": (r1.get("analytics_xg") or {}).get("delta_xg", 0.0),
-            "val2": (r2.get("analytics_xg") or {}).get("delta_xg", 0.0),
-            "formato": "decimal",
-            "unidade": "G-xG",
-            "inverso": False
-        },
-        {
-            "chave": "taxa_conversao",
-            "categoria": "Precisão & Eficiência",
-            "label": "Taxa de Conversão de Finalizações",
-            "val1": (r1.get("analytics_xg") or {}).get("taxa_conversao_pct", 0.0),
-            "val2": (r2.get("analytics_xg") or {}).get("taxa_conversao_pct", 0.0),
-            "formato": "porcentagem",
-            "unidade": "%",
-            "inverso": False
-        },
-
-        {
-            "chave": "aproveitamento_pontos",
-            "categoria": "Impacto em Campo",
-            "label": "Aproveitamento de Pontos do Time",
-            "val1": r1.get("aproveitamento_pontos", 0.0),
-            "val2": r2.get("aproveitamento_pontos", 0.0),
-            "formato": "porcentagem",
-            "unidade": "%",
-            "inverso": False
-        },
-        {
-            "chave": "cartoes_amarelos",
-            "categoria": "Disciplina Tática",
-            "label": "Cartões Amarelos Recebidos",
-            "val1": r1.get("amarelos", 0),
-            "val2": r2.get("amarelos", 0),
-            "formato": "numero",
-            "unidade": "amarelos",
-            "inverso": True
-        },
-        {
-            "chave": "cartoes_vermelhos",
-            "categoria": "Disciplina Tática",
-            "label": "Cartões Vermelhos / Expulsões",
-            "val1": r1.get("vermelhos", 0),
-            "val2": r2.get("vermelhos", 0),
-            "formato": "numero",
-            "unidade": "vermelhos",
-            "inverso": True
-        }
-    ]
+    # 2. Matriz de Confronto Estatístico Especializada por Posição
+    matriz_scouts, mesma_categoria, cat1, cat2 = _montar_matriz_scouts_h2h(perfil1, perfil2, campeonato)
+    ambos_goleiros = (mesma_categoria == 'goleiro')
 
     placar_vitorias_1 = 0
     placar_vitorias_2 = 0
@@ -3470,6 +3416,8 @@ def comparar_jogadores():
             "altura": perfil1["altura"],
             "pe_preferencial": perfil1["pe_preferencial"],
             "situacao": perfil1["situacao"],
+            "titulos": perfil1.get("titulos", []),
+            "premios": perfil1.get("premios", []),
             "resumo": perfil1["resumo"],
             "carreira_oficial": perfil1["carreira_oficial"],
             "radar_pes": perfil1["radar_pes"],
@@ -3489,6 +3437,8 @@ def comparar_jogadores():
             "altura": perfil2["altura"],
             "pe_preferencial": perfil2["pe_preferencial"],
             "situacao": perfil2["situacao"],
+            "titulos": perfil2.get("titulos", []),
+            "premios": perfil2.get("premios", []),
             "resumo": perfil2["resumo"],
             "carreira_oficial": perfil2["carreira_oficial"],
             "radar_pes": perfil2["radar_pes"],
@@ -3497,6 +3447,10 @@ def comparar_jogadores():
             "heatmap": perfil2.get("heatmap", []),
             "telemetria_espacial": perfil2.get("telemetria_espacial", {})
         },
+        "categoria_duelo": mesma_categoria,
+        "categoria_atleta1": cat1,
+        "categoria_atleta2": cat2,
+        "ambos_goleiros": ambos_goleiros,
         "placar_geral": {
             "vitorias_atleta1": placar_vitorias_1,
             "vitorias_atleta2": placar_vitorias_2,

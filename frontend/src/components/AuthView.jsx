@@ -584,7 +584,7 @@ export default function AuthView({
               ) : (
                 <>
                   <UserPlus size={16} />
-                  <span>Cadastrar e Iniciar Sessão</span>
+                  <span>Cadastrar e Entrar</span>
                 </>
               )}
             </button>

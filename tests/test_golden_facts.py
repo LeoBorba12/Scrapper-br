@@ -511,6 +511,57 @@ def test_nordestao_artilheiro_bicampeao_gilberto():
     assert "2019" in row["premios"] and "2021" in row["premios"], "Bicampeonato de artilharia de Gilberto no Nordestão ausente"
     assert gols_nordeste >= 15, f"Gilberto com {gols_nordeste} gols no Nordestão (esperado >= 15)"
 
+# ==============================================================================
+# GOLEIROS & PALMARÉS OFICIAL (OGOL & SOFASCORE) - TESTES FACTUAIS DE OURO
+# ==============================================================================
+
+def test_goleiros_historicos_palmares_clean_sheets_e_penaltis():
+    """Valida enriquecimento de goleiros lendários (São Marcos, Rogério Ceni, Cássio, Fábio, Dida)."""
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # 1. São Marcos (ID 102003, OGol 5503)
+    cur.execute("SELECT titulos, premios, clean_sheets, penaltis_defendidos FROM jogadores_estatisticas WHERE id_jogador = 102003;")
+    marcos = cur.fetchone()
+    assert marcos is not None, "São Marcos não encontrado"
+    assert marcos["clean_sheets"] >= 140, f"Clean sheets de São Marcos: {marcos['clean_sheets']} (esperado >= 140)"
+    assert marcos["penaltis_defendidos"] >= 30, f"Pênaltis de São Marcos: {marcos['penaltis_defendidos']} (esperado >= 30)"
+    assert "Copa do Mundo" in marcos["titulos"], "Copa do Mundo ausente no palmarés de Marcos"
+    assert "Copa Libertadores" in marcos["titulos"], "Libertadores ausente no palmarés de Marcos"
+
+    # 2. Rogério Ceni (ID 12170, OGol 5664)
+    cur.execute("SELECT titulos, premios, clean_sheets, penaltis_defendidos FROM jogadores_estatisticas WHERE id_jogador = 12170;")
+    ceni = cur.fetchone()
+    assert ceni is not None, "Rogério Ceni não encontrado"
+    assert ceni["clean_sheets"] >= 400, f"Clean sheets de Rogério Ceni: {ceni['clean_sheets']} (esperado >= 400)"
+    assert ceni["penaltis_defendidos"] >= 50, f"Pênaltis de Rogério Ceni: {ceni['penaltis_defendidos']} (esperado >= 50)"
+    assert "Mundial de Clubes" in ceni["titulos"] or "Mundial" in ceni["titulos"], "Mundial ausente no palmarés de Ceni"
+
+    # 3. Cássio (ID 18603, OGol 31450)
+    cur.execute("SELECT titulos, clean_sheets, penaltis_defendidos FROM jogadores_estatisticas WHERE id_jogador = 18603;")
+    cassio = cur.fetchone()
+    assert cassio is not None, "Cássio não encontrado"
+    assert cassio["clean_sheets"] >= 250, f"Clean sheets de Cássio: {cassio['clean_sheets']} (esperado >= 250)"
+    assert cassio["penaltis_defendidos"] >= 30, f"Pênaltis de Cássio: {cassio['penaltis_defendidos']} (esperado >= 30)"
+    assert "Mundial de Clubes" in cassio["titulos"], "Mundial ausente no palmarés de Cássio"
+
+    conn.close()
+
+def test_atleta_sofascore_ratings_goleiros_e_estrelas():
+    """Valida povoamento de ratings oficiais Sofascore para goleiros e atletas em atividade."""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT count(*) FROM atleta_sofascore_ratings WHERE posicao LIKE '%Goleiro%';")
+    total_gks = cur.fetchone()[0]
+    assert total_gks >= 10, f"Apenas {total_gks} goleiros com Sofascore ratings (esperado >= 10)"
+
+    cur.execute("SELECT rating_medio, perfil_clinico FROM atleta_sofascore_ratings WHERE id_jogador = 102003;")
+    s_marcos = cur.fetchone()
+    assert s_marcos is not None, "São Marcos não encontrado em atleta_sofascore_ratings"
+    assert s_marcos["rating_medio"] >= 8.0, f"Rating de São Marcos {s_marcos['rating_medio']} (esperado >= 8.0)"
+
+    conn.close()
+
 
 
 

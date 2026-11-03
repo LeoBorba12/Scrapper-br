@@ -30,6 +30,10 @@ scratch/
 
 data/cache_rankinghistorico/
 /futebol.db
+*.db-shm
+*.db-wal
+data/futebol.db-shm
+data/futebol.db-wal
 
 # Ferramentas locais e extensões
 .tools/
