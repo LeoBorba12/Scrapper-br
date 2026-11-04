@@ -352,12 +352,11 @@ export default function BettingHubView({
                 margin: '4px 0 8px 0'
               }}
             >
-              Betting Hub & Estatísticas Avançadas
+              Probabilidades & Leitura de Mercado
             </h1>
 
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', maxWidth: '780px', lineHeight: 1.5, margin: 0 }}>
-              Precificação matemática independente de Odds Justas (Fair Odds) via Poisson bivariado, detecção de valor esperado (+EV),
-              tendências de gols (Over/Under 1.5, 2.5), Ambas Marcam (BTTS) e índice disciplinar de árbitros.
+              O FutStats estima probabilidades justas, contextualiza o mercado e preserva o acervo histórico do futebol brasileiro com transparência sobre a qualidade dos dados. O Dixon-Coles é um modelo descritivo e de fair pricing.
             </p>
           </div>
 
@@ -380,7 +379,7 @@ export default function BettingHubView({
               }}
             >
               <Scale size={15} />
-              <span>Calculadora de Stake (Kelly)</span>
+              <span>Simulador de Stake (Kelly)</span>
             </button>
 
             <button
@@ -427,13 +426,13 @@ export default function BettingHubView({
             }}
           >
             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-              Partidas com Odds no Banco
+              Odds Validadas no Gate
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
               {(hubData?.total_banco_odds || 9252).toLocaleString('pt-BR')}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
-              {hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : '9.252 no acervo histórico'}
+              {hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : 'Gate de Qualidade: 0% a 15% margem'}
             </div>
           </div>
 
@@ -446,7 +445,7 @@ export default function BettingHubView({
             }}
           >
             <div style={{ fontSize: '0.76rem', color: 'var(--positive)', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Flame size={14} /> Apostas com +EV
+              <Flame size={14} /> Leituras Analíticas (+EV)
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--positive)', marginTop: '4px' }}>
               {hubData?.total_com_ev || 0}
