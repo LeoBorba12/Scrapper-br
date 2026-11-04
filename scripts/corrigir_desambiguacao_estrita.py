@@ -351,11 +351,21 @@ def recalcular_contagens_totais(conn):
         ), 0);
     """)
     
-    # Ajusta total_jogos para nunca ser menor que total_gols
+    # Ajusta total_jogos respeitando jogos_carreira_oficiais e evitando clamping forçado total_jogos = total_gols
     c.execute("""
         UPDATE jogadores_estatisticas
-        SET total_jogos = total_gols
+        SET total_jogos = MAX(COALESCE(jogos_carreira_oficiais, total_gols), total_gols)
         WHERE total_jogos < total_gols;
+    """)
+    c.execute("""
+        UPDATE jogadores_estatisticas
+        SET total_jogos = MAX(total_jogos, COALESCE(jogos_carreira_oficiais, total_jogos))
+        WHERE jogos_carreira_oficiais IS NOT NULL AND total_jogos = total_gols AND total_gols >= 10;
+    """)
+    c.execute("""
+        UPDATE jogadores_estatisticas
+        SET media_gols_por_jogo = ROUND(CAST(total_gols AS REAL) / MAX(total_jogos, 1), 2)
+        WHERE total_jogos > 0;
     """)
     
     # Atualiza anos de carreira

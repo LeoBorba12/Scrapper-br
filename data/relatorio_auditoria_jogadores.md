@@ -1,6 +1,6 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-03 22:23:56*
+*Gerado automaticamente em: 2026-11-03 22:33:59*
 
 ## Resumo Executivo da Auditoria
 
@@ -16,7 +16,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 
 | ID | Atleta | OGol ID | Gols Acervo | Gols Carreira | Diagnóstico |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| `106` | **Reinaldo** | `241987` | **71** | 70 | Gols no acervo (71) superam carreira oficial (70). Perfil OGol não localizado. |
+| `106` | **Reinaldo** | `241987` | **72** | 71 | Gols no acervo (72) superam carreira oficial (71). Perfil OGol não localizado. |
 
 
 ## 🛠️ Atletas com Auto-Reparo Concluído

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Swords, Trophy, Search, RefreshCw, Award, Flame, 
-  Calendar, MapPin, Share2, Sparkles, TrendingUp, AlertCircle, 
-  ChevronRight, ArrowRight, ShieldCheck, BarChart3
+  Swords, Trophy, Search, RefreshCw, Flame, 
+  Share2, AlertCircle, BarChart3, Calendar
 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
-import { sanitizarListaClubes } from '../utils/clubData';
 import { baixarCardDueloH2HPNG } from '../utils/cardGenerator';
 
 const CLASSICOS_PREDEFINIDOS = [
@@ -83,18 +81,25 @@ export default function ClubCompareView({
   const artilheiros = h2hData?.artilheiros_confronto || [];
 
   return (
-    <div className="w-full space-y-8 animate-fadeIn">
-      {/* SELETOR E CLÁSSICOS RÁPIDOS */}
-      <section className={`p-6 rounded-2xl border transition-all ${
-        darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#FDFBF7] border-[#E6DEC9] shadow-sm'
-      }`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+      {/* ================= SELETOR E CLÁSSICOS RÁPIDOS ================= */}
+      <section className="editorial-panel" style={{ padding: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
           <div>
-            <h2 className="text-xl font-bold font-serif flex items-center gap-2.5">
-              <Swords className="w-6 h-6 text-[#85573B]" />
+            <h1 className="font-editorial" style={{
+              fontSize: '2rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--text-primary)',
+              margin: '2px 0 6px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <Swords size={28} color="var(--negative)" />
               Comparador Histórico H2H de Clubes
-            </h2>
-            <p className={`text-sm mt-1 ${darkMode ? 'text-[#C9BAA9]' : 'text-[#6B6255]'}`}>
+            </h1>
+            <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', maxWidth: '780px', lineHeight: 1.55 }}>
               Confronto direto, estante de títulos oficiais (Palmarés), artilheiros e projeção preditiva Dixon-Coles.
             </p>
           </div>
@@ -109,20 +114,20 @@ export default function ClubCompareView({
                 empates: emp,
                 totalJogos: total
               })}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide uppercase transition-all bg-[#85573B] hover:bg-[#6D462E] text-white shadow-sm"
+              className="btn-primary touch-tactile"
+              style={{ minHeight: '40px', padding: '9px 18px', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}
             >
-              <Share2 className="w-4 h-4" />
-              Exportar Card PNG
+              <Share2 size={16} /> Exportar Card PNG
             </button>
           )}
         </div>
 
-        {/* Chips de Clássicos Rápidos */}
-        <div className="mb-6">
-          <span className={`text-xs font-semibold uppercase tracking-wider block mb-2.5 ${darkMode ? 'text-[#8E8271]' : 'text-[#857B6C]'}`}>
+        {/* Chips de Clássicos Populares */}
+        <div style={{ marginBottom: '22px' }}>
+          <span style={{ fontSize: '0.76rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)', display: 'block', marginBottom: '10px' }}>
             🔥 Duelos Clássicos Populares
           </span>
-          <div className="flex flex-wrap gap-2">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {CLASSICOS_PREDEFINIDOS.map((cl) => {
               const ativo = (clube1.toLowerCase() === cl.c1.toLowerCase() && clube2.toLowerCase() === cl.c2.toLowerCase()) ||
                             (clube1.toLowerCase() === cl.c2.toLowerCase() && clube2.toLowerCase() === cl.c1.toLowerCase());
@@ -130,13 +135,18 @@ export default function ClubCompareView({
                 <button
                   key={cl.label}
                   onClick={() => selecionarClassico(cl.c1, cl.c2)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    ativo
-                      ? 'bg-[#5A673E] text-white font-semibold shadow-sm'
-                      : darkMode
-                        ? 'bg-[#292621] text-[#D8CEBF] hover:bg-[#38332B]'
-                        : 'bg-[#EFE7D8] text-[#423C32] hover:bg-[#E2D8C3]'
-                  }`}
+                  className="touch-tactile"
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-control)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    border: ativo ? '2px solid var(--accent)' : '1px solid var(--border-subtle)',
+                    backgroundColor: ativo ? 'var(--accent)' : 'var(--surface-card)',
+                    color: ativo ? 'var(--accent-foreground)' : 'var(--text-primary)',
+                    transition: 'all 0.18s ease'
+                  }}
                 >
                   {cl.label}
                 </button>
@@ -146,9 +156,9 @@ export default function ClubCompareView({
         </div>
 
         {/* Inputs de Pesquisa Customizada */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-          <div className="md:col-span-2">
-            <label className={`block text-xs font-semibold uppercase mb-1.5 ${darkMode ? 'text-[#C9BAA9]' : 'text-[#6B6255]'}`}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px', color: 'var(--text-secondary)' }}>
               Primeiro Clube
             </label>
             <input
@@ -156,14 +166,13 @@ export default function ClubCompareView({
               value={clube1}
               onChange={(e) => setClube1(e.target.value)}
               placeholder="Ex: Flamengo, Palmeiras, Grêmio..."
-              className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#85573B] ${
-                darkMode ? 'bg-[#292621] border-[#443E34] text-white' : 'bg-white border-[#D6CCB6] text-black'
-              }`}
+              className="soft-input"
+              style={{ minHeight: '42px' }}
             />
           </div>
 
-          <div className="md:col-span-2">
-            <label className={`block text-xs font-semibold uppercase mb-1.5 ${darkMode ? 'text-[#C9BAA9]' : 'text-[#6B6255]'}`}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px', color: 'var(--text-secondary)' }}>
               Segundo Clube (Rival)
             </label>
             <input
@@ -171,97 +180,123 @@ export default function ClubCompareView({
               value={clube2}
               onChange={(e) => setClube2(e.target.value)}
               placeholder="Ex: Vasco, Corinthians, Internacional..."
-              className={`w-full px-4 py-2.5 rounded-xl border text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#85573B] ${
-                darkMode ? 'bg-[#292621] border-[#443E34] text-white' : 'bg-white border-[#D6CCB6] text-black'
-              }`}
+              className="soft-input"
+              style={{ minHeight: '42px' }}
             />
           </div>
 
-          <div className="md:col-span-1">
+          <div>
             <button
               onClick={() => carregarConfronto()}
               disabled={loading || !clube1 || !clube2}
-              className="w-full py-2.5 px-4 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 bg-[#85573B] hover:bg-[#6D462E] disabled:opacity-50 text-white shadow-sm"
+              className="btn-primary touch-tactile"
+              style={{ width: '100%', minHeight: '42px', opacity: (loading || !clube1 || !clube2) ? 0.6 : 1 }}
             >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              {loading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
               Comparar
             </button>
           </div>
         </div>
 
         {erro && (
-          <div className="mt-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
+          <div style={{
+            marginTop: '16px',
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-control)',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            color: '#EF4444',
+            fontSize: '0.82rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
             <span>{erro}</span>
           </div>
         )}
       </section>
 
-      {/* PAINEL PRINCIPAL DE RETROSPECTO */}
+      {/* ================= PAINEL PRINCIPAL DE RETROSPECTO ================= */}
       {h2hData && (
         <>
           {/* PLACAR HISTÓRICO GERAL & BARRAS DE PROPORÇÃO */}
-          <section className={`p-6 rounded-2xl border transition-all ${
-            darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#FDFBF7] border-[#E6DEC9] shadow-sm'
-          }`}>
-            <div className="text-center mb-6">
-              <span className={`text-xs font-bold uppercase tracking-widest ${darkMode ? 'text-[#8E8271]' : 'text-[#857B6C]'}`}>
+          <section className="soft-card" style={{ padding: '24px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
                 Retrospecto Oficial Consolidado
               </span>
-              <h3 className="text-2xl md:text-3xl font-black font-serif mt-1">
-                {total} <span className="text-sm font-normal text-opacity-80">jogos no acervo</span>
-              </h3>
+              <h2 className="font-editorial tabular-nums" style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--text-primary)', margin: '4px 0 0 0' }}>
+                {total} <span style={{ fontSize: '0.95rem', fontWeight: 400, color: 'var(--text-secondary)' }}>jogos no acervo</span>
+              </h2>
             </div>
 
             {/* Confronto Visual Lado a Lado */}
-            <div className="grid grid-cols-3 gap-2 md:gap-6 items-center text-center">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
               {/* Clube 1 */}
-              <div className="flex flex-col items-center">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <ClubBadge clube={c1Nome} size={54} />
-                <h4 className="font-bold text-base md:text-lg mt-2">{c1Nome}</h4>
-                <div className="text-3xl md:text-4xl font-black text-[#5A673E] mt-1">{vit1}</div>
-                <span className={`text-xs ${darkMode ? 'text-[#A89A89]' : 'text-[#7A7063]'}`}>vitórias ({pctVit1}%)</span>
-                <span className={`text-xs font-medium mt-1 ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
+                <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0 2px 0' }}>{c1Nome}</h3>
+                <div className="tabular-nums" style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--positive)', lineHeight: 1 }}>{vit1}</div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>vitórias ({pctVit1}%)</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
                   {gols1} gols ({total > 0 ? (gols1 / total).toFixed(2) : 0}/j)
                 </span>
               </div>
 
               {/* Empates */}
-              <div className="flex flex-col items-center justify-center">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-xs ${
-                  darkMode ? 'bg-[#292621] text-[#C9BAA9]' : 'bg-[#EAE1D1] text-[#5C5549]'
-                }`}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{
+                  width: '46px',
+                  height: '46px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  backgroundColor: 'var(--surface-raised)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
                   VS
                 </div>
-                <div className="text-2xl md:text-3xl font-bold mt-2">{emp}</div>
-                <span className={`text-xs ${darkMode ? 'text-[#A89A89]' : 'text-[#7A7063]'}`}>empates ({pctEmp}%)</span>
+                <div className="tabular-nums" style={{ fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '8px', lineHeight: 1 }}>{emp}</div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>empates ({pctEmp}%)</span>
               </div>
 
               {/* Clube 2 */}
-              <div className="flex flex-col items-center">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <ClubBadge clube={c2Nome} size={54} />
-                <h4 className="font-bold text-base md:text-lg mt-2">{c2Nome}</h4>
-                <div className="text-3xl md:text-4xl font-black text-[#85573B] mt-1">{vit2}</div>
-                <span className={`text-xs ${darkMode ? 'text-[#A89A89]' : 'text-[#7A7063]'}`}>vitórias ({pctVit2}%)</span>
-                <span className={`text-xs font-medium mt-1 ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
+                <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '8px 0 2px 0' }}>{c2Nome}</h3>
+                <div className="tabular-nums" style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--negative)', lineHeight: 1 }}>{vit2}</div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>vitórias ({pctVit2}%)</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
                   {gols2} gols ({total > 0 ? (gols2 / total).toFixed(2) : 0}/j)
                 </span>
               </div>
             </div>
 
             {/* Barra Visual de Divisão de Vitórias */}
-            <div className="w-full h-3 rounded-full overflow-hidden flex mt-6 bg-[#38332B]/30">
-              <div style={{ width: `${pctVit1}%` }} className="bg-[#5A673E] h-full transition-all" title={`${c1Nome}: ${pctVit1}%`} />
-              <div style={{ width: `${pctEmp}%` }} className="bg-[#A89A89] h-full transition-all" title={`Empates: ${pctEmp}%`} />
-              <div style={{ width: `${pctVit2}%` }} className="bg-[#85573B] h-full transition-all" title={`${c2Nome}: ${pctVit2}%`} />
+            <div style={{
+              width: '100%',
+              height: '10px',
+              borderRadius: '9999px',
+              overflow: 'hidden',
+              display: 'flex',
+              marginTop: '24px',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <div style={{ width: `${pctVit1}%`, backgroundColor: 'var(--positive)', height: '100%', transition: 'all 0.5s ease' }} title={`${c1Nome}: ${pctVit1}%`} />
+              <div style={{ width: `${pctEmp}%`, backgroundColor: 'var(--text-secondary)', opacity: 0.5, height: '100%', transition: 'all 0.5s ease' }} title={`Empates: ${pctEmp}%`} />
+              <div style={{ width: `${pctVit2}%`, backgroundColor: 'var(--negative)', height: '100%', transition: 'all 0.5s ease' }} title={`${c2Nome}: ${pctVit2}%`} />
             </div>
 
             {/* Nota Histórica Contextual */}
             {h2hData.nota_historica && (
-              <div className={`mt-6 p-4 rounded-xl text-xs leading-relaxed border ${
-                darkMode ? 'bg-[#25221C] border-[#38332B] text-[#D8CEBF]' : 'bg-[#F4ECE1] border-[#E0D5C3] text-[#423C32]'
-              }`}>
-                <span className="font-bold block mb-1">📜 Contexto Centenário:</span>
+              <div className="editorial-raised" style={{ marginTop: '20px', padding: '14px 18px', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                <span style={{ fontWeight: 700, display: 'block', marginBottom: '4px', color: 'var(--negative)' }}>📜 Contexto Centenário:</span>
                 {h2hData.nota_historica}
               </div>
             )}
@@ -269,92 +304,86 @@ export default function ClubCompareView({
 
           {/* PALMARÉS COMPARATIVO (ESTANTE DE TÍTULOS OFICIAIS) */}
           {(palmares1 || palmares2) && (
-            <section className={`p-6 rounded-2xl border transition-all ${
-              darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#FDFBF7] border-[#E6DEC9] shadow-sm'
-            }`}>
-              <h3 className="text-lg font-bold font-serif mb-4 flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-[#85573B]" />
+            <section className="soft-card" style={{ padding: '24px' }}>
+              <h3 className="font-editorial" style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trophy size={22} color="var(--negative)" />
                 Palmarés Comparativo Oficial (Grandes Taças)
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                 {/* Palmarés Clube 1 */}
-                <div className={`p-4 rounded-xl border ${
-                  darkMode ? 'bg-[#25221C] border-[#3A352B]' : 'bg-[#FAF6EE] border-[#E6DFC9]'
-                }`}>
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="editorial-raised" style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <ClubBadge clube={c1Nome} size={28} />
-                    <span className="font-bold text-sm">{c1Nome}</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c1Nome}</span>
                   </div>
                   {palmares1 ? (
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Mundial FIFA:</span>
-                        <span className="font-bold">{palmares1.mundial || 0}</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Mundial FIFA:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares1.mundial || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Libertadores:</span>
-                        <span className="font-bold">{palmares1.libertadores || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Libertadores:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares1.libertadores || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Brasileirão Série A:</span>
-                        <span className="font-bold">{palmares1.brasileirao || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Brasileirão Série A:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares1.brasileirao || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Copa do Brasil:</span>
-                        <span className="font-bold">{palmares1.copa_do_brasil || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Copa do Brasil:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares1.copa_do_brasil || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Estaduais:</span>
-                        <span className="font-bold">{palmares1.estaduais || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Estaduais:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares1.estaduais || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Outros Oficiais:</span>
-                        <span className="font-bold">{palmares1.internacionais || palmares1.copa_nordeste || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Outros Oficiais:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares1.internacionais || palmares1.copa_nordeste || 0}</span>
                       </div>
                     </div>
                   ) : (
-                    <span className="text-xs text-opacity-50">Títulos em processo de homologação.</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Títulos em processo de homologação.</span>
                   )}
                 </div>
 
                 {/* Palmarés Clube 2 */}
-                <div className={`p-4 rounded-xl border ${
-                  darkMode ? 'bg-[#25221C] border-[#3A352B]' : 'bg-[#FAF6EE] border-[#E6DFC9]'
-                }`}>
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="editorial-raised" style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <ClubBadge clube={c2Nome} size={28} />
-                    <span className="font-bold text-sm">{c2Nome}</span>
+                    <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c2Nome}</span>
                   </div>
                   {palmares2 ? (
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Mundial FIFA:</span>
-                        <span className="font-bold">{palmares2.mundial || 0}</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.78rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Mundial FIFA:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares2.mundial || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Libertadores:</span>
-                        <span className="font-bold">{palmares2.libertadores || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Libertadores:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares2.libertadores || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Brasileirão Série A:</span>
-                        <span className="font-bold">{palmares2.brasileirao || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Brasileirão Série A:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares2.brasileirao || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Copa do Brasil:</span>
-                        <span className="font-bold">{palmares2.copa_do_brasil || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Copa do Brasil:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares2.copa_do_brasil || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Estaduais:</span>
-                        <span className="font-bold">{palmares2.estaduais || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Estaduais:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares2.estaduais || 0}</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-white/5">
-                        <span className="text-opacity-70">Outros Oficiais:</span>
-                        <span className="font-bold">{palmares2.internacionais || palmares2.copa_nordeste || 0}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Outros Oficiais:</span>
+                        <span className="font-mono" style={{ fontWeight: 700 }}>{palmares2.internacionais || palmares2.copa_nordeste || 0}</span>
                       </div>
                     </div>
                   ) : (
-                    <span className="text-xs text-opacity-50">Títulos em processo de homologação.</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Títulos em processo de homologação.</span>
                   )}
                 </div>
               </div>
@@ -362,106 +391,109 @@ export default function ClubCompareView({
           )}
 
           {/* ARTILHEIROS DO DUELO & PROJEÇÃO DIXON-COLES */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
             {/* Top Artilheiros do Confronto */}
-            <section className={`p-6 rounded-2xl border transition-all ${
-              darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#FDFBF7] border-[#E6DEC9] shadow-sm'
-            }`}>
-              <h3 className="text-base font-bold font-serif mb-4 flex items-center gap-2">
-                <Flame className="w-5 h-5 text-[#85573B]" />
-                Maiores Artilheiros da História do Confronto
+            <section className="soft-card" style={{ padding: '24px' }}>
+              <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Flame size={20} color="var(--negative)" />
+                Maiores Artilheiros do Confronto
               </h3>
 
               {artilheiros.length > 0 ? (
-                <div className="space-y-2">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {artilheiros.slice(0, 7).map((art, idx) => (
                     <div 
                       key={idx}
-                      className={`flex items-center justify-between p-2.5 rounded-lg border text-xs transition-all ${
-                        darkMode ? 'bg-[#25221C] border-[#38332B]' : 'bg-[#FAF6EE] border-[#EAE1D1]'
-                      }`}
+                      className="editorial-raised"
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', fontSize: '0.82rem' }}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-                          idx === 0 ? 'bg-amber-500 text-black' : darkMode ? 'bg-[#38332B] text-white' : 'bg-[#D6CCB6] text-black'
-                        }`}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          backgroundColor: idx === 0 ? '#E5A93C' : 'var(--surface-card)',
+                          color: idx === 0 ? '#1B1A17' : 'var(--text-primary)',
+                          border: '1px solid var(--border-subtle)'
+                        }}>
                           {idx + 1}
                         </span>
-                        <span className="font-bold">{art.atleta}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          art.clube.toLowerCase().includes(c1Nome.toLowerCase())
-                            ? 'bg-[#5A673E]/20 text-[#5A673E]'
-                            : 'bg-[#85573B]/20 text-[#85573B]'
-                        }`}>
+                        <span style={{ fontWeight: 700 }}>{art.atleta}</span>
+                        <span className="pill-neutral" style={{ padding: '2px 8px', fontSize: '0.7rem' }}>
                           {art.clube}
                         </span>
                       </div>
-                      <span className="font-extrabold text-sm text-[#85573B]">{art.gols} gols</span>
+                      <span className="font-mono" style={{ fontWeight: 800, color: 'var(--negative)', fontSize: '0.9rem' }}>
+                        {art.gols} gols
+                      </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-xs text-opacity-50">
+                <div style={{ textAlign: 'center', padding: '24px 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Nenhum gol detalhado catalogado para este confronto.
                 </div>
               )}
             </section>
 
             {/* Projeção Dixon-Coles 1X2 */}
-            <section className={`p-6 rounded-2xl border transition-all ${
-              darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#FDFBF7] border-[#E6DEC9] shadow-sm'
-            }`}>
-              <h3 className="text-base font-bold font-serif mb-4 flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-[#5A673E]" />
+            <section className="soft-card" style={{ padding: '24px' }}>
+              <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BarChart3 size={20} color="var(--positive)" />
                 Projeção Preditiva Dixon-Coles (Próximo Duelo)
               </h3>
 
               {projDC ? (
-                <div className="space-y-4">
-                  <p className={`text-xs ${darkMode ? 'text-[#C9BAA9]' : 'text-[#6B6255]'}`}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
                     Probabilidades calculadas via modelo bivariado calibrado pelo acervo histórico oficial.
                   </p>
 
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className={`p-3 rounded-xl border ${darkMode ? 'bg-[#25221C] border-[#38332B]' : 'bg-[#FAF6EE] border-[#E6DEC9]'}`}>
-                      <span className="text-[10px] uppercase font-bold block opacity-70">{c1Nome}</span>
-                      <span className="text-xl font-extrabold text-[#5A673E]">{projDC.prob_clube1}%</span>
-                      <span className="text-[10px] block opacity-50 mt-1">xG {projDC.xg_clube1}</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', textAlign: 'center' }}>
+                    <div className="editorial-raised" style={{ padding: '14px 10px' }}>
+                      <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700, display: 'block', color: 'var(--text-secondary)' }}>{c1Nome}</span>
+                      <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--positive)' }}>{projDC.prob_clube1}%</span>
+                      <span className="font-mono" style={{ fontSize: '0.72rem', display: 'block', color: 'var(--text-secondary)', marginTop: '4px' }}>xG {projDC.xg_clube1}</span>
                     </div>
 
-                    <div className={`p-3 rounded-xl border ${darkMode ? 'bg-[#25221C] border-[#38332B]' : 'bg-[#FAF6EE] border-[#E6DEC9]'}`}>
-                      <span className="text-[10px] uppercase font-bold block opacity-70">Empate</span>
-                      <span className="text-xl font-extrabold text-[#A89A89]">{projDC.prob_empate}%</span>
+                    <div className="editorial-raised" style={{ padding: '14px 10px' }}>
+                      <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700, display: 'block', color: 'var(--text-secondary)' }}>Empate</span>
+                      <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-secondary)' }}>{projDC.prob_empate}%</span>
                     </div>
 
-                    <div className={`p-3 rounded-xl border ${darkMode ? 'bg-[#25221C] border-[#38332B]' : 'bg-[#FAF6EE] border-[#E6DEC9]'}`}>
-                      <span className="text-[10px] uppercase font-bold block opacity-70">{c2Nome}</span>
-                      <span className="text-xl font-extrabold text-[#85573B]">{projDC.prob_clube2}%</span>
-                      <span className="text-[10px] block opacity-50 mt-1">xG {projDC.xg_clube2}</span>
+                    <div className="editorial-raised" style={{ padding: '14px 10px' }}>
+                      <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 700, display: 'block', color: 'var(--text-secondary)' }}>{c2Nome}</span>
+                      <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--negative)' }}>{projDC.prob_clube2}%</span>
+                      <span className="font-mono" style={{ fontSize: '0.72rem', display: 'block', color: 'var(--text-secondary)', marginTop: '4px' }}>xG {projDC.xg_clube2}</span>
                     </div>
                   </div>
 
                   {/* Maiores Goleadas Registradas */}
-                  <div className="mt-4 pt-3 border-t border-white/5 space-y-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider block opacity-70">
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                       Maiores Goleadas no Acervo
                     </span>
                     {h2hData.maior_goleada_clube1 && (
-                      <div className="text-xs flex items-center justify-between">
-                        <span className="text-[#5A673E] font-semibold">{c1Nome}:</span>
+                      <div style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span style={{ color: 'var(--positive)', fontWeight: 600 }}>{c1Nome}:</span>
                         <span>{h2hData.maior_goleada_clube1.placar} ({h2hData.maior_goleada_clube1.ano} - {h2hData.maior_goleada_clube1.campeonato})</span>
                       </div>
                     )}
                     {h2hData.maior_goleada_clube2 && (
-                      <div className="text-xs flex items-center justify-between">
-                        <span className="text-[#85573B] font-semibold">{c2Nome}:</span>
+                      <div style={{ fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--negative)', fontWeight: 600 }}>{c2Nome}:</span>
                         <span>{h2hData.maior_goleada_clube2.placar} ({h2hData.maior_goleada_clube2.ano} - {h2hData.maior_goleada_clube2.campeonato})</span>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6 text-xs text-opacity-50">
+                <div style={{ textAlign: 'center', padding: '24px 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Dados insuficientes para projeção preditiva.
                 </div>
               )}
@@ -470,35 +502,33 @@ export default function ClubCompareView({
 
           {/* ÚLTIMOS CONFRONTOS */}
           {h2hData.partidas && h2hData.partidas.length > 0 && (
-            <section className={`p-6 rounded-2xl border transition-all ${
-              darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#FDFBF7] border-[#E6DEC9] shadow-sm'
-            }`}>
-              <h3 className="text-base font-bold font-serif mb-4 flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-[#85573B]" />
+            <section className="soft-card" style={{ padding: '24px' }}>
+              <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={20} color="var(--negative)" />
                 Últimos Confrontos Realizados
               </h3>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
+              <div style={{ overflowX: 'auto' }}>
+                <table className="editorial-table">
                   <thead>
-                    <tr className={`border-b ${darkMode ? 'border-[#38332B] text-[#A89A89]' : 'border-[#EAE1D1] text-[#7A7063]'}`}>
-                      <th className="py-2.5 px-3">Data</th>
-                      <th className="py-2.5 px-3">Torneio</th>
-                      <th className="py-2.5 px-3">Confronto</th>
-                      <th className="py-2.5 px-3 text-center">Placar</th>
-                      <th className="py-2.5 px-3">Estádio</th>
+                    <tr>
+                      <th style={{ width: '90px' }}>Data</th>
+                      <th>Torneio</th>
+                      <th>Confronto</th>
+                      <th style={{ textAlign: 'center', width: '90px' }}>Placar</th>
+                      <th>Estádio</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody>
                     {h2hData.partidas.slice(0, 15).map((p) => (
-                      <tr key={p.id_partida} className="hover:bg-white/5 transition-colors">
-                        <td className="py-2.5 px-3 whitespace-nowrap">{p.data || p.ano}</td>
-                        <td className="py-2.5 px-3 font-medium whitespace-nowrap">{p.campeonato}</td>
-                        <td className="py-2.5 px-3 whitespace-nowrap">{p.mandante} x {p.visitante}</td>
-                        <td className="py-2.5 px-3 text-center whitespace-nowrap font-bold text-sm">
+                      <tr key={p.id_partida}>
+                        <td className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{p.data || p.ano}</td>
+                        <td style={{ fontWeight: 600 }}>{p.campeonato}</td>
+                        <td>{p.mandante} x {p.visitante}</td>
+                        <td className="font-mono" style={{ textAlign: 'center', fontWeight: 700, fontSize: '0.95rem' }}>
                           {p.placar || `${p.gols_mandante} x ${p.gols_visitante}`}
                         </td>
-                        <td className="py-2.5 px-3 whitespace-nowrap text-opacity-70">{p.estadio || '-'}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{p.estadio || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
