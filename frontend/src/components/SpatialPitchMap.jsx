@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Flame, Target, Compass, Layers, Info } from 'lucide-react';
+import { Flame, Target, Compass, Layers, Info, Box, Eye } from 'lucide-react';
+import SpatialPitch3D from './SpatialPitch3D';
 
 /**
  * SpatialPitchMap - Gramado Oficial FIFA (105x68m) com Heatmap, Shotmap (xG) e Telemetria Tática
@@ -13,6 +14,7 @@ export default function SpatialPitchMap({
   resumo = {}
 }) {
   const [modo, setModo] = useState('ambos'); // 'ambos' | 'shotmap' | 'heatmap'
+  const [perspectiva, setPerspectiva] = useState('2d'); // '2d' | '3d'
   const [hoveredShot, setHoveredShot] = useState(null);
   const [mostrarCentroide, setMostrarCentroide] = useState(true);
 
@@ -114,8 +116,65 @@ export default function SpatialPitchMap({
           </h4>
         </div>
 
-        {/* Botões de Alternância de Camada */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* Botões de Alternância de Camada e Perspectiva */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {/* Seletor de Perspectiva 2D / 3D */}
+          <div
+            style={{
+              display: 'inline-flex',
+              backgroundColor: 'var(--surface-sunken)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-control)',
+              padding: '2px',
+              gap: '2px'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setPerspectiva('2d')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '0.7rem',
+                fontWeight: perspectiva === '2d' ? 700 : 500,
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: perspectiva === '2d' ? 'var(--surface-raised)' : 'transparent',
+                color: perspectiva === '2d' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                boxShadow: perspectiva === '2d' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 150ms ease'
+              }}
+            >
+              <Eye size={12} color={perspectiva === '2d' ? 'var(--accent)' : 'currentColor'} />
+              2D Plano
+            </button>
+            <button
+              type="button"
+              onClick={() => setPerspectiva('3d')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '0.7rem',
+                fontWeight: perspectiva === '3d' ? 700 : 500,
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: perspectiva === '3d' ? 'var(--surface-raised)' : 'transparent',
+                color: perspectiva === '3d' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                boxShadow: perspectiva === '3d' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 150ms ease'
+              }}
+            >
+              <Box size={12} color={perspectiva === '3d' ? 'var(--accent)' : 'currentColor'} />
+              3D Isométrico
+            </button>
+          </div>
+
           <div
             style={{
               display: 'inline-flex',
@@ -176,18 +235,44 @@ export default function SpatialPitchMap({
         </div>
       </div>
 
-      {/* CONTAINER DO GRAMADO SVG */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          backgroundColor: 'var(--surface-raised)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-panel)',
-          padding: '10px',
-          overflow: 'hidden'
-        }}
-      >
+      {/* CONTAINER DO GRAMADO (3D OU 2D) */}
+      {perspectiva === '3d' ? (
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            backgroundColor: '#0d1d12',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-panel)',
+            padding: '24px 12px 18px',
+            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center',
+            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)'
+          }}
+        >
+          <SpatialPitch3D
+            heatmap={calorValido}
+            shotmap={chutesValidos}
+            posicao={posicao}
+            modo={modo}
+            largura={180}
+            onHoverShot={(s) => setHoveredShot(s)}
+          />
+        </div>
+      ) : (
+        /* CONTAINER DO GRAMADO SVG 2D */
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            backgroundColor: 'var(--surface-raised)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-panel)',
+            padding: '10px',
+            overflow: 'hidden'
+          }}
+        >
         <svg
           viewBox="-4 -4 113 76"
           style={{ width: '100%', height: 'auto', display: 'block' }}
@@ -472,6 +557,7 @@ export default function SpatialPitchMap({
           </div>
         )}
       </div>
+      )}
 
       {/* ================= TELEMETRIA ESPACIAL INTEGRADA (TERÇOS & CORREDORES) ================= */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>

@@ -50,5 +50,14 @@
   3. **Mapeamento Preciso de Finalizações**: A função `bocaCoords(nx, ny)` projeta os dados de finalizações de $0..1$ (chão ao travessão / poste a poste) em coordenadas CSS reais de tela, permitindo alvos interativos com anéis de impacto e tooltips analíticas.
   4. **Proteção de Performance (Zero CPU Leak)**: Uso de `IntersectionObserver` para congelar o loop de renderização fora do viewport e detecção estrita de `prefers-reduced-motion`.
 
+## P9: Campo Tático Isométrico 3D em Bloco Flutuante (Isometric CSS 3D Pitch)
+- **Arquivo**: `frontend/src/components/SpatialPitch3D.jsx` e `frontend/src/components/SpatialPitchMap.jsx`
+- **Padrão**:
+  1. **Bloco Geológico Flutuante (CSS 3D Puro)**: Utiliza `transform: rotateX(58deg) rotateZ(-26deg)` com perspectiva focal $7 \times \text{largura}$. Estrutura em bloco contendo apenas as duas faces de terra visíveis (`.c3-lado.s` e `.c3-lado.o`) com cortes poligonais irregulares via `clip-path`, eliminando risco de z-fighting e reduzindo o DOM em 50%.
+  2. **Goleiras Verticais e Sombra Direcional**: As balizas são erguidas a $90^\circ$ sobre a linha de fundo (`rotateX(-90deg)`), com sombras projetadas no gramado via cisalhamento `skewX(34deg)` sob iluminação vinda do quadrante superior esquerdo.
+  3. **Heatmap Contínuo com Brilho Especular**: Mapeia $16 \times 24$ células com interpolação Gaussiana e blur local no container da pista, somado a um ponto de brilho especular radial (`.c3-brilho`) centrado nas coordenadas do pico de calor.
+  4. **Marcadores de Finalização com Profundidade**: Mapeia coordenadas FIFA ($105 \times 68\text{ m}$) na perspectiva do campo, exibindo esferas tridimensionais com anéis de impacto para gols e tooltips táteis interativas.
+
+
 
 
