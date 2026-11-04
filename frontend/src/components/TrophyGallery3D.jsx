@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trophy, Award, Sparkles, ChevronRight, Info, X } from 'lucide-react';
+import { Trophy, Award, Sparkles, ChevronRight, X } from 'lucide-react';
 import * as THREE from 'three';
 
 export default function TrophyGallery3D({ clube, darkMode }) {
@@ -37,66 +37,146 @@ export default function TrophyGallery3D({ clube, darkMode }) {
   const totalTitulos = trofeus.reduce((acc, t) => acc + (t.quantidade || 0), 0);
 
   return (
-    <div className={`p-6 sm:p-8 rounded-2xl border transition-all ${
-      darkMode ? 'bg-[#22201C] border-[#38332B] text-[#F1E8DE]' : 'bg-[#FAF6F0] border-[#E2D7C7] text-[#1B1A17]'
-    }`}>
+    <div 
+      className="editorial-panel"
+      style={{
+        padding: '24px',
+        backgroundColor: 'var(--surface-panel)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-panel)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       {/* Header da Galeria */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6 border-[#E2D7C7] dark:border-[#38332B]">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase bg-[#85573B]/10 text-[#85573B]">
-            <Trophy className="w-3.5 h-3.5" />
-            Galeria de Glórias • {clube}
-          </div>
-          <h2 className="text-2xl font-bold font-editorial tracking-tight flex items-center gap-3">
-            Sala de Troféus & Réplicas 3D
-            <span className="text-xs px-2.5 py-1 rounded-full font-mono bg-[#85573B] text-white">
-              {totalTitulos} Conquistas
-            </span>
-          </h2>
-          <p className={`text-xs ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
-            Réplicas tridimensionais interativas renderizadas em tempo real. Arraste para girar a taça sob a luz da vitrine.
-          </p>
-        </div>
-
-        {/* Filtros por Tipo de Conquista */}
-        <div className={`flex flex-wrap gap-1 p-1 rounded-xl border ${
-          darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#EAE1D5] border-[#D4C6B3]'
-        }`}>
-          {[
-            { id: 'todos', label: 'Todos' },
-            { id: 'mundial', label: 'Mundiais' },
-            { id: 'libertadores', label: 'Libertadores' },
-            { id: 'brasileirao', label: 'Brasileirão' },
-            { id: 'copa_brasil', label: 'Copa do Brasil' },
-            { id: 'estadual', label: 'Estaduais' }
-          ].map(f => (
-            <button
-              key={f.id}
-              onClick={() => setFiltroTipo(f.id)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                filtroTipo === f.id
-                  ? 'bg-[#85573B] text-white shadow-sm'
-                  : (darkMode ? 'text-[#8A8175] hover:text-white' : 'text-[#7D7365] hover:text-[#1B1A17]')
-              }`}
+      <div 
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '14px',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingBottom: '18px'
+        }}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div>
+            <div 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-control)',
+                backgroundColor: 'var(--surface-raised)',
+                color: 'var(--accent)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                marginBottom: '6px'
+              }}
             >
-              {f.label}
-            </button>
-          ))}
+              <Trophy size={13} />
+              <span>Galeria de Glórias • {clube}</span>
+            </div>
+
+            <h2 
+              className="font-editorial"
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                flexWrap: 'wrap'
+              }}
+            >
+              <span>Sala de Troféus & Réplicas 3D</span>
+              <span 
+                className="font-mono"
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  backgroundColor: 'var(--accent)',
+                  color: '#FFFFFF',
+                  padding: '3px 10px',
+                  borderRadius: '12px'
+                }}
+              >
+                {totalTitulos} Conquistas Oficiais
+              </span>
+            </h2>
+
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+              Réplicas tridimensionais interativas com física de materiais metálicos. Clique e arraste para girar a taça em 360°.
+            </p>
+          </div>
+
+          {/* Filtros por Tipo de Conquista */}
+          <div 
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '4px',
+              padding: '4px',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-control)'
+            }}
+          >
+            {[
+              { id: 'todos', label: 'Todos' },
+              { id: 'mundial', label: 'Mundiais' },
+              { id: 'libertadores', label: 'Libertadores' },
+              { id: 'brasileirao', label: 'Brasileirão' },
+              { id: 'copa_brasil', label: 'Copa do Brasil' },
+              { id: 'estadual', label: 'Estaduais' }
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFiltroTipo(f.id)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 'var(--radius-control)',
+                  fontSize: '0.78rem',
+                  fontWeight: filtroTipo === f.id ? 700 : 500,
+                  backgroundColor: filtroTipo === f.id ? 'var(--accent)' : 'transparent',
+                  color: filtroTipo === f.id ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Conteúdo da Galeria */}
       {loading ? (
-        <div className="w-full h-64 flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 border-3 border-[#85573B] border-t-transparent rounded-full animate-spin" />
-          <span className={`text-xs ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>Renderizando vitrine 3D...</span>
+        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          Renderizando vitrine 3D...
         </div>
       ) : trofeusFiltrados.length === 0 ? (
-        <div className="py-12 text-center text-sm opacity-60">
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
           Nenhuma conquista cadastrada para esta categoria.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-6">
+        <div 
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))',
+            gap: '16px',
+            width: '100%'
+          }}
+        >
           {trofeusFiltrados.map((t) => (
             <Trofeu3DCard
               key={t.id_trofeu}
@@ -111,46 +191,102 @@ export default function TrophyGallery3D({ clube, darkMode }) {
       {/* Modal de Detalhe dos Anos Conquistados */}
       {trofeuSelecionado && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
           onClick={() => setTrofeuSelecionado(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
         >
           <div 
-            className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl relative ${
-              darkMode ? 'bg-[#1B1A17] border-[#38332B] text-[#F1E8DE]' : 'bg-[#FAF6F0] border-[#E2D7C7] text-[#1B1A17]'
-            }`}
             onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '440px',
+              backgroundColor: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-panel)',
+              padding: '24px',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.35)',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
           >
             <button
               onClick={() => setTrofeuSelecionado(null)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg opacity-70 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                padding: '4px'
+              }}
               aria-label="Fechar"
             >
-              <X className="w-5 h-5" />
+              <X size={20} />
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-[#85573B]/10 text-[#85573B]">
-                <Trophy className="w-6 h-6" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div 
+                style={{
+                  padding: '10px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: 'var(--surface-raised)',
+                  color: 'var(--accent)'
+                }}
+              >
+                <Trophy size={24} />
               </div>
               <div>
-                <h3 className="font-bold font-editorial text-lg leading-tight">
+                <h3 className="font-editorial" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {trofeuSelecionado.torneio}
                 </h3>
-                <span className="text-xs font-semibold text-[#85573B]">
-                  {trofeuSelecionado.quantidade} {trofeuSelecionado.quantidade === 1 ? 'Conquista Oficial' : 'Conquistas Oficiais'}
+                <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--accent)', fontWeight: 700 }}>
+                  {trofeuSelecionado.quantidade} {trofeuSelecionado.quantidade === 1 ? 'Título Oficial' : 'Títulos Oficiais'}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <p className={`text-xs ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
-                Temporadas das conquistas históricas deste clube:
-              </p>
-              <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                Temporadas das conquistas históricas do {clube}:
+              </span>
+              <div 
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '6px',
+                  maxHeight: '180px',
+                  overflowY: 'auto',
+                  padding: '12px',
+                  backgroundColor: 'var(--surface-raised)',
+                  borderRadius: 'var(--radius-control)',
+                  border: '1px solid var(--border-subtle)'
+                }}
+              >
                 {trofeuSelecionado.anos_conquistados.split(',').map((ano, i) => (
                   <span 
-                    key={i} 
-                    className="px-2.5 py-1 text-xs font-mono font-bold rounded-lg bg-[#85573B] text-white shadow-sm"
+                    key={i}
+                    className="font-mono"
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      borderRadius: 'var(--radius-control)',
+                      backgroundColor: 'var(--accent)',
+                      color: '#FFFFFF'
+                    }}
                   >
                     {ano.trim()}
                   </span>
@@ -175,32 +311,36 @@ function Trofeu3DCard({ trofeu, darkMode, onSelect }) {
     const container = mountRef.current;
     if (!container) return;
 
-    const width = container.clientWidth || 220;
-    const height = 200;
+    const width = container.clientWidth || 210;
+    const height = 180;
 
     // Cena, Câmera e Renderizador
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 1.2, 4.2);
+    camera.position.set(0, 0.9, 3.8);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.25;
     container.appendChild(renderer.domElement);
 
-    // Iluminação de Vitrine de Museu
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    // Iluminação de Museu & Estúdio
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff4e6, 2.5);
+    const keyLight = new THREE.DirectionalLight(0xfff7ea, 2.6);
     keyLight.position.set(3, 4, 3);
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xd4af37, 1.8);
+    const rimLight = new THREE.DirectionalLight(0xd4af37, 2.0);
     rimLight.position.set(-3, -2, -2);
     scene.add(rimLight);
+
+    const spotLight = new THREE.PointLight(0xffeedd, 1.8, 10);
+    spotLight.position.set(0, 2.5, 2);
+    scene.add(spotLight);
 
     // Grupo do Troféu
     const group = new THREE.Group();
@@ -214,130 +354,165 @@ function Trofeu3DCard({ trofeu, darkMode, onSelect }) {
     });
 
     const silverMaterial = new THREE.MeshStandardMaterial({
-      color: 0xe6e8ea,
+      color: 0xe8ecf0,
       metalness: 0.92,
-      roughness: 0.18,
+      roughness: 0.16,
     });
 
     const woodBaseMaterial = new THREE.MeshStandardMaterial({
       color: 0x3d2314,
-      metalness: 0.1,
-      roughness: 0.6,
+      metalness: 0.08,
+      roughness: 0.65,
     });
 
     const bronzeMaterial = new THREE.MeshStandardMaterial({
       color: 0xcd7f32,
-      metalness: 0.75,
-      roughness: 0.35,
+      metalness: 0.78,
+      roughness: 0.32,
     });
+
+    const pedestalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x22201d,
+      metalness: 0.3,
+      roughness: 0.7,
+    });
+
+    // Pedestal de Veludo Escuro comum a todas as taças
+    const pedestalGeo = new THREE.CylinderGeometry(0.85, 0.95, 0.15, 32);
+    const pedestalMesh = new THREE.Mesh(pedestalGeo, pedestalMaterial);
+    pedestalMesh.position.y = -0.92;
+    group.add(pedestalMesh);
 
     // Construção Geométrica Conforme o Tipo da Taça
     const tipo = trofeu.modelo_3d_tipo || 'generic';
 
     if (tipo === 'libertadores') {
-      // Pedestal de Madeira com Placas
-      const baseGeo = new THREE.CylinderGeometry(0.5, 0.6, 0.7, 24);
+      // 1. Pedestal Cilíndrico de Cedro Escuro
+      const baseGeo = new THREE.CylinderGeometry(0.48, 0.58, 0.65, 24);
       const baseMesh = new THREE.Mesh(baseGeo, woodBaseMaterial);
-      baseMesh.position.y = -0.55;
+      baseMesh.position.y = -0.52;
       group.add(baseMesh);
 
-      // Taça de Prata
-      const cupGeo = new THREE.CylinderGeometry(0.55, 0.2, 0.9, 24);
+      // Plaquinhas de prata na base
+      const plaqueGeo = new THREE.BoxGeometry(0.12, 0.08, 0.02);
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2;
+        const plaque = new THREE.Mesh(plaqueGeo, silverMaterial);
+        plaque.position.set(Math.cos(ang) * 0.52, -0.52, Math.sin(ang) * 0.52);
+        plaque.rotation.y = -ang + Math.PI / 2;
+        group.add(plaque);
+      }
+
+      // 2. Taça de Prata Clássica da Libertadores
+      const cupGeo = new THREE.CylinderGeometry(0.55, 0.18, 0.85, 24);
       const cupMesh = new THREE.Mesh(cupGeo, silverMaterial);
       cupMesh.position.y = 0.2;
       group.add(cupMesh);
 
-      // Pequeno Jogador no Topo
-      const figurineGeo = new THREE.SphereGeometry(0.18, 16, 16);
+      // 3. Figurinha do Jogador Chutando no Topo
+      const figurineGeo = new THREE.SphereGeometry(0.16, 16, 16);
       const figurineMesh = new THREE.Mesh(figurineGeo, bronzeMaterial);
-      figurineMesh.position.y = 0.8;
+      figurineMesh.position.y = 0.75;
       group.add(figurineMesh);
 
     } else if (tipo === 'mundial') {
-      // Base Esférica e Colunas Douradas
-      const baseGeo = new THREE.CylinderGeometry(0.65, 0.75, 0.3, 32);
+      // 1. Base Prateada Escovada
+      const baseGeo = new THREE.CylinderGeometry(0.62, 0.72, 0.3, 32);
       const baseMesh = new THREE.Mesh(baseGeo, silverMaterial);
-      baseMesh.position.y = -0.7;
+      baseMesh.position.y = -0.68;
       group.add(baseMesh);
 
-      // Globo Terrestre Dourado
+      // 2. Colunas Douradas em Espiral
+      const torusGeo = new THREE.TorusGeometry(0.46, 0.08, 16, 32);
+      const torusMesh = new THREE.Mesh(torusGeo, goldMaterial);
+      torusMesh.rotation.x = Math.PI / 2.2;
+      torusMesh.position.y = -0.22;
+      group.add(torusMesh);
+
+      // 3. Globo Terrestre Dourado
       const globeGeo = new THREE.SphereGeometry(0.52, 32, 32);
       const globeMesh = new THREE.Mesh(globeGeo, goldMaterial);
-      globeMesh.position.y = 0.35;
+      globeMesh.position.y = 0.38;
       group.add(globeMesh);
 
-      // Colunas helicoidais
-      const pillarGeo = new THREE.TorusGeometry(0.48, 0.08, 16, 48);
-      const pillarMesh = new THREE.Mesh(pillarGeo, goldMaterial);
-      pillarMesh.rotation.x = Math.PI / 2.3;
-      pillarMesh.position.y = -0.2;
-      group.add(pillarMesh);
-
     } else if (tipo === 'brasileirao') {
-      // Taça Esgia e Dourada
-      const baseGeo = new THREE.CylinderGeometry(0.5, 0.6, 0.4, 24);
+      // 1. Base Cilíndrica
+      const baseGeo = new THREE.CylinderGeometry(0.48, 0.58, 0.38, 24);
       const baseMesh = new THREE.Mesh(baseGeo, woodBaseMaterial);
-      baseMesh.position.y = -0.7;
+      baseMesh.position.y = -0.66;
       group.add(baseMesh);
 
-      // Corpo da Taça
-      const cupGeo = new THREE.ConeGeometry(0.6, 1.3, 24, 1, true);
+      // 2. Corpo Cônico Dourado Majestoso
+      const cupGeo = new THREE.ConeGeometry(0.58, 1.25, 24, 1, true);
       const cupMesh = new THREE.Mesh(cupGeo, goldMaterial);
       cupMesh.rotation.x = Math.PI;
-      cupMesh.position.y = 0.15;
+      cupMesh.position.y = 0.16;
       group.add(cupMesh);
 
-      // Alças laterais
-      const handleGeo = new THREE.TorusGeometry(0.4, 0.05, 12, 24, Math.PI);
-      const handleMeshL = new THREE.Mesh(handleGeo, goldMaterial);
-      handleMeshL.position.set(-0.55, 0.2, 0);
-      handleMeshL.rotation.z = -Math.PI / 2;
-      group.add(handleMeshL);
+      // 3. Alças Arqueadas
+      const handleGeo = new THREE.TorusGeometry(0.38, 0.05, 12, 24, Math.PI);
+      const handleL = new THREE.Mesh(handleGeo, goldMaterial);
+      handleL.position.set(-0.52, 0.22, 0);
+      handleL.rotation.z = -Math.PI / 2;
+      group.add(handleL);
 
-      const handleMeshR = new THREE.Mesh(handleGeo, goldMaterial);
-      handleMeshR.position.set(0.55, 0.2, 0);
-      handleMeshR.rotation.z = Math.PI / 2;
-      group.add(handleMeshR);
+      const handleR = new THREE.Mesh(handleGeo, goldMaterial);
+      handleR.position.set(0.52, 0.22, 0);
+      handleR.rotation.z = Math.PI / 2;
+      group.add(handleR);
 
     } else if (tipo === 'copa_brasil') {
-      // Taça Prateada com Alças Largas
-      const baseGeo = new THREE.CylinderGeometry(0.6, 0.7, 0.35, 24);
+      // 1. Base Dupla Prateada
+      const baseGeo = new THREE.CylinderGeometry(0.58, 0.68, 0.32, 24);
       const baseMesh = new THREE.Mesh(baseGeo, silverMaterial);
-      baseMesh.position.y = -0.7;
+      baseMesh.position.y = -0.68;
       group.add(baseMesh);
 
-      const cupGeo = new THREE.SphereGeometry(0.58, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.75);
+      // 2. Vaso Prateado Bojudo
+      const cupGeo = new THREE.SphereGeometry(0.55, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.72);
       const cupMesh = new THREE.Mesh(cupGeo, silverMaterial);
-      cupMesh.position.y = 0.05;
+      cupMesh.position.y = 0.08;
       group.add(cupMesh);
 
+      // 3. Alças Laterais Prateadas
+      const handleGeo = new THREE.TorusGeometry(0.34, 0.045, 12, 24, Math.PI);
+      const handleL = new THREE.Mesh(handleGeo, silverMaterial);
+      handleL.position.set(-0.48, 0.2, 0);
+      handleL.rotation.z = -Math.PI / 2;
+      group.add(handleL);
+
+      const handleR = new THREE.Mesh(handleGeo, silverMaterial);
+      handleR.position.set(0.48, 0.2, 0);
+      handleR.rotation.z = Math.PI / 2;
+      group.add(handleR);
+
     } else {
-      // Troféu Estadual / Genérico Dourado
-      const baseGeo = new THREE.BoxGeometry(0.8, 0.3, 0.8);
+      // Troféu Estadual / Taça Ouro Facetada
+      const baseGeo = new THREE.BoxGeometry(0.72, 0.32, 0.72);
       const baseMesh = new THREE.Mesh(baseGeo, woodBaseMaterial);
-      baseMesh.position.y = -0.7;
+      baseMesh.position.y = -0.68;
       group.add(baseMesh);
 
-      const cupGeo = new THREE.OctahedronGeometry(0.55);
+      const cupGeo = new THREE.OctahedronGeometry(0.54);
       const cupMesh = new THREE.Mesh(cupGeo, goldMaterial);
-      cupMesh.position.y = 0.1;
+      cupMesh.position.y = 0.12;
       group.add(cupMesh);
     }
 
     scene.add(group);
 
-    // Animação de rotação contínua e interativa
+    // Animação de Rotação Automática
     let reqId;
     const animate = () => {
       reqId = requestAnimationFrame(animate);
       if (!isDraggingRef.current) {
-        group.rotation.y += 0.008; // Rotação sutil automática
+        group.rotation.y += 0.007;
       }
       renderer.render(scene, camera);
     };
     animate();
 
-    // Eventos de Touch e Mouse para Rotação Manual 360°
+    // Eventos de Drag Mouse / Touch
     const onMouseDown = (e) => {
       isDraggingRef.current = true;
       prevMousePosRef.current = { x: e.clientX, y: e.clientY };
@@ -376,13 +551,43 @@ function Trofeu3DCard({ trofeu, darkMode, onSelect }) {
   return (
     <div 
       onClick={onSelect}
-      className={`relative group p-4 rounded-xl border flex flex-col justify-between cursor-pointer transition-all hover:scale-[1.02] shadow-sm ${
-        darkMode ? 'bg-[#1B1A17] border-[#38332B] hover:border-[#85573B]' : 'bg-white border-[#E2D7C7] hover:border-[#85573B]'
-      }`}
+      style={{
+        position: 'relative',
+        backgroundColor: 'var(--surface-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-panel)',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxShadow: 'var(--shadow-editorial)',
+        cursor: 'pointer',
+        transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
+        overflow: 'hidden'
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = 'var(--accent)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = 'var(--border-subtle)';
+      }}
     >
       {/* Badge da Quantidade Conquistada */}
-      <div className="absolute top-3 right-3 z-10">
-        <span className="px-2.5 py-1 text-xs font-mono font-bold rounded-full bg-[#85573B] text-white shadow-md">
+      <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10 }}>
+        <span 
+          className="font-mono"
+          style={{
+            padding: '3px 8px',
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            borderRadius: '10px',
+            backgroundColor: 'var(--accent)',
+            color: '#FFFFFF',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.18)'
+          }}
+        >
           {trofeu.quantidade}x
         </span>
       </div>
@@ -390,19 +595,55 @@ function Trofeu3DCard({ trofeu, darkMode, onSelect }) {
       {/* Canvas 3D */}
       <div 
         ref={mountRef} 
-        className="w-full h-48 flex items-center justify-center overflow-hidden touch-none"
-        title="Arraste para girar em 3D"
+        style={{
+          width: '100%',
+          height: '180px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}
+        title="Arraste para girar em 360°"
       />
 
       {/* Metadados do Troféu */}
-      <div className="pt-2 border-t border-black/5 dark:border-white/5 space-y-1">
-        <div className="flex items-center justify-between">
-          <h4 className="font-bold text-sm font-editorial text-primary truncate">
+      <div 
+        style={{
+          borderTop: '1px solid var(--border-subtle)',
+          paddingTop: '12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '4px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h4 
+            className="font-editorial"
+            style={{
+              margin: 0,
+              fontSize: '0.92rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
             {trofeu.torneio}
           </h4>
-          <ChevronRight className="w-4 h-4 text-secondary group-hover:translate-x-1 transition-transform" />
+          <ChevronRight size={15} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
         </div>
-        <p className="text-[11px] font-mono text-secondary truncate">
+        <p 
+          className="font-mono"
+          style={{
+            margin: 0,
+            fontSize: '0.74rem',
+            color: 'var(--text-secondary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
           {trofeu.anos_conquistados}
         </p>
       </div>

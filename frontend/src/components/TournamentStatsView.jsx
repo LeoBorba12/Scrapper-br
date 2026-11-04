@@ -33,7 +33,6 @@ export default function TournamentStatsView({ darkMode }) {
   const equipes = dados?.equipes || [];
   const lideres = dados?.lideres || {};
 
-  // Ordenação das tabelas de equipes conforme o modo (total vs por jogo)
   const rankingChutes = useMemo(() => {
     return [...equipes].sort((a, b) => 
       modoCalculo === 'total' ? (b.chutes_total - a.chutes_total) : (b.chutes_jogo - a.chutes_jogo)
@@ -57,93 +56,198 @@ export default function TournamentStatsView({ darkMode }) {
   }, [equipes]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8 space-y-8 font-inter animate-fade-in">
+    <div 
+      style={{
+        maxWidth: 'var(--content-max)',
+        margin: '0 auto',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}
+    >
       {/* Header Editorial do Campeonato */}
-      <div className={`p-6 sm:p-8 rounded-2xl border transition-all ${
-        darkMode ? 'bg-[#22201C] border-[#38332B] text-[#F1E8DE]' : 'bg-[#FAF6F0] border-[#E2D7C7] text-[#1B1A17]'
-      }`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase bg-[#85573B]/10 text-[#85573B]">
-              <Trophy className="w-3.5 h-3.5" />
-              Estatísticas Oficiais • Edição 2026
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-bold font-editorial tracking-tight">
-              Brasileirão Série A 2026
-            </h1>
-            <p className={`text-sm max-w-2xl ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
-              Painel analítico consolidado com métricas avançadas (xG, xGOT, desarmes, defesas e cruzamentos)
-              atualizado diretamente dos feeds oficiais às 01:00 AM.
-            </p>
+      <div 
+        className="editorial-panel"
+        style={{
+          padding: '24px 28px',
+          backgroundColor: 'var(--surface-panel)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-panel)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px'
+        }}
+      >
+        <div style={{ maxWidth: '680px' }}>
+          <div 
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-control)',
+              backgroundColor: 'var(--surface-raised)',
+              color: 'var(--accent)',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              marginBottom: '8px'
+            }}
+          >
+            <Trophy size={13} />
+            <span>Estatísticas Oficiais • Temporada 2026</span>
           </div>
 
-          {/* Toggle de Modo: Equipes vs Jogadores */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className={`flex p-1 rounded-xl border ${darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#EAE1D5] border-[#D4C6B3]'}`}>
-              <button
-                onClick={() => setAbaAtiva('equipes')}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  abaAtiva === 'equipes'
-                    ? 'bg-[#85573B] text-white shadow-sm'
-                    : darkMode ? 'text-[#C9BAA9] hover:text-white' : 'text-[#5C5549] hover:text-[#1B1A17]'
-                }`}
-              >
-                Estatísticas de Equipes
-              </button>
-              <button
-                onClick={() => setAbaAtiva('jogadores')}
-                className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  abaAtiva === 'jogadores'
-                    ? 'bg-[#85573B] text-white shadow-sm'
-                    : darkMode ? 'text-[#C9BAA9] hover:text-white' : 'text-[#5C5549] hover:text-[#1B1A17]'
-                }`}
-              >
-                Estatísticas de Jogadores
-              </button>
-            </div>
-          </div>
+          <h1 
+            className="font-editorial"
+            style={{
+              fontSize: '1.85rem',
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              margin: '0 0 6px 0',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            Brasileirão Série A 2026
+          </h1>
+
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            Hub oficial de Scouts e Métricas Avançadas (xG, xGOT, defesas, desarmes e cruzamentos)
+            atualizado diariamente às 01:00 AM na VM.
+          </p>
+        </div>
+
+        {/* Toggle de Modo: Equipes vs Jogadores */}
+        <div 
+          style={{
+            display: 'flex',
+            gap: '4px',
+            padding: '4px',
+            backgroundColor: 'var(--surface-raised)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-control)'
+          }}
+        >
+          <button
+            onClick={() => setAbaAtiva('equipes')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.8rem',
+              fontWeight: abaAtiva === 'equipes' ? 700 : 500,
+              backgroundColor: abaAtiva === 'equipes' ? 'var(--accent)' : 'transparent',
+              color: abaAtiva === 'equipes' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Estatísticas de Equipes
+          </button>
+          <button
+            onClick={() => setAbaAtiva('jogadores')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.8rem',
+              fontWeight: abaAtiva === 'jogadores' ? 700 : 500,
+              backgroundColor: abaAtiva === 'jogadores' ? 'var(--accent)' : 'transparent',
+              color: abaAtiva === 'jogadores' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Estatísticas de Jogadores
+          </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="w-full h-80 flex flex-col items-center justify-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#85573B] border-t-transparent rounded-full animate-spin" />
-          <span className={`text-sm ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>Carregando scouts oficiais...</span>
+        <div style={{ padding: '80px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+          Carregando scouts oficiais...
         </div>
       ) : (
         <>
           {/* ================= SEÇÃO DE EQUIPES (Espelho fiel do OGol) ================= */}
           {abaAtiva === 'equipes' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4 border-[#E2D7C7] dark:border-[#38332B]">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  paddingBottom: '12px'
+                }}
+              >
                 <div>
-                  <h2 className="text-xl font-bold font-editorial text-primary">
+                  <h2 
+                    className="font-editorial"
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      margin: 0
+                    }}
+                  >
                     ESTATÍSTICAS DE EQUIPAS
                   </h2>
-                  <p className="text-xs text-secondary mt-0.5">
-                    Scouts agregados dos 20 clubes participantes na temporada 2026.
-                  </p>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    Scouts agregados dos 20 clubes participantes na Série A.
+                  </span>
                 </div>
 
                 {/* Seletor TOTAL / POR JOGO */}
-                <div className={`flex p-0.5 rounded-lg border ${darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#EAE1D5] border-[#D4C6B3]'}`}>
+                <div 
+                  style={{
+                    display: 'flex',
+                    gap: '4px',
+                    padding: '3px',
+                    backgroundColor: 'var(--surface-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)'
+                  }}
+                >
                   <button
                     onClick={() => setModoCalculo('total')}
-                    className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
-                      modoCalculo === 'total'
-                        ? (darkMode ? 'bg-[#38332B] text-white shadow-sm' : 'bg-white text-[#1B1A17] shadow-sm')
-                        : (darkMode ? 'text-[#8A8175] hover:text-white' : 'text-[#7D7365] hover:text-[#1B1A17]')
-                    }`}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      backgroundColor: modoCalculo === 'total' ? 'var(--surface-card)' : 'transparent',
+                      color: modoCalculo === 'total' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      boxShadow: modoCalculo === 'total' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
                   >
                     TOTAL
                   </button>
                   <button
                     onClick={() => setModoCalculo('por_jogo')}
-                    className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${
-                      modoCalculo === 'por_jogo'
-                        ? (darkMode ? 'bg-[#38332B] text-white shadow-sm' : 'bg-white text-[#1B1A17] shadow-sm')
-                        : (darkMode ? 'text-[#8A8175] hover:text-white' : 'text-[#7D7365] hover:text-[#1B1A17]')
-                    }`}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      backgroundColor: modoCalculo === 'por_jogo' ? 'var(--surface-card)' : 'transparent',
+                      color: modoCalculo === 'por_jogo' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      boxShadow: modoCalculo === 'por_jogo' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
                   >
                     POR JOGO
                   </button>
@@ -151,45 +255,40 @@ export default function TournamentStatsView({ darkMode }) {
               </div>
 
               {/* Grid de Caixas de Estatísticas de Equipes */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* 1. Chutes */}
+              <div 
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                  gap: '20px'
+                }}
+              >
                 <CardEquipeRanking
                   titulo="Chutes"
                   subtitulo={modoCalculo === 'total' ? 'Finalizações Totais' : 'Média por Jogo'}
                   dados={rankingChutes}
                   campoValor={modoCalculo === 'total' ? 'chutes_total' : 'chutes_jogo'}
                   unidade=""
-                  darkMode={darkMode}
                 />
-
-                {/* 2. Defesas */}
                 <CardEquipeRanking
                   titulo="Defesas"
                   subtitulo={modoCalculo === 'total' ? 'Intervenções do Goleiro' : 'Média por Jogo'}
                   dados={rankingDefesas}
                   campoValor={modoCalculo === 'total' ? 'defesas_total' : 'defesas_jogo'}
                   unidade=""
-                  darkMode={darkMode}
                 />
-
-                {/* 3. Cruzamentos Certos */}
                 <CardEquipeRanking
                   titulo="Cruzamentos Certos"
                   subtitulo={modoCalculo === 'total' ? 'Bolas na Área Completadas' : 'Média por Jogo'}
                   dados={rankingCruzamentos}
                   campoValor={modoCalculo === 'total' ? 'cruzamentos_certos_total' : 'cruzamentos_certos_jogo'}
                   unidade=""
-                  darkMode={darkMode}
                 />
-
-                {/* 4. Gols Esperados (xG) */}
                 <CardEquipeRanking
                   titulo="Gols Esperados (xG)"
                   subtitulo="Qualidade das Chances Produzidas"
                   dados={rankingXG}
                   campoValor="xg_pro"
                   unidade=" xG"
-                  darkMode={darkMode}
                 />
               </div>
             </div>
@@ -197,19 +296,44 @@ export default function TournamentStatsView({ darkMode }) {
 
           {/* ================= SEÇÃO DE JOGADORES (LÍDERES INDIVIDUAIS) ================= */}
           {abaAtiva === 'jogadores' && (
-            <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b pb-4 border-[#E2D7C7] dark:border-[#38332B]">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  paddingBottom: '12px'
+                }}
+              >
                 <div>
-                  <h2 className="text-xl font-bold font-editorial text-primary">
+                  <h2 
+                    className="font-editorial"
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      margin: 0
+                    }}
+                  >
                     LÍDERES ESTATÍSTICOS INDIVIDUAIS
                   </h2>
-                  <p className="text-xs text-secondary mt-0.5">
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                     Rankings consolidados dos 700+ atletas da Série A 2026.
-                  </p>
+                  </span>
                 </div>
 
-                {/* Filtros de Posição/Dimensão */}
-                <div className={`flex p-1 rounded-xl border ${darkMode ? 'bg-[#1B1A17] border-[#38332B]' : 'bg-[#EAE1D5] border-[#D4C6B3]'}`}>
+                <div 
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '4px',
+                    padding: '4px',
+                    backgroundColor: 'var(--surface-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-control)'
+                  }}
+                >
                   {[
                     { id: 'ataque', label: 'Gols & Finalizações' },
                     { id: 'criacao', label: 'Criação & Passes' },
@@ -219,11 +343,17 @@ export default function TournamentStatsView({ darkMode }) {
                     <button
                       key={tab.id}
                       onClick={() => setSubAbaJogadores(tab.id)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                        subAbaJogadores === tab.id
-                          ? 'bg-[#85573B] text-white shadow-sm'
-                          : darkMode ? 'text-[#8A8175] hover:text-white' : 'text-[#7D7365] hover:text-[#1B1A17]'
-                      }`}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 'var(--radius-control)',
+                        fontSize: '0.76rem',
+                        fontWeight: subAbaJogadores === tab.id ? 700 : 500,
+                        backgroundColor: subAbaJogadores === tab.id ? 'var(--accent)' : 'transparent',
+                        color: subAbaJogadores === tab.id ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
                     >
                       {tab.label}
                     </button>
@@ -231,8 +361,14 @@ export default function TournamentStatsView({ darkMode }) {
                 </div>
               </div>
 
-              {/* Grid Dinâmica de Líderes por Categoria */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Grid de Líderes Individuais */}
+              <div 
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '20px'
+                }}
+              >
                 {subAbaJogadores === 'ataque' && (
                   <>
                     <CardAtletaRanking
@@ -242,7 +378,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Gols"
                       campoSecundario="xg"
                       rotuloSecundario="xG"
-                      darkMode={darkMode}
                     />
                     <CardAtletaRanking
                       titulo="Gols Esperados (xG)"
@@ -251,7 +386,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="xG"
                       campoSecundario="gols"
                       rotuloSecundario="Gols"
-                      darkMode={darkMode}
                     />
                     <CardAtletaRanking
                       titulo="Chutes Totais"
@@ -260,7 +394,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Chutes"
                       campoSecundario="chutes_gol"
                       rotuloSecundario="No Gol"
-                      darkMode={darkMode}
                     />
                   </>
                 )}
@@ -274,7 +407,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Assists"
                       campoSecundario="oportunidades_criadas"
                       rotuloSecundario="Chances"
-                      darkMode={darkMode}
                     />
                     <CardAtletaRanking
                       titulo="Cruzamentos Certos"
@@ -283,7 +415,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Cruzamentos"
                       campoSecundario="assistencias"
                       rotuloSecundario="Assists"
-                      darkMode={darkMode}
                     />
                     <CardAtletaRanking
                       titulo="Passes Certos"
@@ -292,7 +423,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Passes"
                       campoSecundario="jogos"
                       rotuloSecundario="Jogos"
-                      darkMode={darkMode}
                     />
                   </>
                 )}
@@ -306,7 +436,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Desarmes"
                       campoSecundario="interceptacoes"
                       rotuloSecundario="Intercep."
-                      darkMode={darkMode}
                     />
                     <CardAtletaRanking
                       titulo="Interceptações"
@@ -315,7 +444,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Intercep."
                       campoSecundario="desarmes_ganhos"
                       rotuloSecundario="Desarmes"
-                      darkMode={darkMode}
                     />
                   </>
                 )}
@@ -329,7 +457,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Defesas"
                       campoSecundario="defesas_area"
                       rotuloSecundario="Na Área"
-                      darkMode={darkMode}
                     />
                     <CardAtletaRanking
                       titulo="Defesas Dentro da Área"
@@ -338,7 +465,6 @@ export default function TournamentStatsView({ darkMode }) {
                       rotuloPrincipal="Na Área"
                       campoSecundario="defesas_totais"
                       rotuloSecundario="Totais"
-                      darkMode={darkMode}
                     />
                   </>
                 )}
@@ -351,22 +477,52 @@ export default function TournamentStatsView({ darkMode }) {
   );
 }
 
-// Subcomponente de Card de Ranking de Equipes (Layout Espelho OGol)
-function CardEquipeRanking({ titulo, subtitulo, dados, campoValor, unidade, darkMode }) {
+// Subcomponente de Card de Ranking de Equipes
+function CardEquipeRanking({ titulo, subtitulo, dados, campoValor, unidade }) {
   const [expandido, setExpandido] = useState(false);
   const itens = expandido ? dados : dados.slice(0, 5);
 
   return (
-    <div className={`p-4 rounded-xl border flex flex-col justify-between shadow-sm transition-all ${
-      darkMode ? 'bg-[#22201C] border-[#38332B]' : 'bg-[#FAF6F0] border-[#E2D7C7]'
-    }`}>
+    <div 
+      className="editorial-panel"
+      style={{
+        backgroundColor: 'var(--surface-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-panel)',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxShadow: 'var(--shadow-editorial)',
+        boxSizing: 'border-box'
+      }}
+    >
       <div>
-        <div className="flex items-center justify-between border-b pb-2 mb-3 border-[#E2D7C7] dark:border-[#38332B]">
-          <h3 className="font-bold text-base font-editorial text-primary tracking-tight">{titulo}</h3>
-          <span className="text-[10px] uppercase font-semibold text-[#85573B] tracking-wider">{subtitulo}</span>
+        <div 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid var(--border-subtle)',
+            paddingBottom: '8px',
+            marginBottom: '12px'
+          }}
+        >
+          <h3 
+            className="font-editorial"
+            style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}
+          >
+            {titulo}
+          </h3>
+          <span 
+            className="font-mono"
+            style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase' }}
+          >
+            {subtitulo}
+          </span>
         </div>
 
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {itens.map((equipe, idx) => {
             const val = equipe[campoValor] ?? 0;
             const formattedVal = typeof val === 'number' && !Number.isInteger(val) ? val.toFixed(2) : val;
@@ -374,26 +530,55 @@ function CardEquipeRanking({ titulo, subtitulo, dados, campoValor, unidade, dark
             return (
               <div 
                 key={equipe.clube + idx}
-                className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
-                  idx === 0 
-                    ? (darkMode ? 'bg-[#85573B]/15 font-semibold' : 'bg-[#85573B]/10 font-semibold')
-                    : (darkMode ? 'hover:bg-[#2A2722]' : 'hover:bg-[#F2EAE0]')
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '7px 10px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: idx === 0 ? 'var(--surface-raised)' : 'transparent',
+                  transition: 'background-color 0.15s ease'
+                }}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className={`w-4 text-xs font-bold ${idx < 3 ? 'text-[#85573B]' : 'text-secondary'}`}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <span 
+                    className="font-mono"
+                    style={{
+                      width: '18px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      color: idx < 3 ? 'var(--accent)' : 'var(--text-muted)'
+                    }}
+                  >
                     {idx + 1}
                   </span>
-                  <ClubBadge clube={equipe.clube} size={22} className="flex-shrink-0" />
-                  <span className="text-xs truncate font-medium text-primary">
+                  <ClubBadge nome={equipe.clube} size={20} />
+                  <span 
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: idx === 0 ? 700 : 500,
+                      color: 'var(--text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
                     {equipe.clube}
                   </span>
                 </div>
-                <div className="text-right flex-shrink-0 ml-2">
-                  <span className="text-sm font-bold font-mono text-primary">
-                    {formattedVal}{unidade}
-                  </span>
-                </div>
+
+                <span 
+                  className="font-mono"
+                  style={{
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    flexShrink: 0,
+                    marginLeft: '8px'
+                  }}
+                >
+                  {formattedVal}{unidade}
+                </span>
               </div>
             );
           })}
@@ -403,11 +588,23 @@ function CardEquipeRanking({ titulo, subtitulo, dados, campoValor, unidade, dark
       {dados.length > 5 && (
         <button
           onClick={() => setExpandido(!expandido)}
-          className={`mt-4 pt-2 border-t w-full text-center text-xs font-bold uppercase tracking-wider transition-colors ${
-            darkMode 
-              ? 'border-[#38332B] text-[#85573B] hover:text-[#A77252]' 
-              : 'border-[#E2D7C7] text-[#85573B] hover:text-[#5E3B26]'
-          }`}
+          style={{
+            marginTop: '14px',
+            paddingTop: '10px',
+            borderTop: '1px solid var(--border-subtle)',
+            background: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            borderBottom: 'none',
+            cursor: 'pointer',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'var(--accent)',
+            textAlign: 'center',
+            width: '100%'
+          }}
         >
           {expandido ? 'Recolher' : 'Ver lista completa'}
         </button>
@@ -417,21 +614,51 @@ function CardEquipeRanking({ titulo, subtitulo, dados, campoValor, unidade, dark
 }
 
 // Subcomponente de Card de Ranking de Atletas
-function CardAtletaRanking({ titulo, atletas, campoPrincipal, rotuloPrincipal, campoSecundario, rotuloSecundario, darkMode }) {
+function CardAtletaRanking({ titulo, atletas, campoPrincipal, rotuloPrincipal, campoSecundario, rotuloSecundario }) {
   const [expandido, setExpandido] = useState(false);
   const lista = expandido ? atletas : atletas.slice(0, 5);
 
   return (
-    <div className={`p-4 rounded-xl border flex flex-col justify-between shadow-sm transition-all ${
-      darkMode ? 'bg-[#22201C] border-[#38332B]' : 'bg-[#FAF6F0] border-[#E2D7C7]'
-    }`}>
+    <div 
+      className="editorial-panel"
+      style={{
+        backgroundColor: 'var(--surface-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-panel)',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        boxShadow: 'var(--shadow-editorial)',
+        boxSizing: 'border-box'
+      }}
+    >
       <div>
-        <div className="flex items-center justify-between border-b pb-2 mb-3 border-[#E2D7C7] dark:border-[#38332B]">
-          <h3 className="font-bold text-base font-editorial text-primary tracking-tight">{titulo}</h3>
-          <span className="text-[10px] uppercase font-semibold text-[#85573B] tracking-wider">{rotuloPrincipal}</span>
+        <div 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid var(--border-subtle)',
+            paddingBottom: '8px',
+            marginBottom: '12px'
+          }}
+        >
+          <h3 
+            className="font-editorial"
+            style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}
+          >
+            {titulo}
+          </h3>
+          <span 
+            className="font-mono"
+            style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase' }}
+          >
+            {rotuloPrincipal}
+          </span>
         </div>
 
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {lista.map((atleta, idx) => {
             const valPri = atleta[campoPrincipal] ?? 0;
             const valSec = atleta[campoSecundario] ?? 0;
@@ -441,33 +668,70 @@ function CardAtletaRanking({ titulo, atletas, campoPrincipal, rotuloPrincipal, c
             return (
               <div 
                 key={atleta.atleta + idx}
-                className={`flex items-center justify-between p-2 rounded-lg transition-colors ${
-                  idx === 0 
-                    ? (darkMode ? 'bg-[#85573B]/15 font-semibold' : 'bg-[#85573B]/10 font-semibold')
-                    : (darkMode ? 'hover:bg-[#2A2722]' : 'hover:bg-[#F2EAE0]')
-                }`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '7px 10px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: idx === 0 ? 'var(--surface-raised)' : 'transparent',
+                  transition: 'background-color 0.15s ease'
+                }}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className={`w-4 text-xs font-bold ${idx < 3 ? 'text-[#85573B]' : 'text-secondary'}`}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <span 
+                    className="font-mono"
+                    style={{
+                      width: '18px',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      color: idx < 3 ? 'var(--accent)' : 'var(--text-muted)'
+                    }}
+                  >
                     {idx + 1}
                   </span>
-                  <ClubBadge clube={atleta.clube} size={20} className="flex-shrink-0" />
-                  <div className="truncate">
-                    <p className="text-xs truncate font-medium text-primary">
+                  <ClubBadge nome={atleta.clube} size={18} />
+                  <div style={{ overflow: 'hidden' }}>
+                    <p 
+                      style={{
+                        margin: 0,
+                        fontSize: '0.8rem',
+                        fontWeight: idx === 0 ? 700 : 500,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       {atleta.atleta}
                     </p>
-                    <p className="text-[10px] text-secondary truncate">
+                    <p 
+                      style={{
+                        margin: 0,
+                        fontSize: '0.68rem',
+                        color: 'var(--text-secondary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
                       {atleta.posicao ? `${atleta.posicao} • ` : ''}{atleta.clube}
                     </p>
                   </div>
                 </div>
 
-                <div className="text-right flex-shrink-0 ml-2">
-                  <div className="text-sm font-bold font-mono text-primary">
+                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+                  <div 
+                    className="font-mono"
+                    style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}
+                  >
                     {formattedPri}
                   </div>
                   {rotuloSecundario && (
-                    <div className="text-[10px] font-mono text-secondary">
+                    <div 
+                      className="font-mono"
+                      style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}
+                    >
                       {formattedSec} {rotuloSecundario}
                     </div>
                   )}
@@ -481,11 +745,23 @@ function CardAtletaRanking({ titulo, atletas, campoPrincipal, rotuloPrincipal, c
       {atletas.length > 5 && (
         <button
           onClick={() => setExpandido(!expandido)}
-          className={`mt-4 pt-2 border-t w-full text-center text-xs font-bold uppercase tracking-wider transition-colors ${
-            darkMode 
-              ? 'border-[#38332B] text-[#85573B] hover:text-[#A77252]' 
-              : 'border-[#E2D7C7] text-[#85573B] hover:text-[#5E3B26]'
-          }`}
+          style={{
+            marginTop: '14px',
+            paddingTop: '10px',
+            borderTop: '1px solid var(--border-subtle)',
+            background: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            borderBottom: 'none',
+            cursor: 'pointer',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'var(--accent)',
+            textAlign: 'center',
+            width: '100%'
+          }}
         >
           {expandido ? 'Recolher' : 'Ver lista completa'}
         </button>
