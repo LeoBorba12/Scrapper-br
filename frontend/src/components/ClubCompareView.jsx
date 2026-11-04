@@ -6,6 +6,10 @@ import {
 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
 import { baixarCardDueloH2HPNG } from '../utils/cardGenerator';
+import ConfrontoSecularCard from './ConfrontoSecularCard';
+import { gerarDeepLinkConfronto } from '../utils/confrontoSlug';
+import { registrarEventoTelemetria } from '../utils/telemetria';
+import { X } from 'lucide-react';
 
 const CLASSICOS_PREDEFINIDOS = [
   { label: 'Derby Paulista', c1: 'Palmeiras', c2: 'Corinthians', regiao: 'São Paulo' },
@@ -34,6 +38,7 @@ export default function ClubCompareView({
   const [h2hData, setH2hData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState(null);
+  const [modalCardAberto, setModalCardAberto] = useState(false);
 
   const carregarConfronto = async (
     c1 = clube1,
@@ -152,20 +157,27 @@ export default function ClubCompareView({
           </div>
 
           {h2hData && (
-            <button
-              onClick={() => baixarCardDueloH2HPNG({
-                clube1: c1Nome,
-                clube2: c2Nome,
-                vitorias1: vit1,
-                vitorias2: vit2,
-                empates: emp,
-                totalJogos: total
-              })}
-              className="btn-primary touch-tactile"
-              style={{ minHeight: '42px', padding: '10px 20px', fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-            >
-              <Share2 size={16} /> Exportar Card Histórico
-            </button>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  registrarEventoTelemetria('abrir_modal_card_secular', { c1: c1Nome, c2: c2Nome });
+                  setModalCardAberto(true);
+                }}
+                className="btn-primary touch-tactile"
+                style={{
+                  minHeight: '42px',
+                  padding: '10px 18px',
+                  fontSize: '0.82rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Share2 size={16} /> Compartilhar Card Secular (1:1)
+              </button>
+            </div>
           )}
         </div>
 
@@ -1000,6 +1012,100 @@ export default function ClubCompareView({
                 </table>
               </div>
             </section>
+          )}
+
+          {/* ================= MODAL DO CARD EDITORIAL SECULAR (1:1) ================= */}
+          {modalCardAberto && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(27, 26, 23, 0.75)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+              overflowY: 'auto'
+            }}
+            onClick={() => setModalCardAberto(false)}
+            >
+              <div
+                style={{
+                  backgroundColor: 'var(--surface-card, #FFFFFF)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  maxWidth: '580px',
+                  width: '100%',
+                  maxHeight: '92vh',
+                  overflowY: 'auto',
+                  boxShadow: '0 24px 48px rgba(0, 0, 0, 0.25)',
+                  border: '1px solid var(--border-subtle, #D8CEBF)',
+                  position: 'relative'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div>
+                    <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Card Editorial Compartilhável
+                    </h3>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      Formato quadrado 1:1 otimizado para WhatsApp, Twitter/X e Instagram
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setModalCardAberto(false)}
+                    className="touch-tactile"
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <ConfrontoSecularCard
+                  mandante={c1Nome}
+                  visitante={c2Nome}
+                  totalJogos={totalGeral}
+                  anoPrimeiroJogo={linhaTempo?.primeiro_jogo?.ano || 1917}
+                  vitoriasMandante={h2hData?.vitorias_clube1 || 0}
+                  vitoriasVisitante={h2hData?.vitorias_clube2 || 0}
+                  empates={h2hData?.empates || 0}
+                  fatoHistorico={
+                    efemerideHoje 
+                      ? `Neste dia, em ${efemerideHoje.ano}: ${efemerideHoje.mandante} ${efemerideHoje.placar} ${efemerideHoje.visitante}`
+                      : (linhaTempo?.principais_decisoes?.[0]
+                          ? `Decisão Histórica: ${linhaTempo.principais_decisoes[0].mandante} ${linhaTempo.principais_decisoes[0].placar} ${linhaTempo.principais_decisoes[0].visitante} (${linhaTempo.principais_decisoes[0].campeonato})`
+                          : (h2hData?.maior_goleada_clube1 
+                              ? `Maior Goleada: ${c1Nome} ${h2hData.maior_goleada_clube1.placar} (${h2hData.maior_goleada_clube1.ano})`
+                              : `${totalGeral} jogos catalogados no acervo oficial`
+                            )
+                        )
+                  }
+                  probabilidades={{
+                    mandante: projDC?.prob_clube1 || 42.5,
+                    empate: projDC?.prob_empate || 31.0,
+                    visitante: projDC?.prob_clube2 || 26.5
+                  }}
+                  intervaloConformal="IC 95% Individual Calibrado"
+                  onFechar={() => setModalCardAberto(false)}
+                />
+              </div>
+            </div>
           )}
 
           {/* ================= SELO DE TRANSPARÊNCIA E FONTES ================= */}

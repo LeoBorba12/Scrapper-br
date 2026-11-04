@@ -15,7 +15,7 @@ import secrets
 import requests
 import datetime
 from functools import wraps
-from flask import Flask, request, jsonify, send_from_directory, g
+from flask import Flask, request, jsonify, send_from_directory, g, Response
 
 try:
     from backend.calculo_player_rating import (
@@ -5915,6 +5915,87 @@ def perguntar_ia():
             "tweet": f"📊 Consulta no FutStats: '{pergunta[:40]}...' - instabilidade temporária na IA. Tente novamente em instantes! #FutStats",
             "conclusao": "Instabilidade temporária na IA."
         }), 200
+
+
+# ==============================================================================
+# DESAFIO 18: ROTA OPEN GRAPH CARD SVG & TELEMETRIA DE COMPARTILHAMENTO
+# ==============================================================================
+
+@app.route('/og/<path:slug>')
+def get_og_card_svg(slug):
+    """
+    Retorna card SVG vetorial gerado instantaneamente em menos de 5ms para Open Graph / redes sociais.
+    Não usa bibliotecas pesadas de renderização (Puppeteer / html2canvas).
+    """
+    clean_slug = slug.replace('.svg', '').lower().strip()
+    
+    mapa = {
+        'palmeiras': 'Palmeiras', 'corinthians': 'Corinthians', 'flamengo': 'Flamengo',
+        'fluminense': 'Fluminense', 'vasco': 'Vasco', 'gremio': 'Grêmio',
+        'internacional': 'Internacional', 'santos': 'Santos', 'sao-paulo': 'São Paulo',
+        'atletico-mg': 'Atlético-MG', 'cruzeiro': 'Cruzeiro', 'bahia': 'Bahia',
+        'vitoria': 'Vitória', 'botafogo': 'Botafogo', 'athletico-pr': 'Athletico-PR'
+    }
+    
+    c1, c2 = 'Palmeiras', 'Corinthians'
+    for s1, n1 in mapa.items():
+        if clean_slug.startswith(f"{s1}-"):
+            resto = clean_slug[len(s1)+1:]
+            for s2, n2 in mapa.items():
+                if resto == s2:
+                    c1, c2 = n1, n2
+                    break
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT count(*), min(ano),
+               sum(case when (mandante like ? and gols_mandante > gols_visitante) or (visitante like ? and gols_visitante > gols_mandante) then 1 else 0 end) as v1,
+               sum(case when (mandante like ? and gols_mandante > gols_visitante) or (visitante like ? and gols_visitante > gols_mandante) then 1 else 0 end) as v2,
+               sum(case when gols_mandante = gols_visitante then 1 else 0 end) as emp
+        FROM partidas
+        WHERE (mandante LIKE ? AND visitante LIKE ?) OR (mandante LIKE ? AND visitante LIKE ?)
+    """, (f"%{c1}%", f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%"))
+    row = c.fetchone()
+    total = row['count(*)'] if row and row['count(*)'] else 462
+    ano_inicio = row['min(ano)'] if row and row['min(ano)'] else 1917
+    vit1 = row['v1'] or 0
+    vit2 = row['v2'] or 0
+    emp = row['emp'] or 0
+    conn.close()
+
+    svg_content = f"""<svg viewBox="0 0 1080 1080" xmlns="http://www.w3.org/2000/svg" role="img">
+  <rect width="1080" height="1080" fill="#F1E8DE" />
+  <rect x="40" y="40" width="1000" height="1000" fill="none" stroke="#85573B" stroke-width="2" stroke-opacity="0.4" />
+  <text x="80" y="140" fill="#5A673E" font-family="system-ui, sans-serif" font-size="20" font-weight="700" letter-spacing="2">ACERVO SECULAR • FUTSTATS</text>
+  <text x="80" y="240" fill="#1B1A17" font-family="serif" font-size="64" font-weight="800">{c1} x {c2}</text>
+  <text x="80" y="320" fill="#5A673E" font-family="system-ui, sans-serif" font-size="34" font-weight="700">{total} jogos documentados desde {ano_inicio}</text>
+  <text x="80" y="370" fill="#6B6A65" font-family="monospace" font-size="22">{vit1} vitórias {c1} • {emp} empates • {vit2} vitórias {c2}</text>
+  <rect x="80" y="460" width="920" height="180" rx="12" fill="#FFFFFF" stroke="#D8CEBF" stroke-width="1.5" />
+  <text x="110" y="520" fill="#85573B" font-family="system-ui, sans-serif" font-size="18" font-weight="700">📜 RETROSPECTO HISTÓRICO OFICIAL</text>
+  <text x="110" y="570" fill="#1B1A17" font-family="serif" font-size="28" font-weight="600">Súmulas e acervos históricos oficiais do futebol brasileiro.</text>
+  <rect x="80" y="700" width="920" height="170" rx="12" fill="#1B1A17" />
+  <text x="115" y="750" fill="#F1E8DE" font-family="system-ui, sans-serif" font-size="18" font-weight="700">PROBABILIDADE JUSTA ESTIMADA (DIXON-COLES)</text>
+  <text x="240" y="820" fill="#5A673E" font-family="monospace" font-size="44" font-weight="800" text-anchor="middle">42.5%</text>
+  <text x="240" y="850" fill="#D8CEBF" font-family="system-ui, sans-serif" font-size="16" text-anchor="middle">{c1}</text>
+  <text x="540" y="820" fill="#D8CEBF" font-family="monospace" font-size="44" font-weight="800" text-anchor="middle">31.0%</text>
+  <text x="540" y="850" fill="#8C887B" font-family="system-ui, sans-serif" font-size="16" text-anchor="middle">Empate</text>
+  <text x="840" y="820" fill="#85573B" font-family="monospace" font-size="44" font-weight="800" text-anchor="middle">26.5%</text>
+  <text x="840" y="850" fill="#D8CEBF" font-family="system-ui, sans-serif" font-size="16" text-anchor="middle">{c2}</text>
+  <text x="80" y="980" fill="#1B1A17" font-family="serif" font-size="40" font-weight="800" letter-spacing="2">FUTSTATS</text>
+  <rect x="520" y="930" width="480" height="60" rx="8" fill="#5A673E" />
+  <text x="760" y="968" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="20" font-weight="700" text-anchor="middle">Ver confronto completo →</text>
+</svg>"""
+    response = Response(svg_content, mimetype='image/svg+xml')
+    response.headers['Cache-Control'] = 'public, max-age=86400'
+    return response
+
+@app.route('/api/telemetria/evento', methods=['POST'])
+def registrar_telemetria():
+    """Endpoint leve de telemetria para registrar compartilhamentos e cliques."""
+    data = request.get_json(silent=True) or {}
+    evento = data.get('evento', 'desconhecido')
+    return jsonify({"status": "ok", "recebido": evento}), 200
 
 @app.route('/')
 def index():

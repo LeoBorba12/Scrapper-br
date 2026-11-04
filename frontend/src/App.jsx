@@ -8,6 +8,8 @@ import {
   Download, Camera, Scale
 } from 'lucide-react';
 import { baixarCardSocialPNG, baixarCardDueloH2HPNG, baixarCardApostaEVPNG } from './utils/cardGenerator';
+import { extrairClubesDoSlug } from './utils/confrontoSlug';
+import { registrarEventoTelemetria } from './utils/telemetria';
 import AppShell from './components/AppShell';
 import HomeMatchdayView from './components/HomeMatchdayView';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
@@ -39,6 +41,9 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/confrontos/')) {
+        return 'h2h';
+      }
       const tab = new URLSearchParams(window.location.search).get('tab');
       if (tab) return tab;
     } catch {}
@@ -123,17 +128,25 @@ export default function App() {
   const [clubesList, setClubesList] = useState([]);
   const [clube1, setClube1] = useState(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/confrontos/')) {
+        const extraido = extrairClubesDoSlug(window.location.pathname);
+        if (extraido?.clube1) return extraido.clube1;
+      }
       const c = new URLSearchParams(window.location.search).get('c1');
       if (c) return c;
     } catch {}
-    return 'Flamengo';
+    return 'Palmeiras';
   });
   const [clube2, setClube2] = useState(() => {
     try {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/confrontos/')) {
+        const extraido = extrairClubesDoSlug(window.location.pathname);
+        if (extraido?.clube2) return extraido.clube2;
+      }
       const c = new URLSearchParams(window.location.search).get('c2');
       if (c) return c;
     } catch {}
-    return 'Vasco';
+    return 'Corinthians';
   });
   const [h2hData, setH2hData] = useState(null);
   const [h2hLoading, setH2hLoading] = useState(false);
