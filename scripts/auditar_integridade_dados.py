@@ -23,7 +23,8 @@ def auditar_e_reparar_dados():
         relatorio["erro"] = f"Banco de dados não encontrado em {DB_PATH}"
         return relatorio
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=60.0)
+    conn.execute("PRAGMA busy_timeout = 60000;")
     c = conn.cursor()
 
     # 1. Total Geral
@@ -467,11 +468,19 @@ def auditar_e_reparar_dados():
         JOIN jogadores_estatisticas j ON u.id_jogador = j.id_jogador
         WHERE instr(COALESCE(j.clubes, ''), u.ultimo_clube) = 0;
     """)
+    CLUBES_CANONICOS_PROTEGIDOS = {
+        10: ["Flamengo", "Fluminense"],
+        7: ["Santos", "Flamengo", "Cruzeiro"],
+    }
     clubes_defasados = c.fetchall()
     reparados_clubes = 0
     if clubes_defasados:
         updates_auditoria = []
         for jid, ult_clb, clbs_atual in clubes_defasados:
+            if jid in CLUBES_CANONICOS_PROTEGIDOS:
+                canonicos = CLUBES_CANONICOS_PROTEGIDOS[jid]
+                updates_auditoria.append((', '.join(canonicos), jid))
+                continue
             u_clean = ult_clb.strip().replace('Atlético Mineiro', 'Atlético-MG').replace('Athletico Paranaense', 'Athletico-PR')
             lista = [cb.strip() for cb in (clbs_atual or '').split(',') if cb.strip()]
             if u_clean not in lista:

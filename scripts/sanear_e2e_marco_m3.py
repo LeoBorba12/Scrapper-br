@@ -58,6 +58,22 @@ def main():
     """)
     print("   [OK] Pedro Raul ajustado para 111 jogos oficiais (média 0.64).")
 
+    # 2B. Sanitização de Clubes Oficiais de Pedro (ID 10) - Apenas Flamengo e Fluminense
+    print("\n2B. Sanitizando clubes de Pedro (ID 10)...")
+    c.execute("UPDATE escalacoes SET id_jogador = NULL WHERE id_jogador = 10 AND clube NOT IN ('Flamengo', 'Fluminense');")
+    af_pedro = c.rowcount
+    c.execute("UPDATE jogadores_estatisticas SET clubes = 'Flamengo, Fluminense' WHERE id_jogador = 10;")
+    c.execute("UPDATE jogadores SET clubes = 'Flamengo, Fluminense' WHERE id_jogador = 10;")
+    print(f"   [OK] Pedro dissociado de {af_pedro} escalações espúrias (Juventude/outros). Clubes: Flamengo, Fluminense.")
+
+    # 2C. Sanitização de Clubes Oficiais de Gabriel Barbosa (ID 7) - Apenas Santos, Flamengo e Cruzeiro
+    print("\n2C. Sanitizando clubes de Gabriel Barbosa (ID 7)...")
+    c.execute("UPDATE escalacoes SET id_jogador = NULL WHERE id_jogador = 7 AND clube NOT IN ('Santos', 'Flamengo', 'Cruzeiro');")
+    af_gabi = c.rowcount
+    c.execute("UPDATE jogadores_estatisticas SET clubes = 'Santos, Flamengo, Cruzeiro' WHERE id_jogador = 7;")
+    c.execute("UPDATE jogadores SET clubes = 'Santos, Flamengo, Cruzeiro' WHERE id_jogador = 7;")
+    print(f"   [OK] Gabriel Barbosa dissociado de {af_gabi} escalações espúrias. Clubes: Santos, Flamengo, Cruzeiro.")
+
     # 3. Harmonização de Aliases de Clubes em Gols
     print("\n3. Harmonizando nomes de clubes em gols divergentes de partidas...")
     alias_pairs = [

@@ -562,6 +562,40 @@ def test_atleta_sofascore_ratings_goleiros_e_estrelas():
 
     conn.close()
 
+def test_fact_sanitizacao_clubes_pedro_e_gabigol():
+    """Valida que Pedro só possui Flamengo e Fluminense, e Gabigol apenas Santos, Flamengo e Cruzeiro."""
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 1. Pedro (ID 10)
+    cur.execute("SELECT clubes FROM jogadores_estatisticas WHERE id_jogador = 10;")
+    pedro = cur.fetchone()
+    assert pedro is not None, "Pedro (ID 10) não encontrado"
+    clubes_pedro = [c.strip() for c in pedro["clubes"].split(",")]
+    assert "Juventude" not in clubes_pedro, f"Juventude não deve constar nos clubes de Pedro: {clubes_pedro}"
+    assert set(clubes_pedro) == {"Flamengo", "Fluminense"}, f"Clubes inesperados para Pedro: {clubes_pedro}"
+
+    # Nenhuma escalação de Pedro fora de Flamengo e Fluminense
+    cur.execute("SELECT count(*) FROM escalacoes WHERE id_jogador = 10 AND clube NOT IN ('Flamengo', 'Fluminense');")
+    assert cur.fetchone()[0] == 0, "Escalações espúrias vinculadas a Pedro (ID 10)"
+
+    # 2. Gabriel Barbosa (ID 7)
+    cur.execute("SELECT clubes FROM jogadores_estatisticas WHERE id_jogador = 7;")
+    gabigol = cur.fetchone()
+    assert gabigol is not None, "Gabriel Barbosa (ID 7) não encontrado"
+    clubes_gabi = [c.strip() for c in gabigol["clubes"].split(",")]
+    assert "Juventude" not in clubes_gabi, f"Juventude não deve constar nos clubes de Gabigol: {clubes_gabi}"
+    assert "Mirassol" not in clubes_gabi, f"Mirassol não deve constar nos clubes de Gabigol: {clubes_gabi}"
+    assert "Bragantino" not in clubes_gabi, f"Bragantino não deve constar nos clubes de Gabigol: {clubes_gabi}"
+    assert "Ceará" not in clubes_gabi, f"Ceará não deve constar nos clubes de Gabigol: {clubes_gabi}"
+    assert set(clubes_gabi) == {"Santos", "Flamengo", "Cruzeiro"}, f"Clubes inesperados para Gabigol: {clubes_gabi}"
+
+    # Nenhuma escalação de Gabigol fora de Santos, Flamengo e Cruzeiro
+    cur.execute("SELECT count(*) FROM escalacoes WHERE id_jogador = 7 AND clube NOT IN ('Santos', 'Flamengo', 'Cruzeiro');")
+    assert cur.fetchone()[0] == 0, "Escalações espúrias vinculadas a Gabigol (ID 7)"
+
+    conn.close()
+
 
 
 
