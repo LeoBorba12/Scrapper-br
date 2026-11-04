@@ -8,7 +8,9 @@ import ClubBadge from './ClubBadge';
 import { baixarCardDueloH2HPNG } from '../utils/cardGenerator';
 import ConfrontoSecularCard from './ConfrontoSecularCard';
 import { gerarDeepLinkConfronto } from '../utils/confrontoSlug';
-import { registrarEventoTelemetria } from '../utils/telemetria';
+import { registrarEvento, registrarEventoTelemetria, registrarConfrontoExplorado, obterMetricasFunilLocal } from '../utils/telemetria';
+import { gerarSlugConfronto } from '../utils/confrontoSlug';
+import { Activity, Target, TrendingUp, Users2, Bell, CheckCircle2 } from 'lucide-react';
 import { X } from 'lucide-react';
 
 const CLASSICOS_PREDEFINIDOS = [
@@ -39,6 +41,10 @@ export default function ClubCompareView({
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState(null);
   const [modalCardAberto, setModalCardAberto] = useState(false);
+  const [modalFunilAberto, setModalFunilAberto] = useState(false);
+  const [metricasFunil, setMetricasFunil] = useState(null);
+  const [clubeSeguido, setClubeSeguido] = useState(false);
+  const [proximoJogoNotificado, setProximoJogoNotificado] = useState(false);
 
   const carregarConfronto = async (
     c1 = clube1,
@@ -68,6 +74,8 @@ export default function ClubCompareView({
       }
       const data = await res.json();
       setH2hData(data);
+      const slugAtual = gerarSlugConfronto(c1, c2);
+      registrarConfrontoExplorado(slugAtual);
     } catch (e) {
       setErro(e.message || 'Erro ao carregar retrospecto histórico.');
     } finally {
@@ -85,21 +93,29 @@ export default function ClubCompareView({
     setDecada('todas');
     setCampeonato('todos');
     setMando('todos');
+    const slug = gerarSlugConfronto(c1, c2);
+    registrarEvento('h2h_interagiu', { slug, acao: 'selecionar_classico_rapido', c1, c2 });
     carregarConfronto(c1, c2, 'todas', 'todos', 'todos');
   };
 
   const aplicarFiltroDecada = (novaDecada) => {
     setDecada(novaDecada);
+    const slug = gerarSlugConfronto(clube1, clube2);
+    registrarEvento('h2h_interagiu', { slug, acao: 'filtro_decada', decada: novaDecada });
     carregarConfronto(clube1, clube2, novaDecada, campeonato, mando);
   };
 
   const aplicarFiltroCampeonato = (novoCamp) => {
     setCampeonato(novoCamp);
+    const slug = gerarSlugConfronto(clube1, clube2);
+    registrarEvento('h2h_interagiu', { slug, acao: 'filtro_campeonato', campeonato: novoCamp });
     carregarConfronto(clube1, clube2, decada, novoCamp, mando);
   };
 
   const aplicarFiltroMando = (novoMando) => {
     setMando(novoMando);
+    const slug = gerarSlugConfronto(clube1, clube2);
+    registrarEvento('h2h_interagiu', { slug, acao: 'filtro_mando', mando: novoMando });
     carregarConfronto(clube1, clube2, decada, campeonato, novoMando);
   };
 
@@ -160,7 +176,34 @@ export default function ClubCompareView({
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
-                  registrarEventoTelemetria('abrir_modal_card_secular', { c1: c1Nome, c2: c2Nome });
+                  setMetricasFunil(obterMetricasFunilLocal());
+                  setModalFunilAberto(true);
+                }}
+                className="touch-tactile"
+                style={{
+                  minHeight: '42px',
+                  padding: '10px 16px',
+                  fontSize: '0.82rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}
+                title="Visualizar North Star Metric e taxas de conversão do funil"
+              >
+                <Activity size={16} color="var(--primary, #5A673E)" />
+                Funil &amp; A/B
+              </button>
+
+              <button
+                onClick={() => {
+                  registrarEvento('abrir_modal_card_secular', { c1: c1Nome, c2: c2Nome });
                   setModalCardAberto(true);
                 }}
                 className="btn-primary touch-tactile"
@@ -1104,6 +1147,237 @@ export default function ClubCompareView({
                   intervaloConformal="IC 95% Individual Calibrado"
                   onFechar={() => setModalCardAberto(false)}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* ================= SEÇÃO DE PRÓXIMA AÇÃO NATURAL (CONVERSÃO DO FUNIL) ================= */}
+          <section className="soft-card" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <Target size={20} color="var(--primary, #5A673E)" />
+              <h3 className="font-editorial" style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                Continuidade Editorial: Próximas Ações do Confronto
+              </h3>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {/* Card 1: Próximo Duelo no Calendário */}
+              <div className="editorial-raised" style={{ padding: '18px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--secondary, #85573B)', display: 'block', marginBottom: '4px' }}>
+                    📅 Calendário Oficial
+                  </span>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: '2px 0 6px 0' }}>
+                    Próximo {c1Nome} x {c2Nome}
+                  </h4>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                    Acompanhe a precificação justa pré-jogo e as análises táticas atualizadas assim que a escala de arbitragem for sorteada.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const slug = gerarSlugConfronto(c1Nome, c2Nome);
+                    registrarEvento('proximo_jogo_visto', { slug, c1: c1Nome, c2: c2Nome });
+                    setProximoJogoNotificado(true);
+                  }}
+                  className="touch-tactile"
+                  style={{
+                    marginTop: '14px',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: proximoJogoNotificado ? 'var(--primary, #5A673E)' : 'var(--surface-card)',
+                    color: proximoJogoNotificado ? '#FFFFFF' : 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {proximoJogoNotificado ? <CheckCircle2 size={16} /> : <Bell size={16} />}
+                  {proximoJogoNotificado ? 'Duelo em Monitoramento' : 'Acompanhar Próximo Duelo'}
+                </button>
+              </div>
+
+              {/* Card 2: Seguir Histórico do Clube */}
+              <div className="editorial-raised" style={{ padding: '18px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--primary, #5A673E)', display: 'block', marginBottom: '4px' }}>
+                    ⭐ Acervo Canônico
+                  </span>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: '2px 0 6px 0' }}>
+                    Seguir Histórico Oficial de {c1Nome}
+                  </h4>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                    Receba notificações de efemérides notáveis, quebras de tabus e novos marcos históricos deste clube.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    registrarEvento('clube_seguido', { clube: c1Nome });
+                    setClubeSeguido(!clubeSeguido);
+                  }}
+                  className="touch-tactile"
+                  style={{
+                    marginTop: '14px',
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: clubeSeguido ? 'var(--primary, #5A673E)' : 'var(--surface-card)',
+                    color: clubeSeguido ? '#FFFFFF' : 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {clubeSeguido ? <CheckCircle2 size={16} /> : <Users2 size={16} />}
+                  {clubeSeguido ? `Seguindo ${c1Nome}` : `Seguir Acervo de ${c1Nome}`}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* ================= MODAL DO DASHBOARD DE EVIDÊNCIA DE PRODUTO & FUNIL ================= */}
+          {modalFunilAberto && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(27, 26, 23, 0.75)',
+              backdropFilter: 'blur(6px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px'
+            }}
+            onClick={() => setModalFunilAberto(false)}
+            >
+              <div
+                style={{
+                  backgroundColor: 'var(--surface-card, #FFFFFF)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  maxWidth: '640px',
+                  width: '100%',
+                  maxHeight: '92vh',
+                  overflowY: 'auto',
+                  boxShadow: '0 24px 48px rgba(0, 0, 0, 0.25)',
+                  border: '1px solid var(--border-subtle, #D8CEBF)'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <div>
+                    <h3 className="font-editorial" style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                      Painel de Evidência de Produto &amp; Funil
+                    </h3>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      Métricas agregadas do loop de descoberta e retenção (Desafio 19)
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setModalFunilAberto(false)}
+                    className="touch-tactile"
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '50%',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {metricasFunil && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* North Star Metric Card */}
+                    <div style={{
+                      padding: '18px 20px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(90, 103, 62, 0.1)',
+                      border: '1.5px solid var(--primary, #5A673E)'
+                    }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary, #5A673E)' }}>
+                        ⭐ North Star Metric Oficial
+                      </span>
+                      <div className="font-editorial tabular-nums" style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>
+                        {metricasFunil.north_star_metric.valor} <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>{metricasFunil.north_star_metric.unidade}</span>
+                      </div>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        {metricasFunil.north_star_metric.nome}
+                      </span>
+                    </div>
+
+                    {/* Etapas do Funil */}
+                    <div>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', color: 'var(--text-secondary)' }}>
+                        Funil de Conversão do Loop Editorial
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {[
+                          { label: '1. Exposição (Card Impresso)', count: metricasFunil.contadores_funil.card_impresso, pct: '100%' },
+                          { label: '2. Interação (Card Compartilhado)', count: metricasFunil.contadores_funil.card_compartilhado, pct: `${metricasFunil.contadores_funil.card_impresso > 0 ? ((metricasFunil.contadores_funil.card_compartilhado / metricasFunil.contadores_funil.card_impresso) * 100).toFixed(1) : 0}%` },
+                          { label: '3. Clique (Deep Link Acessado)', count: metricasFunil.contadores_funil.deep_link_clicado, pct: `${metricasFunil.contadores_funil.card_compartilhado > 0 ? ((metricasFunil.contadores_funil.deep_link_clicado / metricasFunil.contadores_funil.card_compartilhado) * 100).toFixed(1) : 0}%` },
+                          { label: '4. Engajamento (Filtros H2H Explorados)', count: metricasFunil.contadores_funil.h2h_interagiu, pct: `${metricasFunil.contadores_funil.deep_link_clicado > 0 ? ((metricasFunil.contadores_funil.h2h_interagiu / metricasFunil.contadores_funil.deep_link_clicado) * 100).toFixed(1) : 0}%` },
+                          { label: '5. Retenção (Retorno em 7 dias)', count: metricasFunil.contadores_funil.retorno_7d, pct: 'Recorrente' },
+                          { label: '6. Conversão (Próximo Jogo / Seguir)', count: metricasFunil.contadores_funil.proximo_jogo_visto + metricasFunil.contadores_funil.clube_seguido, pct: 'Fidelizado' }
+                        ].map((etapa, idx) => (
+                          <div
+                            key={idx}
+                            className="editorial-raised"
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', fontSize: '0.82rem' }}
+                          >
+                            <span style={{ fontWeight: 600 }}>{etapa.label}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <span className="font-mono tabular-nums" style={{ fontWeight: 800 }}>{etapa.count}</span>
+                              <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>{etapa.pct}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Experimento A/B */}
+                    <div>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px', color: 'var(--text-secondary)' }}>
+                        Experimento A/B: Desempenho por Variante
+                      </h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', textAlign: 'center' }}>
+                        <div className="editorial-raised" style={{ padding: '12px 8px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, display: 'block', color: 'var(--text-secondary)' }}>VARIANTE A</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--secondary, #85573B)', display: 'block', marginBottom: '4px' }}>Fato Histórico</span>
+                          <span className="font-mono tabular-nums" style={{ fontSize: '1.2rem', fontWeight: 800 }}>{metricasFunil.distribuicao_ab.A}</span>
+                        </div>
+                        <div className="editorial-raised" style={{ padding: '12px 8px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, display: 'block', color: 'var(--text-secondary)' }}>VARIANTE B</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--primary, #5A673E)', display: 'block', marginBottom: '4px' }}>Autoridade Secular</span>
+                          <span className="font-mono tabular-nums" style={{ fontSize: '1.2rem', fontWeight: 800 }}>{metricasFunil.distribuicao_ab.B}</span>
+                        </div>
+                        <div className="editorial-raised" style={{ padding: '12px 8px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, display: 'block', color: 'var(--text-secondary)' }}>VARIANTE C</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Probabilidade Justa</span>
+                          <span className="font-mono tabular-nums" style={{ fontSize: '1.2rem', fontWeight: 800 }}>{metricasFunil.distribuicao_ab.C}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

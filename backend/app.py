@@ -5990,12 +5990,84 @@ def get_og_card_svg(slug):
     response.headers['Cache-Control'] = 'public, max-age=86400'
     return response
 
+# Armazenamento em memória para métricas agregadas do Funil (Desafio 19)
+TELEMETRIA_FUNIL_AGREGADA = {
+    'card_impresso': 0,
+    'card_compartilhado': 0,
+    'deep_link_clicado': 0,
+    'h2h_interagiu': 0,
+    'retorno_7d': 0,
+    'proximo_jogo_visto': 0,
+    'clube_seguido': 0,
+    'variantes': {'A': 0, 'B': 0, 'C': 0},
+    'confrontos_explorados_total': 0
+}
+
+@app.route('/api/telemetria', methods=['POST'])
 @app.route('/api/telemetria/evento', methods=['POST'])
 def registrar_telemetria():
-    """Endpoint leve de telemetria para registrar compartilhamentos e cliques."""
+    """
+    Endpoint ético e anônimo de telemetria para o funil de descoberta (Desafio 19).
+    Nenhum dado pessoal ou identificador persistente é armazenado.
+    """
     data = request.get_json(silent=True) or {}
     evento = data.get('evento', 'desconhecido')
-    return jsonify({"status": "ok", "recebido": evento}), 200
+    variante = data.get('variante', 'A')
+
+    if evento in TELEMETRIA_FUNIL_AGREGADA:
+        TELEMETRIA_FUNIL_AGREGADA[evento] += 1
+    
+    if variante in TELEMETRIA_FUNIL_AGREGADA['variantes']:
+        TELEMETRIA_FUNIL_AGREGADA['variantes'][variante] += 1
+
+    if evento in ['deep_link_clicado', 'h2h_interagiu']:
+        TELEMETRIA_FUNIL_AGREGADA['confrontos_explorados_total'] += 1
+
+    return jsonify({"status": "ok", "recebido": evento, "variante": variante}), 200
+
+@app.route('/api/telemetria/funil', methods=['GET'])
+def get_telemetria_funil():
+    """
+    Retorna o funil de evidência de produto e North Star Metric agregada.
+    """
+    totais = TELEMETRIA_FUNIL_AGREGADA
+    impressos = max(totais['card_impresso'], 1)
+    compartilhados = totais['card_compartilhado']
+    cliques = totais['deep_link_clicado']
+    engajamentos = totais['h2h_interagiu']
+
+    taxa_compartilhamento = round((compartilhados / impressos) * 100, 2)
+    taxa_clique = round((cliques / max(compartilhados, 1)) * 100, 2)
+    taxa_engajamento = round((engajamentos / max(cliques, 1)) * 100, 2)
+
+    return jsonify({
+        "north_star_metric": {
+            "nome": "Confrontos seculares explorados por visitante por semana",
+            "valor_agregado": totais['confrontos_explorados_total'],
+            "meta_semanal": 3.5,
+            "status": "Monitoramento ativo"
+        },
+        "funil": {
+            "exposicao_card_impresso": totais['card_impresso'],
+            "interacao_card_compartilhado": totais['card_compartilhado'],
+            "clique_deep_link": totais['deep_link_clicado'],
+            "engajamento_h2h_interagiu": totais['h2h_interagiu'],
+            "retencao_retorno_7d": totais['retorno_7d'],
+            "conversao_proximo_jogo": totais['proximo_jogo_visto'],
+            "conversao_clube_seguido": totais['clube_seguido']
+        },
+        "taxas_conversao_pct": {
+            "taxa_compartilhamento": taxa_compartilhamento,
+            "taxa_clique_deep_link": taxa_clique,
+            "taxa_engajamento_h2h": taxa_engajamento
+        },
+        "experimento_ab": {
+            "variante_A_fato_historico": totais['variantes']['A'],
+            "variante_B_autoridade_secular": totais['variantes']['B'],
+            "variante_C_probabilidade_justa": totais['variantes']['C']
+        },
+        "privacidade": "Conformidade total LGPD/GDPR: nenhum dado pessoal ou cookie de rastreamento."
+    })
 
 @app.route('/')
 def index():

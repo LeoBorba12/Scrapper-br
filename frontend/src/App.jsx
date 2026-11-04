@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { baixarCardSocialPNG, baixarCardDueloH2HPNG, baixarCardApostaEVPNG } from './utils/cardGenerator';
 import { extrairClubesDoSlug } from './utils/confrontoSlug';
-import { registrarEventoTelemetria } from './utils/telemetria';
+import { registrarEvento, registrarEventoTelemetria, verificarRetencao7d, registrarConfrontoExplorado } from './utils/telemetria';
 import AppShell from './components/AppShell';
 import HomeMatchdayView from './components/HomeMatchdayView';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
@@ -162,6 +162,24 @@ export default function App() {
     } catch {}
     return null;
   });
+
+  // Inicialização de telemetria, retenção de 7 dias e captura de deep link (Desafio 19)
+  useEffect(() => {
+    verificarRetencao7d();
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/confrontos/')) {
+      const extraido = extrairClubesDoSlug(window.location.pathname);
+      if (extraido) {
+        const slug = window.location.pathname.replace('/confrontos/', '').replace('.svg', '');
+        registrarEvento('deep_link_clicado', {
+          slug,
+          clube1: extraido.clube1,
+          clube2: extraido.clube2,
+          origem: 'card_compartilhado'
+        });
+        registrarConfrontoExplorado(slug);
+      }
+    }
+  }, []);
 
   // Sincronização profunda do estado com a URL (Deep Linking)
   useEffect(() => {
