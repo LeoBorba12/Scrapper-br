@@ -164,7 +164,14 @@ def executar_auditoria_diaria_04am(size_mb: float):
     if not deve_rodar:
         return
 
-    safe_print("\n🛡️ >>> [FASE C - 04:00 AM] Executando Auditoria Universal Diária de Integridade & Auto-Cura <<<")
+    safe_print("\n🛡️ >>> [FASE C - 04:00 AM] Executando Higienização Universal & Auto-Cura Relacional <<<")
+    try:
+        from scripts.motor_limpeza_banco_universal import executar_limpeza_universal
+        executar_limpeza_universal()
+        safe_print("[FASE C] Motor universal de higienização executado com sucesso.")
+    except Exception as e:
+        safe_print(f"[FASE C Falha Limpeza Universal] {e}")
+
     cmd = [PY_BIN, os.path.join(BASE_DIR, "scripts", "auditar_integridade_dados.py")]
     try:
         res = subprocess.run(cmd, cwd=BASE_DIR, timeout=180, capture_output=True, text=True, encoding='utf-8', errors='replace')

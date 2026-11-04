@@ -1,6 +1,6 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-04 01:31:49*
+*Gerado automaticamente em: 2026-11-04 01:52:12*
 
 ## Resumo Executivo da Auditoria
 
@@ -16,7 +16,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 
 | ID | Atleta | OGol ID | Gols Acervo | Gols Carreira | Diagnóstico |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| `106` | **Reinaldo** | `241987` | **90** | 89 | Gols no acervo (90) superam carreira oficial (89). Perfil OGol não localizado. |
+| `106` | **Reinaldo** | `241987` | **92** | 91 | Gols no acervo (92) superam carreira oficial (91). Perfil OGol não localizado. |
 
 
 ## 🛠️ Atletas com Auto-Reparo Concluído
@@ -49,7 +49,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `13491` | **Viola** | `27469` | 174 | 174 | `Corinthians,São José,Santos,Vasco,Bahia,` | 🟢 OK |
 | `101387` | **Renato (São Paulo/Guarani - Anos 70)** | `N/D` | 172 | 172 | `Nacional,Guarani,Brasil,Leônico,São Paul` | 🟢 OK |
 | `11782` | **Ricardinho** | `8541` | 169 | 502 | `Corinthians,Atlético-MG,Cruzeiro,Sport,S` | 🟢 OK |
-| `11046` | **Paulo Baier** | `5378` | 159 | 223 | `Goiás,Athletico-PR,Sport,Goiás EC,Criciú` | 🟢 OK |
+| `11046` | **Paulo Baier** | `5378` | 157 | 223 | `Goiás,Athletico-PR,Sport,Goiás EC,Criciú` | 🟢 OK |
 | `2325` | **Gabriel Feliciano** | `5691` | 156 | 261 | `Cruzeiro,Náutico,Internacional,Vasco,Fla` | 🟢 OK |
 | `13693` | **Wellington Paulista** | `6041` | 156 | 265 | `Botafogo,Cruzeiro,Coritiba,Lanús,Santos,` | 🟢 OK |
 | `809` | **Souza** | `941506` | 151 | 151 | `Red Bull Bragantino,Portuguesa,Corinthia` | 🟢 OK |

@@ -93,6 +93,10 @@ TECLADO_INLINE_MENU = {
             {"text": "💾 Baixar Banco", "callback_data": "/banco"}
         ],
         [
+            {"text": "🧹 Sanear Banco (Limpeza)", "callback_data": "/sanear"},
+            {"text": "🛡️ Auditoria Universal", "callback_data": "/auditoria"}
+        ],
+        [
             {"text": "🌐 Abrir FutStats Web", "url": DASHBOARD_URL}
         ]
     ]
@@ -389,6 +393,51 @@ def obter_status_sistema() -> str:
         f"🚀 *Último Commit*:\n`{ultimo_commit}`\n"
     )
 
+def executar_acao_sanear(chat_id: str):
+    notificar(chat_id, "🧹 *Iniciando higienização e auto-cura universal no banco...*\n_Auditando 115.000+ partidas, homônimos de atletas e súmulas._")
+    try:
+        from scripts.motor_limpeza_banco_universal import executar_limpeza_universal
+        res = executar_limpeza_universal()
+        
+        msg = (
+            f"✅ *HIGIENIZAÇÃO CONCLUÍDA COM SUCESSO!*\n\n"
+            f"📊 *Métricas da Faxina Universal:*\n"
+            f"• Partidas Verificadas: *{res['total_partidas']:,}*\n"
+            f"• Gols Catalogados: *{res['total_gols']:,}*\n"
+            f"• Homônimos de Minutos Unificados: *{res['homonimos_minutos_unificados']}*\n"
+            f"• Gols Invertidos Reatribuídos: *{res['gols_invertidos_reatribuidos']}*\n"
+            f"• Atletas com Clubes Blindados: *{res['clubes_canonicos_blindados']}*\n"
+            f"• Tamanho Final do SQLite: `{res['db_size_mb']:.2f} MB` (Teto: `94.0 MB`)\n\n"
+            f"🛡️ _Todas as mutações foram executadas em transação atômica protegida com rollback automático._"
+        )
+        notificar(chat_id, msg)
+    except Exception as e:
+        notificar(chat_id, f"❌ Erro ao executar higienização: {e}")
+
+def executar_acao_auditoria(chat_id: str):
+    notificar(chat_id, "🛡️ *Executando auditoria universal de integridade relacional...*")
+    try:
+        cmd = [sys.executable, os.path.join(BASE_DIR, "scripts", "auditar_integridade_dados.py")]
+        res = subprocess.run(cmd, cwd=BASE_DIR, capture_output=True, text=True, timeout=120)
+        if res.returncode == 0:
+            data = json.loads(res.stdout)
+            regras = data.get("regras", [])
+            total_regras = len(regras)
+            regras_ok = sum(1 for r in regras if r.get("status") == "OK")
+            reparados = data.get("inconsistencias_reparadas", 0)
+            msg = (
+                f"🛡️ *RELATÓRIO DE AUDITORIA DE INTEGRIDADE*\n\n"
+                f"• Status Geral: *{'🟢 100% ÍNTEGRO' if reparados == 0 else '🟡 AUTO-REPARADO'}*\n"
+                f"• Regras Validadas: *{regras_ok}/{total_regras} Regras OK*\n"
+                f"• Inconsistências Reparadas: *{reparados}*\n"
+                f"• Total de Partidas: *{data.get('total_partidas', 0):,}*\n"
+            )
+            notificar(chat_id, msg)
+        else:
+            notificar(chat_id, f"⚠️ Auditoria finalizou com alerta:\n`{res.stderr[:300]}`")
+    except Exception as e:
+        notificar(chat_id, f"❌ Falha ao rodar auditoria: {e}")
+
 def tratar_comando(chat_id: str, texto: str):
     cmd = texto.strip().split()[0].lower() if texto.strip() else ""
 
@@ -438,6 +487,12 @@ def tratar_comando(chat_id: str, texto: str):
                 notificar(chat_id, "❌ Falha no envio do arquivo pelo Telegram. Tente novamente em instantes.")
         except Exception as e:
             notificar(chat_id, f"❌ Erro ao compactar banco: {e}")
+
+    elif cmd in ("/sanear", "/limpar", "/limpeza"):
+        executar_acao_sanear(chat_id)
+
+    elif cmd in ("/auditoria", "/auditar"):
+        executar_acao_auditoria(chat_id)
 
     elif cmd == "/perguntar" or not cmd.startswith("/"):
         pergunta = texto[len("/perguntar"):].strip() if cmd == "/perguntar" else texto.strip()
