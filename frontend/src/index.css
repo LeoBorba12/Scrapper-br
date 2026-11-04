@@ -611,3 +611,30 @@ button:active,
   display: none;
 }
 
+/* Animações e física de flutuação para Cards Holográficos (CraqueView / FutStats) */
+@keyframes floatCard {
+  0%, 100% {
+    transform: translate3d(0, 0, 0.01px);
+  }
+  50% {
+    transform: translate3d(0, -6px, 0.01px);
+  }
+}
+
+.card-float {
+  display: grid;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.card-float.interacting {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-float {
+    animation: none !important;
+  }
+}
+
+

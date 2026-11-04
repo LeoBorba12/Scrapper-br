@@ -1,12 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { Target, Award, ShieldAlert } from 'lucide-react';
+import { Target, Award, ShieldAlert, Wind, Box, Eye } from 'lucide-react';
+import GoalMouth3DCanvas from './GoalMouth3DCanvas';
 
 /**
  * GoalMouthMap - Mapeamento da Baliza (Trave Oficial 7.32m x 2.44m)
  * Exibe a zona exata de destino dos chutes e gols do atleta na frente da rede.
+ * Suporta visualização 3D com física de rede (Canvas) e visão 2D frontal (SVG).
  */
 export default function GoalMouthMap({ shotmap = [], posicao = 'Atacante' }) {
   const [hoveredTarget, setHoveredTarget] = useState(null);
+  const [modoVisualizacao, setModoVisualizacao] = useState('3d'); // '3d' | '2d'
+  const [vento, setVento] = useState(0.55);
 
   // ============================================================================
   // 1. FALLBACK INTELIGENTE (Caso a base SQLite ainda não possua dados de gol-mouth)
@@ -32,155 +36,332 @@ export default function GoalMouthMap({ shotmap = [], posicao = 'Atacante' }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
-            🥅 Visão Frontal da Baliza (7.32 × 2.44m)
+            🥅 Visão da Baliza (7.32 × 2.44m)
           </span>
           <h4 className="font-editorial" style={{ margin: '2px 0 0 0', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Cantos Alvo & Eficiência de Finalização
           </h4>
         </div>
-        <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>
-          {statsBaliza.gols} gols na trave
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* SELETOR DE MODO 3D / 2D */}
+          <div
+            style={{
+              display: 'inline-flex',
+              padding: '2px',
+              borderRadius: 'var(--radius-control)',
+              backgroundColor: 'var(--surface-sunken)',
+              border: '1px solid var(--border-subtle)'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setModoVisualizacao('3d')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                fontSize: '0.7rem',
+                fontWeight: modoVisualizacao === '3d' ? 700 : 500,
+                border: 'none',
+                borderRadius: 'calc(var(--radius-control) - 2px)',
+                backgroundColor: modoVisualizacao === '3d' ? 'var(--surface-raised)' : 'transparent',
+                color: modoVisualizacao === '3d' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                boxShadow: modoVisualizacao === '3d' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 150ms ease'
+              }}
+            >
+              <Box size={12} color={modoVisualizacao === '3d' ? 'var(--accent)' : 'currentColor'} />
+              3D Dinâmico
+            </button>
+            <button
+              type="button"
+              onClick={() => setModoVisualizacao('2d')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                fontSize: '0.7rem',
+                fontWeight: modoVisualizacao === '2d' ? 700 : 500,
+                border: 'none',
+                borderRadius: 'calc(var(--radius-control) - 2px)',
+                backgroundColor: modoVisualizacao === '2d' ? 'var(--surface-raised)' : 'transparent',
+                color: modoVisualizacao === '2d' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                boxShadow: modoVisualizacao === '2d' ? 'var(--shadow-sm)' : 'none',
+                transition: 'all 150ms ease'
+              }}
+            >
+              <Eye size={12} color={modoVisualizacao === '2d' ? 'var(--accent)' : 'currentColor'} />
+              2D Frontal
+            </button>
+          </div>
+
+          <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>
+            {statsBaliza.gols} gols na trave
+          </span>
+        </div>
       </div>
 
-      {/* CONTAINER DO SVG DA TRAVE */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          backgroundColor: 'var(--surface-raised)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-panel)',
-          padding: '16px 20px',
-          overflow: 'hidden',
-          display: 'flex',
-          justifyContent: 'center'
-        }}
-      >
-        <svg
-          viewBox="0 0 120 70"
-          style={{ width: '100%', maxWidth: '380px', height: 'auto', display: 'block' }}
-          role="img"
-          aria-label="Esquema frontal da baliza de futebol com os locais exatos dos remates"
-        >
-          <defs>
-            {/* Padrão de rede da trave em grade cruzada */}
-            <pattern id="net-grid" width="6" height="6" patternUnits="userSpaceOnUse">
-              <path d="M 6 0 L 0 0 0 6" fill="none" stroke="var(--border-subtle)" strokeWidth="0.35" opacity="0.65" />
-            </pattern>
-          </defs>
-
-          {/* ================= 1. FUNDO DE REDE DA BALIZA ================= */}
-          <rect
-            x="10"
-            y="5"
-            width="100"
-            height="55"
-            rx="1"
-            fill="var(--surface-panel)"
-            stroke="var(--border-strong)"
-            strokeWidth="1.2"
-          />
-          <rect
-            x="10"
-            y="5"
-            width="100"
-            height="55"
-            fill="url(#net-grid)"
+      {/* CONTAINER PRINCIPAL DA BALIZA */}
+      {modoVisualizacao === '3d' ? (
+        <div style={{ position: 'relative', width: '100%' }}>
+          <GoalMouth3DCanvas
+            finalizacoes={finalizacoesBaliza}
+            vento={vento}
+            altura={240}
+            onHoverTarget={(t) => setHoveredTarget(t)}
           />
 
-          {/* ================= 2. ESTRUTURA DOS POSTES E TRAVE ================= */}
-          {/* Poste Esquerdo */}
-          <rect x="7" y="2" width="3" height="60" rx="0.8" fill="var(--text-primary)" opacity="0.85" />
-          {/* Poste Direito */}
-          <rect x="110" y="2" width="3" height="60" rx="0.8" fill="var(--text-primary)" opacity="0.85" />
-          {/* Travessão Superior */}
-          <rect x="7" y="2" width="106" height="3.5" rx="0.8" fill="var(--text-primary)" opacity="0.85" />
-
-          {/* Linha da Base do Gol (Relvado) */}
-          <line x1="5" y1="62" x2="115" y2="62" stroke="var(--border-strong)" strokeWidth="1.5" />
-
-          {/* ================= 3. MARCADORES DE FINALIZAÇÕES NA REDE ================= */}
-          {finalizacoesBaliza.map((item, idx) => {
-            const rawY = Number(item.gol_mouth_y) ?? 50;
-            const rawZ = Number(item.gol_mouth_z) ?? 50;
-
-            const cx = 12 + (rawY / 100) * 96;
-            const cy = 56 - (rawZ / 100) * 48;
-
-            const isGol = item.resultado === 'goal';
-            const isSalvo = item.resultado === 'save';
-
-            const corFill = isGol
-              ? 'var(--positive)'
-              : isSalvo
-              ? 'var(--accent)'
-              : 'var(--negative)';
-
-            return (
-              <g
-                key={item.id_evento || idx}
-                style={{ cursor: 'pointer', transition: 'transform 150ms ease' }}
-                onMouseEnter={() => setHoveredTarget({ ...item, cx, cy })}
-                onMouseLeave={() => setHoveredTarget(null)}
-              >
-                {isGol && (
-                  <circle
-                    cx={cx}
-                    cy={cy}
-                    r="4.5"
-                    fill="none"
-                    stroke="var(--positive)"
-                    strokeWidth="0.6"
-                    strokeDasharray="1,1"
-                  />
-                )}
-
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r="2.8"
-                  fill={corFill}
-                  fillOpacity="0.9"
-                  stroke="var(--surface-card)"
-                  strokeWidth="0.6"
-                />
-              </g>
-            );
-          })}
-        </svg>
-
-        {/* TOOLTIP FLUTUANTE DA BALIZA */}
-        {hoveredTarget && (
+          {/* CONTROLE RÁPIDO DE BRISA/VENTO */}
           <div
             style={{
               position: 'absolute',
-              bottom: '12px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              maxWidth: 'calc(100% - 24px)',
-              backgroundColor: 'var(--surface-panel)',
-              border: '1px solid var(--border-strong)',
+              top: '8px',
+              right: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(4px)',
+              padding: '3px 8px',
               borderRadius: 'var(--radius-control)',
-              padding: '6px 12px',
-              boxShadow: 'var(--shadow-editorial)',
-              fontSize: '0.74rem',
-              pointerEvents: 'none',
-              zIndex: 10,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              border: '1px solid rgba(255,255,255,0.1)',
+              fontSize: '0.68rem',
+              color: 'rgba(255,255,255,0.85)',
+              zIndex: 5
             }}
           >
-            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-              {hoveredTarget.resultado === 'goal' ? '⚽ GOL NO CANTO' : hoveredTarget.resultado === 'save' ? '🧤 Defesa do Goleiro' : '❌ Para Fora / Trave'}
-            </span>
-            <span style={{ color: 'var(--text-secondary)', marginLeft: '6px' }}>
-              (xG: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{Number(hoveredTarget.xg || 0.1).toFixed(2)}</strong>)
-            </span>
+            <Wind size={12} color="#38D98A" />
+            <span>Brisa:</span>
+            <button
+              type="button"
+              onClick={() => setVento(0.25)}
+              style={{
+                background: vento === 0.25 ? 'rgba(255,255,255,0.25)' : 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: '0.65rem',
+                cursor: 'pointer',
+                padding: '1px 5px',
+                borderRadius: '3px'
+              }}
+            >
+              Leve
+            </button>
+            <button
+              type="button"
+              onClick={() => setVento(0.55)}
+              style={{
+                background: vento === 0.55 ? 'rgba(255,255,255,0.25)' : 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: '0.65rem',
+                cursor: 'pointer',
+                padding: '1px 5px',
+                borderRadius: '3px'
+              }}
+            >
+              Médio
+            </button>
+            <button
+              type="button"
+              onClick={() => setVento(0.9)}
+              style={{
+                background: vento === 0.9 ? 'rgba(255,255,255,0.25)' : 'transparent',
+                border: 'none',
+                color: '#fff',
+                fontSize: '0.65rem',
+                cursor: 'pointer',
+                padding: '1px 5px',
+                borderRadius: '3px'
+              }}
+            >
+              Forte
+            </button>
           </div>
-        )}
-      </div>
+
+          {/* TOOLTIP FLUTUANTE DA BALIZA 3D */}
+          {hoveredTarget && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '12px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                maxWidth: 'calc(100% - 24px)',
+                backgroundColor: 'rgba(20, 20, 20, 0.92)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 'var(--radius-control)',
+                padding: '6px 14px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                fontSize: '0.74rem',
+                pointerEvents: 'none',
+                zIndex: 10,
+                whiteSpace: 'nowrap',
+                backdropFilter: 'blur(6px)',
+                color: '#ffffff'
+              }}
+            >
+              <span style={{ fontWeight: 700 }}>
+                {hoveredTarget.resultado === 'goal'
+                  ? '⚽ GOL NO CANTO'
+                  : hoveredTarget.resultado === 'save'
+                  ? '🧤 Defesa do Goleiro'
+                  : '❌ Para Fora / Trave'}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.7)', marginLeft: '8px' }}>
+                (xG: <strong className="font-mono" style={{ color: '#F5CE3B' }}>{Number(hoveredTarget.xg || 0.1).toFixed(2)}</strong>)
+              </span>
+              {hoveredTarget.minuto && (
+                <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: '6px' }}>
+                  • {hoveredTarget.minuto}'
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* CONTAINER DO SVG DA TRAVE 2D */
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            backgroundColor: 'var(--surface-raised)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-panel)',
+            padding: '16px 20px',
+            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            viewBox="0 0 120 70"
+            style={{ width: '100%', maxWidth: '380px', height: 'auto', display: 'block' }}
+            role="img"
+            aria-label="Esquema frontal da baliza de futebol com os locais exatos dos remates"
+          >
+            <defs>
+              {/* Padrão de rede da trave em grade cruzada */}
+              <pattern id="net-grid" width="6" height="6" patternUnits="userSpaceOnUse">
+                <path d="M 6 0 L 0 0 0 6" fill="none" stroke="var(--border-subtle)" strokeWidth="0.35" opacity="0.65" />
+              </pattern>
+            </defs>
+
+            {/* Fundo de rede da baliza */}
+            <rect
+              x="10"
+              y="5"
+              width="100"
+              height="55"
+              rx="1"
+              fill="var(--surface-panel)"
+              stroke="var(--border-strong)"
+              strokeWidth="1.2"
+            />
+            <rect
+              x="10"
+              y="5"
+              width="100"
+              height="55"
+              fill="url(#net-grid)"
+            />
+
+            {/* Estrutura dos postes e trave */}
+            <rect x="7" y="2" width="3" height="60" rx="0.8" fill="var(--text-primary)" opacity="0.85" />
+            <rect x="110" y="2" width="3" height="60" rx="0.8" fill="var(--text-primary)" opacity="0.85" />
+            <rect x="7" y="2" width="106" height="3.5" rx="0.8" fill="var(--text-primary)" opacity="0.85" />
+            <line x1="5" y1="62" x2="115" y2="62" stroke="var(--border-strong)" strokeWidth="1.5" />
+
+            {/* Marcadores de finalizações na rede 2D */}
+            {finalizacoesBaliza.map((item, idx) => {
+              const rawY = Number(item.gol_mouth_y) ?? 50;
+              const rawZ = Number(item.gol_mouth_z) ?? 50;
+
+              const cx = 12 + (rawY / 100) * 96;
+              const cy = 56 - (rawZ / 100) * 48;
+
+              const isGol = item.resultado === 'goal';
+              const isSalvo = item.resultado === 'save';
+
+              const corFill = isGol
+                ? 'var(--positive)'
+                : isSalvo
+                ? 'var(--accent)'
+                : 'var(--negative)';
+
+              return (
+                <g
+                  key={item.id_evento || idx}
+                  style={{ cursor: 'pointer', transition: 'transform 150ms ease' }}
+                  onMouseEnter={() => setHoveredTarget({ ...item, cx, cy })}
+                  onMouseLeave={() => setHoveredTarget(null)}
+                >
+                  {isGol && (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r="4.5"
+                      fill="none"
+                      stroke="var(--positive)"
+                      strokeWidth="0.6"
+                      strokeDasharray="1,1"
+                    />
+                  )}
+
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r="2.8"
+                    fill={corFill}
+                    fillOpacity="0.9"
+                    stroke="var(--surface-card)"
+                    strokeWidth="0.6"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* TOOLTIP FLUTUANTE DA BALIZA 2D */}
+          {hoveredTarget && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '12px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                maxWidth: 'calc(100% - 24px)',
+                backgroundColor: 'var(--surface-panel)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--radius-control)',
+                padding: '6px 12px',
+                boxShadow: 'var(--shadow-editorial)',
+                fontSize: '0.74rem',
+                pointerEvents: 'none',
+                zIndex: 10,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                {hoveredTarget.resultado === 'goal'
+                  ? '⚽ GOL NO CANTO'
+                  : hoveredTarget.resultado === 'save'
+                  ? '🧤 Defesa do Goleiro'
+                  : '❌ Para Fora / Trave'}
+              </span>
+              <span style={{ color: 'var(--text-secondary)', marginLeft: '6px' }}>
+                (xG: <strong className="font-mono" style={{ color: 'var(--accent)' }}>{Number(hoveredTarget.xg || 0.1).toFixed(2)}</strong>)
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* LEGENDA INFERIOR E MÉTRICAS */}
       <div

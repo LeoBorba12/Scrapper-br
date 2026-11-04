@@ -12,6 +12,8 @@ import GoalMouthMap from './GoalMouthMap';
 import { exportarDossieScoutingAtletaPNG } from '../utils/cardGenerator';
 import { exportarRelatorioScoutingPDF } from '../utils/pdfReportGenerator';
 import { sanitizarListaClubes, sanitizarCarreiraClubes } from '../utils/clubData';
+import { obterRenderAtleta } from '../utils/playerRenders';
+import HolographicAthleteCard from './HolographicAthleteCard';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -32,11 +34,13 @@ export default function ProtagonistaAtleta({
   const [subTab, setSubTab] = useState('partidas'); // 'partidas' | 'temporadas' | 'torneios' | 'vitimas'
   const [partidasPage, setPartidasPage] = useState(1);
   const [anoFiltroTimeline, setAnoFiltroTimeline] = useState(null);
+  const [mostrarCardHolografico, setMostrarCardHolografico] = useState(false);
 
   // Reset de página ao alternar atleta
   useEffect(() => {
     setPartidasPage(1);
     setAnoFiltroTimeline(null);
+    setMostrarCardHolografico(false);
   }, [playerProfile?.id_jogador, selectedPlayer]);
 
 
@@ -683,47 +687,122 @@ export default function ProtagonistaAtleta({
                   </div>
                 </div>
 
-                {/* Área da Imagem com dimensões reservadas (com suporte à foto oficial do OGol) */}
-                <div 
-                  style={{ 
-                    width: '100%', 
-                    height: '240px', 
-                    borderRadius: 'var(--radius-panel)', 
-                    backgroundColor: 'var(--surface-raised)', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    marginBottom: '18px',
-                    overflow: 'hidden',
-                    border: '1px solid var(--border-subtle)',
-                    position: 'relative'
-                  }}
-                >
-                  {atleta.foto_url ? (
-                    <img 
-                      src={atleta.foto_url} 
-                      alt={atleta.nome || selectedPlayer} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  ) : null}
-                  <div style={{ textAlign: 'center', display: atleta.foto_url ? 'none' : 'block' }}>
+                {/* Área da Imagem / Render Oficial com suporte a Carta Holográfica 3D (CraqueView) */}
+                {(() => {
+                  const renderInfo = obterRenderAtleta(atleta.nome || selectedPlayer, atleta.foto_url);
+                  return mostrarCardHolografico ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '18px' }}>
+                      <HolographicAthleteCard
+                        atleta={{
+                          ...atleta,
+                          notaScouting: notaScouting,
+                          clubes: atleta.clubes || atleta.carreira_clubes
+                        }}
+                        tema="oliva"
+                        size="normal"
+                      />
+                      <button
+                        onClick={() => setMostrarCardHolografico(false)}
+                        className="touch-tactile"
+                        style={{
+                          marginTop: '10px',
+                          backgroundColor: 'var(--surface-raised)',
+                          border: '1px solid var(--border-subtle)',
+                          color: 'var(--text-secondary)',
+                          padding: '5px 14px',
+                          borderRadius: 'var(--radius-control)',
+                          fontSize: '0.74rem',
+                          cursor: 'pointer',
+                          fontWeight: 700
+                        }}
+                      >
+                        ✕ Voltar para Foto Oficial
+                      </button>
+                    </div>
+                  ) : (
                     <div 
-                      className="font-editorial" 
                       style={{ 
-                        fontSize: '3.6rem', 
-                        fontWeight: 700, 
-                        color: 'var(--accent)',
-                        letterSpacing: '-0.03em' 
+                        width: '100%', 
+                        height: '240px', 
+                        borderRadius: 'var(--radius-panel)', 
+                        backgroundColor: 'var(--surface-raised)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        marginBottom: '18px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border-subtle)',
+                        position: 'relative'
                       }}
                     >
-                      {iniciais}
+                      {/* Botão de Toggle para Carta Holográfica 3D */}
+                      <button
+                        onClick={() => setMostrarCardHolografico(true)}
+                        className="touch-tactile"
+                        title="Ativar Carta Holográfica 3D interativa com reflexo de luz e física de mola"
+                        style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
+                          zIndex: 10,
+                          backgroundColor: 'rgba(20, 26, 18, 0.88)',
+                          backdropFilter: 'blur(8px)',
+                          border: '1px solid #7C8F52',
+                          color: '#F5CE3B',
+                          padding: '4px 10px',
+                          borderRadius: 'var(--radius-control)',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.35)'
+                        }}
+                      >
+                        <span>🃏</span>
+                        <span>Carta 3D</span>
+                      </button>
+
+                      {renderInfo.cardUrl ? (
+                        <img 
+                          src={renderInfo.cardUrl} 
+                          alt={atleta.nome || selectedPlayer} 
+                          style={{ 
+                            height: '92%', 
+                            width: 'auto', 
+                            objectFit: 'contain', 
+                            filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.45))' 
+                          }}
+                        />
+                      ) : atleta.foto_url ? (
+                        <img 
+                          src={atleta.foto_url} 
+                          alt={atleta.nome || selectedPlayer} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : null}
+
+                      <div style={{ textAlign: 'center', display: (renderInfo.cardUrl || atleta.foto_url) ? 'none' : 'block' }}>
+                        <div 
+                          className="font-editorial" 
+                          style={{ 
+                            fontSize: '3.6rem', 
+                            fontWeight: 700, 
+                            color: 'var(--accent)',
+                            letterSpacing: '-0.03em' 
+                          }}
+                        >
+                          {iniciais}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '4px' }}>
+                          Registro Oficial
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: '4px' }}>
-                      Registro Oficial
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 <h2 
                   className="font-editorial" 

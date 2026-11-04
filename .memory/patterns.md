@@ -25,3 +25,30 @@
   2. Bounded interval checks para odds justas: $Odd \in [\frac{100}{p + \epsilon}, \frac{100}{p - \epsilon}]$ contra probabilidades discretizadas.
   3. Strict gating de $+EV$: $EV > 0 \iff Odd_{mercado} > FairOdd$.
 
+## P6: Governança de Contexto e Dados Legíveis (Regra de Ouro CLAUDE.md)
+- **Origem**: Diretrizes de otimização de tokens do Projeto CraqueView
+- **Padrão**:
+  1. **Um Registro por Linha**: Datasets embutidos e arrays JSON analíticos no frontend ou scripts devem ser mantidos com 1 registro por linha, nunca minificados em linha única contígua. Evita que ferramentas de busca (`grep`) capturem blocos de 20 KB de contexto inútil.
+  2. **Mapa Arquitetural de Linhas**: Arquivos extensos devem conter comentário de índice no topo demarcando as faixas aproximadas de cada seção (CSS, HTML, Dados, Lógica) para leituras cirúrgicas via range offset.
+  3. **Estabilidade Numérica**: Uso obrigatório de `font-variant-numeric: tabular-nums` e fontes mono em valores dinâmicos para prevenir oscilação horizontal de layout (*layout shift*).
+
+## P7: Cartas Holográficas 3D com Física de Mola (Lerp Spring)
+- **Arquivo**: `frontend/src/components/HolographicAthleteCard.jsx` e `frontend/src/index.css`
+- **Padrão**:
+  1. **Separação de Camadas de Transformação**: `.card-float` gerencia a flutuação senoidal isolada via CSS, enquanto `.card` gerencia a rotação 3D (`transform: rotateY() rotateX()`) alimentada por variáveis CSS.
+  2. **Física de Mola Unificada**: `requestAnimationFrame` computa forças de atração (`stiffness`) e amortecimento (`damping`) em canais conjuntos (`rx, ry, gx, gy, o, bx, by`), garantindo que rotação, reflexo de vidro e foil cheguem no mesmo quadro.
+  3. **Trio Óptico de Luz**:
+     - *Foil*: `mix-blend-mode: soft-light` com paralaxe invertida deslocada.
+     - *Shine*: `mix-blend-mode: color-dodge` com filtro `contrast(2.1) saturate(1.2)` estourando reflexos metálicos.
+     - *Glare*: `mix-blend-mode: overlay` ancorado no ponto do cursor.
+
+## P8: Baliza 3D com Física de Tecido e Vento (Pinhole Goalmouth Canvas)
+- **Arquivo**: `frontend/src/components/GoalMouth3DCanvas.jsx` e `frontend/src/components/GoalMouthMap.jsx`
+- **Padrão**:
+  1. **Projeção Pinhole 3D em Canvas 2D**: Transforma coordenadas tridimensionais oficiais FIFA ($7.32 \times 2.44 \times 1.95\text{ m}$) para tela através de câmera angular fixa com vetor frente/direita/cima ortonormalizado e fator de profundidade focal.
+  2. **Simulação de Tecido com Deformação Harmônica**: A malha da rede ($23 \times 13$ pontos de fundo e $10 \times 9$ laterais) é deformada no tempo por soma de senos com envelope parabólico (*bojo*) $\sin(\pi u)\sin(\pi v)$, simulando o balanço natural do vento contra o fundo da baliza.
+  3. **Mapeamento Preciso de Finalizações**: A função `bocaCoords(nx, ny)` projeta os dados de finalizações de $0..1$ (chão ao travessão / poste a poste) em coordenadas CSS reais de tela, permitindo alvos interativos com anéis de impacto e tooltips analíticas.
+  4. **Proteção de Performance (Zero CPU Leak)**: Uso de `IntersectionObserver` para congelar o loop de renderização fora do viewport e detecção estrita de `prefers-reduced-motion`.
+
+
+

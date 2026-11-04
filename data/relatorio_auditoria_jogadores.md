@@ -1,23 +1,16 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-04 01:52:12*
+*Gerado automaticamente em: 2026-11-04 10:27:48*
 
 ## Resumo Executivo da Auditoria
 
 - **Total de Atletas Analisados**: 30
-- 🟢 **Atletas Íntegros e Consistentes**: 27
+- 🟢 **Atletas Íntegros e Consistentes**: 28
 - 🛠️ **Casos Auto-Reparados (Auto-healing)**: 2
-- ⚠️ **Casos com Discrepância Pendente (Requer Moderação)**: 1
+- ⚠️ **Casos com Discrepância Pendente (Requer Moderação)**: 0
 
 ## Metodologia de Verificação & Regra do ID
 Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `id_jogador` e validado contra o `ogol_id` e a carreira oficial de referência. Quando $gols_{acervo} > gols_{oficiais}$, o sistema consulta o perfil oficial no portal OGol para atualizar os metadados de carreira. Se a divergência persistir, ele isola e desassocia gols pertencentes a homônimos de clubes distintos.
-
-## ⚠️ Atletas que Requerem Atenção da Moderação
-
-| ID | Atleta | OGol ID | Gols Acervo | Gols Carreira | Diagnóstico |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| `106` | **Reinaldo** | `241987` | **92** | 91 | Gols no acervo (92) superam carreira oficial (91). Perfil OGol não localizado. |
-
 
 ## 🛠️ Atletas com Auto-Reparo Concluído
 
@@ -52,9 +45,10 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `11046` | **Paulo Baier** | `5378` | 157 | 223 | `Goiás,Athletico-PR,Sport,Goiás EC,Criciú` | 🟢 OK |
 | `2325` | **Gabriel Feliciano** | `5691` | 156 | 261 | `Cruzeiro,Náutico,Internacional,Vasco,Fla` | 🟢 OK |
 | `13693` | **Wellington Paulista** | `6041` | 156 | 265 | `Botafogo,Cruzeiro,Coritiba,Lanús,Santos,` | 🟢 OK |
-| `809` | **Souza** | `941506` | 151 | 151 | `Red Bull Bragantino,Portuguesa,Corinthia` | 🟢 OK |
+| `809` | **Souza** | `941506` | 152 | 152 | `Red Bull Bragantino,Portuguesa,Corinthia` | 🟢 OK |
 | `352` | **Neymar** | `54814` | 149 | 439 | `Santos,Atlético Goianiense` | 🟢 OK |
 | `17777` | **Washington** | `5679` | 144 | 144 | `Paraná,Ponte Preta,Ceará,Fluminense,São ` | 🟢 OK |
 | `12161` | **Roger** | `5713` | 143 | 143 | `Grêmio,Atlético-GO,Brasiliense,Ponte Pre` | 🟢 OK |
 | `8980` | **Luizão** | `4663` | 142 | 242 | `Guarani,Corinthians,Flamengo,Vasco,São P` | 🟢 OK |
 | `13219` | **Túlio Maravilha** | `42587` | 141 | 599 | `Goiás,Botafogo,Santa Cruz,Vitória,Juvent` | 🟢 OK |
+| `11` | **Germán Cano** | `36577` | 140 | 322 | `Peñarol,Sol de América,Nacional,Independ` | 🟢 OK |

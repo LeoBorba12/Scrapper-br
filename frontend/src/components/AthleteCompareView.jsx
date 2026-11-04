@@ -5,6 +5,8 @@ import { SlidersHorizontal, ArrowLeftRight, Sparkles, Check } from 'lucide-react
 import SpatialPitchMap from './SpatialPitchMap';
 import ClubBadge from './ClubBadge';
 import { sanitizarListaClubes } from '../utils/clubData';
+import { obterRenderAtleta } from '../utils/playerRenders';
+import HolographicAthleteCard from './HolographicAthleteCard';
 
 const DUELOS_CLASSICOS = [
   { label: 'Pedro x Gabigol', id1: 10, id2: 7, pos: 'Atacantes' },
@@ -50,6 +52,7 @@ export default function AthleteCompareView({
   const [posFiltro, setPosFiltro] = useState('todos');
   const [compFiltro, setCompFiltro] = useState('todos');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [modoVisualizacao, setModoVisualizacao] = useState('bento'); // 'bento' | 'holografico'
 
   // Estado da comparação
   const [loading, setLoading] = useState(false);
@@ -924,8 +927,135 @@ export default function AthleteCompareView({
             </div>
           </div>
 
-          {/* Bento Grid Principal: Perfil 1 | Radar Dual PES Central | Perfil 2 */}
-          <div className="athlete-bento-grid">
+          {/* Seletor de Modo: Fichas & Scouts Bento vs Cartas 3D Holográficas (CraqueView) */}
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 10px' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                backgroundColor: 'var(--surface-raised)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-control)',
+                padding: '3px'
+              }}
+            >
+              <button
+                onClick={() => setModoVisualizacao('bento')}
+                className="touch-tactile"
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 'calc(var(--radius-control) - 2px)',
+                  border: 'none',
+                  backgroundColor: modoVisualizacao === 'bento' ? 'var(--accent)' : 'transparent',
+                  color: modoVisualizacao === 'bento' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 150ms ease'
+                }}
+              >
+                <span>📊</span>
+                <span>Fichas & Scouts Bento</span>
+              </button>
+              <button
+                onClick={() => setModoVisualizacao('holografico')}
+                className="touch-tactile"
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 'calc(var(--radius-control) - 2px)',
+                  border: 'none',
+                  backgroundColor: modoVisualizacao === 'holografico' ? 'var(--accent)' : 'transparent',
+                  color: modoVisualizacao === 'holografico' ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 150ms ease'
+                }}
+              >
+                <span>🃏</span>
+                <span>Cartas Holográficas 3D</span>
+              </button>
+            </div>
+          </div>
+
+          {modoVisualizacao === 'holografico' ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '24px',
+                flexWrap: 'wrap',
+                margin: '12px 0 20px',
+                padding: '24px 16px',
+                backgroundColor: 'var(--surface-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-card)',
+                boxShadow: 'var(--shadow-editorial)'
+              }}
+            >
+              {/* Carta Atleta 1 (Oliva) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <HolographicAthleteCard
+                  atleta={{
+                    ...atleta1,
+                    notaScouting: notaScouting1,
+                    clubes: atleta1.clubes
+                  }}
+                  tema="oliva"
+                  size="normal"
+                  onClick={() => onSelectPlayer && onSelectPlayer(atleta1.id_jogador, atleta1.nome)}
+                />
+              </div>
+
+              {/* Radar Dual PES Central */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  maxWidth: '460px',
+                  flex: 1,
+                  minWidth: '320px'
+                }}
+              >
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                    Sobreposição de Perfil PES • Winning Eleven
+                  </span>
+                </div>
+                <RadarDualPES
+                  dadosRadar={dadosRadar}
+                  nomeAtleta1={atleta1.nome}
+                  nomeAtleta2={atleta2.nome}
+                  cor1="#7C8F52"
+                  cor2="#B87550"
+                />
+              </div>
+
+              {/* Carta Atleta 2 (Terracota) */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <HolographicAthleteCard
+                  atleta={{
+                    ...atleta2,
+                    notaScouting: notaScouting2,
+                    clubes: atleta2.clubes
+                  }}
+                  tema="terracota"
+                  size="normal"
+                  onClick={() => onSelectPlayer && onSelectPlayer(atleta2.id_jogador, atleta2.nome)}
+                />
+              </div>
+            </div>
+          ) : (
+            /* Bento Grid Principal: Perfil 1 | Radar Dual PES Central | Perfil 2 */
+            <div className="athlete-bento-grid">
             {/* Card Atleta 1 (Oliva) */}
             <div
               style={{
@@ -959,11 +1089,19 @@ export default function AthleteCompareView({
                       flexShrink: 0
                     }}
                   >
-                    {atleta1.foto_url ? (
-                      <img src={atleta1.foto_url} alt={atleta1.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      atleta1.nome?.substring(0, 2).toUpperCase()
-                    )}
+                    {(() => {
+                      const r1 = obterRenderAtleta(atleta1.nome, atleta1.foto_url);
+                      return r1.faceUrl || atleta1.foto_url ? (
+                        <img 
+                          src={r1.faceUrl || atleta1.foto_url} 
+                          alt={atleta1.nome} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          onError={(e) => { if (atleta1.foto_url) e.currentTarget.src = atleta1.foto_url; }}
+                        />
+                      ) : (
+                        atleta1.nome?.substring(0, 2).toUpperCase()
+                      );
+                    })()}
                   </div>
                   <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                     <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1171,11 +1309,19 @@ export default function AthleteCompareView({
                       flexShrink: 0
                     }}
                   >
-                    {atleta2.foto_url ? (
-                      <img src={atleta2.foto_url} alt={atleta2.nome} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : (
-                      atleta2.nome?.substring(0, 2).toUpperCase()
-                    )}
+                    {(() => {
+                      const r2 = obterRenderAtleta(atleta2.nome, atleta2.foto_url);
+                      return r2.faceUrl || atleta2.foto_url ? (
+                        <img 
+                          src={r2.faceUrl || atleta2.foto_url} 
+                          alt={atleta2.nome} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                          onError={(e) => { if (atleta2.foto_url) e.currentTarget.src = atleta2.foto_url; }}
+                        />
+                      ) : (
+                        atleta2.nome?.substring(0, 2).toUpperCase()
+                      );
+                    })()}
                   </div>
                   <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                     <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1312,6 +1458,7 @@ export default function AthleteCompareView({
               )}
             </div>
           </div>
+          )}
 
           {/* Matriz de Confronto Estatístico Direto */}
           <div
