@@ -1,8 +1,8 @@
 {
   "arquivo": "futebol_cold.db.gz",
-  "sha256": "d3004dca7c9a2d647d13808734b55cd94bf7cdb0a28a6b0fda272e1c68ba9241",
-  "tamanho_bytes": 1833292,
-  "schema_version": "cold_v3",
+  "sha256": "12eee079edc1c2f21f6e22c09a18ecfa2dc12f3d64bbd11d74433faf6e33d069",
+  "tamanho_bytes": 2674219,
+  "schema_version": "cold_v4",
   "dominios": {
     "eventos_historicos": {
       "escalacoes": 44231,
@@ -21,8 +21,11 @@
     "cartoes_arquivadas": 31637,
     "cold_odds_partidas": 5095,
     "cold_backtest_dixon_coles": 6121,
-    "cold_odds_quarentena_descartadas": 6052
+    "cold_odds_quarentena_descartadas": 6052,
+    "cold_odds_ingestao_status": 9903,
+    "cold_odds_consenso_partida": 11007,
+    "cold_odds_auditoria_sharp": 4941
   },
-  "total_registros_arquivados": 93136,
-  "atualizado_em": "2026-11-04 19:15:00"
+  "total_registros_arquivados": 118987,
+  "atualizado_em": "2026-11-04 20:15:00"
 }
