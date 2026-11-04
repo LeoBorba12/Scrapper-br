@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, RefreshCw, Search, ChevronDown, ChevronUp, 
-  ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles
+  ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles, Trophy
 } from 'lucide-react';
 import { ClubEvolutionChart, HistoricCampaignChart } from './charts';
 import ClubBadge from './ClubBadge';
+import TrophyGallery3D from './TrophyGallery3D';
 
 export default function EditorialClubes({
   timesAnalise,
@@ -305,6 +306,27 @@ export default function EditorialClubes({
           </button>
 
           <button
+            onClick={() => setSecaoVisual('trofeus')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.82rem',
+              fontWeight: secaoVisual === 'trofeus' ? 700 : 500,
+              backgroundColor: secaoVisual === 'trofeus' ? 'var(--accent)' : 'transparent',
+              color: secaoVisual === 'trofeus' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Trophy size={14} />
+            <span>Sala de Troféus (Réplicas 3D)</span>
+          </button>
+
+          <button
             onClick={() => setSecaoVisual('decadas')}
             style={{
               display: 'inline-flex',
@@ -330,6 +352,11 @@ export default function EditorialClubes({
           <HistoricCampaignChart
             clubeInicial={expandedClube || clubeEvolucao || 'Flamengo'}
             anoInicial={2019}
+          />
+        ) : secaoVisual === 'trofeus' ? (
+          <TrophyGallery3D
+            clube={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
+            darkMode={false}
           />
         ) : (
           <ClubEvolutionChart

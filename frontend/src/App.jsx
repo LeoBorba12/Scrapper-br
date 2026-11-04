@@ -22,6 +22,7 @@ const AthleteCompareView = lazy(() => import('./components/AthleteCompareView'))
 const BettingHubView = lazy(() => import('./components/BettingHubView'));
 const RefereeScoutView = lazy(() => import('./components/RefereeScoutView'));
 const ModalLanceALance = lazy(() => import('./components/ModalLanceALance'));
+const TournamentStatsView = lazy(() => import('./components/TournamentStatsView'));
 
 function ViewSuspenseFallback({ darkMode }) {
   return (
@@ -1097,6 +1098,11 @@ export default function App() {
       conviteCopiado={conviteCopiado}
     >
       <Suspense fallback={<ViewSuspenseFallback darkMode={darkMode} />}>
+        {/* ================= ABA CAMPEONATO: SCOUTS COMPLETOS OGOL 2026 ================= */}
+        {activeTab === 'campeonato' && (
+          <TournamentStatsView darkMode={darkMode} />
+        )}
+
         {/* ================= PILOTO 1: CLUBES NO MODELO EDITORIAL ================= */}
       {activeTab === 'times' && (
         <EditorialClubes

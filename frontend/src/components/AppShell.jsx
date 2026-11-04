@@ -19,6 +19,7 @@ export default function AppShell({
 }) {
   const navItems = [
     { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
+    { id: 'campeonato', label: 'Campeonato', icon: Award, badge: 'Scouts 2026' },
     { id: 'apostas', label: 'Apostas', icon: TrendingUp, badge: 'Odds & Mercados' },
     { id: 'times', label: 'Clubes', icon: BarChart3, badge: 'Editorial' },
     { id: 'jogadores', label: 'Atletas', icon: Award, badge: 'Protagonista' },

@@ -291,6 +291,16 @@ def cadastrar_com_convite(nome, username, password, codigo_convite):
 
 app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path='')
 
+try:
+    from backend.rotas_expansao import rotas_expansao_bp
+    app.register_blueprint(rotas_expansao_bp)
+except ImportError:
+    try:
+        from rotas_expansao import rotas_expansao_bp
+        app.register_blueprint(rotas_expansao_bp)
+    except Exception as e_bp:
+        print(f"[AVISO] Falha ao registrar Blueprint rotas_expansao: {e_bp}")
+
 @app.errorhandler(500)
 def handle_500(err):
     return jsonify({"error": f"Erro interno do servidor: {str(err)}"}), 500

@@ -206,6 +206,33 @@ def executar_auditoria_diaria_04am(size_mb: float):
     except Exception as e:
         safe_print(f"[Auditoria Diária Falha] {e}")
 
+DATA_ULTIMA_RASPAGEM_DIARIA_01AM = None
+
+def executar_raspagem_diaria_01am(size_mb: float):
+    """
+    Rotina Diária das 01:00 AM (VM Oracle Cloud):
+    - Raspa todas as 46 estatísticas dos 700+ atletas da Série A e scouts de equipes no OGol.
+    - Atualiza métricas de árbitros e técnicos do Brasileirão.
+    """
+    global DATA_ULTIMA_RASPAGEM_DIARIA_01AM
+    agora = datetime.datetime.now()
+    hoje_str = agora.strftime("%Y-%m-%d")
+
+    deve_rodar = False
+    if DATA_ULTIMA_RASPAGEM_DIARIA_01AM != hoje_str:
+        if agora.hour >= 1:
+            deve_rodar = True
+
+    if not deve_rodar:
+        return
+
+    safe_print("\n🕒 >>> [ROTINA DIÁRIA 01:00 AM] Raspagem de Scouts de Atletas, Equipes e Árbitros (OGol) <<<")
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "scraper_ogol_estatisticas_completas.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "enriquecer_arbitros_e_tecnicos.py")])
+    
+    DATA_ULTIMA_RASPAGEM_DIARIA_01AM = hoje_str
+    safe_print("[ROTINA DIÁRIA 01:00 AM] Atualização diária dos scouts concluída com sucesso.")
+
 def ciclo_mestre(numero_ciclo: int):
     safe_print(f"\n=======================================================")
     safe_print(f"   INICIANDO CICLO MESTRE {numero_ciclo} (APOSTAS + GOLS 24/7)   ")
@@ -277,6 +304,9 @@ def ciclo_mestre(numero_ciclo: int):
             safe_print(f"[INFO] Tamanho pós-VACUUM: {size_mb:.2f} MB")
         except Exception as e:
             safe_print(f"[VACUUM Falha] {e}")
+
+    # Executa Raspagem Diária às 01:00 AM (Scouts de Atletas, Equipes e Árbitros)
+    executar_raspagem_diaria_01am(size_mb)
 
     # Executa Auditoria Universal Diária com Digest no Telegram (se na janela das 04:00 AM)
     executar_auditoria_diaria_04am(size_mb)

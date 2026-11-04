@@ -14,6 +14,7 @@ import { exportarRelatorioScoutingPDF } from '../utils/pdfReportGenerator';
 import { sanitizarListaClubes, sanitizarCarreiraClubes } from '../utils/clubData';
 import { obterRenderAtleta } from '../utils/playerRenders';
 import HolographicAthleteCard from './HolographicAthleteCard';
+import MarketValueChart from './MarketValueChart';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -1449,6 +1450,7 @@ export default function ProtagonistaAtleta({
                 { id: 'partidas', label: `Partidas Catalogadas (${(atleta.partidas || []).length})` },
                 { id: 'carreira_ogol', label: `Carreira Oficial OGol (${carreiraClubesLimpos.length})` },
                 { id: 'titulos', label: `Títulos & Prêmios (${(atleta.titulos || []).length + (atleta.premios || []).length})` },
+                { id: 'valor_mercado', label: 'Valor de Mercado (€/R$)' },
                 { id: 'temporadas', label: `Por Temporada (${(atleta.historico_temporadas || []).length})` },
                 { id: 'torneios', label: `Competições (${(atleta.historico_torneios || []).length})` },
                 { id: 'vitimas', label: `Clubes Vítimas (${(atleta.top_vitimas || []).length})` }
@@ -1942,6 +1944,13 @@ export default function ProtagonistaAtleta({
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Sub-aba Histórico de Valor de Mercado */}
+              {subTab === 'valor_mercado' && (
+                <div style={{ padding: '8px 0' }}>
+                  <MarketValueChart atleta={atleta.nome || atleta.apelido || atleta.nome_exibicao} />
                 </div>
               )}
             </div>
