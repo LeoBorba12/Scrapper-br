@@ -209,6 +209,11 @@ def auditar_e_reparar_dados():
                 );
             """, (aid, aid, aid))
             tot_jogos = c.fetchone()[0]
+            c.execute("SELECT jogos_carreira_oficiais FROM jogadores_estatisticas WHERE id_jogador = ?;", (aid,))
+            row_carreira = c.fetchone()
+            carreira_oficiais = row_carreira[0] if row_carreira and row_carreira[0] else None
+            if carreira_oficiais and carreira_oficiais > tot_jogos:
+                tot_jogos = carreira_oficiais
             media_gols = round(tot_gols / max(tot_jogos, 1), 2)
             c.execute("""
                 UPDATE jogadores_estatisticas 
