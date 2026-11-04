@@ -408,6 +408,11 @@ def otimizar_banco_e_checar_teto(conn):
     print("[OK] Banco dentro da margem de segurança da Vercel!")
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Enriquecer Palmarés Oficial via OGol")
+    parser.add_argument("--limit", type=int, default=20, help="Quantidade máxima de atletas a enriquecer")
+    args = parser.parse_args()
+
     print("=" * 70)
     print("  FUTSTATS - ENRIQUECIMENTO DE PALMARÉS, GOLEIROS & PRÊMIOS (OGOL)")
     print("=" * 70)
@@ -422,7 +427,7 @@ def main():
         garantir_colunas(conn)
         atualizar_clean_sheets_dinamicos(conn)
         processar_atletas_homologados(conn)
-        enriquecer_outros_goleiros_e_artilheiros(conn, limit=20)
+        enriquecer_outros_goleiros_e_artilheiros(conn, limit=args.limit)
         otimizar_banco_e_checar_teto(conn)
     finally:
         conn.close()

@@ -1264,7 +1264,39 @@ NOTAS_HISTORICAS_CLASSICOS = {
     ("grêmio", "internacional"): "Cobertura ampla no FutStats: mais de 200 jogos catalogados pelo Campeonato Gaúcho (desde 1915), Brasileirão, Copa do Brasil e Libertadores."
 }
 
+# Palmarés Canônico dos Principais Clubes Brasileiros (Títulos Oficiais Homologados)
+PALMARES_OFICIAL_CLUBES = {
+    "flamengo": {"mundial": 1, "libertadores": 3, "brasileirao": 8, "copa_do_brasil": 5, "estaduais": 38, "internacionais": 7},
+    "palmeiras": {"mundial": 1, "libertadores": 3, "brasileirao": 12, "copa_do_brasil": 4, "estaduais": 26, "internacionais": 6},
+    "sao paulo": {"mundial": 3, "libertadores": 3, "brasileirao": 6, "copa_do_brasil": 1, "estaduais": 22, "internacionais": 12},
+    "santos": {"mundial": 2, "libertadores": 3, "brasileirao": 8, "copa_do_brasil": 1, "estaduais": 22, "internacionais": 9},
+    "corinthians": {"mundial": 2, "libertadores": 1, "brasileirao": 7, "copa_do_brasil": 3, "estaduais": 30, "internacionais": 4},
+    "gremio": {"mundial": 1, "libertadores": 3, "brasileirao": 2, "copa_do_brasil": 5, "estaduais": 43, "internacionais": 6},
+    "internacional": {"mundial": 1, "libertadores": 2, "brasileirao": 3, "copa_do_brasil": 1, "estaduais": 45, "internacionais": 7},
+    "cruzeiro": {"mundial": 0, "libertadores": 2, "brasileirao": 4, "copa_do_brasil": 6, "estaduais": 38, "internacionais": 7},
+    "atletico-mg": {"mundial": 0, "libertadores": 1, "brasileirao": 3, "copa_do_brasil": 2, "estaduais": 49, "internacionais": 4},
+    "vasco": {"mundial": 0, "libertadores": 1, "brasileirao": 4, "copa_do_brasil": 1, "estaduais": 24, "internacionais": 3},
+    "fluminense": {"mundial": 0, "libertadores": 1, "brasileirao": 4, "copa_do_brasil": 1, "estaduais": 33, "internacionais": 2},
+    "botafogo": {"mundial": 0, "libertadores": 0, "brasileirao": 2, "copa_do_brasil": 0, "estaduais": 21, "internacionais": 2},
+    "athletico-pr": {"mundial": 0, "libertadores": 0, "brasileirao": 1, "copa_do_brasil": 1, "estaduais": 28, "internacionais": 3},
+    "bahia": {"mundial": 0, "libertadores": 0, "brasileirao": 2, "copa_do_brasil": 0, "estaduais": 50, "copa_nordeste": 4},
+    "sport": {"mundial": 0, "libertadores": 0, "brasileirao": 1, "copa_do_brasil": 1, "estaduais": 44, "copa_nordeste": 3},
+    "fortaleza": {"mundial": 0, "libertadores": 0, "brasileirao": 0, "copa_do_brasil": 0, "estaduais": 46, "copa_nordeste": 3},
+    "vitoria": {"mundial": 0, "libertadores": 0, "brasileirao": 0, "copa_do_brasil": 0, "estaduais": 30, "copa_nordeste": 4},
+    "coritiba": {"mundial": 0, "libertadores": 0, "brasileirao": 1, "copa_do_brasil": 0, "estaduais": 39, "internacionais": 0}
+}
+
+def obter_palmares_clube(nome):
+    if not nome:
+        return None
+    nm = nome.lower().replace("-", " ").strip()
+    for k, v in PALMARES_OFICIAL_CLUBES.items():
+        if k in nm or nm in k:
+            return v
+    return None
+
 @app.route('/api/h2h', methods=['GET'])
+@app.route('/api/clubes/comparar', methods=['GET'])
 @require_auth
 def get_h2h():
     c1 = request.args.get('clube1', '').strip()
@@ -1374,6 +1406,22 @@ def get_h2h():
                 tabu_jogos += 1
             else:
                 break
+
+    # Artilheiros históricos do confronto direto
+    query_artilheiros = """
+        SELECT g.atleta, g.clube, COUNT(*) as gols
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE (p.mandante LIKE ? AND p.visitante LIKE ?) OR (p.mandante LIKE ? AND p.visitante LIKE ?)
+        GROUP BY g.atleta, g.clube
+        ORDER BY gols DESC
+        LIMIT 10;
+    """
+    c.execute(query_artilheiros, (f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%"))
+    artilheiros = [
+        {"atleta": row[0], "clube": row[1], "gols": row[2]}
+        for row in c.fetchall()
+    ]
                 
     conn.close()
 
@@ -1384,6 +1432,11 @@ def get_h2h():
         if (t1 in c1_low and t2 in c2_low) or (t2 in c1_low and t1 in c2_low):
             nota_historica = nota
             break
+
+    # Projeção preditiva Dixon-Coles
+    media_gols_c1 = (gols1 / total) if total > 0 else 1.3
+    media_gols_c2 = (gols2 / total) if total > 0 else 1.1
+    proj_dc = _calc_poisson_bivariate(max(0.5, min(3.5, media_gols_c1)), max(0.5, min(3.5, media_gols_c2)))
     
     res = {
         "clube1": c1,
@@ -1394,8 +1447,20 @@ def get_h2h():
         "empates": empates,
         "gols_clube1": gols1,
         "gols_clube2": gols2,
+        "aproveitamento_clube1": round(((vit1 * 3 + empates) / max(total * 3, 1)) * 100, 1) if total > 0 else 0.0,
+        "aproveitamento_clube2": round(((vit2 * 3 + empates) / max(total * 3, 1)) * 100, 1) if total > 0 else 0.0,
         "maior_goleada_clube1": maior_goleada1,
         "maior_goleada_clube2": maior_goleada2,
+        "artilheiros_confronto": artilheiros,
+        "palmares_clube1": obter_palmares_clube(c1),
+        "palmares_clube2": obter_palmares_clube(c2),
+        "projecao_dixon_coles": {
+            "prob_clube1": proj_dc.get("prob_mandante"),
+            "prob_empate": proj_dc.get("prob_empate"),
+            "prob_clube2": proj_dc.get("prob_visitante"),
+            "xg_clube1": round(media_gols_c1, 2),
+            "xg_clube2": round(media_gols_c2, 2)
+        },
         "tabu_invicto": {
             "clube": tabu_clube,
             "jogos": tabu_jogos

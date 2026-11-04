@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Trophy, CloudRain, Swords, Search, Copy, Check, Sparkles, 
   Sun, Moon, Flame, ShieldAlert, Calendar, MapPin, BarChart3, 
@@ -8,16 +8,30 @@ import {
   Download, Camera, Scale
 } from 'lucide-react';
 import { baixarCardSocialPNG, baixarCardDueloH2HPNG, baixarCardApostaEVPNG } from './utils/cardGenerator';
-import AuthView from './components/AuthView';
-import HomeMatchdayView from './components/HomeMatchdayView';
 import AppShell from './components/AppShell';
-import EditorialClubes from './components/EditorialClubes';
-import ProtagonistaAtleta from './components/ProtagonistaAtleta';
-import BettingHubView from './components/BettingHubView';
-import AthleteCompareView from './components/AthleteCompareView';
-import RefereeScoutView from './components/RefereeScoutView';
-import ModalLanceALance from './components/ModalLanceALance';
+import HomeMatchdayView from './components/HomeMatchdayView';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
+
+// Code-Splitting: Componentes pesados carregados sob demanda via React.lazy()
+const AuthView = lazy(() => import('./components/AuthView'));
+const EditorialClubes = lazy(() => import('./components/EditorialClubes'));
+const ClubCompareView = lazy(() => import('./components/ClubCompareView'));
+const ProtagonistaAtleta = lazy(() => import('./components/ProtagonistaAtleta'));
+const AthleteCompareView = lazy(() => import('./components/AthleteCompareView'));
+const BettingHubView = lazy(() => import('./components/BettingHubView'));
+const RefereeScoutView = lazy(() => import('./components/RefereeScoutView'));
+const ModalLanceALance = lazy(() => import('./components/ModalLanceALance'));
+
+function ViewSuspenseFallback({ darkMode }) {
+  return (
+    <div className={`w-full min-h-[420px] flex flex-col items-center justify-center p-8 transition-colors ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
+      <div className="w-10 h-10 border-4 border-t-transparent border-[#85573B] rounded-full animate-spin mb-4" />
+      <span className="text-sm font-medium font-inter tracking-wide animate-pulse">
+        Carregando módulo editorial...
+      </span>
+    </div>
+  );
+}
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -1036,29 +1050,31 @@ export default function App() {
   // ==================== TELA DE LOGIN / CADASTRO (IDENTIDADE EDITORIAL) ====================
   if (!currentUser) {
     return (
-      <AuthView
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        loginUsername={loginUsername}
-        setLoginUsername={setLoginUsername}
-        loginPassword={loginPassword}
-        setLoginPassword={setLoginPassword}
-        regCodigoConvite={regCodigoConvite}
-        setRegCodigoConvite={setRegCodigoConvite}
-        regNome={regNome}
-        setRegNome={setRegNome}
-        regUsername={regUsername}
-        setRegUsername={setRegUsername}
-        regPassword={regPassword}
-        setRegPassword={setRegPassword}
-        authLoading={authLoading}
-        authError={authError}
-        setAuthError={setAuthError}
-        handleLogin={handleLogin}
-        handleRegistro={handleRegistro}
-        darkMode={darkMode}
-        onToggleTheme={() => setDarkMode(!darkMode)}
-      />
+      <Suspense fallback={<ViewSuspenseFallback darkMode={darkMode} />}>
+        <AuthView
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          loginUsername={loginUsername}
+          setLoginUsername={setLoginUsername}
+          loginPassword={loginPassword}
+          setLoginPassword={setLoginPassword}
+          regCodigoConvite={regCodigoConvite}
+          setRegCodigoConvite={setRegCodigoConvite}
+          regNome={regNome}
+          setRegNome={setRegNome}
+          regUsername={regUsername}
+          setRegUsername={setRegUsername}
+          regPassword={regPassword}
+          setRegPassword={setRegPassword}
+          authLoading={authLoading}
+          authError={authError}
+          setAuthError={setAuthError}
+          handleLogin={handleLogin}
+          handleRegistro={handleRegistro}
+          darkMode={darkMode}
+          onToggleTheme={() => setDarkMode(!darkMode)}
+        />
+      </Suspense>
     );
   }
 
@@ -1079,7 +1095,8 @@ export default function App() {
       onCopiarConvite={copiarConviteEquipe}
       conviteCopiado={conviteCopiado}
     >
-      {/* ================= PILOTO 1: CLUBES NO MODELO EDITORIAL ================= */}
+      <Suspense fallback={<ViewSuspenseFallback darkMode={darkMode} />}>
+        {/* ================= PILOTO 1: CLUBES NO MODELO EDITORIAL ================= */}
       {activeTab === 'times' && (
         <EditorialClubes
           timesAnalise={timesAnalise}
@@ -1176,278 +1193,14 @@ export default function App() {
           />
         )}
 
-      {/* ABA 1: RAIO-X H2H */}
+      {/* ABA 1: RAIO-X H2H / COMPARADOR DE CLUBES (EDITORIAL 2026) */}
       {activeTab === 'h2h' && (
-        <section>
-          {/* SELETOR DE CLUBES */}
-          <div className="soft-card" style={{ padding: '20px', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Swords size={20} color="var(--accent)" /> Escolha os Clubes do Duelo
-            </h2>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Primeiro Clube
-                </label>
-                <input 
-                  type="text" 
-                  className="soft-input"
-                  value={clube1}
-                  onChange={e => setClube1(e.target.value)}
-                  placeholder="Ex: Flamengo, Palmeiras, Corinthians..."
-                  list="clubes-sugestoes"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Segundo Clube (Rival)
-                </label>
-                <input 
-                  type="text" 
-                  className="soft-input"
-                  value={clube2}
-                  onChange={e => setClube2(e.target.value)}
-                  placeholder="Ex: Vasco, São Paulo, Santos..."
-                  list="clubes-sugestoes"
-                />
-              </div>
-
-              <div>
-                <button className="btn-primary" style={{ width: '100%' }} onClick={carregarH2H} disabled={h2hLoading}>
-                  {h2hLoading ? <RefreshCw size={18} className="animate-spin" /> : <Search size={18} />}
-                  Comparar Retrospecto
-                </button>
-              </div>
-            </div>
-
-            <datalist id="clubes-sugestoes">
-              {clubesList.map(c => (
-                <option key={c.nome} value={c.nome} />
-              ))}
-            </datalist>
-          </div>
-
-          {/* RESULTADO DO CONFRONTO */}
-          {h2hData && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>
-                  Retrospecto Histórico: {h2hData.clube1} × {h2hData.clube2}
-                </h3>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    className="btn-secondary"
-                    onClick={() =>
-                      baixarCardSocialPNG({
-                        categoria: 'Raio-X de Confrontos',
-                        titulo: `${h2hData.clube1} x ${h2hData.clube2}`,
-                        subtitulo: `${h2hData.total_jogos} confrontos oficiais catalogados no acervo`,
-                        metricas: [
-                          { label: `Vitórias ${h2hData.clube1}`, valor: h2hData.vitorias_clube1, cor: '#38BDF8' },
-                          { label: 'Empates', valor: h2hData.empates, cor: '#94A3B8' },
-                          { label: `Vitórias ${h2hData.clube2}`, valor: h2hData.vitorias_clube2, cor: '#F472B6' },
-                          { label: 'Total de Gols', valor: `${h2hData.gols_clube1}x${h2hData.gols_clube2}`, cor: '#10B981' }
-                        ],
-                        destaqueTexto: h2hData.tabu_invicto
-                          ? `Tabu ativo: ${h2hData.tabu_invicto.clube} está invicto há ${h2hData.tabu_invicto.jogos} jogos no confronto!`
-                          : `Média histórica de ${((h2hData.gols_clube1 + h2hData.gols_clube2) / Math.max(1, h2hData.total_jogos)).toFixed(2)} golos por partida.`,
-                        nomeArquivo: `h2h-${h2hData.clube1.toLowerCase()}-${h2hData.clube2.toLowerCase()}.png`
-                      })
-                    }
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.85rem' }}
-                  >
-                    <Share2 size={16} /> Baixar Card PNG (Twitter/X)
-                  </button>
-                  <button
-                    className="btn-primary"
-                    onClick={baixarCardH2H}
-                    disabled={downloadingCard}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.85rem' }}
-                  >
-                    <Camera size={16} />
-                    {downloadingCard ? 'Gerando Card...' : '📸 Baixar Card Quadrado (Instagram)'}
-                  </button>
-                </div>
-              </div>
-
-              {/* PLACAR GERAL RESUMO */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Vitórias de {h2hData.clube1}</div>
-                  <div className="font-mono" style={{ fontSize: '2.5rem', fontWeight: '700', color: '#0369A1' }}>
-                    {h2hData.vitorias_clube1}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {h2hData.total_jogos > 0 ? ((h2hData.vitorias_clube1 / h2hData.total_jogos) * 100).toFixed(1) : 0}% dos jogos
-                  </div>
-                </div>
-
-                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Empates</div>
-                  <div className="font-mono" style={{ fontSize: '2.5rem', fontWeight: '700', color: '#64748B' }}>
-                    {h2hData.empates}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {h2hData.total_jogos > 0 ? ((h2hData.empates / h2hData.total_jogos) * 100).toFixed(1) : 0}% dos jogos
-                  </div>
-                </div>
-
-                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Vitórias de {h2hData.clube2}</div>
-                  <div className="font-mono" style={{ fontSize: '2.5rem', fontWeight: '700', color: '#BE185D' }}>
-                    {h2hData.vitorias_clube2}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {h2hData.total_jogos > 0 ? ((h2hData.vitorias_clube2 / h2hData.total_jogos) * 100).toFixed(1) : 0}% dos jogos
-                  </div>
-                </div>
-
-                <div className="soft-card" style={{ padding: '20px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>Total de Jogos Oficiais</div>
-                  <div className="font-mono" style={{ fontSize: '2.5rem', fontWeight: '700' }}>
-                    {h2hData.total_jogos}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Gols: {h2hData.gols_clube1} x {h2hData.gols_clube2}
-                  </div>
-                </div>
-              </div>
-
-              {/* CARD DE TABU / INVENCIBILIDADE */}
-              {h2hData.tabu_invicto && (
-                <div className="soft-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '14px', borderLeft: '4px solid #10B981' }}>
-                  <Flame size={24} color="#10B981" />
-                  <div>
-                    <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>Série Invicte em Vigor: </strong>
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      O <strong style={{ color: '#10B981' }}>{h2hData.tabu_invicto.clube}</strong> não perde para o rival há <strong>{h2hData.tabu_invicto.jogos} confrontos seguidos</strong>.
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* GRÁFICO COMPARATIVO H2H POR COMPETIÇÃO (BARRAS DUPLAS) */}
-              <div style={{ marginBottom: '24px' }}>
-                <H2HCompetitionDualBarChart
-                  clube1={h2hData.clube1}
-                  clube2={h2hData.clube2}
-                  partidas={h2hData.partidas || []}
-                  cor1="#0369A1"
-                  cor2="#BE185D"
-                />
-              </div>
-
-              {/* MAIORES GOLEADAS */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-                <div className="soft-card" style={{ padding: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Trophy size={18} color="#0369A1" />
-                    <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Maior Goleada de {h2hData.clube1}</span>
-                  </div>
-                  {h2hData.maior_goleada_clube1 ? (
-                    <div>
-                      <div className="font-mono" style={{ fontSize: '1.4rem', fontWeight: '700', color: '#0369A1' }}>
-                        {h2hData.maior_goleada_clube1.mandante} {h2hData.maior_goleada_clube1.placar} {h2hData.maior_goleada_clube1.visitante}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        {h2hData.maior_goleada_clube1.data} • {h2hData.maior_goleada_clube1.campeonato} • {h2hData.maior_goleada_clube1.estadio || 'Estádio não inf.'}
-                      </div>
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nenhuma vitória catalogada</span>
-                  )}
-                </div>
-
-                <div className="soft-card" style={{ padding: '18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Trophy size={18} color="#BE185D" />
-                    <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Maior Goleada de {h2hData.clube2}</span>
-                  </div>
-                  {h2hData.maior_goleada_clube2 ? (
-                    <div>
-                      <div className="font-mono" style={{ fontSize: '1.4rem', fontWeight: '700', color: '#BE185D' }}>
-                        {h2hData.maior_goleada_clube2.mandante} {h2hData.maior_goleada_clube2.placar} {h2hData.maior_goleada_clube2.visitante}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        {h2hData.maior_goleada_clube2.data} • {h2hData.maior_goleada_clube2.campeonato} • {h2hData.maior_goleada_clube2.estadio || 'Estádio não inf.'}
-                      </div>
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Nenhuma vitória catalogada</span>
-                  )}
-                </div>
-              </div>
-
-              {/* LISTA DOS ÚLTIMOS CONFRONTOS */}
-              <div className="soft-card" style={{ padding: '20px' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '14px' }}>
-                  Últimos Confrontos Oficiais
-                </h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                        <th style={{ padding: '10px 8px' }}>Data</th>
-                        <th style={{ padding: '10px 8px' }}>Campeonato</th>
-                        <th style={{ padding: '10px 8px' }}>Partida</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
-                        <th style={{ padding: '10px 8px', textAlign: 'center' }}>Odds & Favorito</th>
-                        <th style={{ padding: '10px 8px' }}>Estádio</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {h2hData.partidas.map(p => (
-                        <tr key={p.id_partida} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td className="font-mono" style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>{p.data}</td>
-                          <td style={{ padding: '10px 8px' }}>
-                            <span className="badge badge-blue">{p.campeonato}</span>
-                          </td>
-                          <td style={{ padding: '10px 8px', fontWeight: '500' }}>
-                            {p.mandante} <span style={{ color: 'var(--text-subtle)' }}>x</span> {p.visitante}
-                          </td>
-                          <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700' }}>
-                            {p.placar || (p.gols_mandante != null && p.gols_visitante != null ? `${p.gols_mandante} x ${p.gols_visitante}` : '—')}
-                          </td>
-                          <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                            {p.odd_mandante ? (
-                              <div style={{ fontSize: '0.78rem' }} className="font-mono">
-                                <span title={`Probabilidade Mandante: ${p.prob_mandante}%`}>
-                                  <strong>{p.odd_mandante}</strong>
-                                </span>
-                                <span style={{ color: 'var(--text-muted)' }}> • </span>
-                                <span title={`Probabilidade Empate: ${p.prob_empate}%`}>
-                                  {p.odd_empate}
-                                </span>
-                                <span style={{ color: 'var(--text-muted)' }}> • </span>
-                                <span title={`Probabilidade Visitante: ${p.prob_visitante}%`}>
-                                  <strong>{p.odd_visitante}</strong>
-                                </span>
-                                {p.status_zebra && p.status_zebra.includes('Zebra') && (
-                                  <div style={{ marginTop: '2px' }}>
-                                    <span className="badge badge-pink" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
-                                      {p.status_zebra}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>-</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 8px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                            {p.estadio || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+        <ClubCompareView
+          darkMode={darkMode}
+          clubesList={clubesList}
+          clubeInicial1={clube1 || 'Flamengo'}
+          clubeInicial2={clube2 || 'Vasco'}
+        />
       )}
 
       {/* ABA 3: ORÁCULO & IA ANALISTA */}
@@ -2542,6 +2295,7 @@ export default function App() {
         />
       )}
 
-      </AppShell>
+      </Suspense>
+    </AppShell>
   );
 }

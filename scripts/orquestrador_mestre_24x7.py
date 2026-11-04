@@ -249,6 +249,7 @@ def ciclo_mestre(numero_ciclo: int):
 
     safe_print("\n>>> [FASE C] Auditoria Universal de Atletas, OGol e Auto-Cura <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "auditar_e_reconciliar_jogadores_ogol.py"), "--limit", "30"])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "enriquecer_palmares_ogol.py"), "--limit", "15"])
 
     safe_print("\n>>> [FASE C] Validação e Auditoria da Integridade Relacional do Banco <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "validar_banco.py")])
