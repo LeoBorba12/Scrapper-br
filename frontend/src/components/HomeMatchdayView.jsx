@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Trophy,
   Swords,
@@ -71,6 +71,82 @@ export default function HomeMatchdayView({
   const [rankingMode, setRankingMode] = useState('ponderado'); // 'ponderado' (Pesos de Títulos/Campanhas) | 'campo' (Desempenho Real)
   const [rankingSearch, setRankingSearch] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Estados e controle de rolagem interativa / arrasto do Ticker de Partidas
+  const tickerScrollRef = useRef(null);
+  const [podeRolarEsquerda, setPodeRolarEsquerda] = useState(false);
+  const [podeRolarDireita, setPodeRolarDireita] = useState(true);
+  const isDraggingTickerRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragScrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
+  const checarLimitesScroll = useCallback(() => {
+    const el = tickerScrollRef.current;
+    if (!el) return;
+    const tol = 6;
+    setPodeRolarEsquerda(el.scrollLeft > tol);
+    setPodeRolarDireita(el.scrollLeft + el.clientWidth < el.scrollWidth - tol);
+  }, []);
+
+  const rolarTicker = (distancia) => {
+    const el = tickerScrollRef.current;
+    if (el) {
+      el.scrollBy({ left: distancia, behavior: 'smooth' });
+      setTimeout(checarLimitesScroll, 280);
+    }
+  };
+
+  useEffect(() => {
+    const el = tickerScrollRef.current;
+    if (!el) return;
+
+    checarLimitesScroll();
+    el.addEventListener('scroll', checarLimitesScroll, { passive: true });
+    window.addEventListener('resize', checarLimitesScroll, { passive: true });
+
+    // Permite rolar horizontalmente com a rodinha vertical do mouse
+    const handleWheel = (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && el.scrollWidth > el.clientWidth) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+        checarLimitesScroll();
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      el.removeEventListener('scroll', checarLimitesScroll);
+      window.removeEventListener('resize', checarLimitesScroll);
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [cockpitData?.ticker_jogos, checarLimitesScroll]);
+
+  const handleTickerMouseDown = (e) => {
+    const el = tickerScrollRef.current;
+    if (!el) return;
+    isDraggingTickerRef.current = true;
+    hasDraggedRef.current = false;
+    dragStartXRef.current = e.pageX - el.offsetLeft;
+    dragScrollLeftRef.current = el.scrollLeft;
+  };
+
+  const handleTickerMouseMove = (e) => {
+    if (!isDraggingTickerRef.current) return;
+    const el = tickerScrollRef.current;
+    if (!el) return;
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - dragStartXRef.current) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasDraggedRef.current = true;
+    }
+    el.scrollLeft = dragScrollLeftRef.current - walk;
+    checarLimitesScroll();
+  };
+
+  const handleTickerMouseUpOrLeave = () => {
+    isDraggingTickerRef.current = false;
+  };
 
   // Carregar dados da Home Matchday Cockpit
   const carregarCockpit = async (dataQuery = '') => {
@@ -211,96 +287,204 @@ export default function HomeMatchdayView({
             </span>
           </div>
 
-          {/* Carrossel / Faixa deslizante de jogos */}
-          <div
+          {/* Botão de Navegação / Rolar para a Esquerda */}
+          <button
+            type="button"
+            onClick={() => rolarTicker(-320)}
+            disabled={!podeRolarEsquerda}
+            aria-label="Rolar partidas anteriores"
+            className="touch-tactile"
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '12px',
-              overflowX: 'auto',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              padding: '2px 0'
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              color: podeRolarEsquerda ? 'var(--text-primary)' : 'var(--text-muted)',
+              opacity: podeRolarEsquerda ? 1 : 0.35,
+              cursor: podeRolarEsquerda ? 'pointer' : 'default',
+              flexShrink: 0,
+              boxShadow: podeRolarEsquerda ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 150ms ease'
             }}
           >
-            {(cockpitData?.ticker_jogos || []).map((jogo) => {
-              const badge = getTournamentBadge(jogo.campeonato);
-              return (
-                <div
-                  key={jogo.id_partida}
-                  onClick={() => onSelectH2H && onSelectH2H(jogo.mandante, jogo.visitante)}
-                  style={{
-                    backgroundColor: 'var(--surface-card)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '9999px',
-                    padding: '4px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 180ms ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--accent)';
-                    e.currentTarget.style.backgroundColor = 'var(--surface-card-hover)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                    e.currentTarget.style.backgroundColor = 'var(--surface-card)';
-                  }}
-                  title={`Confronto direto: ${jogo.mandante} x ${jogo.visitante}`}
-                >
-                  <span
-                    style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      backgroundColor: badge.bg,
-                      color: badge.text,
-                      border: `1px solid ${badge.border}`,
-                      borderRadius: '9999px',
-                      padding: '1px 6px'
-                    }}
-                  >
-                    {badge.label}
-                  </span>
+            <ChevronLeft size={16} />
+          </button>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <ClubShield name={jogo.mandante} size={18} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {jogo.mandante}
-                    </span>
+          {/* Container Relativo com Fade Gradiente e Carrossel Deslizante */}
+          <div
+            style={{
+              position: 'relative',
+              flex: 1,
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {/* Fade suave de continuidade à esquerda */}
+            {podeRolarEsquerda && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: '30px',
+                  background: 'linear-gradient(to right, var(--surface-panel), transparent)',
+                  pointerEvents: 'none',
+                  zIndex: 2
+                }}
+              />
+            )}
+
+            {/* Faixa deslizante de jogos (Suporta Drag-to-Scroll e Rodinha do Mouse) */}
+            <div
+              ref={tickerScrollRef}
+              onMouseDown={handleTickerMouseDown}
+              onMouseMove={handleTickerMouseMove}
+              onMouseUp={handleTickerMouseUpOrLeave}
+              onMouseLeave={handleTickerMouseUpOrLeave}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                padding: '2px 4px',
+                cursor: isDraggingTickerRef.current ? 'grabbing' : 'grab',
+                userSelect: 'none',
+                width: '100%'
+              }}
+            >
+              {(cockpitData?.ticker_jogos || []).map((jogo) => {
+                const badge = getTournamentBadge(jogo.campeonato);
+                return (
+                  <div
+                    key={jogo.id_partida}
+                    onClick={() => {
+                      if (hasDraggedRef.current) return;
+                      onSelectH2H && onSelectH2H(jogo.mandante, jogo.visitante);
+                    }}
+                    style={{
+                      backgroundColor: 'var(--surface-card)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '9999px',
+                      padding: '4px 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      transition: 'all 180ms ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--accent)';
+                      e.currentTarget.style.backgroundColor = 'var(--surface-card-hover)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                      e.currentTarget.style.backgroundColor = 'var(--surface-card)';
+                    }}
+                    title={`Confronto direto: ${jogo.mandante} x ${jogo.visitante}`}
+                  >
                     <span
                       style={{
-                        fontSize: '0.78rem',
-                        fontWeight: 800,
-                        fontFamily: 'monospace',
-                        color: jogo.finalizado ? 'var(--positive)' : 'var(--text-muted)',
-                        padding: '0 3px'
+                        fontSize: '0.65rem',
+                        fontWeight: 700,
+                        backgroundColor: badge.bg,
+                        color: badge.text,
+                        border: `1px solid ${badge.border}`,
+                        borderRadius: '9999px',
+                        padding: '1px 6px'
                       }}
                     >
-                      {jogo.placar}
+                      {badge.label}
                     </span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {jogo.visitante}
-                    </span>
-                    <ClubShield name={jogo.visitante} size={18} />
-                  </div>
 
-                  <span
-                    style={{
-                      fontSize: '0.68rem',
-                      color: 'var(--text-secondary)',
-                      borderLeft: '1px solid var(--border-subtle)',
-                      paddingLeft: '8px'
-                    }}
-                  >
-                    {jogo.data_formatada || jogo.data}
-                  </span>
-                </div>
-              );
-            })}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <ClubShield name={jogo.mandante} size={18} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {jogo.mandante}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.78rem',
+                          fontWeight: 800,
+                          fontFamily: 'monospace',
+                          color: jogo.finalizado ? 'var(--positive)' : 'var(--text-muted)',
+                          padding: '0 3px'
+                        }}
+                      >
+                        {jogo.placar}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {jogo.visitante}
+                      </span>
+                      <ClubShield name={jogo.visitante} size={18} />
+                    </div>
+
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        color: 'var(--text-secondary)',
+                        borderLeft: '1px solid var(--border-subtle)',
+                        paddingLeft: '8px'
+                      }}
+                    >
+                      {jogo.data_formatada || jogo.data}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Fade suave de continuidade à direita */}
+            {podeRolarDireita && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: '34px',
+                  background: 'linear-gradient(to left, var(--surface-panel), transparent)',
+                  pointerEvents: 'none',
+                  zIndex: 2
+                }}
+              />
+            )}
           </div>
+
+          {/* Botão de Navegação / Rolar para a Direita */}
+          <button
+            type="button"
+            onClick={() => rolarTicker(320)}
+            disabled={!podeRolarDireita}
+            aria-label="Rolar próximas partidas"
+            className="touch-tactile"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              color: podeRolarDireita ? 'var(--text-primary)' : 'var(--text-muted)',
+              opacity: podeRolarDireita ? 1 : 0.35,
+              cursor: podeRolarDireita ? 'pointer' : 'default',
+              flexShrink: 0,
+              boxShadow: podeRolarDireita ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 150ms ease'
+            }}
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       </section>
 
