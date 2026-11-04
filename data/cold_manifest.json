@@ -1,12 +1,12 @@
 {
   "arquivo": "futebol_cold.db.gz",
-  "sha256": "6a79f7c70f6e20eb3e97e5db72200cd69ab84de40c0d93de9875e8c626c72f77",
-  "tamanho_bytes": 1420151,
-  "gerado_em": "2026-11-04 17:18:04",
-  "schema_version": "cold_v1",
+  "sha256": "b4abacccdb0b23b022fbe3eb44fb5e326627fbe02bac2a021315b2ca5e8ee60e",
+  "tamanho_bytes": 1833292,
+  "gerado_em": "2026-11-04 17:27:45",
+  "schema_version": "cold_v2",
   "tabelas": {
-    "escalacoes_arquivadas": 32980,
-    "cartoes_arquivadas": 27004,
+    "escalacoes_arquivadas": 44231,
+    "cartoes_arquivadas": 31637,
     "cold_odds_partidas": 5095
   }
 }
