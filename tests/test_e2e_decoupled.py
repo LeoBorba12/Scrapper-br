@@ -950,3 +950,115 @@ class TestTier4RealWorldScenarios:
         assert "prob_mandante" in dc and "prob_empate" in dc and "prob_visitante" in dc
         soma_prob = dc["prob_mandante"] + dc["prob_empate"] + dc["prob_visitante"]
         assert abs(soma_prob - 100.0) <= 0.1, f"Probabilidades 1X2 somam {soma_prob:.2f}% != 100%"
+
+
+# ==============================================================================
+# TIER 5: ADVERSARIAL HARDENING & STRESS RESILIENCE (MARCO M4)
+# ==============================================================================
+
+class TestTier5AdversarialHardening:
+    """Testes de estresse e resiliência adversarial da arquitetura desacoplada sob falhas caóticas."""
+
+    @pytest.mark.tier5
+    def test_t5_adversarial_timeout_burst_resilience(self, api_client, monkeypatch):
+        """Disparo em rajada com timeout de socket upstream: 100% failover transparente para SQLite."""
+        monkeypatch.setenv("FUTSTATS_REMOTE_GATEWAY_URL", "http://mock-unresponsive-gateway.internal:8000")
+        monkeypatch.setenv("FUTSTATS_GATEWAY_TIMEOUT_SEC", "0.05")
+        proxy_client.breaker.reset()
+        proxy_client.cache.clear()
+
+        with patch("requests.Session.request", side_effect=requests.exceptions.Timeout("Upstream socket hang")):
+            respostas = [api_client.get("/api/overview") for _ in range(5)]
+
+        assert all(r.status_code == 200 for r in respostas), "Falha no fallback durante rajada de timeouts"
+        for r in respostas:
+            assert r.headers.get("X-Data-Source") == "local-fallback"
+            assert r.headers.get("X-Fallback-Reason") in ["remote_timeout", "circuit_open"]
+            data = r.get_json()
+            assert "total_partidas" in data
+            assert data["total_partidas"] > 100000
+
+    @pytest.mark.tier5
+    def test_t5_adversarial_circuit_breaker_saturation_recovery(self):
+        """Saturação do circuit breaker com erros 503 consecutivos, fast-fail e recuperação após cooldown."""
+        cb = CircuitBreaker(failure_threshold=3, recovery_time=0.1)
+
+        # 3 falhas consecutivas disparam o circuito para OPEN
+        cb.record_failure()
+        cb.record_failure()
+        assert cb.state == CircuitBreaker.STATE_CLOSED
+        cb.record_failure()
+        assert cb.state == CircuitBreaker.STATE_OPEN
+
+        # Durante o cooldown, can_attempt deve retornar False imediatamente (fast-fail sem I/O de rede)
+        assert not cb.can_attempt()
+        assert not cb.can_attempt()
+
+        # Cooldown expira: transição para HALF-OPEN
+        time.sleep(0.12)
+        assert cb.can_attempt()
+        assert cb.state == CircuitBreaker.STATE_HALF_OPEN
+
+        # Sonda bem-sucedida restaura circuito para CLOSED
+        cb.record_success()
+        assert cb.state == CircuitBreaker.STATE_CLOSED
+        assert cb.failure_count == 0
+
+    @pytest.mark.tier5
+    def test_t5_adversarial_corrupted_json_payload_sanitization(self, api_client, monkeypatch):
+        """Gateway remoto entrega HTML de erro 200 com payload corrompido: fallback local higienizado."""
+        monkeypatch.setenv("FUTSTATS_REMOTE_GATEWAY_URL", "http://mock-corrupted-gateway.internal:8000")
+        proxy_client.breaker.reset()
+        proxy_client.cache.clear()
+
+        # Mock de resposta 200 com HTML de proxy corrompido ao invés de JSON
+        mock_resp = requests.Response()
+        mock_resp.status_code = 200
+        mock_resp._content = b"<html><head><title>502 Bad Gateway Nginx</title></head><body>Invalid Body</body></html>"
+
+        with patch("requests.Session.request", return_value=mock_resp):
+            response = api_client.get("/api/campeonatos")
+
+        assert response.status_code == 200
+        assert response.headers.get("X-Data-Source") == "local-fallback"
+        data = response.get_json()
+        assert isinstance(data, list)
+        assert len(data) > 0
+        assert "campeonato" in data[0]
+
+    @pytest.mark.tier5
+    def test_t5_adversarial_concurrent_fallback_under_wal_stress(self, api_client):
+        """Concorrência multi-thread pesada contra o fallback local sob checkpoint WAL contínuo."""
+        def requisitar_com_checkpoint(i):
+            # A cada 3 threads, dispara um checkpoint WAL passivo no SQLite
+            if i % 3 == 0:
+                try:
+                    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+                    conn.execute("PRAGMA wal_checkpoint(PASSIVE);")
+                    conn.close()
+                except Exception:
+                    pass
+            with app.test_client() as c:
+                resp = c.get("/api/overview")
+                return resp.status_code
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            codigos = list(executor.map(requisitar_com_checkpoint, range(15)))
+
+        assert all(c == 200 for c in codigos), f"Erros observados sob estresse WAL concorrente: {codigos}"
+
+    @pytest.mark.tier5
+    def test_t5_adversarial_telemetry_header_tampering_defense(self, api_client):
+        """Tentativa de injeção/tampering de headers de telemetria pelo cliente é neutralizada."""
+        headers_adulterados = {
+            "X-Data-Source": "remote-master-spoofed",
+            "X-Circuit-Breaker-State": "hacked-closed",
+            "X-Fallback-Reason": "none"
+        }
+        response = api_client.get("/api/health", headers=headers_adulterados)
+        assert response.status_code == 200
+
+        # O servidor deve sobrescrever rigorosamente com os valores reais de tempo de execução
+        assert response.headers.get("X-Data-Source") in ["remote-gateway", "local-fallback", "local-standalone", "cache"]
+        assert response.headers.get("X-Data-Source") != "remote-master-spoofed"
+        assert response.headers.get("X-Circuit-Breaker-State") in ["closed", "open", "half-open"]

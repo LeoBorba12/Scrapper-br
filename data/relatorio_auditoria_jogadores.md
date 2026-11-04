@@ -1,23 +1,16 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-03 20:33:28*
+*Gerado automaticamente em: 2026-11-03 21:33:52*
 
 ## Resumo Executivo da Auditoria
 
 - **Total de Atletas Analisados**: 30
-- 🟢 **Atletas Íntegros e Consistentes**: 27
+- 🟢 **Atletas Íntegros e Consistentes**: 28
 - 🛠️ **Casos Auto-Reparados (Auto-healing)**: 2
-- ⚠️ **Casos com Discrepância Pendente (Requer Moderação)**: 1
+- ⚠️ **Casos com Discrepância Pendente (Requer Moderação)**: 0
 
 ## Metodologia de Verificação & Regra do ID
 Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `id_jogador` e validado contra o `ogol_id` e a carreira oficial de referência. Quando $gols_{acervo} > gols_{oficiais}$, o sistema consulta o perfil oficial no portal OGol para atualizar os metadados de carreira. Se a divergência persistir, ele isola e desassocia gols pertencentes a homônimos de clubes distintos.
-
-## ⚠️ Atletas que Requerem Atenção da Moderação
-
-| ID | Atleta | OGol ID | Gols Acervo | Gols Carreira | Diagnóstico |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| `106` | **Reinaldo** | `241987` | **65** | 64 | Gols no acervo (65) superam carreira oficial (64). Perfil OGol não localizado. |
-
 
 ## 🛠️ Atletas com Auto-Reparo Concluído
 
@@ -58,3 +51,4 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `12161` | **Roger** | `5713` | 143 | 143 | `Grêmio,Atlético-GO,Brasiliense,Ponte Pre` | 🟢 OK |
 | `8980` | **Luizão** | `4663` | 142 | 242 | `Guarani,Corinthians,Flamengo,Vasco,São P` | 🟢 OK |
 | `13219` | **Túlio Maravilha** | `42587` | 141 | 599 | `Goiás,Botafogo,Santa Cruz,Vitória,Juvent` | 🟢 OK |
+| `11` | **Germán Cano** | `36577` | 140 | 322 | `Peñarol,Sol de América,Nacional,Independ` | 🟢 OK |
