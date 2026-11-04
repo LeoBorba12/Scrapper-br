@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
 import TrophyGallery3D from './TrophyGallery3D';
+import SeloCoberturaClube from './SeloCoberturaClube';
 
 export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
   const [perfil, setPerfil] = useState(null);
@@ -202,6 +203,9 @@ export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
 
               <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 {info.nome_oficial}
+              </div>
+              <div style={{ marginTop: '8px' }}>
+                <SeloCoberturaClube coberturaPct={info.cobertura_pct || (info.fundacao ? 100 : 70)} />
               </div>
             </div>
           </div>

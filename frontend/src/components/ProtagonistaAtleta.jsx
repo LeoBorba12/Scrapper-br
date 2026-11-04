@@ -15,6 +15,7 @@ import { sanitizarListaClubes, sanitizarCarreiraClubes } from '../utils/clubData
 import { obterRenderAtleta } from '../utils/playerRenders';
 import HolographicAthleteCard from './HolographicAthleteCard';
 import MarketValueChart from './MarketValueChart';
+import ProducaoOfensivaGoldenCard from './ProducaoOfensivaGoldenCard';
 
 export default function ProtagonistaAtleta({
   // Estado de busca & rankings
@@ -1482,6 +1483,9 @@ export default function ProtagonistaAtleta({
             </div>
 
             <div style={{ padding: '16px' }}>
+              {/* Card de Produção Ofensiva por 90 Minutos (Golden Dataset - Fase 2) */}
+              <ProducaoOfensivaGoldenCard atletaId={atleta.id_jogador} atletaNome={atleta.nome_exibicao || atleta.nome} />
+
               {/* Sub-aba Partidas com Paginação Robusta (Lote 3) */}
               {subTab === 'partidas' && (() => {
                 const totalPartidas = (atleta.partidas || []).length;

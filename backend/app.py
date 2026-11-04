@@ -6081,6 +6081,173 @@ def static_proxy(path):
         return send_from_directory(FRONTEND_DIST, 'index.html')
     return jsonify({"error": "Arquivo não encontrado"}), 404
 
+
+# ==============================================================================
+# FASE 2: ROTAS DO GOLDEN DATASET & PRODUÇÃO OFENSIVA POR 90 (Desafio 26)
+# ==============================================================================
+
+@app.route('/api/atletas/metricas-golden', methods=['GET'])
+def get_atletas_metricas_golden():
+    """
+    Retorna métricas de produção ofensiva (Gols/90, Titularidade %, Dependência Ofensiva)
+    do Golden Dataset com classificação de amostra e limitações de dados.
+    """
+    atleta_id = request.args.get('atleta_id', type=int)
+    clube_id = request.args.get('clube_id', type=int)
+    amostra_apenas = request.args.get('amostra_minima', default='1') == '1'
+    limit = request.args.get('limit', default=100, type=int)
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    query = """
+    SELECT
+      a.atleta_id,
+      a.nome_exibicao AS atleta,
+      cl.clube_id,
+      cl.nome_exibicao AS clube,
+      comp.competicao_id,
+      comp.nome AS competicao,
+      m.periodo,
+      m.jogos,
+      m.titularidades,
+      m.minutos,
+      m.gols,
+      m.assistencias,
+      m.cartoes_amarelos,
+      m.cartoes_vermelhos,
+      ROUND(m.gols_por_90, 2) AS gols_por_90,
+      ROUND(m.titularidade_pct, 1) AS titularidade_pct,
+      ROUND(m.dependencia_ofensiva, 3) AS dependencia_ofensiva,
+      m.amostra_minima,
+      m.calculado_em
+    FROM metrica_atleta_golden m
+    JOIN dim_atleta a ON a.atleta_id = m.atleta_id
+    JOIN dim_clube cl ON cl.clube_id = m.clube_id
+    JOIN dim_competicao comp ON comp.competicao_id = m.competicao_id
+    WHERE 1=1
+    """
+    params = []
+    if atleta_id:
+        query += " AND m.atleta_id = ?"
+        params.append(atleta_id)
+    if clube_id:
+        query += " AND m.clube_id = ?"
+        params.append(clube_id)
+    if amostra_apenas:
+        query += " AND m.amostra_minima = 1"
+
+    limit_safe = min(1000, max(1, limit))
+    query += f" ORDER BY m.gols_por_90 DESC, m.minutos DESC LIMIT {limit_safe};"
+
+    rows = cursor.execute(query, params).fetchall()
+    conn.close()
+
+    resultado = []
+    for r in rows:
+        minutos = r['minutos']
+        if minutos < 270:
+            classificacao = "Insuficiente"
+            confianca_editorial = "Abaixo do corte estatístico (descartado para ranking)"
+        elif minutos < 900:
+            classificacao = "Sinal fraco"
+            confianca_editorial = "Amostra preliminar (270 a 899 minutos)"
+        elif minutos < 2700:
+            classificacao = "Sinal razoável"
+            confianca_editorial = "Amostra consistente (900 a 2.699 minutos)"
+        else:
+            classificacao = "Robusto"
+            confianca_editorial = "Alta relevância estatística (2.700+ minutos)"
+
+        resultado.append({
+            'atleta_id': r['atleta_id'],
+            'atleta': r['atleta'],
+            'clube_id': r['clube_id'],
+            'clube': r['clube'],
+            'competicao_id': r['competicao_id'],
+            'competicao': r['competicao'],
+            'periodo': r['periodo'],
+            'jogos': r['jogos'],
+            'titularidades': r['titularidades'],
+            'minutos': r['minutos'],
+            'gols': r['gols'],
+            'assistencias': r['assistencias'],
+            'cartoes_amarelos': r['cartoes_amarelos'],
+            'cartoes_vermelhos': r['cartoes_vermelhos'],
+            'gols_por_90': r['gols_por_90'],
+            'titularidade_pct': r['titularidade_pct'],
+            'dependencia_ofensiva': r['dependencia_ofensiva'],
+            'amostra_minima': r['amostra_minima'],
+            'classificacao_amostra': classificacao,
+            'confianca_editorial': confianca_editorial,
+            'limitacoes': "Exclui minutos de prorrogação; gols sem pênaltis não discriminados nesta fase."
+        })
+
+    return jsonify({
+        'total': len(resultado),
+        'metrica': 'Gols por 90 & Dependência Ofensiva',
+        'corte_amostra_minutos': 270,
+        'dados': resultado
+    })
+
+
+@app.route('/api/clubes/cobertura-sla', methods=['GET'])
+def get_clubes_cobertura_sla():
+    """
+    Retorna o nível de cobertura cadastral e editorial dos clubes com seus respectivos selos:
+    - 100%: Dossiê completo
+    - 80-99%: Dossiê com aviso
+    - < 80%: Retrospecto básico
+    - < 50%: Página restrita
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    rows = cursor.execute("""
+        SELECT 
+            clube_id, nome, nome_oficial, estado, pais, fundacao,
+            CASE 
+                WHEN fundacao IS NOT NULL AND estado IS NOT NULL AND nome_oficial IS NOT NULL THEN 100.0
+                WHEN estado IS NOT NULL AND (fundacao IS NOT NULL OR nome_oficial IS NOT NULL) THEN 85.0
+                WHEN estado IS NOT NULL THEN 60.0
+                ELSE 40.0
+            END AS cobertura_pct
+        FROM dim_clube
+        ORDER BY cobertura_pct DESC, nome ASC
+    """).fetchall()
+    conn.close()
+
+    resultado = []
+    for r in rows:
+        pct = r['cobertura_pct']
+        if pct >= 100.0:
+            experiencia = "Dossiê completo"
+            badge = "COBERTURA_TOTAL"
+        elif pct >= 80.0:
+            experiencia = "Dossiê com aviso"
+            badge = "COBERTURA_PARCIAL"
+        elif pct >= 50.0:
+            experiencia = "Retrospecto básico"
+            badge = "RETROSPECTO_BASICO"
+        else:
+            experiencia = "Página restrita"
+            badge = "PAGINA_RESTRITA"
+
+        resultado.append({
+            'clube_id': r['clube_id'],
+            'nome': r['nome'],
+            'nome_oficial': r['nome_oficial'],
+            'estado': r['estado'],
+            'cobertura_pct': pct,
+            'experiencia': experiencia,
+            'selo': badge
+        })
+
+    return jsonify({
+        'total': len(resultado),
+        'clubes': resultado
+    })
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Iniciando API de Futebol & Clima em http://localhost:{port}")
