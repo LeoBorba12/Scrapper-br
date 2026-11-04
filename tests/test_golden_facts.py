@@ -596,6 +596,41 @@ def test_fact_sanitizacao_clubes_pedro_e_gabigol():
 
     conn.close()
 
+def test_fact_sanitizacao_clubes_arrascaeta_e_baier():
+    """Valida que Arrascaeta só possui Flamengo, Cruzeiro e Defensor Sporting, e situação 'Em atividade'."""
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 1. Arrascaeta (ID 8)
+    cur.execute("SELECT clubes, situacao, data_nascimento, idade FROM jogadores_estatisticas WHERE id_jogador = 8;")
+    arrasca = cur.fetchone()
+    assert arrasca is not None, "Arrascaeta (ID 8) não encontrado"
+    clubes_arrasca = [c.strip() for c in arrasca["clubes"].split(",")]
+    assert "Athletico-PR" not in clubes_arrasca, f"Athletico-PR não deve constar nos clubes de Arrascaeta: {clubes_arrasca}"
+    assert "Corinthians" not in clubes_arrasca, f"Corinthians não deve constar nos clubes de Arrascaeta: {clubes_arrasca}"
+    assert "The Strongest" not in clubes_arrasca, f"The Strongest não deve constar nos clubes de Arrascaeta: {clubes_arrasca}"
+    assert set(clubes_arrasca) == {"Flamengo", "Cruzeiro", "Defensor Sporting"}, f"Clubes inesperados para Arrascaeta: {clubes_arrasca}"
+    assert arrasca["situacao"] == "Em atividade", f"Arrascaeta deve estar em atividade, obtido: {arrasca['situacao']}"
+    assert arrasca["idade"] <= 35, f"Idade de Arrascaeta inconsistente: {arrasca['idade']}"
+
+    # Nenhuma escalação de Arrascaeta fora de Flamengo, Cruzeiro e Defensor Sporting
+    cur.execute("SELECT count(*) FROM escalacoes WHERE id_jogador = 8 AND clube NOT IN ('Flamengo', 'Cruzeiro', 'Defensor Sporting');")
+    assert cur.fetchone()[0] == 0, "Escalações espúrias vinculadas a Arrascaeta (ID 8)"
+
+    # 2. Paulo Baier (ID 11046)
+    cur.execute("SELECT clubes FROM jogadores_estatisticas WHERE id_jogador = 11046;")
+    baier = cur.fetchone()
+    assert baier is not None, "Paulo Baier (ID 11046) não encontrado"
+    clubes_baier = [c.strip() for c in baier["clubes"].split(",")]
+    assert "Flamengo" not in clubes_baier, f"Flamengo não deve constar nos clubes de Paulo Baier: {clubes_baier}"
+    assert "Corinthians" not in clubes_baier, f"Corinthians não deve constar nos clubes de Paulo Baier: {clubes_baier}"
+
+    # Sem duplicatas de perfil fantasma 'Paulo Baier 90+'
+    cur.execute("SELECT count(*) FROM jogadores_estatisticas WHERE nome_exibicao LIKE 'Paulo Baier 90%';")
+    assert cur.fetchone()[0] == 0, "Perfil fantasma 'Paulo Baier 90+' ainda reside no banco"
+
+    conn.close()
+
 
 
 

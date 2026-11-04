@@ -471,6 +471,8 @@ def auditar_e_reparar_dados():
     CLUBES_CANONICOS_PROTEGIDOS = {
         10: ["Flamengo", "Fluminense"],
         7: ["Santos", "Flamengo", "Cruzeiro"],
+        8: ["Flamengo", "Cruzeiro", "Defensor Sporting"],
+        11046: ["Criciúma", "Athletico-PR", "Goiás", "Palmeiras", "Atlético-MG", "Sport", "Botafogo", "América-MG", "São Paulo", "Ponte Preta", "Santos", "Ypiranga-RS"],
     }
     clubes_defasados = c.fetchall()
     reparados_clubes = 0
