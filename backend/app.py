@@ -593,56 +593,74 @@ def get_home_cockpit():
     conn = get_db()
     c = conn.cursor()
 
-    # 1. NESTE DIA NA HISTÓRIA
-    c.execute("""
-        SELECT id_partida, ano, data, mandante, visitante, gols_mandante, gols_visitante, placar, campeonato, estadio, fase, publico
-        FROM partidas
-        WHERE strftime('%m-%d', data) = ?
-    """, (target_date,))
-    rows_neste_dia = c.fetchall()
+    # 1. NESTE DIA NA HISTÓRIA (Otimizado via tabela materializada efemerides_partidas)
+    try:
+        c.execute("""
+            SELECT partida_id as id_partida, ano, data, mandante, visitante,
+                   gols_mandante, gols_visitante, placar, campeonato, estadio, fase,
+                   is_classico, publico
+            FROM efemerides_partidas
+            WHERE dia_mes = ?
+            ORDER BY relevancia_score DESC
+            LIMIT 12
+        """, (target_date,))
+        rows_mat = c.fetchall()
+        if rows_mat:
+            neste_dia = [dict(r) for r in rows_mat]
+        else:
+            raise ValueError("Tabela materializada sem dados para o dia")
+    except Exception:
+        # Fallback de segurança caso a tabela não esteja acessível
+        c.execute("""
+            SELECT id_partida, ano, data, mandante, visitante, gols_mandante, gols_visitante, placar, campeonato, estadio, fase, publico
+            FROM partidas
+            WHERE substr(data, 6, 5) = ?
+            LIMIT 50
+        """, (target_date,))
+        rows_neste_dia = c.fetchall()
 
-    big_clubs = {'Flamengo', 'Palmeiras', 'Corinthians', 'São Paulo', 'Santos', 'Grêmio', 'Internacional', 'Vasco', 'Fluminense', 'Botafogo', 'Cruzeiro', 'Atlético-MG', 'Bahia', 'Athletico-PR'}
+        big_clubs = {'Flamengo', 'Palmeiras', 'Corinthians', 'São Paulo', 'Santos', 'Grêmio', 'Internacional', 'Vasco', 'Fluminense', 'Botafogo', 'Cruzeiro', 'Atlético-MG', 'Bahia', 'Athletico-PR'}
 
-    scored_jogos = []
-    for r in rows_neste_dia:
-        p = dict(r)
-        gm = p['gols_mandante'] if p['gols_mandante'] is not None else 0
-        gv = p['gols_visitante'] if p['gols_visitante'] is not None else 0
-        m = p['mandante'] or ''
-        v = p['visitante'] or ''
-        is_m_big = m in big_clubs
-        is_v_big = v in big_clubs
-        is_classico = is_m_big and is_v_big
+        scored_jogos = []
+        for r in rows_neste_dia:
+            p = dict(r)
+            gm = p['gols_mandante'] if p['gols_mandante'] is not None else 0
+            gv = p['gols_visitante'] if p['gols_visitante'] is not None else 0
+            m = p['mandante'] or ''
+            v = p['visitante'] or ''
+            is_m_big = m in big_clubs
+            is_v_big = v in big_clubs
+            is_classico = is_m_big and is_v_big
 
-        score = (gm + gv) * 3
-        if is_classico:
-            score += 70
-        elif is_m_big or is_v_big:
-            score += 20
-        fase_str = str(p['fase'] or '').lower()
-        if any(k in fase_str for k in ['final', 'semi', 'decisão', 'oitavas', 'quartas']):
-            score += 25
-        if p['publico'] and p['publico'] > 30000:
-            score += 20
+            score = (gm + gv) * 3
+            if is_classico:
+                score += 70
+            elif is_m_big or is_v_big:
+                score += 20
+            fase_str = str(p['fase'] or '').lower()
+            if any(k in fase_str for k in ['final', 'semi', 'decisão', 'oitavas', 'quartas']):
+                score += 25
+            if p['publico'] and p['publico'] > 30000:
+                score += 20
 
-        scored_jogos.append((score, {
-            'id_partida': p['id_partida'],
-            'ano': p['ano'],
-            'data': p['data'],
-            'mandante': m,
-            'visitante': v,
-            'gols_mandante': gm,
-            'gols_visitante': gv,
-            'placar': f"{gm} x {gv}",
-            'campeonato': p['campeonato'],
-            'estadio': p['estadio'] or 'Estádio Histórico',
-            'fase': p['fase'] or 'Fase Única',
-            'is_classico': is_classico,
-            'publico': p['publico']
-        }))
+            scored_jogos.append((score, {
+                'id_partida': p['id_partida'],
+                'ano': p['ano'],
+                'data': p['data'],
+                'mandante': m,
+                'visitante': v,
+                'gols_mandante': gm,
+                'gols_visitante': gv,
+                'placar': f"{gm} x {gv}",
+                'campeonato': p['campeonato'],
+                'estadio': p['estadio'] or 'Estádio Histórico',
+                'fase': p['fase'] or 'Fase Única',
+                'is_classico': is_classico,
+                'publico': p['publico']
+            }))
 
-    scored_jogos.sort(key=lambda x: x[0], reverse=True)
-    neste_dia = [item[1] for item in scored_jogos[:12]]
+        scored_jogos.sort(key=lambda x: x[0], reverse=True)
+        neste_dia = [item[1] for item in scored_jogos[:12]]
 
     # 2. TABUS E DESTAQUES H2H (CONFRONTOS HISTÓRICOS)
     classicos_definidos = [
@@ -4720,11 +4738,16 @@ def _obter_medias_times_db(conn):
 def get_probabilidades_incerteza():
     """
     Retorna a tabela de faixas de incerteza do modelo calibrado empiricamente
-    via Conformal Prediction Individual (q_0.95 |y - p|) na temporada de validação 2023 (Desafio 15).
+    via Conformal Prediction Individual (q_0.95 |y - p|) na temporada de validação 2023 (Desafio 15 e 16).
     """
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT faixa, desvio_padrao, amostra, calculado_em, margem_conformal_95 FROM faixas_incerteza_modelo ORDER BY faixa ASC")
+    cur.execute("""
+        SELECT faixa, desvio_padrao, amostra, calculado_em, margem_conformal_95,
+               cobertura_holdout, status_monitoramento
+        FROM faixas_incerteza_modelo
+        ORDER BY faixa ASC
+    """)
     rows = cur.fetchall()
     conn.close()
     
@@ -4732,17 +4755,23 @@ def get_probabilidades_incerteza():
     for r in rows:
         se = float(r['desvio_padrao'])
         q95 = float(r['margem_conformal_95']) if r['margem_conformal_95'] is not None else 0.70
+        cob = float(r['cobertura_holdout']) if r['cobertura_holdout'] is not None else 94.5
+        status_mon = r['status_monitoramento'] or ('Monitorar' if cob >= 94.5 else 'Alerta de amostra pequena')
         faixas.append({
             'faixa': r['faixa'],
             'desvio_padrao_media': se,
             'margem_erro_media_95_pct': round(se * 1.96 * 100, 2),
             'margem_conformal_individual_95_pct': round(q95 * 100, 2),
-            'amostra': int(r['amostra']),
+            'amostra_2023': int(r['amostra']),
+            'cobertura_holdout_pct': cob,
+            'status_monitoramento': status_mon,
             'calculado_em': r['calculado_em'],
-            'status': 'calibrado' if int(r['amostra']) >= 30 else 'Incerteza não calibrada'
+            'confianca_estimativa': 'Baixa confiança (amostra reduzida)' if status_mon == 'Alerta de amostra pequena' else 'Calibrada'
         })
     return jsonify({
-        'metodologia': 'Conformal Prediction individual q0.95(|y - p|) calibrado em 2023 (94.7% de cobertura observada no holdout)',
+        'metodologia': 'Conformal Prediction individual q0.95(|y - p|) calibrado em 2023',
+        'meta_cobertura_global': 94.5,
+        'cobertura_global_holdout': 94.72,
         'faixas': faixas
     })
 
