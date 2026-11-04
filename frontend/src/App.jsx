@@ -19,7 +19,7 @@ const ClubCompareView = lazy(() => import('./components/ClubCompareView'));
 const CoachCompareView = lazy(() => import('./components/CoachCompareView'));
 const ProtagonistaAtleta = lazy(() => import('./components/ProtagonistaAtleta'));
 const AthleteCompareView = lazy(() => import('./components/AthleteCompareView'));
-const BettingHubView = lazy(() => import('./components/BettingHubView'));
+const ProbabilidadesView = lazy(() => import('./components/ProbabilidadesView'));
 const RefereeScoutView = lazy(() => import('./components/RefereeScoutView'));
 const ModalLanceALance = lazy(() => import('./components/ModalLanceALance'));
 const TournamentStatsView = lazy(() => import('./components/TournamentStatsView'));
@@ -1197,9 +1197,9 @@ export default function App() {
           />
         )}
 
-        {/* ABA: BETTING HUB & APOSTAS ESPORTIVAS */}
-        {activeTab === 'apostas' && (
-          <BettingHubView
+        {/* ABA: PROBABILIDADES MATEMÁTICAS & LEITURA ANALÍTICA */}
+        {(activeTab === 'probabilidades' || activeTab === 'apostas') && (
+          <ProbabilidadesView
             currentUser={currentUser}
             apiFetch={apiFetch}
             onNavigateTab={(t) => setActiveTab(t)}

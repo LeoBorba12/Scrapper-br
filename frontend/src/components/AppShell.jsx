@@ -20,7 +20,7 @@ export default function AppShell({
   const navItems = [
     { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
     { id: 'campeonato', label: 'Campeonato', icon: Award, badge: 'Scouts 2026' },
-    { id: 'apostas', label: 'Probabilidades', icon: TrendingUp, badge: 'Fair Odds & Mercado' },
+    { id: 'probabilidades', label: 'Probabilidades', icon: TrendingUp, badge: 'Fair Odds & Mercado' },
     { id: 'times', label: 'Clubes', icon: BarChart3, badge: 'Editorial' },
     { id: 'jogadores', label: 'Atletas', icon: Award, badge: 'Protagonista' },
     { id: 'h2h', label: 'Confrontos', icon: Swords },
@@ -296,7 +296,7 @@ export default function AppShell({
             }}
           >
             {navItems.map((item) => {
-              const active = activeTab === item.id;
+              const active = activeTab === item.id || (item.id === 'probabilidades' && activeTab === 'apostas');
               return (
                 <button
                   key={item.id}

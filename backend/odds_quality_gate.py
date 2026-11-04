@@ -112,15 +112,80 @@ def validar_coerencia_editorial(
         "selo_confianca": "CONSENSO_APROVADO"
     }
 
+# Cache em memória para faixas de incerteza do modelo
+FAIXAS_INCERTEZA_CACHE: Dict[str, Dict[str, Any]] = {
+    "0.00-0.20": {"desvio_padrao": 0.0129, "amostra": 838, "status": "calibrado"},
+    "0.20-0.30": {"desvio_padrao": 0.0095, "amostra": 2127, "status": "calibrado"},
+    "0.30-0.40": {"desvio_padrao": 0.0105, "amostra": 1975, "status": "calibrado"},
+    "0.40-0.50": {"desvio_padrao": 0.0173, "amostra": 826, "status": "calibrado"},
+    "0.50-0.60": {"desvio_padrao": 0.0212, "amostra": 543, "status": "calibrado"},
+    "0.60-1.00": {"desvio_padrao": 0.0295, "amostra": 264, "status": "calibrado"}
+}
+
+def obter_incerteza_calibrada(p: float, conn: Optional[sqlite3.Connection] = None) -> Dict[str, Any]:
+    """
+    Recupera a incerteza calibrada IC95% (p +- 1.96 * sigma_faixa) para uma dada probabilidade,
+    baseada estritamente na validação da temporada 2023 (Desafio 14).
+    """
+    global FAIXAS_INCERTEZA_CACHE
+    if conn:
+        try:
+            rows = conn.execute("SELECT faixa, desvio_padrao, amostra FROM faixas_incerteza_modelo").fetchall()
+            if rows:
+                FAIXAS_INCERTEZA_CACHE = {
+                    r[0]: {"desvio_padrao": float(r[1]), "amostra": int(r[2]), "status": "calibrado"}
+                    for r in rows
+                }
+        except Exception:
+            pass
+
+    # Identificar a faixa correspondente
+    faixa_chave = "0.00-0.20"
+    if p >= 0.60:
+        faixa_chave = "0.60-1.00"
+    elif p >= 0.50:
+        faixa_chave = "0.50-0.60"
+    elif p >= 0.40:
+        faixa_chave = "0.40-0.50"
+    elif p >= 0.30:
+        faixa_chave = "0.30-0.40"
+    elif p >= 0.20:
+        faixa_chave = "0.20-0.30"
+
+    info = FAIXAS_INCERTEZA_CACHE.get(faixa_chave)
+    if not info or info.get("amostra", 0) < 30:
+        return {
+            "status": "Incerteza não calibrada",
+            "faixa": faixa_chave,
+            "desvio_padrao": None,
+            "margem_erro_95": None,
+            "intervalo": [round(p * 100, 1), round(p * 100, 1)]
+        }
+
+    se = info["desvio_padrao"]
+    margem = 1.96 * se
+    inf = max(0.0, p - margem)
+    sup = min(1.0, p + margem)
+
+    return {
+        "status": "calibrado",
+        "faixa": faixa_chave,
+        "desvio_padrao": se,
+        "amostra": info["amostra"],
+        "margem_erro_95": round(margem * 100, 2),
+        "intervalo": [round(inf * 100, 1), round(sup * 100, 1)]
+    }
+
 def calcular_fair_odds_editorial(
     prob_mandante: float,
     prob_empate: float,
     prob_visitante: float,
-    faixa_incerteza_pct: float = 0.025
+    conn: Optional[sqlite3.Connection] = None
 ) -> Dict[str, Any]:
     """
-    Formata as Probabilidades Justas (Fair Odds) com intervalo de incerteza (+- 2.5%)
-    conforme padrão editorial do FutStats (Desafio 13).
+    Formata as Probabilidades Justas (Fair Odds) com intervalo de incerteza calibrado
+    derivado da validação de 2023 (Desafio 14):
+    IC_95% = p +- 1.96 * sigma_faixa
     """
     total = prob_mandante + prob_empate + prob_visitante
     if total <= 0:
@@ -132,17 +197,26 @@ def calcular_fair_odds_editorial(
     def fair_odd(p):
         return round(1.0 / max(0.01, p), 2)
 
+    inc_h = obter_incerteza_calibrada(p_h, conn)
+    inc_d = obter_incerteza_calibrada(p_d, conn)
+    inc_a = obter_incerteza_calibrada(p_a, conn)
+
     return {
         "posicionamento": "O FutStats estima probabilidades justas como modelo descritivo e de fair pricing.",
+        "metodologia_incerteza": "IC 95% empírico derivado da validação 2023 (p +- 1.96 * sigma_faixa)",
         "probabilidades_justas": {
             "mandante": round(p_h * 100, 1),
             "empate": round(p_d * 100, 1),
             "visitante": round(p_a * 100, 1)
         },
         "faixa_incerteza": {
-            "mandante_intervalo": [round(max(0.0, p_h - faixa_incerteza_pct) * 100, 1), round(min(1.0, p_h + faixa_incerteza_pct) * 100, 1)],
-            "empate_intervalo": [round(max(0.0, p_d - faixa_incerteza_pct) * 100, 1), round(min(1.0, p_d + faixa_incerteza_pct) * 100, 1)],
-            "visitante_intervalo": [round(max(0.0, p_a - faixa_incerteza_pct) * 100, 1), round(min(1.0, p_a + faixa_incerteza_pct) * 100, 1)]
+            "mandante_intervalo": inc_h["intervalo"],
+            "empate_intervalo": inc_d["intervalo"],
+            "visitante_intervalo": inc_a["intervalo"],
+            "mandante_margem_95": inc_h["margem_erro_95"],
+            "empate_margem_95": inc_d["margem_erro_95"],
+            "visitante_margem_95": inc_a["margem_erro_95"],
+            "status": "calibrado" if all(x["status"] == "calibrado" for x in (inc_h, inc_d, inc_a)) else "Incerteza não calibrada"
         },
         "fair_odds": {
             "mandante": fair_odd(p_h),

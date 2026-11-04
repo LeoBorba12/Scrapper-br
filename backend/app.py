@@ -29,6 +29,10 @@ try:
         estimar_xg_gols_atleta, calcular_xg_partida,
         ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
     )
+    from backend.odds_quality_gate import (
+        calcular_fair_odds_editorial,
+        obter_incerteza_calibrada
+    )
 except ImportError:
     from calculo_player_rating import (
         calcular_nota_partida_sofascore,
@@ -40,6 +44,10 @@ except ImportError:
         classificar_perfil_finalizador, analisar_performance_xg_atleta,
         estimar_xg_gols_atleta, calcular_xg_partida,
         ShotEvent, PENALTY_XG, XG_LOOKUP_MATRIX
+    )
+    from odds_quality_gate import (
+        calcular_fair_odds_editorial,
+        obter_incerteza_calibrada
     )
 
 try:
@@ -4708,6 +4716,36 @@ def _obter_medias_times_db(conn):
     return stats
 
 
+@app.route('/api/probabilidades/incerteza', methods=['GET'])
+def get_probabilidades_incerteza():
+    """
+    Retorna a tabela de faixas de incerteza do modelo calibrado empiricamente
+    na temporada de validação 2023 (IC 95% = p +- 1.96 * sigma_faixa).
+    """
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT faixa, desvio_padrao, amostra, calculado_em FROM faixas_incerteza_modelo ORDER BY faixa ASC")
+    rows = cur.fetchall()
+    conn.close()
+    
+    faixas = []
+    for r in rows:
+        se = float(r['desvio_padrao'])
+        faixas.append({
+            'faixa': r['faixa'],
+            'desvio_padrao': se,
+            'margem_erro_95_pct': round(se * 1.96 * 100, 2),
+            'amostra': int(r['amostra']),
+            'calculado_em': r['calculado_em'],
+            'status': 'calibrado' if int(r['amostra']) >= 30 else 'Incerteza não calibrada'
+        })
+    return jsonify({
+        'metodologia': 'IC 95% empírico derivado da temporada de validação 2023 (p +- 1.96 * sigma_faixa)',
+        'faixas': faixas
+    })
+
+
+@app.route('/api/probabilidades/hub', methods=['GET'])
 @app.route('/api/apostas/hub', methods=['GET'])
 def get_apostas_hub():
     """
@@ -4863,6 +4901,13 @@ def get_apostas_hub():
         if r.get('status_zebra') and 'Zebra' in str(r.get('status_zebra')):
             tendencias_jogo.append(f"Alerta de Zebra Potencial ({r['status_zebra']})")
 
+        # Desafio 14: Incerteza calibrada por faixa de probabilidade (validação 2023)
+        fair_res = calcular_fair_odds_editorial(
+            calc['prob_mandante'] / 100.0,
+            calc['prob_empate'] / 100.0,
+            calc['prob_visitante'] / 100.0
+        )
+
         partida_obj = {
             **r,
             'posicionamento_editorial': 'O FutStats estima probabilidades justas como modelo descritivo e de fair pricing.',
@@ -4873,9 +4918,14 @@ def get_apostas_hub():
             'xg_visitante_estimado': round(lambda_a, 2),
             'probabilidades': calc,
             'faixa_incerteza': {
-                'mandante': [max(0.0, round(calc['prob_mandante'] - 2.5, 1)), min(100.0, round(calc['prob_mandante'] + 2.5, 1))],
-                'empate': [max(0.0, round(calc['prob_empate'] - 2.5, 1)), min(100.0, round(calc['prob_empate'] + 2.5, 1))],
-                'visitante': [max(0.0, round(calc['prob_visitante'] - 2.5, 1)), min(100.0, round(calc['prob_visitante'] + 2.5, 1))]
+                'mandante': fair_res['faixa_incerteza']['mandante_intervalo'],
+                'empate': fair_res['faixa_incerteza']['empate_intervalo'],
+                'visitante': fair_res['faixa_incerteza']['visitante_intervalo'],
+                'mandante_margem_95': fair_res['faixa_incerteza']['mandante_margem_95'],
+                'empate_margem_95': fair_res['faixa_incerteza']['empate_margem_95'],
+                'visitante_margem_95': fair_res['faixa_incerteza']['visitante_margem_95'],
+                'status': fair_res['faixa_incerteza']['status'],
+                'metodologia': fair_res['metodologia_incerteza']
             },
             'ev': {
                 'mandante': ev_mandante,
@@ -4903,18 +4953,18 @@ def get_apostas_hub():
 
         partidas_processadas.append(partida_obj)
 
-        if melhor_aposta and melhor_aposta['ev'] >= 5.0:
+        if leitura_analitica and leitura_analitica['ev'] >= 5.0 and odds_aprovadas:
             destaques_ev.append({
                 'id_partida': r['id_partida'],
                 'confronto': f"{r['mandante']} x {r['visitante']}",
                 'campeonato': r['campeonato'],
                 'data': r['data'],
-                'mercado': melhor_aposta['mercado'],
-                'odd_mercado': melhor_aposta['odd'],
-                'odd_justa': melhor_aposta['fair_odd'],
-                'probabilidade': melhor_aposta['prob'],
-                'ev': melhor_aposta['ev'],
-                'tipo': melhor_aposta['tipo']
+                'mercado': leitura_analitica['mercado'],
+                'odd_mercado': leitura_analitica['odd'],
+                'odd_justa': leitura_analitica['fair_odd'],
+                'probabilidade': leitura_analitica['prob'],
+                'ev': leitura_analitica['ev'],
+                'tipo': leitura_analitica['tipo']
             })
 
     destaques_ev.sort(key=lambda x: x['ev'], reverse=True)
@@ -4946,6 +4996,7 @@ def get_apostas_hub():
     return jsonify(resumo)
 
 
+@app.route('/api/probabilidades/backtesting', methods=['GET'])
 @app.route('/api/apostas/backtesting', methods=['GET'])
 def get_apostas_backtesting():
     """
@@ -5193,6 +5244,7 @@ def get_apostas_backtesting():
 
 
 
+@app.route('/api/probabilidades/analise', methods=['GET'])
 @app.route('/api/apostas/analise', methods=['GET'])
 @app.route('/api/apostas/analise_jogo', methods=['GET'])
 def get_apostas_analise_jogo():
@@ -5492,6 +5544,7 @@ def get_apostas_analise_jogo():
 
 
 
+@app.route('/api/probabilidades/jogadores', methods=['GET'])
 @app.route('/api/apostas/jogadores', methods=['GET'])
 def get_apostas_jogadores():
     """

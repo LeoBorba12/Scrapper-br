@@ -86,7 +86,7 @@ const formatOdd = (val) => {
   return isNaN(num) ? '—' : num.toFixed(2);
 };
 
-export default function BettingHubView({
+export default function ProbabilidadesView({
   currentUser,
   apiFetch,
   onNavigateTab,
@@ -128,11 +128,11 @@ export default function BettingHubView({
   const [kellySelectedData, setKellySelectedData] = useState({
     odd: 2.00,
     prob: 55.0,
-    market: 'Aposta de Valor (+EV)',
+    market: 'Leitura Analítica (+EV)',
     match: ''
   });
 
-  const abrirCalculadoraKelly = (odd = 2.00, prob = 55.0, market = 'Aposta +EV', match = '') => {
+  const abrirCalculadoraKelly = (odd = 2.00, prob = 55.0, market = 'Leitura Analítica (+EV)', match = '') => {
     setKellySelectedData({
       odd: Number(odd) || 2.00,
       prob: Number(prob) || 55.0,
@@ -157,13 +157,13 @@ export default function BettingHubView({
       }
       params.append('limit', String(partidasLimit));
       
-      const res = await apiFetch(`/api/apostas/hub?${params.toString()}`);
+      const res = await apiFetch(`/api/probabilidades/hub?${params.toString()}`);
       if (!res.ok) throw new Error(`Falha na requisição: ${res.status}`);
       const data = await res.json();
       setHubData(data);
     } catch (err) {
-      console.error('Erro ao carregar Betting Hub:', err);
-      setError('Não foi possível carregar os dados de apostas no momento.');
+      console.error('Erro ao carregar Probabilidades:', err);
+      setError('Não foi possível carregar as estimativas probabilísticas no momento.');
     } finally {
       setLoading(false);
     }
@@ -183,13 +183,13 @@ export default function BettingHubView({
       params.append('ordenar', jogadoresOrdenacao);
       params.append('limit', '50');
 
-      const res = await apiFetch(`/api/apostas/jogadores?${params.toString()}`);
+      const res = await apiFetch(`/api/probabilidades/jogadores?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setJogadoresData(data);
       }
     } catch (err) {
-      console.error('Erro ao carregar jogadores apostas:', err);
+      console.error('Erro ao carregar jogadores e probabilidades:', err);
     } finally {
       setJogadoresLoading(false);
     }
@@ -209,7 +209,7 @@ export default function BettingHubView({
       params.append('temporada', backtestingTemporada);
       if (backtestingMercado !== 'todos') params.append('mercado', backtestingMercado);
       params.append('limit', '80');
-      const res = await apiFetch(`/api/apostas/backtesting?${params.toString()}`);
+      const res = await apiFetch(`/api/probabilidades/backtesting?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setBacktestingData(data);
@@ -234,7 +234,7 @@ export default function BettingHubView({
     setAnaliseLoading(true);
     setAnalisePartida(null);
     try {
-      const res = await apiFetch(`/api/apostas/analise?id_partida=${idPartida}`);
+      const res = await apiFetch(`/api/probabilidades/analise?id_partida=${idPartida}`);
       if (res.ok) {
         const data = await res.json();
         setAnalisePartida(data);
@@ -293,7 +293,7 @@ export default function BettingHubView({
   return (
     <div style={{ paddingBottom: '60px' }}>
       {/* ==================================================================== */}
-      {/* HEADER PRINCIPAL EDITORIAL & BETTING COCKPIT                         */}
+      {/* HEADER PRINCIPAL EDITORIAL & PAINEL DE PROBABILIDADES                         */}
       {/* ==================================================================== */}
       <section
         style={{
@@ -653,7 +653,7 @@ export default function BettingHubView({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <Flame size={18} color="var(--accent)" />
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Radar do Apostador &bull; Tendências em Tempo Real
+              Radar Analítico de Tendências &bull; Tendências em Tempo Real
             </h2>
           </div>
 
@@ -721,7 +721,7 @@ export default function BettingHubView({
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'todos', label: 'Todos os Jogos' },
-            { id: 'ev_plus', label: 'Apostas de Valor (+EV)', icon: Flame, badge: hubData?.total_com_ev },
+            { id: 'ev_plus', label: 'Convergência de Valor (+EV)', icon: Flame, badge: hubData?.total_com_ev },
             { id: 'over_2_5', label: 'Gols (Over/Under 2.5)', icon: Target },
             { id: 'btts', label: 'Ambas Marcam (BTTS)', icon: Percent },
             { id: 'jogadores', label: 'Jogadores & Anytime Scorer', icon: UserCheck },
@@ -968,7 +968,7 @@ export default function BettingHubView({
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{j.posicao}</span>
                         <span style={{ fontSize: '0.68rem', backgroundColor: 'var(--positive-bg)', color: 'var(--positive)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                          {j.perfil_aposta}
+                          {j.perfil_analitico}
                         </span>
                       </div>
                       <div style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -1054,12 +1054,12 @@ export default function BettingHubView({
                           fontSize: '0.7rem',
                           padding: '3px 8px',
                           borderRadius: '4px',
-                          backgroundColor: j.perfil_aposta === 'Artilheiro Decisivo' ? 'var(--positive-bg)' : 'var(--surface-raised)',
-                          color: j.perfil_aposta === 'Artilheiro Decisivo' ? 'var(--positive)' : 'var(--text-secondary)',
+                          backgroundColor: j.perfil_analitico === 'Artilheiro Decisivo' ? 'var(--positive-bg)' : 'var(--surface-raised)',
+                          color: j.perfil_analitico === 'Artilheiro Decisivo' ? 'var(--positive)' : 'var(--text-secondary)',
                           fontWeight: 600
                         }}
                       >
-                        {j.perfil_aposta}
+                        {j.perfil_analitico}
                       </span>
                     </td>
                   </tr>
@@ -1153,7 +1153,7 @@ export default function BettingHubView({
                 }}
               >
                 <option value="todos">Todos os Mercados</option>
-                <option value="ev_plus">Apostas de Valor (+EV)</option>
+                <option value="ev_plus">Convergência de Valor (+EV)</option>
                 <option value="over_1_5">Over 1.5 Gols</option>
                 <option value="over_2_5">Gols (Over 2.5)</option>
                 <option value="btts">Ambas Marcam (BTTS)</option>
@@ -1276,7 +1276,7 @@ export default function BettingHubView({
                     {backtestingData.roi_geral_pct >= 0 ? '+' : ''}{backtestingData.roi_geral_pct}%
                   </div>
                   <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                    Retorno sobre volume apostado
+                    Rendimento do backtest histórico
                   </span>
                 </div>
               </div>
@@ -1489,7 +1489,7 @@ export default function BettingHubView({
                 Calculando modelos de probabilidades e Fair Odds...
               </div>
               <div style={{ fontSize: '0.84rem', marginTop: '6px' }}>
-                Cruzando dados de partidas com acervo de apostas e distribuições de Poisson.
+                Cruzando acervo histórico de partidas com distribuições de Poisson e Dixon-Coles calibrado.
               </div>
             </div>
           ) : partidasFiltradas.length === 0 ? (
@@ -1689,6 +1689,15 @@ export default function BettingHubView({
                             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
                               Justa: <span className="font-mono">@{formatOdd(prob.fair_odd_mandante)}</span>
                             </div>
+                            {p.faixa_incerteza?.mandante_margem_95 != null ? (
+                              <div style={{ fontSize: '0.60rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                IC95%: ±{p.faixa_incerteza.mandante_margem_95}%
+                              </div>
+                            ) : p.faixa_incerteza?.mandante ? (
+                              <div style={{ fontSize: '0.60rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                [{p.faixa_incerteza.mandante[0]}%-{p.faixa_incerteza.mandante[1]}%]
+                              </div>
+                            ) : null}
                           </div>
 
                           {/* X (Empate) */}
@@ -1710,6 +1719,15 @@ export default function BettingHubView({
                             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
                               Justa: <span className="font-mono">@{formatOdd(prob.fair_odd_empate)}</span>
                             </div>
+                            {p.faixa_incerteza?.empate_margem_95 != null ? (
+                              <div style={{ fontSize: '0.60rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                IC95%: ±{p.faixa_incerteza.empate_margem_95}%
+                              </div>
+                            ) : p.faixa_incerteza?.empate ? (
+                              <div style={{ fontSize: '0.60rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                [{p.faixa_incerteza.empate[0]}%-{p.faixa_incerteza.empate[1]}%]
+                              </div>
+                            ) : null}
                           </div>
 
                           {/* 2 (Visitante) */}
@@ -1731,6 +1749,15 @@ export default function BettingHubView({
                             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>
                               Justa: <span className="font-mono">@{formatOdd(prob.fair_odd_visitante)}</span>
                             </div>
+                            {p.faixa_incerteza?.visitante_margem_95 != null ? (
+                              <div style={{ fontSize: '0.60rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                IC95%: ±{p.faixa_incerteza.visitante_margem_95}%
+                              </div>
+                            ) : p.faixa_incerteza?.visitante ? (
+                              <div style={{ fontSize: '0.60rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                [{p.faixa_incerteza.visitante[0]}%-{p.faixa_incerteza.visitante[1]}%]
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -2002,7 +2029,7 @@ export default function BettingHubView({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', fontWeight: 700, color: 'var(--accent)', marginBottom: '10px' }}>
-                      <Flame size={16} /> Insights Chave para o Apostador
+                      <Flame size={16} /> Insights Analíticos do Confronto
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {analisePartida.insights_apostador.map((ins, i) => (
