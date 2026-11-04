@@ -289,6 +289,9 @@ img, svg, canvas {
   font-size: 0.72rem;
   font-weight: 600;
   padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
 }
 
 /* Composição Especial do Protagonista */
@@ -534,8 +537,23 @@ button:active,
 .athlete-selector-grid {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
+}
+
+/* Bento Grid Principal do Comparador de Atletas */
+.athlete-bento-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(360px, 1.25fr) minmax(280px, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 1080px) {
+  .athlete-bento-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
 }
 
 @media (max-width: 768px) {

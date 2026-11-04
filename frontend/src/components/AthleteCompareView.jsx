@@ -282,18 +282,68 @@ export default function AthleteCompareView({
     const borderSoft = isTerracota ? 'rgba(133, 87, 59, 0.3)' : 'rgba(90, 103, 62, 0.3)';
     const resumo = atleta.resumo || {};
 
+    const tileStylePrimary = {
+      backgroundColor: bgSoft,
+      border: `1px solid ${borderSoft}`,
+      padding: '10px 12px',
+      borderRadius: 'var(--radius-control)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      minHeight: '54px',
+      boxSizing: 'border-box'
+    };
+
+    const tileStyleSecondary = {
+      backgroundColor: 'var(--surface-raised)',
+      border: '1px solid var(--border-subtle)',
+      padding: '10px 12px',
+      borderRadius: 'var(--radius-control)',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      minHeight: '54px',
+      boxSizing: 'border-box'
+    };
+
+    const labelStylePrimary = {
+      color: primaryColor,
+      fontSize: '0.66rem',
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: '0.03em',
+      lineHeight: 1.2
+    };
+
+    const labelStyleSecondary = {
+      color: 'var(--text-muted)',
+      fontSize: '0.66rem',
+      fontWeight: 700,
+      textTransform: 'uppercase',
+      letterSpacing: '0.03em',
+      lineHeight: 1.2
+    };
+
+    const valueStyle = {
+      fontWeight: 800,
+      color: 'var(--text-primary)',
+      fontSize: '1.15rem',
+      lineHeight: 1.1,
+      marginTop: '2px'
+    };
+
     if (cat === 'goleiro') {
       return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
-          <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
-            <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Clean Sheets</div>
-            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+          <div style={tileStylePrimary}>
+            <div style={labelStylePrimary}>Clean Sheets</div>
+            <div className="font-mono tabular-nums" style={valueStyle}>
               {resumo.clean_sheets || 0}
             </div>
           </div>
-          <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Pênaltis Def.</div>
-            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+          <div style={tileStyleSecondary}>
+            <div style={labelStyleSecondary}>Pênaltis Def.</div>
+            <div className="font-mono tabular-nums" style={valueStyle}>
               {resumo.penaltis_defendidos || 0}
             </div>
           </div>
@@ -304,15 +354,15 @@ export default function AthleteCompareView({
     if (cat === 'defensor') {
       return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
-          <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
-            <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Gols Carreira</div>
-            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+          <div style={tileStylePrimary}>
+            <div style={labelStylePrimary}>Gols Carreira</div>
+            <div className="font-mono tabular-nums" style={valueStyle}>
               {atleta.gols || resumo.total_gols || 0}
             </div>
           </div>
-          <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Assistências</div>
-            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+          <div style={tileStyleSecondary}>
+            <div style={labelStyleSecondary}>Assistências</div>
+            <div className="font-mono tabular-nums" style={valueStyle}>
               {resumo.assistencias || 0}
             </div>
           </div>
@@ -323,15 +373,15 @@ export default function AthleteCompareView({
     if (cat === 'meia') {
       return (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
-          <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
-            <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Assistências</div>
-            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+          <div style={tileStylePrimary}>
+            <div style={labelStylePrimary}>Assistências</div>
+            <div className="font-mono tabular-nums" style={valueStyle}>
               {resumo.assistencias || 0}
             </div>
           </div>
-          <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Gols Carreira</div>
-            <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+          <div style={tileStyleSecondary}>
+            <div style={labelStyleSecondary}>Gols Carreira</div>
+            <div className="font-mono tabular-nums" style={valueStyle}>
               {atleta.gols || resumo.total_gols || 0}
             </div>
           </div>
@@ -341,15 +391,15 @@ export default function AthleteCompareView({
 
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
-        <div style={{ backgroundColor: bgSoft, border: `1px solid ${borderSoft}`, padding: '8px', borderRadius: 'var(--radius-control)' }}>
-          <div style={{ color: primaryColor, fontSize: '0.68rem', fontWeight: 700 }}>Gols Oficiais</div>
-          <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+        <div style={tileStylePrimary}>
+          <div style={labelStylePrimary}>Gols Oficiais</div>
+          <div className="font-mono tabular-nums" style={valueStyle}>
             {atleta.gols || resumo.total_gols || 0}
           </div>
         </div>
-        <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem', fontWeight: 700 }}>Média / Jogo</div>
-          <div className="font-mono tabular-nums" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '1.05rem' }}>
+        <div style={tileStyleSecondary}>
+          <div style={labelStyleSecondary}>Média / Jogo</div>
+          <div className="font-mono tabular-nums" style={valueStyle}>
             {resumo.media_gols_por_jogo != null ? Number(resumo.media_gols_por_jogo).toFixed(2) : '—'}
           </div>
         </div>
@@ -587,10 +637,11 @@ export default function AthleteCompareView({
             placeholder="Digite o nome do primeiro atleta..."
             style={{
               width: '100%',
+              height: '42px',
               backgroundColor: 'var(--surface-raised)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-control)',
-              padding: '10px 14px',
+              padding: '0 14px',
               color: 'var(--text-primary)',
               fontSize: '0.9rem',
               fontWeight: 600,
@@ -662,7 +713,7 @@ export default function AthleteCompareView({
         </div>
 
         {/* Botão de Inverter (Swap) */}
-        <div className="athlete-swap-btn-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="athlete-swap-btn-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
           <button
             onClick={handleSwap}
             title="Inverter lados da comparação"
@@ -680,7 +731,7 @@ export default function AthleteCompareView({
               cursor: 'pointer',
               fontSize: '1.1rem',
               transition: 'transform 0.2s ease',
-              marginTop: '16px'
+              marginBottom: '0px'
             }}
           >
             ⇄
@@ -708,10 +759,11 @@ export default function AthleteCompareView({
             placeholder="Digite o nome do segundo atleta..."
             style={{
               width: '100%',
+              height: '42px',
               backgroundColor: 'var(--surface-raised)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-control)',
-              padding: '10px 14px',
+              padding: '0 14px',
               color: 'var(--text-primary)',
               fontSize: '0.9rem',
               fontWeight: 600,
@@ -873,14 +925,7 @@ export default function AthleteCompareView({
           </div>
 
           {/* Bento Grid Principal: Perfil 1 | Radar Dual PES Central | Perfil 2 */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(260px, 1fr) minmax(340px, 1.3fr) minmax(260px, 1fr)',
-              gap: '16px',
-              alignItems: 'stretch'
-            }}
-          >
+          <div className="athlete-bento-grid">
             {/* Card Atleta 1 (Oliva) */}
             <div
               style={{
@@ -891,15 +936,16 @@ export default function AthleteCompareView({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '14px',
-                boxShadow: 'var(--shadow-editorial)'
+                boxShadow: 'var(--shadow-editorial)',
+                overflow: 'hidden'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
                   <div
                     style={{
-                      width: '54px',
-                      height: '54px',
+                      width: '50px',
+                      height: '50px',
                       borderRadius: '50%',
                       backgroundColor: 'rgba(90, 103, 62, 0.2)',
                       border: '2px solid #7C8F52',
@@ -919,18 +965,18 @@ export default function AthleteCompareView({
                       atleta1.nome?.substring(0, 2).toUpperCase()
                     )}
                   </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {atleta1.nome}
                     </h2>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {atleta1.nome_completo || atleta1.nome}
                     </div>
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                      <span className="pill-neutral" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(90, 103, 62, 0.15)', color: '#7C8F52' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                      <span className="pill-neutral" style={{ fontSize: '0.66rem', backgroundColor: 'rgba(90, 103, 62, 0.15)', color: '#7C8F52', whiteSpace: 'nowrap' }}>
                         {atleta1.posicao || 'Atleta'}
                       </span>
-                      <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>
+                      <span className="pill-neutral" style={{ fontSize: '0.66rem', whiteSpace: 'nowrap' }}>
                         {atleta1.situacao || 'Ativo'}
                       </span>
                     </div>
@@ -941,35 +987,43 @@ export default function AthleteCompareView({
                 <div
                   style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 8px',
+                    justifyContent: 'center',
+                    padding: '6px 8px',
+                    minWidth: '58px',
                     borderRadius: 'var(--radius-control)',
-                    backgroundColor: 'rgba(90, 103, 62, 0.15)',
+                    backgroundColor: 'rgba(90, 103, 62, 0.12)',
                     border: '1px solid #7C8F52',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    textAlign: 'center',
+                    boxSizing: 'border-box'
                   }}
                   title={`Nota Global FutStats: ${notaScouting1}/100 • ${classifScouting1}`}
                 >
-                  <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
-                    <div style={{ fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', color: '#7C8F52' }}>Nota</div>
-                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{classifScouting1}</div>
+                  <div style={{ fontSize: '0.56rem', fontWeight: 800, textTransform: 'uppercase', color: '#7C8F52', letterSpacing: '0.04em', lineHeight: 1 }}>
+                    NOTA
                   </div>
-                  <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#7C8F52', lineHeight: 1 }}>
+                  <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 900, color: '#7C8F52', lineHeight: 1.1, margin: '2px 0' }}>
                     {notaScouting1}
+                  </div>
+                  <div style={{ fontSize: '0.54rem', color: 'var(--text-muted)', lineHeight: 1, whiteSpace: 'nowrap', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {classifScouting1}
                   </div>
                 </div>
               </div>
 
               {/* Ficha Rápida Atleta 1 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
-                <div style={{ backgroundColor: 'var(--surface-raised)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Idade</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{atleta1.idade ? `${atleta1.idade} anos` : '—'}</div>
+                <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '10px 12px', borderRadius: 'var(--radius-control)', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '54px', boxSizing: 'border-box' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.2 }}>Idade</div>
+                  <div className="font-mono tabular-nums" style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: 1.2, marginTop: '2px' }}>
+                    {atleta1.idade ? `${atleta1.idade} anos` : '—'}
+                  </div>
                 </div>
-                <div style={{ backgroundColor: 'var(--surface-raised)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Altura / Pé</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '10px 12px', borderRadius: 'var(--radius-control)', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '54px', boxSizing: 'border-box' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.2 }}>Altura / Pé</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {atleta1.altura ? `${atleta1.altura} cm` : '—'} • {atleta1.pe_preferencial || 'Destro'}
                   </div>
                 </div>
@@ -1094,15 +1148,16 @@ export default function AthleteCompareView({
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '14px',
-                boxShadow: 'var(--shadow-editorial)'
+                boxShadow: 'var(--shadow-editorial)',
+                overflow: 'hidden'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
                   <div
                     style={{
-                      width: '54px',
-                      height: '54px',
+                      width: '50px',
+                      height: '50px',
                       borderRadius: '50%',
                       backgroundColor: 'rgba(133, 87, 59, 0.2)',
                       border: '2px solid #B87550',
@@ -1122,18 +1177,18 @@ export default function AthleteCompareView({
                       atleta2.nome?.substring(0, 2).toUpperCase()
                     )}
                   </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {atleta2.nome}
                     </h2>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {atleta2.nome_completo || atleta2.nome}
                     </div>
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                      <span className="pill-neutral" style={{ fontSize: '0.68rem', backgroundColor: 'rgba(133, 87, 59, 0.15)', color: '#B87550' }}>
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                      <span className="pill-neutral" style={{ fontSize: '0.66rem', backgroundColor: 'rgba(133, 87, 59, 0.15)', color: '#B87550', whiteSpace: 'nowrap' }}>
                         {atleta2.posicao || 'Atleta'}
                       </span>
-                      <span className="pill-neutral" style={{ fontSize: '0.68rem' }}>
+                      <span className="pill-neutral" style={{ fontSize: '0.66rem', whiteSpace: 'nowrap' }}>
                         {atleta2.situacao || 'Ativo'}
                       </span>
                     </div>
@@ -1144,35 +1199,43 @@ export default function AthleteCompareView({
                 <div
                   style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '4px 8px',
+                    justifyContent: 'center',
+                    padding: '6px 8px',
+                    minWidth: '58px',
                     borderRadius: 'var(--radius-control)',
-                    backgroundColor: 'rgba(133, 87, 59, 0.15)',
+                    backgroundColor: 'rgba(133, 87, 59, 0.12)',
                     border: '1px solid #B87550',
-                    flexShrink: 0
+                    flexShrink: 0,
+                    textAlign: 'center',
+                    boxSizing: 'border-box'
                   }}
                   title={`Nota Global FutStats: ${notaScouting2}/100 • ${classifScouting2}`}
                 >
-                  <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
-                    <div style={{ fontSize: '0.58rem', fontWeight: 800, textTransform: 'uppercase', color: '#B87550' }}>Nota</div>
-                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{classifScouting2}</div>
+                  <div style={{ fontSize: '0.56rem', fontWeight: 800, textTransform: 'uppercase', color: '#B87550', letterSpacing: '0.04em', lineHeight: 1 }}>
+                    NOTA
                   </div>
-                  <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 900, color: '#B87550', lineHeight: 1 }}>
+                  <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 900, color: '#B87550', lineHeight: 1.1, margin: '2px 0' }}>
                     {notaScouting2}
+                  </div>
+                  <div style={{ fontSize: '0.54rem', color: 'var(--text-muted)', lineHeight: 1, whiteSpace: 'nowrap', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {classifScouting2}
                   </div>
                 </div>
               </div>
 
               {/* Ficha Rápida Atleta 2 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
-                <div style={{ backgroundColor: 'var(--surface-raised)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Idade</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{atleta2.idade ? `${atleta2.idade} anos` : '—'}</div>
+                <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '10px 12px', borderRadius: 'var(--radius-control)', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '54px', boxSizing: 'border-box' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.2 }}>Idade</div>
+                  <div className="font-mono tabular-nums" style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem', lineHeight: 1.2, marginTop: '2px' }}>
+                    {atleta2.idade ? `${atleta2.idade} anos` : '—'}
+                  </div>
                 </div>
-                <div style={{ backgroundColor: 'var(--surface-raised)', padding: '8px', borderRadius: 'var(--radius-control)' }}>
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Altura / Pé</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                <div style={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', padding: '10px 12px', borderRadius: 'var(--radius-control)', display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '54px', boxSizing: 'border-box' }}>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.66rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', lineHeight: 1.2 }}>Altura / Pé</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem', lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {atleta2.altura ? `${atleta2.altura} cm` : '—'} • {atleta2.pe_preferencial || 'Destro'}
                   </div>
                 </div>

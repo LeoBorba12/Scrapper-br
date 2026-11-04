@@ -25,15 +25,18 @@ export default function RadarDualPES({
   const [hoveredAxis, setHoveredAxis] = useState(null);
 
   const totalAxes = 5;
-  const center = size / 2;
-  const radius = (size / 2) - 52; // Espaço para rótulos externos
+  const vbWidth = 460;
+  const vbHeight = 360;
+  const centerX = vbWidth / 2;
+  const centerY = 172;
+  const radius = 108; // Espaço confortável para não colidir com as bordas do container
   const levels = [0.2, 0.4, 0.6, 0.8, 1.0];
 
   const getCoordinates = (index, valuePercent) => {
     const angle = (Math.PI * 2 / totalAxes) * index - Math.PI / 2;
     const r = radius * valuePercent;
-    const x = center + r * Math.cos(angle);
-    const y = center + r * Math.sin(angle);
+    const x = centerX + r * Math.cos(angle);
+    const y = centerY + r * Math.sin(angle);
     return { x, y, angle };
   };
 
@@ -172,8 +175,8 @@ export default function RadarDualPES({
       <svg
         width="100%"
         height="auto"
-        viewBox={`0 0 ${size} ${size}`}
-        style={{ maxWidth: `${size}px`, display: 'block', margin: '0 auto', overflow: 'visible' }}
+        viewBox={`0 0 ${vbWidth} ${vbHeight}`}
+        style={{ width: '100%', maxWidth: `${vbWidth}px`, display: 'block', margin: '0 auto', overflow: 'hidden' }}
       >
         <defs>
           <filter id="dualGlowOliva" x="-20%" y="-20%" width="140%" height="140%">
@@ -188,8 +191,8 @@ export default function RadarDualPES({
 
         {/* Círculo de fundo translúcido */}
         <circle
-          cx={center}
-          cy={center}
+          cx={centerX}
+          cy={centerY}
           r={radius}
           fill="var(--surface-raised)"
           fillOpacity="0.4"
@@ -214,8 +217,8 @@ export default function RadarDualPES({
           return (
             <line
               key={i}
-              x1={center}
-              y1={center}
+              x1={centerX}
+              y1={centerY}
               x2={edge.x}
               y2={edge.y}
               stroke="var(--border-subtle)"
@@ -285,10 +288,10 @@ export default function RadarDualPES({
         {combinedAxes.map((item, idx) => {
           const edge = getCoordinates(idx, 1.0);
           const angle = edge.angle;
-          // Deslocar o texto ligeiramente para fora do pentágono
-          const offsetDist = 26;
-          const lx = center + (radius + offsetDist) * Math.cos(angle);
-          const ly = center + (radius + offsetDist) * Math.sin(angle);
+          // Deslocar o texto com margem segura dentro do viewBox
+          const offsetDist = 20;
+          const lx = centerX + (radius + offsetDist) * Math.cos(angle);
+          const ly = centerY + (radius + offsetDist) * Math.sin(angle);
 
           const isHovered = hoveredAxis === idx;
           const textAnchor = Math.abs(Math.cos(angle)) < 0.25 ? 'middle' : (Math.cos(angle) > 0 ? 'start' : 'end');
