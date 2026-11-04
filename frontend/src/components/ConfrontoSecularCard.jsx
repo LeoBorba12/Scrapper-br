@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Share2, Download, Copy, Check, Sparkles, ExternalLink, ShieldCheck, Layers } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Share2, Download, Copy, Check, Sparkles, MessageSquareText, ShieldCheck } from 'lucide-react';
 import { gerarSlugConfronto, gerarDeepLinkConfronto } from '../utils/confrontoSlug';
-import { registrarEvento, obterVarianteAB } from '../utils/telemetria';
+import { registrarConsultaInterna } from '../utils/telemetria';
 
 export default function ConfrontoSecularCard({
   mandante = 'Palmeiras',
@@ -14,13 +14,12 @@ export default function ConfrontoSecularCard({
   fatoHistorico = 'Neste dia, em 2000: Semifinal da Libertadores (4 x 3)',
   probabilidades = { mandante: 42.5, empate: 31.0, visitante: 26.5 },
   intervaloConformal = 'IC 95% Calibrado no Holdout',
-  varianteForcada = null,
   onFechar = null
 }) {
   const svgRef = useRef(null);
-  const [copiado, setCopiado] = useState(false);
+  const [copiadoTexto, setCopiadoTexto] = useState(false);
+  const [copiadoLink, setCopiadoLink] = useState(false);
   const [statusAcao, setStatusAcao] = useState('');
-  const [varianteAtiva, setVarianteAtiva] = useState(varianteForcada || obterVarianteAB());
 
   const slug = gerarSlugConfronto(mandante, visitante);
   const deepLinkPath = gerarDeepLinkConfronto(mandante, visitante);
@@ -28,34 +27,40 @@ export default function ConfrontoSecularCard({
     ? `${window.location.origin}${deepLinkPath}` 
     : `https://futstats.com.br${deepLinkPath}`;
 
-  // Dispara evento de Exposição (card_impresso) do Funil
-  useEffect(() => {
-    registrarEvento('card_impresso', {
-      slug,
-      mandante,
-      visitante,
-      variante: varianteAtiva
-    });
-  }, [slug, varianteAtiva]);
+  const anosDeRivalidade = new Date().getFullYear() - anoPrimeiroJogo;
 
-  // 1. Compartilhamento via Web Share API ou Clipboard
-  const handleCompartilhar = async () => {
-    const canal = navigator.share ? 'web_share' : 'clipboard_link';
-    registrarEvento('card_compartilhado', {
-      slug,
-      mandante,
-      visitante,
-      canal,
-      variante: varianteAtiva
-    });
+  // 1. Copiar resumo em texto limpo para WhatsApp / debate interno
+  const handleCopiarTextoWhatsApp = async () => {
+    const textoZap = `⚔️ *${mandante.toUpperCase()} x ${visitante.toUpperCase()} — RETROSPECTO HISTÓRICO*
+📜 ${totalJogos} jogos oficiais documentados desde ${anoPrimeiroJogo} (${anosDeRivalidade} anos de rivalidade)
+📊 Vitórias: ${vitoriasMandante} ${mandante} • ${empates} empates • ${vitoriasVisitante} ${visitante}
+⭐ *Marco Notável:* ${fatoHistorico}
+📈 *Probabilidade Justa FutStats (Dixon-Coles):*
+${mandante}: ${probabilidades.mandante}% | Empate: ${probabilidades.empate}% | ${visitante}: ${probabilidades.visitante}% (${intervaloConformal})
+🔗 Dossiê completo: ${deepLinkCompleto}`;
 
+    try {
+      await navigator.clipboard.writeText(textoZap);
+      setCopiadoTexto(true);
+      setStatusAcao('Texto formatado copiado! Pronto para colar no WhatsApp.');
+      registrarConsultaInterna('exportar_whatsapp_texto', { slug, c1: mandante, c2: visitante });
+      setTimeout(() => {
+        setCopiadoTexto(false);
+        setStatusAcao('');
+      }, 3500);
+    } catch {}
+  };
+
+  // 2. Compartilhar Link direto
+  const handleCompartilharLink = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
           title: `${mandante} x ${visitante}: Retrospecto Secular`,
-          text: `${mandante} x ${visitante} — ${totalJogos} jogos desde ${anoPrimeiroJogo}. Confira o confronto completo no FutStats:`,
+          text: `${mandante} x ${visitante} — ${totalJogos} jogos desde ${anoPrimeiroJogo}. Acervo histórico oficial no FutStats:`,
           url: deepLinkCompleto
         });
+        registrarConsultaInterna('compartilhar_link_nativo', { slug });
         setStatusAcao('Compartilhado com sucesso!');
         setTimeout(() => setStatusAcao(''), 3000);
         return;
@@ -64,52 +69,22 @@ export default function ConfrontoSecularCard({
       }
     }
 
-    // Fallback: Copiar link para área de transferência
     try {
       await navigator.clipboard.writeText(deepLinkCompleto);
-      setCopiado(true);
-      setStatusAcao('Link copiado para a área de transferência!');
+      setCopiadoLink(true);
+      setStatusAcao('Link do confronto copiado para a área de transferência!');
+      registrarConsultaInterna('copiar_link_area_transferencia', { slug });
       setTimeout(() => {
-        setCopiado(false);
+        setCopiadoLink(false);
         setStatusAcao('');
       }, 3000);
     } catch {}
   };
 
-  // 2. Download do arquivo SVG vetorial nativo
-  const handleBaixarSVG = () => {
-    if (!svgRef.current) return;
-    registrarEvento('card_compartilhado', {
-      slug,
-      mandante,
-      visitante,
-      canal: 'download_svg',
-      variante: varianteAtiva
-    });
-    const svgData = new XMLSerializer().serializeToString(svgRef.current);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = svgUrl;
-    downloadLink.download = `futstats-${slug}-variante-${varianteAtiva}.svg`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-    URL.revokeObjectURL(svgUrl);
-    setStatusAcao('Card SVG baixado com sucesso!');
-    setTimeout(() => setStatusAcao(''), 3000);
-  };
-
-  // 3. Conversão ultra-leve client-side de SVG para PNG (1080x1080) usando Canvas nativo
+  // 3. Download do PNG nativo via canvas
   const handleBaixarPNG = () => {
     if (!svgRef.current) return;
-    registrarEvento('card_compartilhado', {
-      slug,
-      mandante,
-      visitante,
-      canal: 'download_png',
-      variante: varianteAtiva
-    });
+    registrarConsultaInterna('baixar_card_png', { slug });
     const svgData = new XMLSerializer().serializeToString(svgRef.current);
     const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
@@ -126,7 +101,7 @@ export default function ConfrontoSecularCard({
       const pngUrl = canvas.toDataURL('image/png');
       const downloadLink = document.createElement('a');
       downloadLink.href = pngUrl;
-      downloadLink.download = `futstats-${slug}-variante-${varianteAtiva}.png`;
+      downloadLink.download = `futstats-${slug}-secular.png`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
@@ -136,14 +111,23 @@ export default function ConfrontoSecularCard({
     img.src = url;
   };
 
-  // Rótulos explicativos da variante A/B/C
-  const rotulosVariante = {
-    'A': 'Variante A: Foco em Fato Histórico',
-    'B': 'Variante B: Foco em Autoridade Secular',
-    'C': 'Variante C: Foco em Probabilidade Justa'
+  // 4. Download do SVG vetorial
+  const handleBaixarSVG = () => {
+    if (!svgRef.current) return;
+    registrarConsultaInterna('baixar_card_svg', { slug });
+    const svgData = new XMLSerializer().serializeToString(svgRef.current);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = svgUrl;
+    downloadLink.download = `futstats-${slug}-secular.svg`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(svgUrl);
+    setStatusAcao('Card SVG baixado com sucesso!');
+    setTimeout(() => setStatusAcao(''), 3000);
   };
-
-  const anosDeRivalidade = new Date().getFullYear() - anoPrimeiroJogo;
 
   return (
     <div style={{
@@ -154,48 +138,7 @@ export default function ConfrontoSecularCard({
       margin: '0 auto',
       width: '100%'
     }}>
-      {/* Seletor de Variante do Experimento A/B */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 12px',
-        borderRadius: '8px',
-        backgroundColor: 'var(--surface-raised, #EAE0D5)',
-        border: '1px solid var(--border-subtle, #D8CEBF)',
-        fontSize: '0.78rem'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Layers size={14} color="var(--primary, #5A673E)" />
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Experimento A/B:</span>
-          <span style={{ color: 'var(--text-secondary)' }}>{rotulosVariante[varianteAtiva]}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '4px' }}>
-          {['A', 'B', 'C'].map((v) => (
-            <button
-              key={v}
-              onClick={() => setVarianteAtiva(v)}
-              className="touch-tactile"
-              style={{
-                width: '26px',
-                height: '24px',
-                borderRadius: '4px',
-                border: varianteAtiva === v ? '2px solid var(--primary, #5A673E)' : '1px solid var(--border-subtle)',
-                backgroundColor: varianteAtiva === v ? 'var(--primary, #5A673E)' : 'var(--surface-card, #FFFFFF)',
-                color: varianteAtiva === v ? '#FFFFFF' : 'var(--text-primary)',
-                fontWeight: 700,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
-              title={rotulosVariante[v]}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Visualizador do Card SVG */}
+      {/* Visualizador do Card SVG Editorial */}
       <div style={{
         borderRadius: '16px',
         overflow: 'hidden',
@@ -211,8 +154,8 @@ export default function ConfrontoSecularCard({
           viewBox="0 0 1080 1080"
           xmlns="http://www.w3.org/2000/svg"
           role="img"
-          aria-label={`Card Editorial FutStats (${varianteAtiva}): ${mandante} x ${visitante} - ${totalJogos} jogos desde ${anoPrimeiroJogo}`}
-          style={{ width: '100%', height: '1080px', maxHeight: '100%', display: 'block' }}
+          aria-label={`Card Editorial: ${mandante} x ${visitante} - ${totalJogos} jogos desde ${anoPrimeiroJogo}`}
+          style={{ width: '100%', height: '100%', display: 'block' }}
         >
           <defs>
             <linearGradient id="editorialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -232,18 +175,18 @@ export default function ConfrontoSecularCard({
           <rect x="40" y="40" width="1000" height="1000" fill="none" stroke="#85573B" strokeWidth="2" strokeOpacity="0.4" />
           <rect x="48" y="48" width="984" height="984" fill="none" stroke="#1B1A17" strokeWidth="1" strokeOpacity="0.2" />
 
-          {/* Topo: Marca e Selo */}
+          {/* Topo: Marca e Selo de Preservação */}
           <g transform="translate(80, 110)">
             <rect x="0" y="0" width="280" height="36" rx="4" fill="#5A673E" fillOpacity="0.15" />
             <text x="14" y="24" fill="#5A673E" fontFamily="'Inter', system-ui, sans-serif" fontSize="16" fontWeight="700" letterSpacing="2">
-              ACERVO SECULAR OFICIAL
+              ACERVO HISTÓRICO SECULAR
             </text>
             <text x="310" y="24" fill="#85573B" fontFamily="'Inter', system-ui, sans-serif" fontSize="16" fontWeight="600" letterSpacing="1">
-              • PRESERVAÇÃO HISTÓRICA DO FUTEBOL
+              • PRESERVAÇÃO DOCUMENTAL OFICIAL
             </text>
           </g>
 
-          {/* Cabeçalho do Duelo */}
+          {/* Título Principal do Confronto */}
           <text x="80" y="210" fill="#1B1A17" fontFamily="'Source Serif 4', Georgia, serif" fontSize="62" fontWeight="800" letterSpacing="-1">
             {mandante}
           </text>
@@ -254,7 +197,7 @@ export default function ConfrontoSecularCard({
             {visitante}
           </text>
 
-          {/* Autoridade Secular */}
+          {/* Subtítulo: Autoridade Histórica */}
           <g transform="translate(80, 420)">
             <text x="0" y="0" fill="#5A673E" fontFamily="'Inter', system-ui, sans-serif" fontSize="32" fontWeight="700">
               {totalJogos} jogos documentados desde {anoPrimeiroJogo} ({anosDeRivalidade} anos de rivalidade)
@@ -281,60 +224,20 @@ export default function ConfrontoSecularCard({
             })()}
           </g>
 
-          {/* ================= BLOCO DINÂMICO CONFORME VARIANTE A/B/C ================= */}
-          {varianteAtiva === 'A' && (
-            /* VARIANTE A: DESTAQUE PARA FATO HISTÓRICO / EFEMÉRIDE */
-            <g transform="translate(80, 530)">
-              <rect x="0" y="0" width="920" height="175" rx="14" fill="#FFFFFF" fillOpacity="0.9" stroke="#85573B" strokeWidth="2.5" />
-              <rect x="32" y="24" width="220" height="28" rx="4" fill="#85573B" />
-              <text x="44" y="43" fill="#FFFFFF" fontFamily="'Inter', system-ui, sans-serif" fontSize="14" fontWeight="800" letterSpacing="1.5">
-                ⭐ O FATO HISTÓRICO
-              </text>
-              <text x="32" y="98" fill="#1B1A17" fontFamily="'Source Serif 4', Georgia, serif" fontSize="32" fontWeight="700">
-                {fatoHistorico.length > 52 ? fatoHistorico.slice(0, 50) + '...' : fatoHistorico}
-              </text>
-              <text x="32" y="142" fill="#6B6A65" fontFamily="'Inter', system-ui, sans-serif" fontSize="18">
-                Documentado em súmulas oficiais e crônicas preservadas do clássico.
-              </text>
-            </g>
-          )}
-
-          {varianteAtiva === 'B' && (
-            /* VARIANTE B: DESTAQUE PARA AUTORIDADE SECULAR */
-            <g transform="translate(80, 530)">
-              <rect x="0" y="0" width="920" height="175" rx="14" fill="#FFFFFF" fillOpacity="0.9" stroke="#5A673E" strokeWidth="2.5" />
-              <rect x="32" y="24" width="280" height="28" rx="4" fill="#5A673E" />
-              <text x="44" y="43" fill="#FFFFFF" fontFamily="'Inter', system-ui, sans-serif" fontSize="14" fontWeight="800" letterSpacing="1.5">
-                🏛️ AUTORIDADE SECULAR ({anosDeRivalidade} ANOS)
-              </text>
-              <text x="32" y="98" fill="#1B1A17" fontFamily="'Source Serif 4', Georgia, serif" fontSize="32" fontWeight="700">
-                Mais de um século de história oficial documentada
-              </text>
-              <text x="32" y="142" fill="#6B6A65" fontFamily="'Inter', system-ui, sans-serif" fontSize="18">
-                Acervo completo catalogado desde a década de 1910 com auditoria CBD/CBF.
-              </text>
-            </g>
-          )}
-
-          {varianteAtiva === 'C' && (
-            /* VARIANTE C: DESTAQUE EXPANDIDO PARA PROBABILIDADE JUSTA */
-            <g transform="translate(80, 530)">
-              <rect x="0" y="0" width="920" height="175" rx="14" fill="#1B1A17" stroke="#5A673E" strokeWidth="2.5" />
-              <rect x="32" y="24" width="310" height="28" rx="4" fill="#5A673E" />
-              <text x="44" y="43" fill="#FFFFFF" fontFamily="'Inter', system-ui, sans-serif" fontSize="14" fontWeight="800" letterSpacing="1.5">
-                📊 PROJEÇÃO DIXON-COLES CALIBRADA
-              </text>
-              <text x="888" y="43" fill="#D8CEBF" fontFamily="'JetBrains Mono', monospace" fontSize="14" textAnchor="end">
-                {intervaloConformal}
-              </text>
-              <text x="32" y="98" fill="#F1E8DE" fontFamily="'Source Serif 4', Georgia, serif" fontSize="28" fontWeight="700">
-                Estimativa justa sem viés ou margem de operadoras de apostas
-              </text>
-              <text x="32" y="142" fill="#D8CEBF" fontFamily="'Inter', system-ui, sans-serif" fontSize="18">
-                Modelo bivariado de Poisson ajustado às 462 partidas históricas.
-              </text>
-            </g>
-          )}
+          {/* Bloco de Fato Histórico Notável */}
+          <g transform="translate(80, 530)">
+            <rect x="0" y="0" width="920" height="175" rx="14" fill="#FFFFFF" fillOpacity="0.9" stroke="#85573B" strokeWidth="2" />
+            <rect x="32" y="24" width="220" height="28" rx="4" fill="#85573B" />
+            <text x="44" y="43" fill="#FFFFFF" fontFamily="'Inter', system-ui, sans-serif" fontSize="14" fontWeight="800" letterSpacing="1.5">
+              📜 FATO HISTÓRICO DESTACADO
+            </text>
+            <text x="32" y="98" fill="#1B1A17" fontFamily="'Source Serif 4', Georgia, serif" fontSize="30" fontWeight="700">
+              {fatoHistorico.length > 54 ? fatoHistorico.slice(0, 52) + '...' : fatoHistorico}
+            </text>
+            <text x="32" y="142" fill="#6B6A65" fontFamily="'Inter', system-ui, sans-serif" fontSize="18">
+              Documentado em súmulas oficiais e acervos históricos do futebol brasileiro.
+            </text>
+          </g>
 
           {/* Box de Probabilidade Justa (Dixon-Coles) */}
           <g transform="translate(80, 725)">
@@ -376,7 +279,7 @@ export default function ConfrontoSecularCard({
               FUTSTATS
             </text>
             <text x="0" y="65" fill="#6B6A65" fontFamily="'Inter', system-ui, sans-serif" fontSize="16">
-              Inteligência Histórica e Probabilidades
+              Inteligência Histórica e Probabilidades do Futebol Brasileiro
             </text>
 
             <rect x="520" y="8" width="400" height="60" rx="8" fill="#5A673E" />
@@ -411,10 +314,10 @@ export default function ConfrontoSecularCard({
         </div>
       )}
 
-      {/* Botões de Ação do Card */}
+      {/* Botões de Ação para o Fluxo de Trabalho do Usuário Interno */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
         <button
-          onClick={handleCompartilhar}
+          onClick={handleCopiarTextoWhatsApp}
           className="btn-primary touch-tactile"
           style={{
             minHeight: '44px',
@@ -424,11 +327,14 @@ export default function ConfrontoSecularCard({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px'
+            gap: '8px',
+            backgroundColor: '#2E7D32', // Verde WhatsApp editorial
+            borderColor: '#1B5E20'
           }}
+          title="Copia texto estruturado com emojis pronto para colar no WhatsApp"
         >
-          {copiado ? <Check size={18} /> : <Share2 size={18} />}
-          {copiado ? 'Link Copiado!' : 'Compartilhar Link'}
+          {copiadoTexto ? <Check size={18} /> : <MessageSquareText size={18} />}
+          {copiadoTexto ? 'Texto Copiado!' : 'Copiar p/ WhatsApp'}
         </button>
 
         <button
@@ -457,7 +363,7 @@ export default function ConfrontoSecularCard({
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
         <button
-          onClick={handleBaixarSVG}
+          onClick={handleCompartilharLink}
           style={{
             background: 'none',
             border: 'none',
@@ -465,15 +371,30 @@ export default function ConfrontoSecularCard({
             textDecoration: 'underline',
             cursor: 'pointer',
             padding: '4px 0',
+            fontSize: '0.78rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          {copiadoLink ? <Check size={14} /> : <Copy size={14} />}
+          {copiadoLink ? 'Link copiado' : 'Copiar link canônico'}
+        </button>
+
+        <button
+          onClick={handleBaixarSVG}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            padding: '4px 0',
             fontSize: '0.78rem'
           }}
         >
-          Baixar arquivo SVG vetorial puro
+          Baixar arquivo SVG puro
         </button>
-
-        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <ShieldCheck size={14} color="#5A673E" /> Telemetria Ética &amp; Anônima (Privacidade)
-        </span>
       </div>
     </div>
   );

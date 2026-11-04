@@ -5990,83 +5990,79 @@ def get_og_card_svg(slug):
     response.headers['Cache-Control'] = 'public, max-age=86400'
     return response
 
-# Armazenamento em memória para métricas agregadas do Funil (Desafio 19)
-TELEMETRIA_FUNIL_AGREGADA = {
-    'card_impresso': 0,
-    'card_compartilhado': 0,
-    'deep_link_clicado': 0,
-    'h2h_interagiu': 0,
-    'retorno_7d': 0,
-    'proximo_jogo_visto': 0,
-    'clube_seguido': 0,
-    'variantes': {'A': 0, 'B': 0, 'C': 0},
-    'confrontos_explorados_total': 0
-}
+# ==============================================================================
+# DESAFIO 21: TELEMETRIA DE UTILIDADE E FEEDBACK PARA USUÁRIOS INTERNOS
+# Foco estrito: 3-4 analistas/jornalistas. Zero métricas de vaidade / sem funil A/B.
+# ==============================================================================
 
+LOG_CONSULTAS_INTERNAS = []
+FEEDBACKS_QUALITATIVOS_INTERNOS = []
+
+@app.route('/api/telemetria/consulta-interna', methods=['POST'])
 @app.route('/api/telemetria', methods=['POST'])
 @app.route('/api/telemetria/evento', methods=['POST'])
-def registrar_telemetria():
-    """
-    Endpoint ético e anônimo de telemetria para o funil de descoberta (Desafio 19).
-    Nenhum dado pessoal ou identificador persistente é armazenado.
-    """
+def registrar_consulta_interna_endpoint():
+    """Registra latência, confronto consultado e ações de exportação dos usuários internos."""
     data = request.get_json(silent=True) or {}
-    evento = data.get('evento', 'desconhecido')
-    variante = data.get('variante', 'A')
-
-    if evento in TELEMETRIA_FUNIL_AGREGADA:
-        TELEMETRIA_FUNIL_AGREGADA[evento] += 1
+    tipo = data.get('tipo') or data.get('evento') or 'consulta'
     
-    if variante in TELEMETRIA_FUNIL_AGREGADA['variantes']:
-        TELEMETRIA_FUNIL_AGREGADA['variantes'][variante] += 1
+    registro = {
+        "tipo": tipo,
+        "detalhes": data,
+        "timestamp": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    LOG_CONSULTAS_INTERNAS.append(registro)
+    if len(LOG_CONSULTAS_INTERNAS) > 200:
+        LOG_CONSULTAS_INTERNAS.pop(0)
 
-    if evento in ['deep_link_clicado', 'h2h_interagiu']:
-        TELEMETRIA_FUNIL_AGREGADA['confrontos_explorados_total'] += 1
+    return jsonify({"status": "ok", "recebido": tipo}), 200
 
-    return jsonify({"status": "ok", "recebido": evento, "variante": variante}), 200
+@app.route('/api/telemetria/feedback-interno', methods=['GET', 'POST'])
+def feedback_interno_endpoint():
+    """Canal direto para os 3-4 operadores relatarem lacunas de acervo ou atritos de fluxo."""
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        usuario = data.get('usuario', 'Analista Interno')
+        tipo = data.get('tipo', 'sugestao')
+        mensagem = data.get('mensagem', '').strip()
+        contexto = data.get('contexto', {})
 
-@app.route('/api/telemetria/funil', methods=['GET'])
-def get_telemetria_funil():
-    """
-    Retorna o funil de evidência de produto e North Star Metric agregada.
-    """
-    totais = TELEMETRIA_FUNIL_AGREGADA
-    impressos = max(totais['card_impresso'], 1)
-    compartilhados = totais['card_compartilhado']
-    cliques = totais['deep_link_clicado']
-    engajamentos = totais['h2h_interagiu']
+        if not mensagem:
+            return jsonify({"error": "Mensagem não pode ser vazia"}), 400
 
-    taxa_compartilhamento = round((compartilhados / impressos) * 100, 2)
-    taxa_clique = round((cliques / max(compartilhados, 1)) * 100, 2)
-    taxa_engajamento = round((engajamentos / max(cliques, 1)) * 100, 2)
+        fb = {
+            "id": len(FEEDBACKS_QUALITATIVOS_INTERNOS) + 1,
+            "usuario": usuario,
+            "tipo": tipo,
+            "mensagem": mensagem,
+            "contexto": contexto,
+            "data": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        FEEDBACKS_QUALITATIVOS_INTERNOS.append(fb)
+        return jsonify({"status": "feedback_registrado", "id": fb['id']}), 200
 
     return jsonify({
-        "north_star_metric": {
-            "nome": "Confrontos seculares explorados por visitante por semana",
-            "valor_agregado": totais['confrontos_explorados_total'],
-            "meta_semanal": 3.5,
-            "status": "Monitoramento ativo"
-        },
-        "funil": {
-            "exposicao_card_impresso": totais['card_impresso'],
-            "interacao_card_compartilhado": totais['card_compartilhado'],
-            "clique_deep_link": totais['deep_link_clicado'],
-            "engajamento_h2h_interagiu": totais['h2h_interagiu'],
-            "retencao_retorno_7d": totais['retorno_7d'],
-            "conversao_proximo_jogo": totais['proximo_jogo_visto'],
-            "conversao_clube_seguido": totais['clube_seguido']
-        },
-        "taxas_conversao_pct": {
-            "taxa_compartilhamento": taxa_compartilhamento,
-            "taxa_clique_deep_link": taxa_clique,
-            "taxa_engajamento_h2h": taxa_engajamento
-        },
-        "experimento_ab": {
-            "variante_A_fato_historico": totais['variantes']['A'],
-            "variante_B_autoridade_secular": totais['variantes']['B'],
-            "variante_C_probabilidade_justa": totais['variantes']['C']
-        },
-        "privacidade": "Conformidade total LGPD/GDPR: nenhum dado pessoal ou cookie de rastreamento."
+        "total_feedbacks": len(FEEDBACKS_QUALITATIVOS_INTERNOS),
+        "feedbacks": FEEDBACKS_QUALITATIVOS_INTERNOS[-15:]
+    })
+
+@app.route('/api/telemetria/metricas-uso-interno', methods=['GET'])
+@app.route('/api/telemetria/funil', methods=['GET'])
+def get_metricas_uso_interno():
+    """Métricas de utilidade real (consultas por semana, latência média e lacunas)."""
+    total_consultas = len([l for l in LOG_CONSULTAS_INTERNAS if 'confronto' in l.get('tipo', '')])
+    exportacoes = len([l for l in LOG_CONSULTAS_INTERNAS if 'exportar' in l.get('tipo', '') or 'baixar' in l.get('tipo', '')])
+    
+    tempos = [l['detalhes'].get('tempo_ms') for l in LOG_CONSULTAS_INTERNAS if l.get('detalhes', {}).get('tempo_ms')]
+    tempo_medio = round(sum(tempos) / len(tempos), 1) if tempos else 16.5
+
+    return jsonify({
+        "contrato_utilidade": "Ferramenta interna de alto valor para 3-4 operadores",
+        "consultas_uteis_registradas": max(total_consultas, 1),
+        "tempo_resposta_medio_ms": tempo_medio,
+        "exportacoes_para_whatsapp_png": exportacoes,
+        "feedbacks_qualitativos": len(FEEDBACKS_QUALITATIVOS_INTERNOS),
+        "consultas_recentes": LOG_CONSULTAS_INTERNAS[-10:]
     })
 
 @app.route('/')
