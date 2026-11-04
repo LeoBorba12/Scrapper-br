@@ -16,6 +16,7 @@ import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/cha
 const AuthView = lazy(() => import('./components/AuthView'));
 const EditorialClubes = lazy(() => import('./components/EditorialClubes'));
 const ClubCompareView = lazy(() => import('./components/ClubCompareView'));
+const CoachCompareView = lazy(() => import('./components/CoachCompareView'));
 const ProtagonistaAtleta = lazy(() => import('./components/ProtagonistaAtleta'));
 const AthleteCompareView = lazy(() => import('./components/AthleteCompareView'));
 const BettingHubView = lazy(() => import('./components/BettingHubView'));
@@ -1200,6 +1201,15 @@ export default function App() {
           clubesList={clubesList}
           clubeInicial1={clube1 || 'Flamengo'}
           clubeInicial2={clube2 || 'Vasco'}
+        />
+      )}
+
+      {/* ABA TÉCNICOS: COMPARADOR DE MESTRES TÁTICOS & PRANCHETAS (EDITORIAL 2026) */}
+      {activeTab === 'tecnicos' && (
+        <CoachCompareView
+          darkMode={darkMode}
+          treinadorInicial1="abel_ferreira"
+          treinadorInicial2="jorge_jesus"
         />
       )}
 

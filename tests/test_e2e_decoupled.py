@@ -594,6 +594,35 @@ class TestTier1FeatureCoverage:
             f"Romário esperado média ~0.77, obtido {media_romario}."
         )
 
+    @pytest.mark.tier1
+    def test_t1_treinadores_catalogo_retrieval(self, api_client):
+        """Catálogo de treinadores históricos homologados retorna dados e títulos."""
+        response = api_client.get("/api/treinadores")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert isinstance(data, list)
+        assert len(data) >= 8
+        slugs = [t["slug"] for t in data]
+        assert "abel_ferreira" in slugs
+        assert "tele_santana" in slugs
+        assert "felipao" in slugs
+        assert all("titulos_total" in t for t in data)
+
+    @pytest.mark.tier1
+    def test_t1_treinadores_comparativo_confronto_and_palmares(self, api_client):
+        """Comparador de mestres táticos calcula palmarés, radar e retrospecto no banco."""
+        response = api_client.get("/api/treinadores/comparar?t1=abel_ferreira&t2=jorge_jesus")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "treinador1" in data and "treinador2" in data
+        assert "duelo_direto" in data
+        t1 = data["treinador1"]
+        assert t1["nome"] == "Abel Ferreira"
+        assert "palmares" in t1 and "radar" in t1
+        assert t1["radar"]["ofensividade"] > 0
+        assert t1["radar"]["solidez_defensiva"] > 0
+        assert "total_jogos" in data["duelo_direto"]
+
 
 # ==============================================================================
 # TIER 2: BOUNDARY & CORNER CASES (8 TESTES)

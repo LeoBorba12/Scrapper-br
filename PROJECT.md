@@ -49,6 +49,7 @@ Every feature from the Survey phase appears here with its assigned milestone:
 | M3 | Career Totals Reconciliation & Relational Governance | Features 8, 9, 10, 11: Reconcile player careers (remove 1.00 ratio, fix Marcos 9488, Pedro Raul 54), 12/12 audit OK, 22/22 math evals, build code 0, 42/42 E2E passed | M2 | DONE |
 | M3.5 | Enriquecimento de Goleiros, Palmarés & Comparador H2H | Goleiros históricos (São Marcos, Ceni, Cássio, Fábio, Dida), títulos/prêmios OGol, clean sheets/pênaltis defendidos, ratings Sofascore e comparador especializado de goleiros (`/api/jogadores/comparar` e `AthleteCompareView.jsx`) | M3 | DONE |
 | M4 | Final Milestone: 100% E2E Pass & Adversarial Hardening | Feature 13: Phase 1 (100% pass of Tiers 1-4 E2E tests) + Phase 2 (Tier 5 Challenger-driven adversarial coverage hardening - 47/47 E2E tests passed) | E2E, M3 | DONE |
+| M4.5 | Comparador de Mestres Táticos & Treinadores Históricos | Módulo de análise de pranchetas históricas (`CoachCompareView.jsx`, `/api/treinadores`, `/api/treinadores/comparar`), catálogo com 11 treinadores icônicos, estante de títulos oficiais (Palmarés), radar de atributos táticos, confronto direto histórico no acervo e exportação de card social PNG | M4 | DONE |
 
 ## Interface Contracts
 ### Gateway ↔ Vercel Proxy

@@ -683,6 +683,163 @@ export function baixarCardDueloH2HPNG({
 }
 
 /**
+ * Exporta Card de Duelo de Mestres Táticos / Treinadores para Redes Sociais (1200x675 16:9)
+ */
+export function baixarCardDueloTreinadoresPNG({
+  treinador1 = 'Abel Ferreira',
+  treinador2 = 'Jorge Jesus',
+  apelido1 = 'O Comandante',
+  apelido2 = 'Mister',
+  aprov1 = 64.5,
+  aprov2 = 81.6,
+  titulos1 = 10,
+  titulos2 = 7,
+  jogosH2H = 0,
+  vit1H2H = 0,
+  vit2H2H = 0,
+  empH2H = 0
+}) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 675;
+  const ctx = canvas.getContext('2d');
+
+  const desenharRoundRect = (x, y, w, h, r) => {
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+  };
+
+  // 1. Fundo Carvão Quente
+  ctx.fillStyle = '#141311';
+  ctx.fillRect(0, 0, 1200, 675);
+
+  // Barra Superior Gradiente
+  const topGrad = ctx.createLinearGradient(0, 0, 1200, 0);
+  topGrad.addColorStop(0, '#5A673E');
+  topGrad.addColorStop(0.5, '#7D8D5C');
+  topGrad.addColorStop(1, '#85573B');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, 1200, 8);
+
+  // Marca d'água de prancheta
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+  ctx.font = '900 130px "Source Serif 4", serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('PRANCHETA TÁTICA', 600, 380);
+  ctx.textAlign = 'left';
+
+  // 2. Cabeçalho Editorial
+  ctx.fillStyle = '#9EB178';
+  ctx.font = 'bold 13px "JetBrains Mono", monospace';
+  ctx.fillText('FUTSTATS • DUELO DE MESTRES TÁTICOS & PRANCHETAS', 60, 52);
+
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = '900 32px "Source Serif 4", serif';
+  ctx.fillText(`${treinador1}  vs  ${treinador2}`, 60, 96);
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '14px "Inter", sans-serif';
+  ctx.fillText(`"${apelido1}"  x  "${apelido2}" • Comparativo Histórico e Carreira`, 60, 124);
+
+  // 3. Grid Principal de Comparação
+  const cardW = 520;
+  const cardH = 260;
+  const cardY = 150;
+
+  // Card Treinador 1
+  ctx.fillStyle = '#1C1B17';
+  ctx.strokeStyle = '#5A673E';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  desenharRoundRect(60, cardY, cardW, cardH, 16);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#9EB178';
+  ctx.font = 'bold 12px "JetBrains Mono", monospace';
+  ctx.fillText('ESTATÍSTICAS DE CARREIRA', 84, cardY + 36);
+
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = 'bold 26px "Inter", sans-serif';
+  ctx.fillText(treinador1, 84, cardY + 74);
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '14px "Inter", sans-serif';
+  ctx.fillText(`Aproveitamento: ${aprov1}%`, 84, cardY + 115);
+  ctx.fillText(`Títulos Oficiais no Palmarés: ${titulos1} taças`, 84, cardY + 145);
+  ctx.fillText(`Confrontos Diretos Vencidos: ${vit1H2H} vitórias`, 84, cardY + 175);
+
+  // Card Treinador 2
+  ctx.fillStyle = '#1C1B17';
+  ctx.strokeStyle = '#85573B';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  desenharRoundRect(620, cardY, cardW, cardH, 16);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#C48A66';
+  ctx.font = 'bold 12px "JetBrains Mono", monospace';
+  ctx.fillText('ESTATÍSTICAS DE CARREIRA', 644, cardY + 36);
+
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = 'bold 26px "Inter", sans-serif';
+  ctx.fillText(treinador2, 644, cardY + 74);
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '14px "Inter", sans-serif';
+  ctx.fillText(`Aproveitamento: ${aprov2}%`, 644, cardY + 115);
+  ctx.fillText(`Títulos Oficiais no Palmarés: ${titulos2} taças`, 644, cardY + 145);
+  ctx.fillText(`Confrontos Diretos Vencidos: ${vit2H2H} vitórias`, 644, cardY + 175);
+
+  // 4. Faixa de Confrontos Diretos no Banco
+  const h2hY = 440;
+  ctx.fillStyle = '#191814';
+  ctx.strokeStyle = '#2E2B24';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  desenharRoundRect(60, h2hY, 1080, 150, 14);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#8C897D';
+  ctx.font = 'bold 12px "JetBrains Mono", monospace';
+  ctx.fillText('RETROSPECTO DIRETO NA ÁREA TÉCNICA (BANCO DE DADOS)', 84, h2hY + 36);
+
+  ctx.fillStyle = '#F1E8DE';
+  ctx.font = 'bold 22px "Inter", sans-serif';
+  if (jogosH2H > 0) {
+    ctx.fillText(`${jogosH2H} Duelos Oficiais Registrados • ${vit1H2H} vitórias de ${treinador1.split(' ')[0]}  |  ${empH2H} empates  |  ${vit2H2H} vitórias de ${treinador2.split(' ')[0]}`, 84, h2hY + 78);
+  } else {
+    ctx.fillText('Sem confrontos diretos documentados entre suas equipes no acervo oficial', 84, h2hY + 78);
+  }
+
+  ctx.fillStyle = '#A8A296';
+  ctx.font = '14px "Inter", sans-serif';
+  ctx.fillText('FutStats Tactical Intelligence • Modelagem Dixon-Coles, Palmarés e DNA de Treinadores', 84, h2hY + 116);
+
+  // 5. Rodapé Oficial
+  ctx.fillStyle = '#6E6B62';
+  ctx.font = '14px "JetBrains Mono", monospace';
+  ctx.fillText('FutStats • futstats.vercel.app • A Casa da Análise Tática Aprofundada', 60, 630);
+
+  ctx.fillStyle = '#7D8D5C';
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 16px "Inter", sans-serif';
+  ctx.fillText('@FutStats', 1140, 630);
+  ctx.textAlign = 'left';
+
+  // 6. Download
+  const dataUrl = canvas.toDataURL('image/png');
+  const link = document.createElement('a');
+  link.download = `duelo-tecnicos-${treinador1.toLowerCase().replace(/\s+/g, '-')}-vs-${treinador2.toLowerCase().replace(/\s+/g, '-')}.png`;
+  link.href = dataUrl;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+/**
  * Exporta Card de Alerta de Aposta de Valor (+EV) para Redes Sociais (1200x675 16:9)
  */
 export function baixarCardApostaEVPNG({

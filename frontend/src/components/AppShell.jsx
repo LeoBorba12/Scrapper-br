@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   Trophy, CloudRain, Swords, BarChart3, Bot, Search,
   Calendar, Award, Key, LogOut, UserPlus, Check, Sun, Moon,
-  ShieldCheck, ArrowRight, TrendingUp
+  ShieldCheck, ArrowRight, TrendingUp, Users
 } from 'lucide-react';
 
 export default function AppShell({
@@ -23,6 +23,7 @@ export default function AppShell({
     { id: 'times', label: 'Clubes', icon: BarChart3, badge: 'Editorial' },
     { id: 'jogadores', label: 'Atletas', icon: Award, badge: 'Protagonista' },
     { id: 'h2h', label: 'Confrontos', icon: Swords },
+    { id: 'tecnicos', label: 'Técnicos', icon: Users, badge: 'Mestres' },
     { id: 'playground', label: 'Partidas', icon: Calendar },
     { id: 'clima', label: 'Clima', icon: CloudRain },
     { id: 'arbitros', label: 'Arbitragem', icon: ShieldCheck },

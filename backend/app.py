@@ -1471,6 +1471,263 @@ def get_h2h():
     api_cache.set(cache_key, res, ttl=1800)
     return jsonify(res)
 
+# ==============================================================================
+# MÓDULO EDITORIAL: TREINADORES HISTÓRICOS E COMPARADOR DE MESTRES TÁTICOS
+# ==============================================================================
+
+TREINADORES_CATALOGO = {
+    "abel_ferreira": {
+        "slug": "abel_ferreira",
+        "nome": "Abel Ferreira",
+        "apelido": "O Comandante",
+        "clubes_principais": ["Palmeiras"],
+        "nacionalidade": "Portugal",
+        "jogos_carreira": 320,
+        "aproveitamento": 64.5,
+        "estilo_tatico": "Intensidade, Verticalidade e Foco Mental",
+        "palmares": {"mundial": 0, "libertadores": 2, "brasileirao": 2, "copa_do_brasil": 1, "estaduais": 3, "outros": 2},
+        "titulos_destaque": ["Bicampeão da Libertadores (2020, 2021)", "Bicampeão Brasileiro (2022, 2023)", "Copa do Brasil (2020)", "Tricampeão Paulista (2022, 2023, 2024)"],
+        "radar": {"ofensividade": 84, "solidez_defensiva": 92, "gestao_vestiario": 96, "decisividade_copas": 95, "longevidade": 88},
+        "busca_aliases": ["abel ferreira", "a. ferreira", "abel"]
+    },
+    "jorge_jesus": {
+        "slug": "jorge_jesus",
+        "nome": "Jorge Jesus",
+        "apelido": "Mister",
+        "clubes_principais": ["Flamengo", "Benfica", "Al-Hilal"],
+        "nacionalidade": "Portugal",
+        "jogos_carreira": 820,
+        "aproveitamento": 81.6,
+        "estilo_tatico": "Pressão Alta Sufocante e Linha Defensiva Alta",
+        "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 1, "copa_do_brasil": 0, "estaduais": 1, "outros": 4},
+        "titulos_destaque": ["Copa Libertadores Histórica (2019)", "Campeonato Brasileiro Recordista de Pontos (2019)", "Recopa Sul-Americana (2020)", "Supercopa do Brasil (2020)"],
+        "radar": {"ofensividade": 98, "solidez_defensiva": 86, "gestao_vestiario": 91, "decisividade_copas": 92, "longevidade": 90},
+        "busca_aliases": ["jorge jesus", "j. jesus", "mister"]
+    },
+    "tele_santana": {
+        "slug": "tele_santana",
+        "nome": "Telê Santana",
+        "apelido": "Mestre Telê",
+        "clubes_principais": ["São Paulo", "Atlético-MG", "Grêmio", "Palmeiras", "Seleção Brasileira"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 1150,
+        "aproveitamento": 63.8,
+        "estilo_tatico": "Futebol-Arte, Passe Rápido e Lealdade Técnica",
+        "palmares": {"mundial": 2, "libertadores": 2, "brasileirao": 2, "copa_do_brasil": 0, "estaduais": 4, "outros": 2},
+        "titulos_destaque": ["Bicampeão Mundial Intercontinental (1992 vs Barcelona, 1993 vs Milan)", "Bicampeão da Libertadores (1992, 1993)", "Brasileirão (1971 Atlético-MG, 1991 São Paulo)"],
+        "radar": {"ofensividade": 99, "solidez_defensiva": 88, "gestao_vestiario": 95, "decisividade_copas": 97, "longevidade": 94},
+        "busca_aliases": ["tele santana", "t. santana"]
+    },
+    "felipao": {
+        "slug": "felipao",
+        "nome": "Luiz Felipe Scolari (Felipão)",
+        "apelido": "General da Família Scolari",
+        "clubes_principais": ["Grêmio", "Palmeiras", "Seleção Brasileira", "Cruzeiro", "Athletico-PR"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 1420,
+        "aproveitamento": 61.2,
+        "estilo_tatico": "Competitividade Sangue nos Olhos, Bola Parada e União do Vestiário",
+        "palmares": {"mundial": 1, "libertadores": 2, "brasileirao": 2, "copa_do_brasil": 4, "estaduais": 5, "outros": 3},
+        "titulos_destaque": ["Pentacampeão da Copa do Mundo FIFA (2002)", "Bicampeão da Libertadores (1995 Grêmio, 1999 Palmeiras)", "Tetracampeão da Copa do Brasil (1991, 1994, 1998, 2012)"],
+        "radar": {"ofensividade": 85, "solidez_defensiva": 93, "gestao_vestiario": 99, "decisividade_copas": 99, "longevidade": 96},
+        "busca_aliases": ["felipao", "luiz felipe scolari", "l. scolari", "scolari"]
+    },
+    "muricy_ramalho": {
+        "slug": "muricy_ramalho",
+        "nome": "Muricy Ramalho",
+        "apelido": "Aqui é Trabalho, Meu Filho!",
+        "clubes_principais": ["São Paulo", "Santos", "Fluminense", "Internacional", "Palmeiras"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 980,
+        "aproveitamento": 60.5,
+        "estilo_tatico": "Solidez Tática de Ferro, Bola Parada Mortal e Eficiência de Pontos Corridos",
+        "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 4, "copa_do_brasil": 0, "estaduais": 7, "outros": 1},
+        "titulos_destaque": ["Tricampeão Brasileiro Consecutivo (2006, 2007, 2008 São Paulo)", "Tetracampeão Brasileiro (2010 Fluminense)", "Campeão da Copa Libertadores (2011 Santos do Neymar)"],
+        "radar": {"ofensividade": 82, "solidez_defensiva": 97, "gestao_vestiario": 94, "decisividade_copas": 89, "longevidade": 92},
+        "busca_aliases": ["muricy ramalho", "m. ramalho", "muricy"]
+    },
+    "vanderlei_luxemburgo": {
+        "slug": "vanderlei_luxemburgo",
+        "nome": "Vanderlei Luxemburgo",
+        "apelido": "Profexô",
+        "clubes_principais": ["Palmeiras", "Corinthians", "Santos", "Cruzeiro", "Flamengo", "Real Madrid"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 1350,
+        "aproveitamento": 62.4,
+        "estilo_tatico": "Vanguarda Tática, Losango de Meio-Campo e Ofensividade",
+        "palmares": {"mundial": 0, "libertadores": 0, "brasileirao": 5, "copa_do_brasil": 1, "estaduais": 14, "outros": 2},
+        "titulos_destaque": ["Pentacampeão Brasileiro (1993, 1994 Palmeiras, 1998 Corinthians, 2003 Cruzeiro, 2004 Santos)", "Tríplice Coroa Inédita (2003 Cruzeiro)", "Copa América (1999 Brasil)"],
+        "radar": {"ofensividade": 94, "solidez_defensiva": 86, "gestao_vestiario": 91, "decisividade_copas": 85, "longevidade": 95},
+        "busca_aliases": ["vanderlei luxemburgo", "v. luxemburgo", "luxemburgo", "profexo"]
+    },
+    "tite": {
+        "slug": "tite",
+        "nome": "Adenor Leonardo Bachi (Tite)",
+        "apelido": "Tite",
+        "clubes_principais": ["Corinthians", "Seleção Brasileira", "Internacional", "Grêmio", "Flamengo"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 1120,
+        "aproveitamento": 63.1,
+        "estilo_tatico": "Equilíbrio Posicional, Linhas Compactas e Fala Empática",
+        "palmares": {"mundial": 1, "libertadores": 1, "brasileirao": 2, "copa_do_brasil": 1, "estaduais": 4, "outros": 3},
+        "titulos_destaque": ["Campeão Mundial de Clubes FIFA (2012 Corinthians)", "Copa Libertadores Invicto (2012 Corinthians)", "Bicampeão Brasileiro (2011, 2015 Corinthians)", "Copa América (2019 Brasil)"],
+        "radar": {"ofensividade": 86, "solidez_defensiva": 96, "gestao_vestiario": 97, "decisividade_copas": 93, "longevidade": 94},
+        "busca_aliases": ["tite", "adenor bachi", "a. bachi"]
+    },
+    "dorival_junior": {
+        "slug": "dorival_junior",
+        "nome": "Dorival Júnior",
+        "apelido": "Dorival",
+        "clubes_principais": ["Flamengo", "São Paulo", "Santos", "Palmeiras", "Seleção Brasileira"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 920,
+        "aproveitamento": 58.7,
+        "estilo_tatico": "Futebol Fluido, Liberdade Criativa e Ataque Dinâmico",
+        "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 0, "copa_do_brasil": 3, "estaduais": 5, "outros": 1},
+        "titulos_destaque": ["Copa Libertadores (2022 Flamengo)", "Tricampeão da Copa do Brasil (2010 Santos, 2022 Flamengo, 2023 São Paulo)", "Paulistão dos Meninos da Vila (2010)"],
+        "radar": {"ofensividade": 91, "solidez_defensiva": 84, "gestao_vestiario": 95, "decisividade_copas": 96, "longevidade": 91},
+        "busca_aliases": ["dorival junior", "dorival", "d. junior", "dorival jr"]
+    },
+    "renato_gaucho": {
+        "slug": "renato_gaucho",
+        "nome": "Renato Portaluppi (Renato Gaúcho)",
+        "apelido": "Rei de Copas do Tricolor",
+        "clubes_principais": ["Grêmio", "Fluminense", "Flamengo", "Vasco"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 770,
+        "aproveitamento": 59.8,
+        "estilo_tatico": "Confiança Psicológica Máxima, Ataque Veloz e Imortalidade Copeira",
+        "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 0, "copa_do_brasil": 2, "estaduais": 7, "outros": 1},
+        "titulos_destaque": ["Copa Libertadores (2017 Grêmio)", "Bicampeão da Copa do Brasil (2007 Fluminense, 2016 Grêmio)", "Recopa Sul-Americana (2018 Grêmio)", "Heptacampeão Gaúcho"],
+        "radar": {"ofensividade": 92, "solidez_defensiva": 83, "gestao_vestiario": 98, "decisividade_copas": 95, "longevidade": 90},
+        "busca_aliases": ["renato gaucho", "renato portaluppi", "r. portaluppi", "renato"]
+    },
+    "fernando_diniz": {
+        "slug": "fernando_diniz",
+        "nome": "Fernando Diniz",
+        "apelido": "O Criador do Dinizismo",
+        "clubes_principais": ["Fluminense", "São Paulo", "Santos", "Athletico-PR", "Cruzeiro"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 510,
+        "aproveitamento": 54.2,
+        "estilo_tatico": "Aposicional, Saída Curta com Goleiro e Sobrecarga de Setor",
+        "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 0, "copa_do_brasil": 0, "estaduais": 1, "outros": 1},
+        "titulos_destaque": ["Copa Libertadores da América (2023 Fluminense)", "Recopa Sul-Americana (2024 Fluminense)", "Campeonato Carioca (2023 Fluminense)"],
+        "radar": {"ofensividade": 93, "solidez_defensiva": 75, "gestao_vestiario": 90, "decisividade_copas": 91, "longevidade": 82},
+        "busca_aliases": ["fernando diniz", "f. diniz", "diniz"]
+    },
+    "zagallo": {
+        "slug": "zagallo",
+        "nome": "Mário Jorge Lobo Zagallo",
+        "apelido": "O Velho Lobo",
+        "clubes_principais": ["Botafogo", "Flamengo", "Vasco", "Fluminense", "Seleção Brasileira"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 1200,
+        "aproveitamento": 64.0,
+        "estilo_tatico": "Modernidade do 4-3-3, Ponta Recuado e Mística Vencedora",
+        "palmares": {"mundial": 4, "libertadores": 0, "brasileirao": 1, "copa_do_brasil": 0, "estaduais": 5, "outros": 2},
+        "titulos_destaque": ["Único Tetracampeão da Copa do Mundo FIFA (1970 Técnico, 1958/62 Jogador, 1994 Coord.)", "Copa das Confederações (1997 Brasil)", "Campeonato Brasileiro (1968 Botafogo)"],
+        "radar": {"ofensividade": 97, "solidez_defensiva": 91, "gestao_vestiario": 99, "decisividade_copas": 99, "longevidade": 99},
+        "busca_aliases": ["zagallo", "mario zagallo", "lobo zagallo", "m. zagallo"]
+    }
+}
+
+def resolver_treinador(query: str):
+    if not query:
+        return None
+    q = query.lower().strip()
+    if q in TREINADORES_CATALOGO:
+        return TREINADORES_CATALOGO[q]
+    for k, v in TREINADORES_CATALOGO.items():
+        if q in v["nome"].lower() or any(alias in q or q in alias for alias in v.get("busca_aliases", [])):
+            return v
+    return None
+
+@app.route('/api/treinadores', methods=['GET'])
+@require_auth
+def get_lista_treinadores():
+    """Retorna a lista resumida de todos os treinadores homologados para seleção."""
+    lista = [
+        {
+            "slug": t["slug"],
+            "nome": t["nome"],
+            "apelido": t["apelido"],
+            "clubes_principais": t["clubes_principais"],
+            "titulos_total": sum(t["palmares"].values())
+        }
+        for t in TREINADORES_CATALOGO.values()
+    ]
+    return jsonify(lista)
+
+@app.route('/api/treinadores/comparar', methods=['GET'])
+@require_auth
+def get_comparativo_treinadores():
+    """Comparativo aprofundado entre dois treinadores com títulos, radar e confrontos diretos."""
+    t1_query = request.args.get('t1', 'abel_ferreira').strip()
+    t2_query = request.args.get('t2', 'jorge_jesus').strip()
+
+    t1_data = resolver_treinador(t1_query)
+    t2_data = resolver_treinador(t2_query)
+
+    if not t1_data or not t2_data:
+        return jsonify({"error": "Treinador não encontrado no catálogo"}), 404
+
+    # Busca no SQLite partidas em que os dois se enfrentaram
+    conn = get_db()
+    c = conn.cursor()
+
+    aliases1 = t1_data.get("busca_aliases", [t1_data["nome"].lower()])
+    aliases2 = t2_data.get("busca_aliases", [t2_data["nome"].lower()])
+
+    clausulas1_mand = " OR ".join(["LOWER(tecnico_mandante) LIKE ?" for _ in aliases1])
+    clausulas2_vis = " OR ".join(["LOWER(tecnico_visitante) LIKE ?" for _ in aliases2])
+    clausulas2_mand = " OR ".join(["LOWER(tecnico_mandante) LIKE ?" for _ in aliases2])
+    clausulas1_vis = " OR ".join(["LOWER(tecnico_visitante) LIKE ?" for _ in aliases1])
+
+    params_duelo = [f"%{a}%" for a in aliases1] + [f"%{a}%" for a in aliases2] + [f"%{a}%" for a in aliases2] + [f"%{a}%" for a in aliases1]
+
+    query_duelo = f"""
+        SELECT id_partida, ano, data, campeonato, mandante, visitante, placar, vencedor, tecnico_mandante, tecnico_visitante
+        FROM partidas
+        WHERE (({clausulas1_mand}) AND ({clausulas2_vis}))
+           OR (({clausulas2_mand}) AND ({clausulas1_vis}))
+        ORDER BY data DESC, ano DESC;
+    """
+    try:
+        c.execute(query_duelo, params_duelo)
+        duelos_diretos = [dict(r) for r in c.fetchall()]
+    except Exception:
+        duelos_diretos = []
+
+    conn.close()
+
+    # Contabilidade do duelo direto
+    vit_t1 = 0
+    vit_t2 = 0
+    empates = 0
+    for p in duelos_diretos:
+        # Verifica se t1 era mandante
+        t1_era_mand = any(a in (p.get("tecnico_mandante") or "").lower() for a in aliases1)
+        venc = p.get("vencedor") or ""
+        if venc == "Empate" or venc == "empate":
+            empates += 1
+        elif (t1_era_mand and venc == p.get("mandante")) or (not t1_era_mand and venc == p.get("visitante")):
+            vit_t1 += 1
+        else:
+            vit_t2 += 1
+
+    return jsonify({
+        "treinador1": t1_data,
+        "treinador2": t2_data,
+        "duelo_direto": {
+            "total_jogos": len(duelos_diretos),
+            "vitorias_t1": vit_t1,
+            "vitorias_t2": vit_t2,
+            "empates": empates,
+            "partidas": duelos_diretos[:15]
+        }
+    })
+
 @app.route('/api/partidas', methods=['GET'])
 @require_auth
 def get_partidas():
