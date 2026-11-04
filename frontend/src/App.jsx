@@ -1121,6 +1121,13 @@ export default function App() {
           timesSearch={timesSearch}
           setTimesSearch={setTimesSearch}
           onRecarregar={carregarAnaliseTimes}
+          onSelectJogador={(jogadorNome, idJogador) => {
+            setSelectedPlayer(jogadorNome);
+            if (idJogador) {
+              carregarPerfilJogador(jogadorNome, '', idJogador);
+            }
+            setActiveTab('jogadores');
+          }}
         />
       )}
 

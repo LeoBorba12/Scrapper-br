@@ -6,6 +6,7 @@ import {
 import { ClubEvolutionChart, HistoricCampaignChart } from './charts';
 import ClubBadge from './ClubBadge';
 import TrophyGallery3D from './TrophyGallery3D';
+import ClubProfileView from './ClubProfileView';
 
 export default function EditorialClubes({
   timesAnalise,
@@ -16,13 +17,57 @@ export default function EditorialClubes({
   setTimesCampeonato,
   timesSearch,
   setTimesSearch,
-  onRecarregar
+  onRecarregar,
+  onSelectJogador
 }) {
   const [sortBy, setSortBy] = useState('aproveitamento');
   const [sortAsc, setSortAsc] = useState(false);
   const [expandedClube, setExpandedClube] = useState(null);
   const [clubeEvolucao, setClubeEvolucao] = useState('Flamengo');
   const [secaoVisual, setSecaoVisual] = useState('campanhas'); // 'campanhas' | 'decadas'
+  const [selectedClube, setSelectedClube] = useState(null);
+  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
+  const searchContainerRef = useRef(null);
+
+  // Fechar dropdown de sugestões ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setMostrarSugestoes(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    // Se um clube estiver selecionado, exibe a Visão de Perfil Completo (Estilo OGol)
+  if (selectedClube) {
+    return (
+      <ClubProfileView 
+        clube={selectedClube}
+        onVoltar={() => setSelectedClube(null)}
+        onSelectJogador={onSelectJogador}
+      />
+    );
+  }
+
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Sugestões inteligentes de clubes para o autosuggest
+  const sugestoesClubes = useMemo(() => {
+    if (!timesSearch || timesSearch.trim().length < 1) return [];
+    const termo = timesSearch.toLowerCase();
+    const clubesUnicos = new Set();
+    const resultados = [];
+
+    (timesAnalise || []).forEach(t => {
+      const nome = t.clube || t.nome || '';
+      if (nome && nome.toLowerCase().includes(termo) && !clubesUnicos.has(nome)) {
+        clubesUnicos.add(nome);
+        resultados.push(nome);
+      }
+    });
+
+    return resultados.slice(0, 6);
+  }, [timesAnalise, timesSearch]);
 
   // Ordenação e Filtragem resiliente (compatível com clube e nome)
   const clubesFiltrados = useMemo(() => {
@@ -174,13 +219,28 @@ export default function EditorialClubes({
 
         {/* Busca e Atualizar (Lote 2: Input Flexível) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto', justifyContent: 'flex-end', minWidth: '220px' }}>
-          <div style={{ position: 'relative', flex: '1 1 140px', maxWidth: '240px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-muted)' }} />
+          <div ref={searchContainerRef} style={{ position: 'relative', flex: '1 1 180px', maxWidth: '300px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-muted)', zIndex: 2 }} />
             <input
               type="text"
               value={timesSearch}
-              onChange={e => setTimesSearch(e.target.value)}
-              placeholder="Filtrar clube..."
+              onChange={e => {
+                setTimesSearch(e.target.value);
+                setMostrarSugestoes(true);
+              }}
+              onFocus={() => setMostrarSugestoes(true)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  if (sugestoesClubes.length > 0) {
+                    setSelectedClube(sugestoesClubes[0]);
+                    setMostrarSugestoes(false);
+                  } else if (timesSearch.trim().length > 0) {
+                    setSelectedClube(timesSearch.trim());
+                    setMostrarSugestoes(false);
+                  }
+                }
+              }}
+              placeholder="Buscar clube (ex: Palmeiras, Flamengo)..."
               style={{
                 width: '100%',
                 padding: '8px 10px 8px 30px',
@@ -192,8 +252,59 @@ export default function EditorialClubes({
                 fontSize: '0.82rem',
                 boxSizing: 'border-box'
               }}
-              aria-label="Filtrar clube na tabela"
+              aria-label="Buscar clube na tabela ou ver perfil completo"
             />
+
+            {/* Dropdown Autosuggest Inteligente */}
+            {mostrarSugestoes && sugestoesClubes.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  marginTop: '4px',
+                  backgroundColor: 'var(--surface-card)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-control)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                  zIndex: 99,
+                  overflow: 'hidden'
+                }}
+              >
+                <div style={{ padding: '6px 10px', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-subtle)' }}>
+                  Abrir Perfil Oficial do Clube
+                </div>
+                {sugestoesClubes.map((nome, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setSelectedClube(nome);
+                      setMostrarSugestoes(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      borderBottom: idx < sugestoesClubes.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      transition: 'background-color 0.12s ease'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface-raised)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ClubBadge team={nome} size={20} />
+                      <span style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{nome}</span>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>
+                      Ver Perfil &rarr;
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <button
