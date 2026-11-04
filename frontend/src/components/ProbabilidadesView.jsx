@@ -26,7 +26,6 @@ import {
   History
 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
-import KellyCalculatorModal from './KellyCalculatorModal';
 import FieldTiltBar from './FieldTiltBar';
 
 
@@ -123,24 +122,6 @@ export default function ProbabilidadesView({
   const [backtestingMercado, setBacktestingMercado] = useState('todos');
   const [backtestingTemporada, setBacktestingTemporada] = useState('recentes');
 
-  // Modal Calculadora de Kelly
-  const [kellyModalOpen, setKellyModalOpen] = useState(false);
-  const [kellySelectedData, setKellySelectedData] = useState({
-    odd: 2.00,
-    prob: 55.0,
-    market: 'Leitura Analítica (+EV)',
-    match: ''
-  });
-
-  const abrirCalculadoraKelly = (odd = 2.00, prob = 55.0, market = 'Leitura Analítica (+EV)', match = '') => {
-    setKellySelectedData({
-      odd: Number(odd) || 2.00,
-      prob: Number(prob) || 55.0,
-      market,
-      match
-    });
-    setKellyModalOpen(true);
-  };
 
 
   // Carregar dados do Hub
@@ -361,26 +342,6 @@ export default function ProbabilidadesView({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => abrirCalculadoraKelly(2.10, 52.0, 'Simulação de Gestão de Banca', 'Calculadora Livre')}
-              className="touch-tactile"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                borderRadius: 'var(--radius-control)',
-                backgroundColor: 'var(--accent-soft)',
-                border: '1px solid var(--accent)',
-                color: 'var(--accent)',
-                cursor: 'pointer'
-              }}
-            >
-              <Scale size={15} />
-              <span>Simulador de Stake (Kelly)</span>
-            </button>
 
             <button
               onClick={() => {
@@ -653,7 +614,7 @@ export default function ProbabilidadesView({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
             <Flame size={18} color="var(--accent)" />
             <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-              Radar Analítico de Tendências &bull; Tendências em Tempo Real
+              Radar de Tendências &bull; Tendências em Tempo Real
             </h2>
           </div>
 
@@ -721,7 +682,7 @@ export default function ProbabilidadesView({
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'todos', label: 'Todos os Jogos' },
-            { id: 'ev_plus', label: 'Convergência de Valor (+EV)', icon: Flame, badge: hubData?.total_com_ev },
+            { id: 'ev_plus', label: 'Comparação Modelo x Mercado (+EV)', icon: Flame, badge: hubData?.total_com_ev },
             { id: 'over_2_5', label: 'Gols (Over/Under 2.5)', icon: Target },
             { id: 'btts', label: 'Ambas Marcam (BTTS)', icon: Percent },
             { id: 'jogadores', label: 'Jogadores & Anytime Scorer', icon: UserCheck },
@@ -1153,7 +1114,7 @@ export default function ProbabilidadesView({
                 }}
               >
                 <option value="todos">Todos os Mercados</option>
-                <option value="ev_plus">Convergência de Valor (+EV)</option>
+                <option value="ev_plus">Comparação Modelo x Mercado (+EV)</option>
                 <option value="over_1_5">Over 1.5 Gols</option>
                 <option value="over_2_5">Gols (Over 2.5)</option>
                 <option value="btts">Ambas Marcam (BTTS)</option>
@@ -1442,23 +1403,7 @@ export default function ProbabilidadesView({
                                 {prog.lucro_unidades >= 0 ? '+' : ''}{prog.lucro_unidades}u
                               </span>
 
-                              <button
-                                type="button"
-                                onClick={() => abrirCalculadoraKelly(prog.odd, prog.prob_modelo, prog.mercado, `${partida.mandante} x ${partida.visitante}`)}
-                                title="Calcular Stake no Critério de Kelly"
-                                className="touch-tactile"
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: 'var(--accent)',
-                                  cursor: 'pointer',
-                                  padding: '2px',
-                                  display: 'flex',
-                                  alignItems: 'center'
-                                }}
-                              >
-                                <Scale size={13} />
-                              </button>
+
                             </div>
                           );
                         })}
@@ -1845,31 +1790,7 @@ export default function ProbabilidadesView({
 
                     {/* BOTÕES DE AÇÃO DO CARD */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                      {p.has_ev && melhor && (
-                        <button
-                          type="button"
-                          onClick={() => abrirCalculadoraKelly(melhor.odd, melhor.prob, melhor.mercado, `${p.mandante} x ${p.visitante}`)}
-                          className="touch-tactile"
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            backgroundColor: 'var(--positive-bg)',
-                            color: 'var(--positive)',
-                            border: '1px solid var(--positive)',
-                            borderRadius: 'var(--radius-control)',
-                            fontSize: '0.80rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px'
-                          }}
-                        >
-                          <Scale size={14} />
-                          <span>Calcular Stake de Kelly ({melhor.mercado})</span>
-                        </button>
-                      )}
+
 
                       <button
                         onClick={() => abrirRaioX(p.id_partida)}
@@ -2270,15 +2191,6 @@ export default function ProbabilidadesView({
       )}
 
 
-      {/* MODAL CALCULADORA DE KELLY & GESTÃO DE BANCA */}
-      <KellyCalculatorModal
-        isOpen={kellyModalOpen}
-        onClose={() => setKellyModalOpen(false)}
-        initialOdd={kellySelectedData.odd}
-        initialProb={kellySelectedData.prob}
-        initialMarket={kellySelectedData.market}
-        initialMatch={kellySelectedData.match}
-      />
     </div>
   );
 }
