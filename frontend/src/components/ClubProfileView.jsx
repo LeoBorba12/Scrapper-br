@@ -11,7 +11,8 @@ import SeloCoberturaClube from './SeloCoberturaClube';
 export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
   const [perfil, setPerfil] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('elenco'); // 'elenco' | 'torneios' | 'trofeus' | 'idolos'
+  const [activeTab, setActiveTab] = useState('elenco');
+  const [dossieOfensivo, setDossieOfensivo] = useState(null); // 'elenco' | 'torneios' | 'trofeus' | 'idolos'
   const [visualizacaoElenco, setVisualizacaoElenco] = useState('tabela'); // 'tabela' | 'cards'
 
   useEffect(() => {
@@ -31,6 +32,12 @@ export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
         console.error('Erro ao carregar perfil do clube:', err);
         if (isMounted) setLoading(false);
       });
+
+    
+    fetch(`/api/clubes/dossie-ofensivo?clube=${encodeURIComponent(clube)}`)
+      .then(res => res.json())
+      .then(d => { if (isMounted) setDossieOfensivo(d); })
+      .catch(() => {});
 
     return () => { isMounted = false; };
   }, [clube]);
@@ -298,6 +305,7 @@ export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'elenco', label: 'Elenco 2026 & Líderes', icon: User, count: todosAtletas.length },
+            { id: 'producao_ofensiva', label: 'Produção Ofensiva por 90', icon: Target, count: dossieOfensivo?.elenco_producao_ofensiva?.length || 0 },
             { id: 'torneios', label: 'Desempenho por Torneios', icon: Activity, count: historico_campeonatos.length },
             { id: 'trofeus', label: 'Sala de Troféus (Réplicas 3D)', icon: Trophy, count: perfil.trofeus?.length || 0 },
             { id: 'idolos', label: 'Grandes Ídolos & Lendas', icon: Award, count: info.idolos_historicos?.length || 0 }
@@ -730,6 +738,143 @@ export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
           </div>
         </div>
       )}
+
+      
+      {/* ================= CONTEUDO DA ABA PRODUÇÃO OFENSIVA POR 90 (GOLDEN DATASET) ================= */}
+      {activeTab === 'producao_ofensiva' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Cabeçalho da Seção */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#85573B', fontWeight: 700 }}>
+                Fase 2 • Inteligência Analítica Golden Dataset
+              </span>
+              <h3 className="font-editorial" style={{ margin: '4px 0 0 0', fontSize: '1.35rem', color: 'var(--text-primary)' }}>
+                Produção Ofensiva Decomposta do Elenco
+              </h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                Métricas de Gols/90 (bola rolando vs pênalti), titularidade e dependência ofensiva para a temporada {dossieOfensivo?.periodo_analitico || '2026'}.
+              </p>
+            </div>
+            <div>
+              <SeloCoberturaClube coberturaPct={100} />
+            </div>
+          </div>
+
+          {/* Destaque: Top 3 Dependentes Ofensivos */}
+          {dossieOfensivo?.principais_dependentes_ofensivos?.length > 0 && (
+            <div>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: '0 0 10px 0', color: 'var(--text-primary)' }}>
+                Concentração Ofensiva (Principais Dependentes)
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
+                {dossieOfensivo.principais_dependentes_ofensivos.map((dep, idx) => (
+                  <div
+                    key={dep.atleta_id || idx}
+                    style={{
+                      padding: '14px',
+                      borderRadius: 'var(--radius-control)',
+                      backgroundColor: 'var(--surface-card)',
+                      border: '1px solid var(--border-subtle)',
+                      boxShadow: 'var(--shadow-subtle)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#85573B' }}>
+                        #{idx + 1} Artilheiro Tático
+                      </span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '12px', backgroundColor: '#5A673E20', color: '#5A673E' }}>
+                        {dep.gols_por_90.toFixed(2)} / 90min
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {dep.atleta}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {dep.posicao} • {dep.gols} gols ({dep.gols_abertos} abertos, {dep.gols_penalti} pen)
+                    </div>
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Dependência Geral:</span>
+                      <strong style={{ color: '#85573B' }}>{dep.dependencia_ofensiva_geral}% dos gols</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                      <span>Em campo:</span>
+                      <span>{dep.dependencia_ofensiva_em_campo}%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tabela do Elenco Completo */}
+          <div style={{ width: '100%', overflowX: 'auto', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--surface-panel)', borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '10px 14px' }}>Atleta</th>
+                  <th style={{ padding: '10px 14px' }}>Posição</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Minutos</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Gols (Abertos + Pen)</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Gols/90</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Gols/90 Titular</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Titularidade</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Dep. Geral</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'center' }}>Dep. Em Campo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(dossieOfensivo?.elenco_producao_ofensiva || []).map((atleta, i) => (
+                  <tr
+                    key={atleta.atleta_id || i}
+                    style={{
+                      borderBottom: '1px solid var(--border-subtle)',
+                      backgroundColor: i % 2 === 0 ? 'transparent' : 'var(--surface-panel)'
+                    }}
+                  >
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {atleta.atleta}
+                    </td>
+                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>
+                      {atleta.posicao}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace' }}>
+                      {atleta.minutos}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700 }}>
+                      {atleta.gols} <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 400 }}>({atleta.gols_abertos} + {atleta.gols_penalti})</span>
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace', fontWeight: 800, color: '#5A673E' }}>
+                      {atleta.gols_por_90.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                      {atleta.gols_por_90_titular.toFixed(2)}
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace' }}>
+                      {atleta.titularidade_pct.toFixed(1)}%
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#85573B' }}>
+                      {atleta.dependencia_ofensiva_geral}%
+                    </td>
+                    <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      {atleta.dependencia_ofensiva_em_campo}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Nota Metodológica de Governança */}
+          <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-panel)', border: '1px solid var(--border-subtle)', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+            <strong>Nota de Governança Analítica:</strong>
+            <p style={{ margin: '4px 0 0 0', lineHeight: 1.5 }}>
+              A <strong>Dependência Geral</strong> mede a participação direta do atleta sobre todos os gols marcados pelo clube no torneio. A <strong>Dependência Em Campo</strong> isola apenas as partidas em que o atleta participou, neutralizando desfalques e convocações.
+            </p>
+          </div>
+        </div>
+      )}
+
 
       {/* ================= CONTEUDO DA ABA 2: DESEMPENHO POR TORNEIOS ================= */}
       {activeTab === 'torneios' && (

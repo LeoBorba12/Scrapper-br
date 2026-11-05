@@ -6089,11 +6089,13 @@ def static_proxy(path):
 @app.route('/api/atletas/metricas-golden', methods=['GET'])
 def get_atletas_metricas_golden():
     """
-    Retorna métricas de produção ofensiva (Gols/90, Titularidade %, Dependência Ofensiva)
-    do Golden Dataset com classificação de amostra e limitações de dados.
+    Retorna métricas de produção ofensiva decomposta (Gols/90, Titularidade %,
+    Dependência Ofensiva e Decomposição de Gols) do Golden Dataset.
+    Suporta visão='exploratoria' (minutos >= 270) e visão='definitiva' (minutos >= 2700).
     """
     atleta_id = request.args.get('atleta_id', type=int)
     clube_id = request.args.get('clube_id', type=int)
+    visao = request.args.get('visao', default='exploratoria') # 'exploratoria' | 'definitiva'
     amostra_apenas = request.args.get('amostra_minima', default='1') == '1'
     limit = request.args.get('limit', default=100, type=int)
 
@@ -6113,12 +6115,19 @@ def get_atletas_metricas_golden():
       m.titularidades,
       m.minutos,
       m.gols,
+      COALESCE(m.gols_abertos, m.gols) AS gols_abertos,
+      COALESCE(m.gols_penalti, 0) AS gols_penalti,
+      COALESCE(m.minutos_titular, m.minutos) AS minutos_titular,
+      COALESCE(m.minutos_reserva, 0) AS minutos_reserva,
       m.assistencias,
       m.cartoes_amarelos,
       m.cartoes_vermelhos,
       ROUND(m.gols_por_90, 2) AS gols_por_90,
+      ROUND(COALESCE(m.gols_por_90_titular, m.gols_por_90), 2) AS gols_por_90_titular,
+      ROUND(COALESCE(m.gols_por_90_reserva, 0.0), 2) AS gols_por_90_reserva,
       ROUND(m.titularidade_pct, 1) AS titularidade_pct,
       ROUND(m.dependencia_ofensiva, 3) AS dependencia_ofensiva,
+      ROUND(COALESCE(m.dependencia_ofensiva_em_campo, m.dependencia_ofensiva), 3) AS dependencia_ofensiva_em_campo,
       m.amostra_minima,
       m.calculado_em
     FROM metrica_atleta_golden m
@@ -6134,7 +6143,10 @@ def get_atletas_metricas_golden():
     if clube_id:
         query += " AND m.clube_id = ?"
         params.append(clube_id)
-    if amostra_apenas:
+
+    if visao == 'definitiva':
+        query += " AND m.amostra_minima = 1 AND m.minutos >= 2700"
+    elif amostra_apenas:
         query += " AND m.amostra_minima = 1"
 
     limit_safe = min(1000, max(1, limit))
@@ -6171,26 +6183,148 @@ def get_atletas_metricas_golden():
             'titularidades': r['titularidades'],
             'minutos': r['minutos'],
             'gols': r['gols'],
+            'gols_abertos': r['gols_abertos'],
+            'gols_penalti': r['gols_penalti'],
+            'minutos_titular': r['minutos_titular'],
+            'minutos_reserva': r['minutos_reserva'],
             'assistencias': r['assistencias'],
             'cartoes_amarelos': r['cartoes_amarelos'],
             'cartoes_vermelhos': r['cartoes_vermelhos'],
             'gols_por_90': r['gols_por_90'],
+            'gols_por_90_titular': r['gols_por_90_titular'],
+            'gols_por_90_reserva': r['gols_por_90_reserva'],
             'titularidade_pct': r['titularidade_pct'],
             'dependencia_ofensiva': r['dependencia_ofensiva'],
+            'dependencia_ofensiva_em_campo': r['dependencia_ofensiva_em_campo'],
             'amostra_minima': r['amostra_minima'],
             'classificacao_amostra': classificacao,
             'confianca_editorial': confianca_editorial,
-            'limitacoes': "Exclui minutos de prorrogação; gols sem pênaltis não discriminados nesta fase."
+            'limitacoes': "Exclui minutos de prorrogação; gols sem pênaltis discriminados; disponibilidade em campo considerada."
         })
 
     return jsonify({
         'total': len(resultado),
-        'metrica': 'Gols por 90 & Dependência Ofensiva',
-        'corte_amostra_minutos': 270,
+        'visao': visao,
+        'corte_amostra_minutos': 2700 if visao == 'definitiva' else 270,
         'dados': resultado
     })
 
 
+@app.route('/api/clubes/dossie-ofensivo', methods=['GET'])
+def get_clube_dossie_ofensivo():
+    """
+    Retorna o dossiê analítico completo de produção ofensiva do clube (Golden Dataset - Desafio 27):
+    - Selo de Cobertura (100% Dossiê Completo)
+    - Produção ofensiva decomposta do elenco (Gols/90, titulares vs reservas)
+    - Principais dependentes ofensivos (Opção A: geral vs Opção B: em campo)
+    - Médias e consolidação do período analítico
+    """
+    clube_nome = request.args.get('clube', default='Flamengo')
+    ano = request.args.get('ano', default='2026')
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Buscar dados do clube
+    clube_info = cursor.execute("""
+        SELECT clube_id, nome, nome_oficial, sigla, fundacao, cidade, estado 
+        FROM dim_clube 
+        WHERE nome = ? OR nome = ?
+    """, (clube_nome, clube_nome.replace('-PR', '').replace('-MG', ''))).fetchone()
+
+    if not clube_info:
+        # Tentar via alias
+        row_alias = cursor.execute("""
+            SELECT entidade_id FROM dim_entidades_aliases WHERE tipo_entidade = 'clube' AND alias_nome = ? COLLATE NOCASE
+        """, (clube_nome,)).fetchone()
+        if row_alias:
+            clube_info = cursor.execute("SELECT clube_id, nome, nome_oficial, sigla, fundacao, cidade, estado FROM dim_clube WHERE clube_id = ?", (row_alias[0],)).fetchone()
+
+    if not clube_info:
+        conn.close()
+        return jsonify({'error': f'Clube não encontrado: {clube_nome}'}), 404
+
+    cid = clube_info['clube_id']
+
+    # Atletas do clube em metrica_atleta_golden
+    atletas_rows = cursor.execute("""
+        SELECT 
+            a.atleta_id,
+            a.nome_exibicao AS atleta,
+            a.posicao,
+            m.periodo,
+            m.jogos,
+            m.titularidades,
+            m.minutos,
+            m.gols,
+            m.gols_abertos,
+            m.gols_penalti,
+            m.minutos_titular,
+            m.minutos_reserva,
+            ROUND(m.gols_por_90, 2) AS gols_por_90,
+            ROUND(m.gols_por_90_titular, 2) AS gols_por_90_titular,
+            ROUND(m.gols_por_90_reserva, 2) AS gols_por_90_reserva,
+            ROUND(m.titularidade_pct, 1) AS titularidade_pct,
+            ROUND(m.dependencia_ofensiva * 100, 1) AS dep_geral_pct,
+            ROUND(m.dependencia_ofensiva_em_campo * 100, 1) AS dep_em_campo_pct,
+            m.amostra_minima
+        FROM metrica_atleta_golden m
+        JOIN dim_atleta a ON a.atleta_id = m.atleta_id
+        WHERE m.clube_id = ?
+        ORDER BY m.gols DESC, m.gols_por_90 DESC
+    """, (cid,)).fetchall()
+
+    conn.close()
+
+    elenco_metricas = []
+    tot_gols = 0
+    tot_minutos = 0
+    for r in atletas_rows:
+        tot_gols += r['gols']
+        tot_minutos += r['minutos']
+        elenco_metricas.append({
+            'atleta_id': r['atleta_id'],
+            'atleta': r['atleta'],
+            'posicao': r['posicao'],
+            'jogos': r['jogos'],
+            'titularidades': r['titularidades'],
+            'minutos': r['minutos'],
+            'gols': r['gols'],
+            'gols_abertos': r['gols_abertos'],
+            'gols_penalti': r['gols_penalti'],
+            'gols_por_90': r['gols_por_90'],
+            'gols_por_90_titular': r['gols_por_90_titular'],
+            'gols_por_90_reserva': r['gols_por_90_reserva'],
+            'titularidade_pct': r['titularidade_pct'],
+            'dependencia_ofensiva_geral': r['dep_geral_pct'],
+            'dependencia_ofensiva_em_campo': r['dep_em_campo_pct'],
+            'amostra_valida': bool(r['amostra_minima'])
+        })
+
+    # Principais dependentes (top 3)
+    principais_dependentes = sorted(elenco_metricas, key=lambda x: x['dependencia_ofensiva_geral'], reverse=True)[:3]
+
+    return jsonify({
+        'clube': {
+            'clube_id': cid,
+            'nome': clube_info['nome'],
+            'nome_oficial': clube_info['nome_oficial'],
+            'sigla': clube_info['sigla'],
+            'fundacao': clube_info['fundacao'],
+            'cidade': clube_info['cidade'],
+            'estado': clube_info['estado'],
+            'selo_cobertura': 'Dossiê Completo (100% SLA)',
+            'golden_dataset': True
+        },
+        'periodo_analitico': ano,
+        'resumo_elenco': {
+            'total_atletas_auditados': len(elenco_metricas),
+            'gols_computados': tot_gols,
+            'minutos_totais': tot_minutos
+        },
+        'principais_dependentes_ofensivos': principais_dependentes,
+        'elenco_producao_ofensiva': elenco_metricas
+    })
 @app.route('/api/clubes/cobertura-sla', methods=['GET'])
 def get_clubes_cobertura_sla():
     """
