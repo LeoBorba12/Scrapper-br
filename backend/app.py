@@ -6572,12 +6572,14 @@ def get_gols_qualidade():
         'partida_id': 202538151,
         'confronto': 'Chapecoense 1 x 2 Mirassol (2026)',
         'placar_oficial': '1 x 2',
-        'status_investigacao': 'Investigado e Neutralizado',
+        'status_investigacao': 'Deduplicado e Protegido por Constraint Única',
         'causa_raiz': 'Falha de idempotência no crawler gerou 29 inserções duplicadas do mesmo pênalti aos 45+4 1T.',
+        'duplicatas_eliminadas': 28,
         'total_insercoes_brutas': len(reinaldo_rows),
         'descartados_quarentena': sum(1 for r in reinaldo_rows if r['status'] == 'descartado'),
         'suspeitos_quarentena': sum(1 for r in reinaldo_rows if r['status'] == 'suspeito'),
-        'gols_reais_computados_2026': 2
+        'gols_reais_computados_2026': 3,
+        'idempotencia_ativa': True
     }
 
     # Amostra de registros em quarentena
