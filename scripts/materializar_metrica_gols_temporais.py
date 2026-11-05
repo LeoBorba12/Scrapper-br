@@ -114,23 +114,28 @@ def materializar_gols_temporais():
         atleta_id, clube_id, comp_id, periodo, jogos, titularidades, minutos, gols_tot, g_abertos, g_penalti, nome, clube = at
         ano = int(periodo) if periodo.isdigit() else 2026
 
-        # Buscar gols do atleta no ano e clube na tabela de gols
+        # Buscar gols do atleta no ano e clube na tabela de gols respeitando a quarentena de auditoria (Desafio 29)
+        # Política estrita: apenas status 'aprovado' ou 'corrigido' (rejeita 'suspeito', 'duplicado', 'descartado')
         gols_rows = cursor.execute("""
-            SELECT g.minuto, g.tempo, g.tipo_de_gol 
+            SELECT g.minuto, g.tempo, g.tipo_de_gol, ga.status, ga.regra_violada
             FROM gols g
             JOIN partidas p ON p.id_partida = g.id_partida
+            LEFT JOIN gols_auditoria ga ON ga.gol_id = g.id_gol
             WHERE (g.id_jogador = ? OR g.atleta = ?)
               AND p.ano = ?
               AND (g.clube = ? OR p.mandante = ? OR p.visitante = ?)
+              AND (ga.status IS NULL OR ga.status IN ('aprovado', 'corrigido'))
         """, (atleta_id, nome, ano, clube, clube, clube)).fetchall()
 
         # Se não houver gols no ano específico, buscar histórico geral do atleta pelo clube
         if not gols_rows and gols_tot > 0:
             gols_rows = cursor.execute("""
-                SELECT g.minuto, g.tempo, g.tipo_de_gol 
+                SELECT g.minuto, g.tempo, g.tipo_de_gol, ga.status, ga.regra_violada
                 FROM gols g
+                LEFT JOIN gols_auditoria ga ON ga.gol_id = g.id_gol
                 WHERE (g.id_jogador = ? OR g.atleta = ?)
                   AND g.clube = ?
+                  AND (ga.status IS NULL OR ga.status IN ('aprovado', 'corrigido'))
             """, (atleta_id, nome, clube)).fetchall()
 
         faixas = {
@@ -146,25 +151,32 @@ def materializar_gols_temporais():
         gols_contados = 0
 
         for gr in gols_rows:
-            minuto_str, tempo_str, tipo = gr
+            minuto_str, tempo_str, tipo, status_aud, regra_aud = gr
             if tipo == 'Pênalti':
                 gols_pen_calc += 1
-            f = classificar_faixa_minuto(minuto_str, tempo_str)
+            if regra_aud in ('MINUTO_1T_ACRESCIMO', 'MINUTO_2T_ACRESCIMO'):
+                f = 'acrescimos'
+            else:
+                f = classificar_faixa_minuto(minuto_str, tempo_str)
             if f:
                 faixas[f] += 1
                 gols_contados += 1
 
-        # Se houver gols_tot mas a súmula não tinha minuto detalhado, distribuir proporcionalmente
-        if gols_tot > gols_contados:
-            resto = gols_tot - gols_contados
-            # Padrão estatístico do futebol brasileiro (maior probabilidade no final do 1T e final do 2T)
+        # Gols canônicos de metrica_atleta_golden têm precedência sobre feeds não auditados
+        gols_tot_base = (g_abertos or 0) + (g_penalti or 0) if (g_abertos is not None and g_penalti is not None) else gols_tot
+
+        if gols_tot_base > gols_contados and gols_contados > 0:
+            resto = gols_tot_base - gols_contados
             pesos = [0.12, 0.15, 0.18, 0.14, 0.18, 0.23]
             chaves = ['0_15', '16_30', '31_45', '46_60', '61_75', '76_90']
             for i, p in enumerate(pesos):
                 faixas[chaves[i]] += round(resto * p)
-            gols_pen_calc = g_penalti or round(gols_tot * 0.15)
+            gols_tot = gols_tot_base
+            gols_pen_calc = g_penalti if g_penalti is not None else gols_pen_calc
+        elif gols_contados > 0:
+            gols_tot = gols_contados
         else:
-            gols_tot = max(gols_tot, gols_contados)
+            gols_tot = gols_tot_base
 
         gols_abertos = max(0, gols_tot - gols_pen_calc)
 

@@ -15,10 +15,10 @@
 - **Contexto**: Gráficos 3D convencionais (Three.js/Babylon) consomem muita bateria e memória em dispositivos móveis e não agregam precisão analítica.
 - **Decisão**: Renderizar o campo oficial FIFA ($105 \times 68\text{m}$) e a baliza frontal ($7.32 \times 2.44\text{m}$) diretamente em SVG com `<feGaussianBlur>` acelerado por GPU nativa.
 
-## ADR-004: Restrição de Tamanho Serverless na Vercel (<95MB)
+## ADR-004: Restrição de Tamanho Serverless na Vercel (Teto: 94,00 MB | Soft Limit: 84,00 MB | Meta: 80,00 MB)
 - **Status**: Implementado e Ativo
-- **Contexto**: O limite máximo para funções serverless na Vercel é de 250MB descompactado / ~95MB compactado.
-- **Decisão**: Manter estritamente uma única base `data/futebol.db` e ignorar no `.vercelignore` cópias, dumps e caches brutos de raspagem.
+- **Contexto**: O limite máximo para funções serverless na Vercel exige bundle de deploy compacto. O teto oficial padronizado é 94,00 MB, com soft limit operacional em 84,00 MB e meta saudável de 80,00 MB.
+- **Decisão**: Manter estritamente uma única base `data/futebol.db` (com arquivamento frio de tabelas brutas em `data/futebol_cold.db.gz`), `PRAGMA journal_mode = DELETE;` e ignorar no `.vercelignore` cópias, dumps e caches brutos de raspagem.
 
 ## ADR-005: Telegram Bot com Teclado Inline e Resposta a Callbacks
 - **Status**: Implementado e Ativo

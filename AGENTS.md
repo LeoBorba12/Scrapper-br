@@ -45,7 +45,7 @@ Quando acionado para tarefas específicas, adote a postura correspondente:
 
 ### `[MODO DEVOPS]` - Engenheiro de Sistemas & Confiabilidade
 - Inspecione logs de daemons (`orquestrador_mestre_24x7.py`), consumo de memória do SQLite e SLOs de latência.
-- Assegure o teto de 95 MB no bundle da Vercel e estabilidade de daemons na VM Oracle Cloud.
+- Assegure o teto oficial de 94,00 MB na Vercel (soft limit de 84,00 MB e meta de 80,00 MB) e estabilidade de daemons na VM Oracle Cloud.
 - Forneça comandos precisos de verificação e planos de rollback imediato.
 
 ---
@@ -70,7 +70,7 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 7. `web-design-guidelines`: Diretrizes de acessibilidade e design de interface.
 8. `agent-evals`: Suítes de avaliação automatizada, datasets padrão ouro e regression gates.
 9. `grill-me`: Entrevista estratégica pré-implementação para eliminar suposições e retrabalho.
-10. `git-guardrails`: Proteção de repositório, bloqueio de comandos perigosos e vigilância do teto de 95 MB.
+10. `git-guardrails`: Proteção de repositório, bloqueio de comandos perigosos e vigilância do teto de 94,00 MB.
 11. `karpathy-guidelines`: Simplicidade radical, diagnósticos de causa-raiz e modificações cirúrgicas mínimas.
 12. `brainstorming`: Transforma ideias brutas em designs validados antes de qualquer implementação (Socratic dialogue, YAGNI, understanding lock).
 13. `multi-agent-brainstorming`: Revisão sequencial por papéis (Challenger, Constraint Guardian, User Advocate) para blindar designs complexos.
@@ -81,5 +81,5 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 - **Build Frontend:** Sempre verificar `npm run build` na pasta `frontend/` antes de commitar.
 - **Regression Gates:** Executar `pytest tests/test_model_evals.py` após qualquer alteração em cálculos preditivos, Dixon-Coles ou odds (22/22 testes obrigatórios).
 - **Data Auditor:** Executar `python scripts/auditar_integridade_dados.py` para validar 10 regras de consistência relacional.
-- **Teto Vercel:** Monitorar `data/futebol.db` mantendo o tamanho estritamente abaixo de **95 MB**.
+- **Teto Vercel:** Monitorar `data/futebol.db` mantendo o tamanho estritamente abaixo do teto de **94,00 MB** (soft limit: **84,00 MB**, meta: **80,00 MB**).
 - **Idioma Oficial:** 100% Português do Brasil na interface e mensagens.

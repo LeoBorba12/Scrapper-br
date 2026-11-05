@@ -1,6 +1,6 @@
 ---
 name: git-guardrails
-description: "Evita ações perigosas e irreversíveis no Git: bloqueia push indevido de arquivos pesados (>95MB no Vercel), vazamento de segredos (.env), resets destrutivos, deleção de branches e commits fora do padrão."
+description: "Evita ações perigosas e irreversíveis no Git: bloqueia push indevido de arquivos pesados (>94MB no Vercel), vazamento de segredos (.env), resets destrutivos, deleção de branches e commits fora do padrão."
 risk: safe
 source: community
 source_repo: mattpocock/skills
@@ -32,10 +32,10 @@ O agente **JAMAIS** pode executar os seguintes comandos sem pedir permissão exp
 
 ## 🛡️ As 4 Regras de Ouro do FutStats
 
-### Regra 1: O Teto de 95 MB da Vercel
+### Regra 1: O Teto de 94,00 MB da Vercel (Soft Limit: 84,00 MB | Meta: 80,00 MB)
 Antes de qualquer `git add data/futebol.db` ou `git push`:
 - O agente **DEVE** checar o tamanho do arquivo SQLite via script/PowerShell.
-- Se o tamanho for $\ge 95\text{ MB}$, o push é abortado imediatamente e o agente executa `VACUUM` ou propõe estratégia de poda/arquivamento.
+- Se o tamanho for $\ge 94\text{ MB}$ (ou acima do soft limit de 84 MB sem justificativa), o push é abortado imediatamente e o agente executa `VACUUM` ou propõe estratégia de poda/arquivamento.
 
 ### Regra 2: Sanitização de Segredos (.env)
 - Arquivos `.env`, chaves de API (`TELEGRAM_BOT_TOKEN`, `SECRET_KEY`, `ADMIN_PASSWORD_HASH`) nunca podem ser commitados.

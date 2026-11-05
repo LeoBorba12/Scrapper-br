@@ -37,7 +37,7 @@ Quando esta skill estiver ativa, o agente **NÃO PODE CODAR IMEDIATAMENTE**. Ele
 ### 1. Triagem Rápida de Premissas
 Identificar:
 - Quais são os limites do escopo (o que entra e o que fica de fora)?
-- Quais são as invariantes técnicas não negociáveis (ex: teto de 95MB do SQLite na Vercel, compatibilidade mobile, latência)?
+- Quais são as invariantes técnicas não negociáveis (ex: teto oficial de 94,00 MB da Vercel, soft limit de 84,00 MB, compatibilidade mobile, latência)?
 - Quais dependências ou contratos de dados já existem?
 
 ### 2. A Entrevista (3 a 5 Perguntas de Alta Densidade)

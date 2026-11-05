@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, RefreshCw, Search, ChevronDown, ChevronUp, 
-  ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles, Trophy
+  ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles, Trophy, ShieldCheck
 } from 'lucide-react';
+import PainelQualidadeGolsCard from './PainelQualidadeGolsCard';
 import { ClubEvolutionChart, HistoricCampaignChart } from './charts';
 import ClubBadge from './ClubBadge';
 import TrophyGallery3D from './TrophyGallery3D';
@@ -438,6 +439,27 @@ export default function EditorialClubes({
           </button>
 
           <button
+            onClick={() => setSecaoVisual('auditoria')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.82rem',
+              fontWeight: secaoVisual === 'auditoria' ? 700 : 500,
+              backgroundColor: secaoVisual === 'auditoria' ? 'var(--accent)' : 'transparent',
+              color: secaoVisual === 'auditoria' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <ShieldCheck size={14} />
+            <span>Auditoria & Qualidade de Gols</span>
+          </button>
+
+          <button
             onClick={() => setSecaoVisual('decadas')}
             style={{
               display: 'inline-flex',
@@ -469,6 +491,8 @@ export default function EditorialClubes({
             clube={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
             darkMode={false}
           />
+        ) : secaoVisual === 'auditoria' ? (
+          <PainelQualidadeGolsCard />
         ) : (
           <ClubEvolutionChart
             clubeNome={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}

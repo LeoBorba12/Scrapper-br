@@ -10,7 +10,7 @@
 FutStats Workspace
 ├── frontend/               -> Aplicação SPA React 18 + Vite (Design Editorial 2026)
 ├── backend/                -> API REST Flask + Dixon-Coles + SQLite Engine
-├── data/                   -> Banco de dados mestre (futebol.db < 95MB) e caches
+├── data/                   -> Banco de dados mestre (futebol.db < 94MB) e caches
 ├── scripts/                -> Daemons 24x7, automações, scrapers e auditores de integridade
 ├── tests/                  -> Suítes de regressão estatística e testes de modelos
 ├── .agents/skills/         -> Skills especializadas instaladas

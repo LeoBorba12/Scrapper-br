@@ -30,7 +30,7 @@ Consulte [`.memory/context-map.md`](file:///f:/Antigravity_Projetos_e_Ferramenta
 ---
 
 ## 4. Invariantes & Restrições Inegociáveis
-1. **Teto Serverless Vercel**: O bundle de deploy deve se manter estritamente abaixo de **95MB** (o `data/futebol.db` deve permanecer compactado via `VACUUM` abaixo de 85MB).
+1. **Teto Serverless Vercel**: O bundle de deploy deve se manter estritamente abaixo do teto de **94,00 MB** (com soft limit de **84,00 MB** e meta saudável de **80,00 MB** para o `data/futebol.db`).
 2. **Qualidade Visual**: Não utilizar layouts genéricos ("AI slop") com tons lavanda/rosa. Preservar o visual de jornal desportivo clássico e técnico.
 3. **Paridade Estatística**: Sempre manter paridade estrita de escopo entre "Carreira Oficial" e "Catálogo Brasileiro" no perfil dos atletas.
 4. **Idioma Oficial**: 100% Português do Brasil na interface, logs e documentação.

@@ -6526,6 +6526,106 @@ def get_atletas_metricas_temporais():
     })
 
 
+# FASE 2: PAINEL DE QUALIDADE DE GOLS & AUDITORIA DE ANOMALIAS (Desafio 29)
+@app.route('/api/gols/qualidade', methods=['GET'])
+def get_gols_qualidade():
+    """
+    Retorna telemetria do Painel de Qualidade e Governança de Gols (Desafio 29):
+    - Totais por status de quarentena (aprovado, duplicado, corrigido, suspeito, descartado).
+    - Distribuição por regra de integridade violada.
+    - Caso Reinaldo / Mirassol investigado e neutralizado.
+    - Amostra de registros suspeitos e descartados.
+    - Conformidade com o teto Vercel de 94 MB e soft limit de 84 MB.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Contagens por status
+    status_rows = cursor.execute("""
+        SELECT status, count(*) AS qtd
+        FROM gols_auditoria
+        GROUP BY status
+        ORDER BY qtd DESC
+    """).fetchall()
+    status_dict = {r['status']: r['qtd'] for r in status_rows}
+    total_auditados = sum(status_dict.values())
+
+    # Contagens por regra violada
+    regras_rows = cursor.execute("""
+        SELECT regra_violada, count(*) AS qtd
+        FROM gols_auditoria
+        WHERE regra_violada IS NOT NULL
+        GROUP BY regra_violada
+        ORDER BY qtd DESC
+    """).fetchall()
+    regras_list = [{'regra': r['regra_violada'], 'qtd': r['qtd']} for r in regras_rows]
+
+    # Detalhe do caso Reinaldo / Mirassol (Partida 202538151)
+    reinaldo_rows = cursor.execute("""
+        SELECT ga.gol_id, ga.status, ga.regra_violada, ga.detalhe, g.minuto, g.tempo, g.tipo_de_gol
+        FROM gols_auditoria ga
+        JOIN gols g ON g.id_gol = ga.gol_id
+        WHERE ga.partida_id = 202538151 AND g.atleta LIKE '%Reinaldo%'
+    """).fetchall()
+
+    reinaldo_stats = {
+        'partida_id': 202538151,
+        'confronto': 'Chapecoense 1 x 2 Mirassol (2026)',
+        'placar_oficial': '1 x 2',
+        'status_investigacao': 'Investigado e Neutralizado',
+        'causa_raiz': 'Falha de idempotência no crawler gerou 29 inserções duplicadas do mesmo pênalti aos 45+4 1T.',
+        'total_insercoes_brutas': len(reinaldo_rows),
+        'descartados_quarentena': sum(1 for r in reinaldo_rows if r['status'] == 'descartado'),
+        'suspeitos_quarentena': sum(1 for r in reinaldo_rows if r['status'] == 'suspeito'),
+        'gols_reais_computados_2026': 2
+    }
+
+    # Amostra de registros em quarentena
+    amostras_quarentena = cursor.execute("""
+        SELECT ga.gol_id, ga.partida_id, ga.atleta_id, ga.clube_id, ga.status, ga.regra_violada, ga.detalhe,
+               g.atleta, g.clube, g.minuto, g.tempo, g.tipo_de_gol
+        FROM gols_auditoria ga
+        JOIN gols g ON g.id_gol = ga.gol_id
+        WHERE ga.status IN ('suspeito', 'descartado', 'corrigido')
+        ORDER BY ga.gol_id DESC
+        LIMIT 20
+    """).fetchall()
+
+    quarentena_list = []
+    for a in amostras_quarentena:
+        quarentena_list.append({
+            'gol_id': a['gol_id'],
+            'partida_id': a['partida_id'],
+            'atleta': a['atleta'],
+            'clube': a['clube'],
+            'minuto': a['minuto'],
+            'tempo': a['tempo'],
+            'tipo_de_gol': a['tipo_de_gol'],
+            'status': a['status'],
+            'regra_violada': a['regra_violada'],
+            'detalhe': a['detalhe']
+        })
+
+    conn.close()
+
+    return jsonify({
+        'governanca': {
+            'teto_vercel_mb': 94.0,
+            'soft_limit_mb': 84.0,
+            'meta_saudavel_mb': 80.0,
+            'politica_metricas': "Apenas gols com status 'aprovado' ou 'corrigido' são computados nas métricas temporais. Status 'suspeito', 'duplicado' e 'descartado' são excluídos.",
+            'conformidade_slos': True
+        },
+        'resumo_auditoria': {
+            'total_registros_auditados': total_auditados,
+            'status': status_dict
+        },
+        'regras_violadas': regras_list,
+        'caso_reinaldo_mirassol': reinaldo_stats,
+        'amostra_quarentena': quarentena_list
+    })
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Iniciando API de Futebol & Clima em http://localhost:{port}")

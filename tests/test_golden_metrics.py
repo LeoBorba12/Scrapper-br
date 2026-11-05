@@ -98,3 +98,38 @@ def test_api_atletas_metricas_temporais_amostra_minima(client):
         assert at['amostra']['minima'] is True
         assert at['gols']['total'] >= 5
 
+def test_api_gols_qualidade_estrutura(client):
+    res = client.get('/api/gols/qualidade')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert 'governanca' in data
+    assert data['governanca']['teto_vercel_mb'] == 94.0
+    assert data['governanca']['soft_limit_mb'] == 84.0
+    assert data['governanca']['meta_saudavel_mb'] == 80.0
+    assert 'resumo_auditoria' in data
+    assert data['resumo_auditoria']['total_registros_auditados'] > 0
+    assert 'regras_violadas' in data
+    assert len(data['regras_violadas']) > 0
+
+def test_api_gols_qualidade_caso_reinaldo_mirassol(client):
+    res = client.get('/api/gols/qualidade')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert 'caso_reinaldo_mirassol' in data
+    caso = data['caso_reinaldo_mirassol']
+    assert caso['partida_id'] == 202538151
+    assert caso['descartados_quarentena'] >= 20
+    assert caso['gols_reais_computados_2026'] == 2
+
+def test_quarentena_reinaldo_metricas_temporais(client):
+    # Validar que a API temporal agora retorna os dados limpos de Reinaldo (sem os 31 de pênalti)
+    res = client.get('/api/atletas/metricas-temporais?atleta_id=106')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['total'] == 1
+    reinaldo = data['atletas'][0]
+    assert reinaldo['gols']['total'] == 2
+    assert reinaldo['gols']['penalti'] == 0
+    assert reinaldo['distribuicao_absoluta']['acrescimos'] == 0
+
+
