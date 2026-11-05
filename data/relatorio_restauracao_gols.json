@@ -1,0 +1,12 @@
+{
+  "restaurados": 3386,
+  "rejeitados_excede_placar": 0,
+  "rejeitados_sem_placar": 0,
+  "rejeitados_conflito": 0,
+  "gols_antes": 114137,
+  "gols_depois": 117523,
+  "partidas_com_excesso": 0,
+  "modo": "aplicado",
+  "journal_mode": "delete",
+  "tamanho_banco_mb": 80.11
+}

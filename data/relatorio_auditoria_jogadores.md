@@ -1,6 +1,6 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-04 10:27:48*
+*Gerado automaticamente em: 2026-11-05 17:37:21*
 
 ## Resumo Executivo da Auditoria
 
@@ -34,7 +34,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `14953` | **Diego Souza** | `1283` | 206 | 310 | `Moto Clube (MA),Vasco,São Paulo,Grêmio,P` | 🟢 OK |
 | `4960` | **Dodô** | `32395` | 197 | 333 | `Santos,Botafogo,Palmeiras,Bahia,Fluminen` | 🟢 OK |
 | `4105` | **Cláudio Adão** | `144860` | 190 | 190 | `Santos,Flamengo,Botafogo,Fluminense,Vasc` | 🟢 OK |
-| `17483` | **Serginho Chulapa** | `20479` | 190 | 365 | `São Paulo,Santos,Corinthians` | 🟢 OK |
+| `17483` | **Serginho Chulapa** | `20479` | 189 | 365 | `São Paulo,Santos,Corinthians` | 🟢 OK |
 | `9033` | **Luís Fabiano** | `5685` | 187 | 403 | `São Paulo,Vasco,Ponte Preta` | 🟢 OK |
 | `10` | **Pedro** | `481359` | 178 | 239 | `Flamengo,Fluminense` | 🟢 OK |
 | `2373` | **Alex** | `9673` | 177 | 391 | `Internacional,Goiás,Remo,Guarani,União S` | 🟢 OK |
@@ -47,8 +47,8 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `13693` | **Wellington Paulista** | `6041` | 156 | 265 | `Botafogo,Cruzeiro,Coritiba,Lanús,Santos,` | 🟢 OK |
 | `809` | **Souza** | `941506` | 152 | 152 | `Red Bull Bragantino,Portuguesa,Corinthia` | 🟢 OK |
 | `352` | **Neymar** | `54814` | 149 | 439 | `Santos,Atlético Goianiense` | 🟢 OK |
-| `17777` | **Washington** | `5679` | 144 | 144 | `Paraná,Ponte Preta,Ceará,Fluminense,São ` | 🟢 OK |
 | `12161` | **Roger** | `5713` | 143 | 143 | `Grêmio,Atlético-GO,Brasiliense,Ponte Pre` | 🟢 OK |
 | `8980` | **Luizão** | `4663` | 142 | 242 | `Guarani,Corinthians,Flamengo,Vasco,São P` | 🟢 OK |
+| `17777` | **Washington** | `5679` | 142 | 144 | `Paraná,Ponte Preta,Ceará,Fluminense,São ` | 🟢 OK |
 | `13219` | **Túlio Maravilha** | `42587` | 141 | 599 | `Goiás,Botafogo,Santa Cruz,Vitória,Juvent` | 🟢 OK |
 | `11` | **Germán Cano** | `36577` | 140 | 322 | `Peñarol,Sol de América,Nacional,Independ` | 🟢 OK |
