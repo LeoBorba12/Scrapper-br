@@ -1,0 +1,115 @@
+{
+  "versao_dados": "futstats_dados_20261105_202546",
+  "gerado_em": "2026-11-05T20:25:46.848683+00:00",
+  "partidas": 115753,
+  "gols": 117523,
+  "partidas_com_gols": 44408,
+  "escalacoes": 109108,
+  "cartoes": 14477,
+  "auditoria_gols": {
+    "aprovado": 7912,
+    "corrigido": 48,
+    "descartado": 3,
+    "duplicado": 3418,
+    "suspeito": 35
+  },
+  "snapshot_anterior": {
+    "partidas": 115753,
+    "gols": 117580
+  },
+  "diferenca_partidas": 0,
+  "diferenca_gols": -57,
+  "colisoes_potenciais_constraint": 100,
+  "colisoes_exemplos": [
+    {
+      "partida_id": 19857023,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 6
+    },
+    {
+      "partida_id": 19627017,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19677034,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19707008,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19717019,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19767065,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19810162,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19840014,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 202539651,
+      "atleta_id": null,
+      "clube_id": 1412,
+      "minuto": "1",
+      "tempo": "1T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 5
+    },
+    {
+      "partida_id": 19627006,
+      "atleta_id": null,
+      "clube_id": null,
+      "minuto": "",
+      "tempo": "1T/2T",
+      "tipo_de_gol": "Normal",
+      "ocorrencias": 4
+    }
+  ]
+}
