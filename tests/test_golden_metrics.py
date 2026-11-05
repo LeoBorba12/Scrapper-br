@@ -60,3 +60,41 @@ def test_api_clubes_cobertura_sla_100_golden(client):
             assert c['selo'] == 'COBERTURA_TOTAL'
             encontrados += 1
     assert encontrados >= 10
+
+def test_api_atletas_metricas_temporais_estrutura(client):
+    res = client.get('/api/atletas/metricas-temporais')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert 'guardrail_editorial' in data
+    assert data['guardrail_editorial']['suporte_placar_pre_gol'] is False
+    assert 'aviso_clutch' in data['guardrail_editorial']
+    assert data['total'] > 0
+
+    primeiro = data['atletas'][0]
+    assert 'gols' in primeiro
+    assert 'total' in primeiro['gols']
+    assert 'abertos' in primeiro['gols']
+    assert 'penalti' in primeiro['gols']
+    assert primeiro['gols']['abertos'] + primeiro['gols']['penalti'] == primeiro['gols']['total']
+
+    dist = primeiro['distribuicao_absoluta']
+    for faixa in ['0_15', '16_30', '31_45', '46_60', '61_75', '76_90', 'acrescimos', 'total_tardios', 'pct_tardios']:
+        assert faixa in dist
+
+    g90 = primeiro['gols_por_90_faixa']
+    for faixa in ['0_15', '16_30', '31_45', '46_60', '61_75', '76_90']:
+        assert faixa in g90
+        assert isinstance(g90[faixa], (int, float))
+
+    assert 'amostra' in primeiro
+    assert 'classificacao' in primeiro['amostra']
+
+def test_api_atletas_metricas_temporais_amostra_minima(client):
+    res = client.get('/api/atletas/metricas-temporais?amostra_minima=1')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['total'] > 0
+    for at in data['atletas']:
+        assert at['amostra']['minima'] is True
+        assert at['gols']['total'] >= 5
+

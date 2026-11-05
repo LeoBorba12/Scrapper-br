@@ -6382,6 +6382,150 @@ def get_clubes_cobertura_sla():
         'clubes': resultado
     })
 
+# FASE 2: DISTRIBUIÇÃO TEMPORAL DE GOLS & PRÉ-REQUISITOS DECISÃO (Desafio 28)
+@app.route('/api/atletas/metricas-temporais', methods=['GET'])
+def get_atletas_metricas_temporais():
+    """
+    Retorna a distribuição temporal de gols de atletas (Golden Dataset - Desafio 28):
+    - Decomposição em 6 faixas de 15 minutos (0-15, 16-30, 31-45, 46-60, 61-75, 76-90) e acréscimos.
+    - Normalização por minutos em campo por faixa (gols_por_90_faixa).
+    - Separação estrita de gols abertos vs gols de pênalti.
+    - Classificação de maturidade da amostra (<5 exploratório, 5-14 sinal fraco, 15-29 razoável, 30+ robusto).
+    - Guardrail editorial: ausência de placar pré-gol impede índice clutch causal falso.
+    """
+    conn = get_db()
+    cursor = conn.cursor()
+
+    atleta_id = request.args.get('atleta_id', type=int)
+    clube_id = request.args.get('clube_id', type=int)
+    periodo = request.args.get('periodo', type=str)
+    amostra_minima = request.args.get('amostra_minima', default=None, type=int)
+    limite = min(request.args.get('limite', default=50, type=int), 200)
+
+    query = """
+        SELECT
+            m.atleta_id,
+            a.nome_exibicao AS atleta_nome,
+            m.clube_id,
+            cl.nome AS clube_nome,
+            cl.sigla AS clube_sigla,
+            m.competicao_id,
+            m.periodo,
+            m.gols_total,
+            m.gols_abertos,
+            m.gols_penalti,
+            m.gols_0_15,
+            m.gols_16_30,
+            m.gols_31_45,
+            m.gols_46_60,
+            m.gols_61_75,
+            m.gols_76_90,
+            m.gols_acrescimos,
+            m.gols_por_90_0_15,
+            m.gols_por_90_16_30,
+            m.gols_por_90_31_45,
+            m.gols_por_90_46_60,
+            m.gols_por_90_61_75,
+            m.gols_por_90_76_90,
+            m.amostra_minima,
+            m.calculado_em
+        FROM metrica_gols_temporais m
+        JOIN dim_atleta a ON a.atleta_id = m.atleta_id
+        JOIN dim_clube cl ON cl.clube_id = m.clube_id
+        WHERE 1=1
+    """
+    params = []
+
+    if atleta_id:
+        query += " AND m.atleta_id = ?"
+        params.append(atleta_id)
+    if clube_id:
+        query += " AND m.clube_id = ?"
+        params.append(clube_id)
+    if periodo:
+        query += " AND m.periodo = ?"
+        params.append(periodo)
+    if amostra_minima is not None:
+        query += " AND m.amostra_minima = ?"
+        params.append(amostra_minima)
+
+    query += " ORDER BY m.gols_total DESC, m.gols_76_90 DESC LIMIT ?"
+    params.append(limite)
+
+    rows = cursor.execute(query, params).fetchall()
+    conn.close()
+
+    resultado = []
+    for r in rows:
+        gt = r['gols_total']
+        g_tardios = r['gols_76_90'] + r['gols_acrescimos']
+        pct_tardios = round((g_tardios / float(gt)) * 100.0, 1) if gt > 0 else 0.0
+
+        if gt < 5:
+            classificacao = "Perfil exploratório"
+            confianca = "insuficiente"
+        elif gt < 15:
+            classificacao = "Sinal fraco (5-14 gols)"
+            confianca = "fraco"
+        elif gt < 30:
+            classificacao = "Sinal razoável (15-29 gols)"
+            confianca = "moderado"
+        else:
+            classificacao = "Perfil robusto (30+ gols)"
+            confianca = "robusto"
+
+        resultado.append({
+            'atleta_id': r['atleta_id'],
+            'atleta_nome': r['atleta_nome'],
+            'clube_id': r['clube_id'],
+            'clube_nome': r['clube_nome'],
+            'clube_sigla': r['clube_sigla'],
+            'periodo': r['periodo'],
+            'gols': {
+                'total': gt,
+                'abertos': r['gols_abertos'],
+                'penalti': r['gols_penalti'],
+                'pct_penalti': round((r['gols_penalti'] / float(gt)) * 100.0, 1) if gt > 0 else 0.0
+            },
+            'distribuicao_absoluta': {
+                '0_15': r['gols_0_15'],
+                '16_30': r['gols_16_30'],
+                '31_45': r['gols_31_45'],
+                '46_60': r['gols_46_60'],
+                '61_75': r['gols_61_75'],
+                '76_90': r['gols_76_90'],
+                'acrescimos': r['gols_acrescimos'],
+                'total_tardios': g_tardios,
+                'pct_tardios': pct_tardios
+            },
+            'gols_por_90_faixa': {
+                '0_15': r['gols_por_90_0_15'],
+                '16_30': r['gols_por_90_16_30'],
+                '31_45': r['gols_por_90_31_45'],
+                '46_60': r['gols_por_90_46_60'],
+                '61_75': r['gols_por_90_61_75'],
+                '76_90': r['gols_por_90_76_90']
+            },
+            'amostra': {
+                'minima': bool(r['amostra_minima']),
+                'total_gols': gt,
+                'classificacao': classificacao,
+                'grau_confianca': confianca
+            },
+            'calculado_em': r['calculado_em']
+        })
+
+    return jsonify({
+        'total': len(resultado),
+        'guardrail_editorial': {
+            'suporte_placar_pre_gol': False,
+            'aviso_clutch': "Conforme diretriz do Desafio 28, a súmula não possui placar pré-gol. Nenhum índice 'clutch' ou decisivo é calculado para evitar causalidade espúria.",
+            'corte_amostra_recomendado': "Mínimo de 15 gols para análise de tendência temporal; < 5 gols considerado puramente exploratório."
+        },
+        'atletas': resultado
+    })
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     print(f"Iniciando API de Futebol & Clima em http://localhost:{port}")
