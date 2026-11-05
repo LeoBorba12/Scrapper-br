@@ -44,11 +44,26 @@ thumb = Image.alpha_composite(thumb.convert('RGBA'), overlay).convert('RGB')
 draw = ImageDraw.Draw(thumb)
 
 # 3. Fontes
-font_path = r"F:\pubs\MoneyPrinterTurbo\resource\fonts\BeVietnamPro-Bold.ttf"
+base_dir = os.path.dirname(os.path.abspath(__file__))
+font_candidates = [
+    "/mnt/jogos_f/pubs/MoneyPrinterTurbo/resource/fonts/BeVietnamPro-Bold.ttf",
+    r"F:\pubs\MoneyPrinterTurbo\resource\fonts\BeVietnamPro-Bold.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+]
+font_path = None
+for fc in font_candidates:
+    if os.path.exists(fc):
+        font_path = fc
+        break
+
 try:
-    font_badge = ImageFont.truetype(font_path, 40)
-    font_main = ImageFont.truetype(font_path, 92)
-    font_sub = ImageFont.truetype(font_path, 42)
+    if font_path:
+        font_badge = ImageFont.truetype(font_path, 40)
+        font_main = ImageFont.truetype(font_path, 92)
+        font_sub = ImageFont.truetype(font_path, 42)
+    else:
+        font_badge = font_main = font_sub = ImageFont.load_default()
 except Exception:
     font_badge = font_main = font_sub = ImageFont.load_default()
 
@@ -98,6 +113,6 @@ draw.rounded_rectangle([sub_x - 25, sub_y - 15, sub_x + sub_w + 25, sub_y + 60],
 draw.text((sub_x, sub_y), sub_text, font=font_sub, fill=(255, 255, 255))
 
 # Salvar
-out_path = r"f:\Antigravity_Projetos_e_Ferramentas\Guia profissional\thumb_roma_pib.png"
+out_path = os.path.join(base_dir, "thumb_roma_pib.png")
 thumb.save(out_path, quality=95)
 print(f"Thumbnail salva com sucesso em: {out_path}")
