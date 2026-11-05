@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   BarChart3, RefreshCw, Search, ChevronDown, ChevronUp, 
   ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles, Trophy, ShieldCheck
@@ -38,18 +38,7 @@ export default function EditorialClubes({
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    // Se um clube estiver selecionado, exibe a Visão de Perfil Completo (Estilo OGol)
-  if (selectedClube) {
-    return (
-      <ClubProfileView 
-        clube={selectedClube}
-        onVoltar={() => setSelectedClube(null)}
-        onSelectJogador={onSelectJogador}
-      />
-    );
-  }
-
-  return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Sugestões inteligentes de clubes para o autosuggest
@@ -125,6 +114,17 @@ export default function EditorialClubes({
       setSortAsc(false);
     }
   };
+
+  // Se um clube estiver selecionado, exibe a Visão de Perfil Completo (Estilo OGol)
+  if (selectedClube) {
+    return (
+      <ClubProfileView 
+        clube={selectedClube}
+        onVoltar={() => setSelectedClube(null)}
+        onSelectJogador={onSelectJogador}
+      />
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
