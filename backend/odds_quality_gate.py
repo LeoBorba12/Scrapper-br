@@ -16,6 +16,7 @@ Regras Estritas:
    - QUARENTENA_NAO_PUBLICAVEL (Mercado anômalo ou spread incompleto)
 """
 
+import sqlite3
 from typing import Tuple, Optional, Dict, Any, List
 
 def odd_valida(odd: Any) -> bool:
