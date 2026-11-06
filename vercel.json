@@ -4,7 +4,7 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
-      "includeFiles": "data/futebol.db",
+      "includeFiles": "{data/futebol.db,backend/**}",
       "maxDuration": 30
     }
   },
