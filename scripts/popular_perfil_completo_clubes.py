@@ -367,6 +367,133 @@ DADOS_CLUBES = [
             {"nome": "Santos", "posicao": "Goleiro", "periodo": "2010–2022", "jogos": 258, "gols": 0},
             {"nome": "Thiago Heleno", "posicao": "Zagueiro", "periodo": "2016–2026", "jogos": 340, "gols": 16}
         ]
+    },
+    {
+        "nome": "Atlético-MG",
+        "nome_oficial": "Clube Atlético Mineiro",
+        "alcunhas": "Galo, Galo Forte e Vingador",
+        "fundacao": "25/03/1908",
+        "cidade": "Belo Horizonte",
+        "estado": "MG",
+        "pais": "Brasil",
+        "estadio_nome": "Arena MRV",
+        "estadio_capacidade": 46000,
+        "presidente": "Sérgio Coelho",
+        "treinador_atual": "Gabriel Milito",
+        "valor_elenco_milhoes_eur": 115.0,
+        "cores_principais": "#000000, #FFFFFF",
+        "idolos_historicos": [
+            {"nome": "Reinaldo", "posicao": "Atacante", "periodo": "1973–1985", "jogos": 475, "gols": 255},
+            {"nome": "Ronaldinho Gaúcho", "posicao": "Meia", "periodo": "2012–2014", "jogos": 88, "gols": 28},
+            {"nome": "Hulk", "posicao": "Atacante", "periodo": "2021–2026", "jogos": 225, "gols": 118},
+            {"nome": "Victor", "posicao": "Goleiro", "periodo": "2012–2021", "jogos": 424, "gols": 0},
+            {"nome": "Éder Aleixo", "posicao": "Ponta-Esquerda", "periodo": "1980–1985", "jogos": 368, "gols": 122}
+        ]
+    },
+    {
+        "nome": "Ceará",
+        "nome_oficial": "Ceará Sporting Club",
+        "alcunhas": "Vozão, Alvinegro de Porangabuçu",
+        "fundacao": "02/06/1914",
+        "cidade": "Fortaleza",
+        "estado": "CE",
+        "pais": "Brasil",
+        "estadio_nome": "Arena Castelão",
+        "estadio_capacidade": 63903,
+        "presidente": "João Paulo Silva",
+        "treinador_atual": "Léo Condé",
+        "valor_elenco_milhoes_eur": 22.0,
+        "cores_principais": "#000000, #FFFFFF",
+        "idolos_historicos": [
+            {"nome": "Gildo", "posicao": "Atacante", "periodo": "1960–1971", "jogos": 441, "gols": 242},
+            {"nome": "Sérgio Alves", "posicao": "Atacante", "periodo": "1992–2010", "jogos": 309, "gols": 141},
+            {"nome": "Magno Alves", "posicao": "Atacante", "periodo": "2010–2017", "jogos": 146, "gols": 93},
+            {"nome": "Dimas Filgueiras", "posicao": "Lateral / Técnico", "periodo": "1971–1976", "jogos": 130, "gols": 2}
+        ]
+    },
+    {
+        "nome": "Coritiba",
+        "nome_oficial": "Coritiba Foot Ball Club",
+        "alcunhas": "Coxa, Verdão do Alto da Glória",
+        "fundacao": "12/10/1909",
+        "cidade": "Curitiba",
+        "estado": "PR",
+        "pais": "Brasil",
+        "estadio_nome": "Major Antônio Couto Pereira",
+        "estadio_capacidade": 40502,
+        "presidente": "Gabriel Lima",
+        "treinador_atual": "Jorginho",
+        "valor_elenco_milhoes_eur": 28.5,
+        "cores_principais": "#005530, #FFFFFF",
+        "idolos_historicos": [
+            {"nome": "Dirceu Krüger", "posicao": "Meia", "periodo": "1966–1975", "jogos": 252, "gols": 58},
+            {"nome": "Alex", "posicao": "Meia", "periodo": "1995–2014", "jogos": 210, "gols": 69},
+            {"nome": "Jairo", "posicao": "Goleiro", "periodo": "1972–1987", "jogos": 410, "gols": 0},
+            {"nome": "Reginaldo Nascimento", "posicao": "Volante", "periodo": "1993–2005", "jogos": 338, "gols": 18}
+        ]
+    },
+    {
+        "nome": "Goiás",
+        "nome_oficial": "Goiás Esporte Clube",
+        "alcunhas": "Esmeraldino, Verdão da Serra",
+        "fundacao": "06/04/1943",
+        "cidade": "Goiânia",
+        "estado": "GO",
+        "pais": "Brasil",
+        "estadio_nome": "Estádio Hailé Pinheiro (Serrinha)",
+        "estadio_capacidade": 14525,
+        "presidente": "Aroldo Guidão Filho",
+        "treinador_atual": "Vagner Mancini",
+        "valor_elenco_milhoes_eur": 24.0,
+        "cores_principais": "#005C36, #FFFFFF",
+        "idolos_historicos": [
+            {"nome": "Fernandão", "posicao": "Atacante", "periodo": "1995–2001", "jogos": 289, "gols": 108},
+            {"nome": "Harlei", "posicao": "Goleiro", "periodo": "1999–2014", "jogos": 831, "gols": 0},
+            {"nome": "Túlio Maravilha", "posicao": "Atacante", "periodo": "1987–1992", "jogos": 240, "gols": 187},
+            {"nome": "Araújo", "posicao": "Atacante", "periodo": "1997–2004", "jogos": 335, "gols": 145}
+        ]
+    },
+    {
+        "nome": "Sport",
+        "nome_oficial": "Sport Club do Recife",
+        "alcunhas": "Leão da Ilha, Rubro-Negro Pernambucano",
+        "fundacao": "13/05/1905",
+        "cidade": "Recife",
+        "estado": "PE",
+        "pais": "Brasil",
+        "estadio_nome": "Adelmar da Costa Carvalho (Ilha do Retiro)",
+        "estadio_capacidade": 32983,
+        "presidente": "Yuri Romão",
+        "treinador_atual": "Pepa",
+        "valor_elenco_milhoes_eur": 31.0,
+        "cores_principais": "#D6001C, #000000",
+        "idolos_historicos": [
+            {"nome": "Magrão", "posicao": "Goleiro", "periodo": "2005–2019", "jogos": 732, "gols": 0},
+            {"nome": "Durval", "posicao": "Zagueiro", "periodo": "2006–2018", "jogos": 472, "gols": 33},
+            {"nome": "Leonardo", "posicao": "Atacante", "periodo": "1992–2004", "jogos": 367, "gols": 136},
+            {"nome": "Diego Souza", "posicao": "Meia-Atacante", "periodo": "2014–2023", "jogos": 173, "gols": 57}
+        ]
+    },
+    {
+        "nome": "Vitória",
+        "nome_oficial": "Esporte Clube Vitória",
+        "alcunhas": "Leão da Barra, Rubro-Negro Baiano",
+        "fundacao": "13/05/1899",
+        "cidade": "Salvador",
+        "estado": "BA",
+        "pais": "Brasil",
+        "estadio_nome": "Manoel Barradas (Barradão)",
+        "estadio_capacidade": 35000,
+        "presidente": "Fábio Mota",
+        "treinador_atual": "Thiago Carpini",
+        "valor_elenco_milhoes_eur": 34.0,
+        "cores_principais": "#D6001C, #000000",
+        "idolos_historicos": [
+            {"nome": "Bebeto", "posicao": "Atacante", "periodo": "1982–1997", "jogos": 80, "gols": 31},
+            {"nome": "Ramon Menezes", "posicao": "Meia", "periodo": "1994–2010", "jogos": 204, "gols": 47},
+            {"nome": "Dida", "posicao": "Goleiro", "periodo": "1992–1993", "jogos": 54, "gols": 0},
+            {"nome": "Dejan Petkovic", "posicao": "Meia", "periodo": "1997–1999", "jogos": 90, "gols": 59}
+        ]
     }
 ]
 

@@ -48,5 +48,6 @@ data/ground_truth*
 # Cold storage e backups de banco de dados
 backups/
 data/futebol_cold.db*
+data/staging/
 *.db.zst
 *.db.gz

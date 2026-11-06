@@ -298,7 +298,8 @@ def auditar_e_reparar_dados():
         SELECT COUNT(*) 
         FROM gols g
         JOIN partidas p ON g.id_partida = p.id_partida
-        WHERE ((g.clube = p.mandante AND p.gols_mandante = 0 AND p.gols_visitante > 0)
+        WHERE p.mandante != p.visitante
+          AND ((g.clube = p.mandante AND p.gols_mandante = 0 AND p.gols_visitante > 0)
             OR (g.clube = p.visitante AND p.gols_visitante = 0 AND p.gols_mandante > 0)
             OR (p.gols_mandante = 0 AND p.gols_visitante = 0 AND (p.mandante LIKE '%Estatísticas%' OR p.visitante LIKE '%Estatísticas%' OR g.clube LIKE '%Estatísticas%')))
           AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%');

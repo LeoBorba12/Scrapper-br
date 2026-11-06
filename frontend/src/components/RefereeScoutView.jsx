@@ -27,6 +27,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
   // Perfil selecionado
   const [selectedReferee, setSelectedReferee] = useState(null);
   const [refereeProfile, setRefereeProfile] = useState(null);
+  const [detalheFase6, setDetalheFase6] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [clubeFiltro, setClubeFiltro] = useState('');
 
@@ -56,14 +57,18 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
     setSelectedReferee(nomeArbitro);
     setLoadingProfile(true);
     const url = `/api/arbitros/perfil?nome=${encodeURIComponent(nomeArbitro)}${clube ? `&clube=${encodeURIComponent(clube)}` : ''}`;
+    const urlFase6 = `/api/arbitros/detalhe-completo?nome=${encodeURIComponent(nomeArbitro)}`;
     const fetcher = apiFetch ? apiFetch(url) : fetch(url);
-    fetcher
-      .then(r => r.json())
-      .then(d => {
-        setRefereeProfile(d);
-        setLoadingProfile(false);
-      })
-      .catch(() => setLoadingProfile(false));
+    const fetcherFase6 = apiFetch ? apiFetch(urlFase6) : fetch(urlFase6);
+
+    Promise.all([
+      fetcher.then(r => r.json()).catch(() => null),
+      fetcherFase6.then(r => r.json()).catch(() => null)
+    ]).then(([dPerfil, dFase6]) => {
+      setRefereeProfile(dPerfil);
+      setDetalheFase6(dFase6);
+      setLoadingProfile(false);
+    }).catch(() => setLoadingProfile(false));
   };
 
   // Filtragem da lista geral
@@ -247,12 +252,59 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
                   🎯 Pênaltis Marcados
                 </div>
-                <div className="font-mono" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', marginTop: '4px' }}>
-                  {res.penaltis?.media_por_jogo || 0} <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ jogo</span>
+                {detalheFase6?.estatisticas_temporada?.penaltis_por_jogo != null ? (
+                  <>
+                    <div className="font-mono" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', marginTop: '4px' }}>
+                      {detalheFase6.estatisticas_temporada.penaltis_por_jogo} <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ jogo</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Total temporada: {detalheFase6.estatisticas_temporada.penaltis_totais || 0}
+                    </div>
+                  </>
+                ) : res.penaltis?.media_por_jogo ? (
+                  <>
+                    <div className="font-mono" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent)', marginTop: '4px' }}>
+                      {res.penaltis.media_por_jogo} <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ jogo</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Total acervo: {res.penaltis.total || 0} penalidades
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: '8px' }}>
+                      Não disponível
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Súmula sem scout de penalidade
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="editorial-panel" style={{ padding: '16px' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  ⚖️ Faltas Cometidas
                 </div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Total: {res.penaltis?.total || 0} penalidades apitadas
-                </div>
+                {detalheFase6?.estatisticas_temporada?.faltas_por_jogo != null ? (
+                  <>
+                    <div className="font-mono" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
+                      {detalheFase6.estatisticas_temporada.faltas_por_jogo} <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ jogo</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Total temporada: {detalheFase6.estatisticas_temporada.faltas_totais} faltas
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-muted)', marginTop: '8px' }}>
+                      Não disponível
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      Súmula sem telemetria de faltas
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="editorial-panel" style={{ padding: '16px' }}>
@@ -454,6 +506,93 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* Histórico de Competições Apitadas (Fase 6) */}
+            {detalheFase6?.historico_competicoes?.length > 0 && (
+              <div className="editorial-panel" style={{ padding: '20px' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>
+                  🏆 Competições e Torneios Apitados no Acervo
+                </h3>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                        <th style={{ padding: '8px 10px' }}>Competição</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>Total de Jogos</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>Período</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheFase6.historico_competicoes.map((hc, idx) => (
+                        <tr
+                          key={idx}
+                          style={{
+                            borderBottom: '1px solid var(--border-subtle)',
+                            backgroundColor: idx % 2 === 0 ? 'transparent' : 'var(--surface-raised)'
+                          }}
+                        >
+                          <td style={{ padding: '10px 8px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {hc.campeonato}
+                          </td>
+                          <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 800 }}>
+                            {hc.jogos}
+                          </td>
+                          <td className="font-mono" style={{ padding: '10px 8px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            {hc.de_ano === hc.ate_ano ? hc.de_ano : `${hc.de_ano} – ${hc.ate_ano}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Últimos Confrontos Apitados (Fase 6) */}
+            {detalheFase6?.ultimos_confrontos?.length > 0 && (
+              <div className="editorial-panel" style={{ padding: '20px' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 12px 0' }}>
+                  📅 Partidas Recentes Catalogadas na Súmula
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                  {detalheFase6.ultimos_confrontos.map(pt => (
+                    <div
+                      key={pt.id_partida}
+                      style={{
+                        padding: '12px 16px',
+                        borderRadius: 'var(--radius-control)',
+                        backgroundColor: 'var(--surface-raised)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        <span>{pt.campeonato}</span>
+                        <span>{pt.data || pt.ano}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--text-primary)', flex: 1 }}>
+                          {pt.mandante}
+                        </span>
+                        <span className="font-mono" style={{ fontWeight: 900, fontSize: '1.05rem', color: 'var(--text-primary)', padding: '0 8px' }}>
+                          {pt.placar || `${pt.gols_mandante ?? "-"} x ${pt.gols_visitante ?? "-"}`}
+                        </span>
+                        <span style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--text-secondary)', flex: 1, textAlign: 'right' }}>
+                          {pt.visitante}
+                        </span>
+                      </div>
+                      {pt.estadio && (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          📍 {pt.estadio}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

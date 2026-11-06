@@ -5,8 +5,19 @@ import os
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
-sys.path.insert(0, r"F:\pubs\MoneyPrinterTurbo")
-os.chdir(r"F:\pubs\MoneyPrinterTurbo")
+caminhos_mpt = [
+    "/mnt/jogos_f/pubs/MoneyPrinterTurbo",
+    r"F:\pubs\MoneyPrinterTurbo"
+]
+mpt_dir = None
+for p in caminhos_mpt:
+    if os.path.exists(p):
+        mpt_dir = p
+        break
+
+if mpt_dir:
+    sys.path.insert(0, mpt_dir)
+    os.chdir(mpt_dir)
 
 from cli import run_cli
 

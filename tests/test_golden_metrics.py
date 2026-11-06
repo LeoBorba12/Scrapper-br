@@ -151,17 +151,17 @@ def test_idempotencia_estrutural_gols_retentativa(client):
 
     # 1. Primeira inserção
     c.execute("""
-        INSERT INTO gols (id_partida, partida_id, atleta_id, id_jogador, clube, clube_id, atleta, minuto, tempo, tipo_de_gol, payload_sha256)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (partida_id, atleta_id, clube_id, minuto, tempo, tipo_de_gol) DO NOTHING;
+        INSERT INTO gols (id_partida, partida_id, atleta_id, id_jogador, clube, clube_id, atleta, minuto, tempo, tipo_de_gol, payload_sha256, ordinal_gol_partida)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT (partida_id, atleta_id, clube_id, minuto, tempo, tipo_de_gol, ordinal_gol_partida) DO NOTHING;
     """, (test_pid, test_pid, test_aid, test_aid, 'Clube Teste', test_cid, 'Atleta Teste', test_min, test_tempo, test_tipo, test_sha))
     conn.commit()
 
     # 2. Retentativa idêntica (simulação de falha de rede / retry de scraper)
     c.execute("""
-        INSERT INTO gols (id_partida, partida_id, atleta_id, id_jogador, clube, clube_id, atleta, minuto, tempo, tipo_de_gol, payload_sha256)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (partida_id, atleta_id, clube_id, minuto, tempo, tipo_de_gol) DO NOTHING;
+        INSERT INTO gols (id_partida, partida_id, atleta_id, id_jogador, clube, clube_id, atleta, minuto, tempo, tipo_de_gol, payload_sha256, ordinal_gol_partida)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT (partida_id, atleta_id, clube_id, minuto, tempo, tipo_de_gol, ordinal_gol_partida) DO NOTHING;
     """, (test_pid, test_pid, test_aid, test_aid, 'Clube Teste', test_cid, 'Atleta Teste', test_min, test_tempo, test_tipo, test_sha))
     conn.commit()
 

@@ -309,6 +309,26 @@ except ImportError:
     except Exception as e_bp:
         print(f"[AVISO] Falha ao registrar Blueprint rotas_expansao: {e_bp}")
 
+try:
+    from backend.rotas_metricas_avancadas import metricas_avancadas_bp
+    app.register_blueprint(metricas_avancadas_bp)
+except ImportError:
+    try:
+        from rotas_metricas_avancadas import metricas_avancadas_bp
+        app.register_blueprint(metricas_avancadas_bp)
+    except Exception as e_bp:
+        print(f"[AVISO] Falha ao registrar Blueprint metricas_avancadas: {e_bp}")
+
+try:
+    from backend.rotas_fase6_paginas import fase6_paginas_bp
+    app.register_blueprint(fase6_paginas_bp)
+except ImportError:
+    try:
+        from rotas_fase6_paginas import fase6_paginas_bp
+        app.register_blueprint(fase6_paginas_bp)
+    except Exception as e_bp:
+        print(f"[AVISO] Falha ao registrar Blueprint fase6_paginas: {e_bp}")
+
 @app.errorhandler(500)
 def handle_500(err):
     return jsonify({"error": f"Erro interno do servidor: {str(err)}"}), 500

@@ -34,7 +34,7 @@ RELATORIO = Path("data/relatorio_restauracao_gols.json")
 BACKUP_DIR = Path("backups")
 SOFT_LIMIT_MB = 84.0
 HARD_LIMIT_MB = 94.0
-CHAVES_FLAG = ("classificacao", "diagnostico", "flag", "categoria", "tipo")
+CHAVES_FLAG = ("classificacao", "diagnostico", "flag", "categoria", "categoria_auditoria", "tipo")
 ALVO = "legitimo_colapsado"
 KEY_COLS = ("partida_id", "atleta_id", "clube_id", "minuto", "tempo", "tipo_de_gol")
 
@@ -141,7 +141,17 @@ def reclassificar_auditoria(con, ids):
         print(f"[AVISO] gols_auditoria não atualizada: {e}")
 
 
-def validar_excesso(con, col_pid):
+def validar_excesso(con, col_pid, pids=None):
+    if pids:
+        placeholders = ",".join("?" * len(pids))
+        return con.execute(
+            f"SELECT COUNT(*) FROM (SELECT p.{col_pid} FROM partidas p "
+            f"JOIN gols g ON g.id_partida = p.{col_pid} "
+            f"WHERE p.{col_pid} IN ({placeholders}) "
+            f"GROUP BY p.{col_pid} "
+            f"HAVING COUNT(*) > (p.gols_mandante + p.gols_visitante))",
+            list(pids),
+        ).fetchone()[0]
     return con.execute(
         f"SELECT COUNT(*) FROM (SELECT p.{col_pid} FROM partidas p "
         f"JOIN gols g ON g.id_partida = p.{col_pid} "
@@ -185,7 +195,8 @@ def main():
         preparar_schema(con)
         stats = restaurar(con, alvo, col_pid)
         reclassificar_auditoria(con, stats["ids_restaurados"])
-        excesso = validar_excesso(con, col_pid)
+        pids_alvo = set(r.get("id_partida") or r.get("partida_id") for r in alvo if (r.get("id_partida") or r.get("partida_id")))
+        excesso = validar_excesso(con, col_pid, pids_alvo)
         depois = con.execute("SELECT COUNT(*) FROM gols").fetchone()[0]
 
         if excesso:
@@ -198,6 +209,7 @@ def main():
 
         if not args.aplicar:
             con.rollback()
+            RELATORIO.write_text(json.dumps(rel, indent=2, ensure_ascii=False), encoding="utf-8")
             print(json.dumps(rel, indent=2, ensure_ascii=False))
             print("SIMULAÇÃO: nada foi gravado. Use --aplicar.")
             return

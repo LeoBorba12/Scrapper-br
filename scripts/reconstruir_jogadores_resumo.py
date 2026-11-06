@@ -49,6 +49,20 @@ def reconstruir_resumo(db_path: str):
         GROUP BY atleta
     """)
 
+    # Cria a tabela caso não exista
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS jogadores_resumo (
+            nome TEXT PRIMARY KEY,
+            clubes TEXT,
+            total_jogos INTEGER,
+            total_gols INTEGER,
+            total_amarelos INTEGER,
+            total_vermelhos INTEGER,
+            ano_min INTEGER,
+            ano_max INTEGER
+        );
+    """)
+
     # Atualiza a tabela jogadores_resumo existente com os novos totais de gols
     c.execute("""
         UPDATE jogadores_resumo
@@ -95,5 +109,8 @@ def reconstruir_resumo(db_path: str):
     conn.close()
 
 if __name__ == "__main__":
-    reconstruir_resumo("data/futebol.db")
-    reconstruir_resumo("api/data/futebol.db")
+    import os
+    if os.path.exists("data/futebol.db"):
+        reconstruir_resumo("data/futebol.db")
+    if os.path.exists("api/data/futebol.db"):
+        reconstruir_resumo("api/data/futebol.db")
