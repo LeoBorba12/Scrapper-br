@@ -4993,8 +4993,9 @@ def get_apostas_hub():
     # 1. Totais Globais para Métricas Reais do Banco
     try:
         total_banco_odds = c.execute("SELECT COUNT(*) FROM odds_partidas WHERE odd_mandante IS NOT NULL").fetchone()[0]
-    except Exception:
-        total_banco_odds = 9252
+    except Exception as e_count:
+        app.logger.warning(f"Falha ao consultar contagem global de odds: {e_count}")
+        total_banco_odds = 0
 
     try:
         total_temporada = c.execute("""
@@ -5003,8 +5004,9 @@ def get_apostas_hub():
             JOIN odds_partidas o ON p.id_partida = o.id_partida 
             WHERE o.odd_mandante IS NOT NULL AND p.ano >= 2025
         """).fetchone()[0]
-    except Exception:
-        total_temporada = 2362
+    except Exception as e_count2:
+        app.logger.warning(f"Falha ao consultar odds da temporada: {e_count2}")
+        total_temporada = 0
 
     # 2. Contagem do Total de Jogos Filtrados (sem LIMIT)
     count_sql = f"""

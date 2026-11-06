@@ -497,14 +497,14 @@ export default function App() {
     }
   };
 
-  // Carregar dados iniciais (overview, clubes, campeonatos) quando logado via apiFetch
+  // Carregar dados iniciais (overview público sempre, clubes e campeonatos quando logado) via apiFetch
   useEffect(() => {
-    if (!currentUser) return;
-
     apiFetch('/api/overview')
       .then(r => r.json())
       .then(d => setOverview(d))
       .catch(() => {});
+
+    if (!currentUser) return;
 
     apiFetch('/api/clubes')
       .then(r => r.json())
@@ -1365,7 +1365,7 @@ export default function App() {
                   <span className="badge badge-blue">Code Interpreter Real</span>
                 </div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px', maxWidth: '780px' }}>
-                  Pergunte qualquer curiosidade inusitada, mito ou correlação histórica. O modelo gera e executa queries SQL no banco de <strong>115.361 jogos</strong> e <strong>93.462 gols</strong> para trazer a verdade estatística.
+                  Pergunte qualquer curiosidade inusitada, mito ou correlação histórica. O modelo gera e executa queries SQL no banco de <strong>115.753 partidas</strong> e <strong>117.523 gols</strong> para trazer a verdade estatística.
                 </p>
               </div>
 
@@ -1453,7 +1453,7 @@ export default function App() {
               <RefreshCw size={36} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 16px' }} />
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>O Oráculo está pesquisando no banco...</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
-                Traduzindo sua pergunta para SQL, consultando 115.361 partidas e gerando o insight.
+                Traduzindo sua pergunta para SQL, consultando 115.753 partidas e gerando o insight.
               </p>
             </div>
           )}
@@ -2264,7 +2264,7 @@ export default function App() {
           FutStats & Clima • Feito com <strong style={{ color: 'var(--text-primary)' }}>Arquitetura Editorial 2026</strong>
         </div>
         <div className="font-mono">
-          {overview?.total_partidas?.toLocaleString('pt-BR') || '115.361'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '93.462'} gols catalogados • 12 capitais climáticas
+          {overview?.total_partidas?.toLocaleString('pt-BR') || '115.753'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '117.523'} gols catalogados • 12 capitais climáticas
         </div>
       </footer>
 

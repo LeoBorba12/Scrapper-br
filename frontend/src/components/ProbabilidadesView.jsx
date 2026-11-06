@@ -390,10 +390,10 @@ export default function ProbabilidadesView({
               Odds Validadas no Gate
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-              {(hubData?.total_banco_odds || 9252).toLocaleString('pt-BR')}
+              {loading ? '...' : error ? '—' : (hubData?.total_banco_odds ?? 0).toLocaleString('pt-BR')}
             </div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
-              {hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : 'Gate de Qualidade: 0% a 15% margem'}
+            <div style={{ fontSize: '0.72rem', color: error ? 'var(--negative)' : 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
+              {error ? 'Dados temporariamente indisponíveis' : hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : 'Gate de Qualidade: 0% a 15% margem'}
             </div>
           </div>
 
@@ -409,7 +409,7 @@ export default function ProbabilidadesView({
               <Flame size={14} /> Leituras Analíticas (+EV)
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--positive)', marginTop: '4px' }}>
-              {hubData?.total_com_ev || 0}
+              {loading ? '...' : error ? '—' : (hubData?.total_com_ev ?? 0)}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--positive)', marginTop: '2px' }}>
               Odd Casa &gt; Probabilidade Calculada
@@ -428,7 +428,7 @@ export default function ProbabilidadesView({
               Favoráveis ao Over 2.5
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-              {hubData?.total_over_2_5_favoravel || 0}
+              {loading ? '...' : error ? '—' : (hubData?.total_over_2_5_favoravel ?? 0)}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
               Probabilidade estatística &ge; 52%
@@ -447,7 +447,7 @@ export default function ProbabilidadesView({
               Favoráveis ao BTTS (Ambas)
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-              {hubData?.total_btts_favoravel || 0}
+              {loading ? '...' : error ? '—' : (hubData?.total_btts_favoravel ?? 0)}
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
               Ambas Marcam provável &ge; 52%
@@ -1437,6 +1437,39 @@ export default function ProbabilidadesView({
                 Cruzando acervo histórico de partidas com distribuições de Poisson e Dixon-Coles calibrado.
               </div>
             </div>
+          ) : error ? (
+            <div
+              style={{
+                backgroundColor: 'var(--surface-panel)',
+                borderRadius: 'var(--radius-panel)',
+                border: '1px solid var(--negative)',
+                padding: '48px 20px',
+                textAlign: 'center'
+              }}
+            >
+              <AlertTriangle size={32} color="var(--negative)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Erro ao consultar dados</div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '4px', maxWidth: '500px', margin: '4px auto 0' }}>
+                {error}
+              </div>
+              <button
+                onClick={() => carregarHub()}
+                className="btn-secondary touch-tactile"
+                style={{
+                  marginTop: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 18px',
+                  fontSize: '0.84rem',
+                  borderRadius: 'var(--radius-control)',
+                  cursor: 'pointer'
+                }}
+              >
+                <RefreshCw size={14} />
+                <span>Tentar Novamente</span>
+              </button>
+            </div>
           ) : partidasFiltradas.length === 0 ? (
             <div
               style={{
@@ -1447,17 +1480,21 @@ export default function ProbabilidadesView({
                 textAlign: 'center'
               }}
             >
-              <AlertTriangle size={32} color="var(--negative)" style={{ margin: '0 auto 12px' }} />
-              <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>Nenhuma partida encontrada</div>
+              <AlertTriangle size={32} color="var(--text-muted)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>
+                {mercadoFiltro === 'ev_plus' ? 'Nenhuma oportunidade +EV no momento' : 'Nenhuma partida encontrada'}
+              </div>
               <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                Tente ajustar os filtros de busca ou escolher outro mercado esportivo.
+                {mercadoFiltro === 'ev_plus'
+                  ? 'Não há partidas com Valor Esperado (+EV) positivo aprovadas no gate para os filtros selecionados.'
+                  : 'Nenhuma partida com estimativas probabilísticas atende aos filtros selecionados. Tente ajustar a busca ou o campeonato.'}
               </div>
             </div>
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
                 <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  Exibindo <strong className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{partidasFiltradas.length}</strong> de <strong className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{(hubData?.total_filtrado || hubData?.total_temporada || 2362).toLocaleString('pt-BR')}</strong> partidas catalogadas com probabilidades
+                  Exibindo <strong className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{partidasFiltradas.length}</strong> de <strong className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{(hubData?.total_filtrado ?? hubData?.total_temporada ?? 0).toLocaleString('pt-BR')}</strong> partidas catalogadas com probabilidades
                 </span>
                 {hubData?.partidas && hubData.partidas.length < (hubData?.total_filtrado || 0) && (
                   <span style={{ fontSize: '0.74rem', color: 'var(--accent)', fontWeight: 600 }}>
