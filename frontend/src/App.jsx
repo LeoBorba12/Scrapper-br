@@ -25,6 +25,9 @@ const ProbabilidadesView = lazy(() => import('./components/ProbabilidadesView'))
 const RefereeScoutView = lazy(() => import('./components/RefereeScoutView'));
 const ModalLanceALance = lazy(() => import('./components/ModalLanceALance'));
 const TournamentStatsView = lazy(() => import('./components/TournamentStatsView'));
+const MetricasAvancadasView = lazy(() => import('./components/MetricasAvancadasView'));
+const CoachProfileView = lazy(() => import('./components/CoachProfileView'));
+const CompetitionDetailView = lazy(() => import('./components/CompetitionDetailView'));
 
 function ViewSuspenseFallback({ darkMode }) {
   return (
@@ -57,6 +60,9 @@ export default function App() {
     } catch {}
     return 'perfil';
   });
+
+  const [coachSubView, setCoachSubView] = useState('perfil'); // 'perfil' | 'comparar'
+  const [competitionSubView, setCompetitionSubView] = useState('edicao'); // 'edicao' | 'scouts'
 
   const [compararAtletasState, setCompararAtletasState] = useState(() => {
     try {
@@ -1129,9 +1135,55 @@ export default function App() {
       conviteCopiado={conviteCopiado}
     >
       <Suspense fallback={<ViewSuspenseFallback darkMode={darkMode} />}>
-        {/* ================= ABA CAMPEONATO: SCOUTS COMPLETOS OGOL 2026 ================= */}
+        {/* ================= ABA CAMPEONATO: CLASSIFICAÇÃO CANÔNICA & SCOUTS ================= */}
         {activeTab === 'campeonato' && (
-          <TournamentStatsView darkMode={darkMode} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+            <div style={{ display: 'flex', gap: '8px', padding: '4px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', width: 'fit-content' }}>
+              <button
+                onClick={() => setCompetitionSubView('edicao')}
+                className="touch-tactile"
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 'var(--radius-control)',
+                  fontSize: '0.84rem',
+                  fontWeight: competitionSubView === 'edicao' ? 800 : 600,
+                  backgroundColor: competitionSubView === 'edicao' ? 'var(--surface)' : 'transparent',
+                  color: competitionSubView === 'edicao' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: competitionSubView === 'edicao' ? '1px solid var(--border-subtle)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                🏆 Edições, Classificação & Artilharia
+              </button>
+              <button
+                onClick={() => setCompetitionSubView('scouts')}
+                className="touch-tactile"
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: 'var(--radius-control)',
+                  fontSize: '0.84rem',
+                  fontWeight: competitionSubView === 'scouts' ? 800 : 600,
+                  backgroundColor: competitionSubView === 'scouts' ? 'var(--surface)' : 'transparent',
+                  color: competitionSubView === 'scouts' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: competitionSubView === 'scouts' ? '1px solid var(--border-subtle)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                📊 Scouts Coletivos Avançados (OGol)
+              </button>
+            </div>
+
+            {competitionSubView === 'edicao' ? (
+              <CompetitionDetailView darkMode={darkMode} />
+            ) : (
+              <TournamentStatsView darkMode={darkMode} />
+            )}
+          </div>
+        )}
+
+        {/* ================= ABA MÉTRICAS AVANÇADAS: BRASILEIRÃO EM DADOS 2026 ================= */}
+        {activeTab === 'metricas-avancadas' && (
+          <MetricasAvancadasView darkMode={darkMode} />
         )}
 
         {/* ================= PILOTO 1: CLUBES NO MODELO EDITORIAL ================= */}
@@ -1248,13 +1300,54 @@ export default function App() {
         />
       )}
 
-      {/* ABA TÉCNICOS: COMPARADOR DE MESTRES TÁTICOS & PRANCHETAS (EDITORIAL 2026) */}
+      {/* ABA TÉCNICOS: PERFIL INDIVIDUAL & COMPARADOR DE MESTRES TÁTICOS */}
       {activeTab === 'tecnicos' && (
-        <CoachCompareView
-          darkMode={darkMode}
-          treinadorInicial1="abel_ferreira"
-          treinadorInicial2="jorge_jesus"
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+          <div style={{ display: 'flex', gap: '8px', padding: '4px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', width: 'fit-content' }}>
+            <button
+              onClick={() => setCoachSubView('perfil')}
+              className="touch-tactile"
+              style={{
+                padding: '8px 18px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.84rem',
+                fontWeight: coachSubView === 'perfil' ? 800 : 600,
+                backgroundColor: coachSubView === 'perfil' ? 'var(--surface)' : 'transparent',
+                color: coachSubView === 'perfil' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                border: coachSubView === 'perfil' ? '1px solid var(--border-subtle)' : 'none',
+                cursor: 'pointer'
+              }}
+            >
+              👤 Dossiê do Treinador (135 catalogados)
+            </button>
+            <button
+              onClick={() => setCoachSubView('comparar')}
+              className="touch-tactile"
+              style={{
+                padding: '8px 18px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.84rem',
+                fontWeight: coachSubView === 'comparar' ? 800 : 600,
+                backgroundColor: coachSubView === 'comparar' ? 'var(--surface)' : 'transparent',
+                color: coachSubView === 'comparar' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                border: coachSubView === 'comparar' ? '1px solid var(--border-subtle)' : 'none',
+                cursor: 'pointer'
+              }}
+            >
+              ⚔️ Duelo Tático H2H & Pranchetas
+            </button>
+          </div>
+
+          {coachSubView === 'perfil' ? (
+            <CoachProfileView darkMode={darkMode} />
+          ) : (
+            <CoachCompareView
+              darkMode={darkMode}
+              treinadorInicial1="abel_ferreira"
+              treinadorInicial2="jorge_jesus"
+            />
+          )}
+        </div>
       )}
 
       {/* ABA 3: ORÁCULO & IA ANALISTA */}

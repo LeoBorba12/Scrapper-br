@@ -80,6 +80,6 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 ## 5. Regras de Execução Pre-flight Obrigatórias
 - **Build Frontend:** Sempre verificar `npm run build` na pasta `frontend/` antes de commitar.
 - **Regression Gates:** Executar `pytest tests/test_model_evals.py` após qualquer alteração em cálculos preditivos, Dixon-Coles ou odds (22/22 testes obrigatórios).
-- **Data Auditor:** Executar `python scripts/auditar_integridade_dados.py` para validar 10 regras de consistência relacional.
+- **Data Auditor:** Executar `python scripts/auditar_integridade_dados.py` para validar 12 regras de consistência relacional.
 - **Teto Vercel:** Monitorar `data/futebol.db` mantendo o tamanho estritamente abaixo do teto de **94,00 MB** (soft limit: **84,00 MB**, meta: **80,00 MB**).
 - **Idioma Oficial:** 100% Português do Brasil na interface e mensagens.
