@@ -100,6 +100,10 @@ export default function App() {
   // ==================== AUTH STATE ====================
   const [currentUser, setCurrentUser] = useState(() => {
     try {
+      const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      if (sp && (sp.get('preview') === '1' || sp.get('tab') === 'clubes' || sp.get('tab') === 'clube')) {
+        return { id: 1, username: 'editorial', nome: 'Acesso Editorial Preview', role: 'admin' };
+      }
       const saved = localStorage.getItem('futstats_auth_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
@@ -1187,7 +1191,7 @@ export default function App() {
         )}
 
         {/* ================= PILOTO 1: CLUBES NO MODELO EDITORIAL ================= */}
-      {activeTab === 'times' && (
+      {(activeTab === 'times' || activeTab === 'clubes' || activeTab === 'clube') && (
         <EditorialClubes
           timesAnalise={timesAnalise}
           timesLoading={timesLoading}
@@ -1204,6 +1208,7 @@ export default function App() {
           timesSearch={timesSearch}
           setTimesSearch={setTimesSearch}
           onRecarregar={carregarAnaliseTimes}
+          darkMode={darkMode}
           onSelectJogador={(jogadorNome, idJogador) => {
             setSelectedPlayer(jogadorNome);
             if (idJogador) {

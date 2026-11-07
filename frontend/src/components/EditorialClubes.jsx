@@ -1,13 +1,11 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { 
-  BarChart3, RefreshCw, Search, ChevronDown, ChevronUp, 
-  ArrowUpDown, Shield, TrendingUp, Filter, Info, Sparkles, Trophy, ShieldCheck
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  Search, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown,
+  Filter, Shield, TrendingUp, Award, Activity, AlertTriangle,
+  RotateCcw, ExternalLink
 } from 'lucide-react';
-import PainelQualidadeGolsCard from './PainelQualidadeGolsCard';
-import { ClubEvolutionChart, HistoricCampaignChart } from './charts';
 import ClubBadge from './ClubBadge';
-import TrophyGallery3D from './TrophyGallery3D';
-import ClubProfileView from './ClubProfileView';
+import ClubDetailView from './ClubDetailView';
 
 export default function EditorialClubes({
   timesAnalise,
@@ -19,709 +17,739 @@ export default function EditorialClubes({
   timesSearch,
   setTimesSearch,
   onRecarregar,
-  onSelectJogador
+  onSelectJogador,
+  darkMode
 }) {
-  const [sortBy, setSortBy] = useState('aproveitamento');
-  const [sortAsc, setSortAsc] = useState(false);
-  const [expandedClube, setExpandedClube] = useState(null);
-  const [clubeEvolucao, setClubeEvolucao] = useState('Flamengo');
-  const [secaoVisual, setSecaoVisual] = useState('campanhas'); // 'campanhas' | 'decadas'
-  const [selectedClube, setSelectedClube] = useState(null);
-  const [mostrarSugestoes, setMostrarSugestoes] = useState(false);
-  const searchContainerRef = useRef(null);
-
-  // Fechar dropdown de sugestões ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
-        setMostrarSugestoes(false);
-      }
+  // Estado para clube selecionado (ID canônico)
+  const [selectedClubeId, setSelectedClubeId] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      return id ? parseInt(id, 10) : null;
+    } catch {
+      return null;
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  });
+
+  // Modo de visualização na página geral: 'tabela_oficial' | 'forma_recente'
+  const [modoVisualizacao, setModoVisualizacao] = useState('tabela_oficial');
+
+  // Estado da Lista Geral de Clubes (API Canônica)
+  const [listaData, setListaData] = useState(null);
+  const [listaLoading, setListaLoading] = useState(false);
+  const [listaError, setListaError] = useState(null);
+
+  // Filtros e Ordenação da Lista Geral
+  const [busca, setBusca] = useState('');
+  const [ano, setAno] = useState('2026');
+  const [campeonato, setCampeonato] = useState('');
+  const [sortBy, setSortBy] = useState('pontos');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
+  // Escutar eventos de navegação do browser (popstate / back / forward)
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        setSelectedClubeId(id ? parseInt(id, 10) : null);
+      } catch {}
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Sugestões inteligentes de clubes para o autosuggest
-  const sugestoesClubes = useMemo(() => {
-    if (!timesSearch || timesSearch.trim().length < 1) return [];
-    const termo = timesSearch.toLowerCase();
-    const clubesUnicos = new Set();
-    const resultados = [];
+  // Buscar dados da listagem geral
+  const carregarListaGeral = useCallback(async (b, a, c, s, o, p) => {
+    setListaLoading(true);
+    setListaError(null);
+    try {
+      const params = new URLSearchParams();
+      if (b && b.trim()) params.set('busca', b.trim());
+      if (a) params.set('ano', a);
+      if (c) params.set('campeonato', c);
+      if (s) params.set('sort', s);
+      if (o) params.set('order', o);
+      params.set('page', p.toString());
+      params.set('limit', limit.toString());
 
-    (timesAnalise || []).forEach(t => {
-      const nome = t.clube || t.nome || '';
-      if (nome && nome.toLowerCase().includes(termo) && !clubesUnicos.has(nome)) {
-        clubesUnicos.add(nome);
-        resultados.push(nome);
+      const res = await fetch(`/api/clubes/lista-geral?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Erro na API (${res.status}): Não foi possível obter a listagem de clubes.`);
       }
-    });
-
-    return resultados.slice(0, 6);
-  }, [timesAnalise, timesSearch]);
-
-  // Ordenação e Filtragem resiliente (compatível com clube e nome)
-  const clubesFiltrados = useMemo(() => {
-    let lista = (timesAnalise || []).filter(t => {
-      if (!timesSearch) return true;
-      const nome = t.clube || t.nome || '';
-      return nome.toLowerCase().includes(timesSearch.toLowerCase());
-    });
-
-    lista.sort((a, b) => {
-      const getVal = (item, key) => {
-        if (key === 'nome' || key === 'clube') return item.clube || item.nome || '';
-        if (key === 'gols_marcados' || key === 'gols_pro') return item.gols_pro ?? item.gols_marcados ?? 0;
-        if (key === 'gols_sofridos' || key === 'gols_contra') return item.gols_contra ?? item.gols_sofridos ?? 0;
-        if (key === 'saldo_gols') return item.saldo_gols ?? ((item.gols_pro ?? item.gols_marcados ?? 0) - (item.gols_contra ?? item.gols_sofridos ?? 0));
-        return item[key] ?? 0;
-      };
-      let valA = getVal(a, sortBy);
-      let valB = getVal(b, sortBy);
-      if (typeof valA === 'string') {
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-      return sortAsc ? valA - valB : valB - valA;
-    });
-
-    return lista;
-  }, [timesAnalise, timesSearch, sortBy, sortAsc]);
-
-  // MetricStrip: Médias calculadas sobre a amostra ativa
-  const metrics = useMemo(() => {
-    if (!timesAnalise || timesAnalise.length === 0) return null;
-    const total = timesAnalise.length;
-    const mediaAprov = timesAnalise.reduce((acc, t) => acc + (t.aproveitamento || 0), 0) / total;
-    const totalGolsMarcados = timesAnalise.reduce((acc, t) => acc + (t.gols_pro ?? t.gols_marcados ?? 0), 0);
-    const totalJogos = timesAnalise.reduce((acc, t) => acc + (t.jogos || 0), 0);
-    const mediaGolsJogo = totalJogos > 0 ? (totalGolsMarcados / totalJogos) : 0;
-    const mediaBtts = timesAnalise.reduce((acc, t) => acc + (t.btts_pct || 0), 0) / total;
-    const mediaCleanSheets = timesAnalise.reduce((acc, t) => acc + (t.clean_sheets_pct || 0), 0) / total;
-
-    return {
-      totalClubes: total,
-      mediaAprov: mediaAprov.toFixed(1),
-      mediaGolsJogo: mediaGolsJogo.toFixed(2),
-      mediaBtts: mediaBtts.toFixed(1),
-      mediaCleanSheets: mediaCleanSheets.toFixed(1)
-    };
-  }, [timesAnalise]);
-
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortBy(field);
-      setSortAsc(false);
+      const data = await res.json();
+      setListaData(data);
+    } catch (err) {
+      setListaError(err.message || 'Erro ao carregar lista de clubes');
+    } finally {
+      setListaLoading(false);
     }
+  }, [limit]);
+
+  // Carregar quando mudar filtros ou paginação
+  useEffect(() => {
+    if (modoVisualizacao === 'tabela_oficial' && !selectedClubeId) {
+      carregarListaGeral(busca, ano, campeonato, sortBy, sortOrder, page);
+    }
+  }, [modoVisualizacao, selectedClubeId, busca, ano, campeonato, sortBy, sortOrder, page, carregarListaGeral]);
+
+  // Ao selecionar um clube: atualiza ID e reflete na URL
+  const handleSelectClube = (clubeId) => {
+    if (!clubeId) return;
+    setSelectedClubeId(clubeId);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'clube');
+      url.searchParams.set('id', clubeId.toString());
+      url.searchParams.set('sub', 'visao-geral');
+      window.history.pushState({}, '', url.toString());
+    } catch {}
   };
 
-  // Se um clube estiver selecionado, exibe a Visão de Perfil Completo (Estilo OGol)
-  if (selectedClube) {
+  // Ao voltar da visão de detalhe
+  const handleVoltar = () => {
+    setSelectedClubeId(null);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'times');
+      url.searchParams.delete('id');
+      url.searchParams.delete('sub');
+      url.searchParams.delete('ano');
+      url.searchParams.delete('camp');
+      url.searchParams.delete('mando');
+      window.history.pushState({}, '', url.toString());
+    } catch {}
+  };
+
+  // Alternar ordenação de coluna
+  const handleSort = (coluna) => {
+    if (sortBy === coluna) {
+      setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortBy(coluna);
+      setSortOrder('desc');
+    }
+    setPage(1);
+  };
+
+  // Se um clube estiver selecionado, renderiza o ClubDetailView
+  if (selectedClubeId) {
     return (
-      <ClubProfileView 
-        clube={selectedClube}
-        onVoltar={() => setSelectedClube(null)}
+      <ClubDetailView
+        clubeId={selectedClubeId}
+        onVoltar={handleVoltar}
         onSelectJogador={onSelectJogador}
+        darkMode={darkMode}
       />
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* ================= BREADCRUMB & TÍTULO EDITORIAL ================= */}
-      <div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          Futebol Brasileiro • Módulo Analítico de Clubes
-        </div>
-        <h1 
-          className="font-editorial" 
-          style={{ 
-            fontSize: '2.2rem', 
-            fontWeight: 700, 
-            letterSpacing: '-0.02em', 
-            color: 'var(--text-primary)',
-            marginBottom: '6px'
-          }}
-        >
-          Forma Recente, Produção e Defesa dos Clubes
-        </h1>
-        <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', maxWidth: '780px', lineHeight: 1.55 }}>
-          Recorte analítico oficial medindo aproveitamento de pontos, frequência de baliza inviolada (clean sheets) 
-          e probabilidade de ambas marcam (BTTS) com separação de mando de campo.
-        </p>
-      </div>
-
-      {/* ================= BARRA DE CONTROLES & FILTROS (LOTE 2: RESPONSIVO) ================= */}
-      <div 
-        className="editorial-panel" 
-        style={{ 
-          padding: '14px 20px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '14px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Seletor de Recorte */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amostra:</span>
-            {['5', '10', '20'].map(r => (
-              <button
-                key={r}
-                onClick={() => setTimesRecorte(r)}
-                style={{
-                  padding: '7px 14px',
-                  minHeight: '38px',
-                  borderRadius: 'var(--radius-control)',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: timesRecorte === r ? 'var(--accent)' : 'var(--surface-raised)',
-                  color: timesRecorte === r ? 'var(--accent-foreground)' : 'var(--text-primary)',
-                  cursor: 'pointer'
-                }}
-                aria-label={`Filtrar pelos últimos ${r} jogos`}
-              >
-                Últimos {r}
-              </button>
-            ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+      {/* ================= HEADER EDITORIAL DA PÁGINA GERAL ================= */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginBottom: '6px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            Acervo Oficial de Clubes • Arquitetura Canônica 2026
           </div>
-
-          <div style={{ height: '20px', width: '1px', backgroundColor: 'var(--border-subtle)' }} />
-
-          {/* Filtro de Torneio */}
-          <select
-            value={timesCampeonato}
-            onChange={e => setTimesCampeonato(e.target.value)}
+          <h1
+            className="font-editorial"
             style={{
-              padding: '8px 12px',
-              minHeight: '38px',
-              borderRadius: 'var(--radius-control)',
-              border: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--surface-raised)',
+              fontSize: '2.1rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
               color: 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
+              margin: '0 0 6px 0'
+            }}
+          >
+            Panorama Geral de Clubes
+          </h1>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '780px', margin: 0, lineHeight: 1.5 }}>
+            Consulte o desempenho oficial consolidado com identificação canônica, resolução de apelidos e deduplicação determinística de partidas.
+          </p>
+        </div>
+
+        {/* Toggle de visualização: Tabela Oficial x Forma Recente */}
+        <div style={{ display: 'flex', gap: '8px', backgroundColor: 'var(--surface-raised)', padding: '4px', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+          <button
+            onClick={() => setModoVisualizacao('tabela_oficial')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-control)',
+              fontSize: '0.8rem',
+              fontWeight: modoVisualizacao === 'tabela_oficial' ? 700 : 500,
+              backgroundColor: modoVisualizacao === 'tabela_oficial' ? 'var(--surface-card)' : 'transparent',
+              color: modoVisualizacao === 'tabela_oficial' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              border: modoVisualizacao === 'tabela_oficial' ? '1px solid var(--border-subtle)' : 'none',
               cursor: 'pointer'
             }}
-            aria-label="Selecionar campeonato para análise de clubes"
           >
-            <option value="">Geral Recente (Todas Competições)</option>
-            <option value="Campeonato Brasileiro">Brasileirão Série A</option>
-            <option value="Copa do Brasil">Copa do Brasil</option>
-            <option value="Campeonato Paulista">Paulistão</option>
-            <option value="Campeonato Carioca">Carioca</option>
-            <option value="Campeonato Gaúcho">Gauchão</option>
-            <option value="Campeonato Mineiro">Mineiro</option>
-          </select>
-        </div>
-
-        {/* Busca e Atualizar (Lote 2: Input Flexível) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 auto', justifyContent: 'flex-end', minWidth: '220px' }}>
-          <div ref={searchContainerRef} style={{ position: 'relative', flex: '1 1 180px', maxWidth: '300px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--text-muted)', zIndex: 2 }} />
-            <input
-              type="text"
-              value={timesSearch}
-              onChange={e => {
-                setTimesSearch(e.target.value);
-                setMostrarSugestoes(true);
-              }}
-              onFocus={() => setMostrarSugestoes(true)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  if (sugestoesClubes.length > 0) {
-                    setSelectedClube(sugestoesClubes[0]);
-                    setMostrarSugestoes(false);
-                  } else if (timesSearch.trim().length > 0) {
-                    setSelectedClube(timesSearch.trim());
-                    setMostrarSugestoes(false);
-                  }
-                }
-              }}
-              placeholder="Buscar clube (ex: Palmeiras, Flamengo)..."
-              style={{
-                width: '100%',
-                padding: '8px 10px 8px 30px',
-                minHeight: '38px',
-                borderRadius: 'var(--radius-control)',
-                border: '1px solid var(--border-subtle)',
-                backgroundColor: 'var(--surface-raised)',
-                color: 'var(--text-primary)',
-                fontSize: '0.82rem',
-                boxSizing: 'border-box'
-              }}
-              aria-label="Buscar clube na tabela ou ver perfil completo"
-            />
-
-            {/* Dropdown Autosuggest Inteligente */}
-            {mostrarSugestoes && sugestoesClubes.length > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  marginTop: '4px',
-                  backgroundColor: 'var(--surface-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-control)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-                  zIndex: 99,
-                  overflow: 'hidden'
-                }}
-              >
-                <div style={{ padding: '6px 10px', fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', borderBottom: '1px solid var(--border-subtle)' }}>
-                  Abrir Perfil Oficial do Clube
-                </div>
-                {sugestoesClubes.map((nome, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      setSelectedClube(nome);
-                      setMostrarSugestoes(false);
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      borderBottom: idx < sugestoesClubes.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                      transition: 'background-color 0.12s ease'
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--surface-raised)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <ClubBadge team={nome} size={20} />
-                      <span style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)' }}>{nome}</span>
-                    </div>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>
-                      Ver Perfil &rarr;
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
+            📋 Tabela Canônica
+          </button>
           <button
-            onClick={() => onRecarregar(timesRecorte, timesCampeonato)}
-            disabled={timesLoading}
+            onClick={() => setModoVisualizacao('forma_recente')}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
-              minHeight: '38px',
+              padding: '6px 14px',
               borderRadius: 'var(--radius-control)',
-              backgroundColor: 'var(--accent)',
-              color: 'var(--accent-foreground)',
-              border: 'none',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
+              fontSize: '0.8rem',
+              fontWeight: modoVisualizacao === 'forma_recente' ? 700 : 500,
+              backgroundColor: modoVisualizacao === 'forma_recente' ? 'var(--surface-card)' : 'transparent',
+              color: modoVisualizacao === 'forma_recente' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              border: modoVisualizacao === 'forma_recente' ? '1px solid var(--border-subtle)' : 'none',
+              cursor: 'pointer'
             }}
-            aria-label="Atualizar dados de rendimento dos clubes"
           >
-            <RefreshCw size={14} className={timesLoading ? 'animate-spin' : ''} />
-            <span>{timesLoading ? 'Carregando...' : 'Atualizar'}</span>
+            ⚡ Forma Recente
           </button>
         </div>
       </div>
 
-      {/* ================= METRIC STRIP (RESUMO DA AMOSTRA) ================= */}
-      {metrics && (
-        <div 
-          style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', 
-            gap: '12px' 
-          }}
-        >
-          <div className="editorial-panel" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-              Aproveitamento Médio
+      {/* ================= SEÇÃO: TABELA CANÔNICA ================= */}
+      {modoVisualizacao === 'tabela_oficial' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* BARRA DE FILTROS E BUSCA UNIVERSAL */}
+          <div
+            className="editorial-panel"
+            style={{
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px',
+              backgroundColor: 'var(--surface-card)',
+              borderRadius: 'var(--radius-card)',
+              border: '1px solid var(--border-subtle)'
+            }}
+          >
+            {/* Campo de Busca Universal */}
+            <div style={{ position: 'relative', flex: '1 1 260px', minWidth: '220px' }}>
+              <Search
+                size={16}
+                color="var(--text-secondary)"
+                style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
+              />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => {
+                  setBusca(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Buscar clube por nome ou apelido (ex: Furacão, Galo, Mengão)..."
+                style={{
+                  width: '100%',
+                  padding: '9px 12px 9px 36px',
+                  borderRadius: 'var(--radius-control)',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--surface-page)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.86rem'
+                }}
+              />
             </div>
-            <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {metrics.mediaAprov}%
-            </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Base: {metrics.totalClubes} clubes na amostra
+
+            {/* Filtros de Temporada e Torneio */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Ano:</span>
+                <select
+                  value={ano}
+                  onChange={(e) => {
+                    setAno(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-control)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--surface-page)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.84rem'
+                  }}
+                >
+                  <option value="">Histórico Completo</option>
+                  {(listaData?.anos_disponiveis || [2026, 2025, 2024, 2023, 2022, 2021, 2020]).map(a => (
+                    <option key={a} value={a}>{a}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Torneio:</span>
+                <select
+                  value={campeonato}
+                  onChange={(e) => {
+                    setCampeonato(e.target.value);
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-control)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--surface-page)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.84rem',
+                    maxWidth: '220px'
+                  }}
+                >
+                  <option value="">Todas as Competições</option>
+                  {(listaData?.campeonatos_disponiveis || [
+                    'Brasileirão Série A', 'Copa do Brasil', 'Libertadores', 'Paulista', 'Carioca', 'Mineiro', 'Gaúcho'
+                  ]).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Botão Reset */}
+              {(busca || campeonato || ano !== '2026') && (
+                <button
+                  onClick={() => {
+                    setBusca('');
+                    setAno('2026');
+                    setCampeonato('');
+                    setPage(1);
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 'var(--radius-control)',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--surface-raised)',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Limpar todos os filtros"
+                >
+                  <RotateCcw size={14} /> Limpar
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="editorial-panel" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-              Média de Gols Marcados
+          {/* ESTADO: CARREGANDO */}
+          {listaLoading && (
+            <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <RefreshCw size={28} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                Consultando catálogo oficial e consolidando partidas deduplicadas...
+              </div>
             </div>
-            <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {metrics.mediaGolsJogo} <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-muted)' }}>/ jogo</span>
-            </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Produção ofensiva consolidada
-            </div>
-          </div>
+          )}
 
-          <div className="editorial-panel" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-              Ambas Marcam (BTTS)
+          {/* ESTADO: ERRO */}
+          {!listaLoading && listaError && (
+            <div style={{ padding: '32px 24px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid #DC2626', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              <AlertTriangle size={32} color="#DC2626" />
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Não foi possível carregar a listagem de clubes
+              </div>
+              <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', maxWidth: '480px', textAlign: 'center' }}>
+                {listaError}
+              </div>
+              <button
+                onClick={() => carregarListaGeral(busca, ano, campeonato, sortBy, sortOrder, page)}
+                className="btn-primary"
+                style={{ marginTop: '8px', padding: '8px 16px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <RefreshCw size={14} /> Tentar Novamente
+              </button>
             </div>
-            <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {metrics.mediaBtts}%
-            </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Partidas com gols mútuos
-            </div>
-          </div>
+          )}
 
-          <div className="editorial-panel" style={{ padding: '16px 18px' }}>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
-              Baliza Inviolada (Clean Sheets)
+          {/* ESTADO: VAZIO LEGÍTIMO */}
+          {!listaLoading && !listaError && listaData && listaData.clubes?.length === 0 && (
+            <div style={{ padding: '48px 24px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <Shield size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px', opacity: 0.5 }} />
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                Nenhum clube encontrado
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 16px' }}>
+                {busca
+                  ? `Não encontramos registros para o termo "${busca}" nos filtros selecionados.`
+                  : 'Nenhum clube disputou partidas com os filtros ativos.'}
+              </div>
+              <button
+                onClick={() => {
+                  setBusca('');
+                  setAno('');
+                  setCampeonato('');
+                  setPage(1);
+                }}
+                className="btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '0.82rem' }}
+              >
+                Ver todos os clubes do acervo
+              </button>
             </div>
-            <div className="tabular-nums" style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {metrics.mediaCleanSheets}%
+          )}
+
+          {/* ESTADO: TABELA DE RESULTADOS */}
+          {!listaLoading && !listaError && listaData && listaData.clubes?.length > 0 && (
+            <div
+              style={{
+                backgroundColor: 'var(--surface-card)',
+                borderRadius: 'var(--radius-card)',
+                border: '1px solid var(--border-subtle)',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Barra superior com contador e paginação rápida */}
+              <div
+                style={{
+                  padding: '12px 20px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <div>
+                  Exibindo <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{listaData.clubes.length}</strong> de <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{listaData.total}</strong> clubes catalogados
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Clique no nome do clube para abrir o perfil individual
+                </div>
+              </div>
+
+              {/* Tabela de Estatísticas */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 14px', width: '50px', textAlign: 'center' }}>#</th>
+                      <th
+                        onClick={() => handleSort('nome')}
+                        style={{ padding: '10px 14px', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>Clube</span>
+                          <ArrowUpDown size={12} color={sortBy === 'nome' ? 'var(--accent)' : 'var(--text-muted)'} />
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('jogos')}
+                        style={{ padding: '10px 10px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <span>J</span>
+                          <ArrowUpDown size={12} color={sortBy === 'jogos' ? 'var(--accent)' : 'var(--text-muted)'} />
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('vitorias')}
+                        style={{ padding: '10px 10px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <span>V</span>
+                          <ArrowUpDown size={12} color={sortBy === 'vitorias' ? 'var(--accent)' : 'var(--text-muted)'} />
+                        </div>
+                      </th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>E</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>D</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>GP</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>GC</th>
+                      <th
+                        onClick={() => handleSort('saldo_gols')}
+                        style={{ padding: '10px 10px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <span>SG</span>
+                          <ArrowUpDown size={12} color={sortBy === 'saldo_gols' ? 'var(--accent)' : 'var(--text-muted)'} />
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('pontos')}
+                        style={{ padding: '10px 10px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontWeight: 700 }}>Pts</span>
+                          <ArrowUpDown size={12} color={sortBy === 'pontos' ? 'var(--accent)' : 'var(--text-muted)'} />
+                        </div>
+                      </th>
+                      <th
+                        onClick={() => handleSort('aproveitamento')}
+                        style={{ padding: '10px 14px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                          <span style={{ fontWeight: 700 }}>Aprov.</span>
+                          <ArrowUpDown size={12} color={sortBy === 'aproveitamento' ? 'var(--accent)' : 'var(--text-muted)'} />
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {listaData.clubes.map((c, idx) => {
+                      const posicao = (page - 1) * limit + idx + 1;
+                      return (
+                        <tr
+                          key={c.clube_id}
+                          onClick={() => handleSelectClube(c.clube_id)}
+                          style={{
+                            borderBottom: '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            transition: 'background-color 120ms ease'
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--surface-raised)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                        >
+                          <td className="font-mono" style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                            {posicao}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <ClubBadge nome={c.nome} size={28} />
+                              <div>
+                                <div style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>{c.nome}</span>
+                                  {c.sigla && (
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                      ({c.sigla})
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                                  {c.cidade && c.estado ? `${c.cidade} - ${c.estado}` : c.estado || c.cidade || ''}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--text-primary)' }}>
+                            {c.jogos}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', color: '#15803D', fontWeight: 600 }}>
+                            {c.vitorias}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            {c.empates}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', color: '#DC2626' }}>
+                            {c.derrotas}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--text-primary)' }}>
+                            {c.gols_pro}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            {c.gols_contra}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 600, color: c.saldo_gols > 0 ? '#15803D' : (c.saldo_gols < 0 ? '#DC2626' : 'var(--text-secondary)') }}>
+                            {c.saldo_gols > 0 ? `+${c.saldo_gols}` : c.saldo_gols}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--accent)', fontSize: '0.92rem' }}>
+                            {c.pontos}
+                          </td>
+                          <td className="font-mono" style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: (c.aproveitamento ?? c.aproveitamento_pct ?? 0) >= 60 ? '#15803D' : ((c.aproveitamento ?? c.aproveitamento_pct ?? 0) < 35 ? '#DC2626' : 'var(--text-primary)') }}>
+                            {(c.aproveitamento ?? c.aproveitamento_pct ?? 0).toFixed(1)}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* PAGINAÇÃO INFERIOR */}
+              <div
+                style={{
+                  padding: '14px 20px',
+                  borderTop: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Página <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{listaData.pagina}</strong> de <strong className="font-mono" style={{ color: 'var(--text-primary)' }}>{listaData.total_paginas}</strong>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={listaData.pagina <= 1}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--surface-raised)',
+                      color: listaData.pagina <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      cursor: listaData.pagina <= 1 ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <ChevronLeft size={16} /> Anterior
+                  </button>
+
+                  <button
+                    onClick={() => setPage(p => Math.min(listaData.total_paginas, p + 1))}
+                    disabled={listaData.pagina >= listaData.total_paginas}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--surface-raised)',
+                      color: listaData.pagina >= listaData.total_paginas ? 'var(--text-muted)' : 'var(--text-primary)',
+                      fontSize: '0.82rem',
+                      cursor: listaData.pagina >= listaData.total_paginas ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    Próxima <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Jogos sem sofrer gols
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* ================= SEÇÃO DATAVIZ INTERATIVA: CAMPANHAS & DÉCADAS ================= */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '8px' }}>
-          <button
-            onClick={() => setSecaoVisual('campanhas')}
+      {/* ================= SEÇÃO: MODO SECUNDÁRIO (FORMA RECENTE) ================= */}
+      {modoVisualizacao === 'forma_recente' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div
+            className="editorial-panel"
             style={{
-              display: 'inline-flex',
+              padding: '14px 20px',
+              display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-control)',
-              fontSize: '0.82rem',
-              fontWeight: secaoVisual === 'campanhas' ? 700 : 500,
-              backgroundColor: secaoVisual === 'campanhas' ? 'var(--accent)' : 'transparent',
-              color: secaoVisual === 'campanhas' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px',
+              backgroundColor: 'var(--surface-card)',
+              borderRadius: 'var(--radius-card)',
+              border: '1px solid var(--border-subtle)'
             }}
           >
-            <TrendingUp size={14} />
-            <span>Grandes Campanhas (Rodada a Rodada)</span>
-          </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Amostra Recente:</span>
+              {['5', '10', '20'].map(r => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    setTimesRecorte(r);
+                    if (onRecarregar) onRecarregar(r, timesCampeonato);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-control)',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: timesRecorte === r ? 'var(--accent)' : 'var(--surface-raised)',
+                    color: timesRecorte === r ? 'var(--accent-foreground)' : 'var(--text-primary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Últimos {r} jogos
+                </button>
+              ))}
+            </div>
 
-          <button
-            onClick={() => setSecaoVisual('trofeus')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-control)',
-              fontSize: '0.82rem',
-              fontWeight: secaoVisual === 'trofeus' ? 700 : 500,
-              backgroundColor: secaoVisual === 'trofeus' ? 'var(--accent)' : 'transparent',
-              color: secaoVisual === 'trofeus' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Trophy size={14} />
-            <span>Sala de Troféus (Réplicas 3D)</span>
-          </button>
-
-          <button
-            onClick={() => setSecaoVisual('auditoria')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-control)',
-              fontSize: '0.82rem',
-              fontWeight: secaoVisual === 'auditoria' ? 700 : 500,
-              backgroundColor: secaoVisual === 'auditoria' ? 'var(--accent)' : 'transparent',
-              color: secaoVisual === 'auditoria' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <ShieldCheck size={14} />
-            <span>Auditoria & Qualidade de Gols</span>
-          </button>
-
-          <button
-            onClick={() => setSecaoVisual('decadas')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-control)',
-              fontSize: '0.82rem',
-              fontWeight: secaoVisual === 'decadas' ? 700 : 500,
-              backgroundColor: secaoVisual === 'decadas' ? 'var(--accent)' : 'transparent',
-              color: secaoVisual === 'decadas' ? 'var(--accent-foreground)' : 'var(--text-secondary)',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <BarChart3 size={14} />
-            <span>Panorama Histórico por Décadas</span>
-          </button>
-        </div>
-
-        {secaoVisual === 'campanhas' ? (
-          <HistoricCampaignChart
-            clubeInicial={expandedClube || clubeEvolucao || 'Flamengo'}
-            anoInicial={2019}
-          />
-        ) : secaoVisual === 'trofeus' ? (
-          <TrophyGallery3D
-            clube={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
-            darkMode={false}
-          />
-        ) : secaoVisual === 'auditoria' ? (
-          <PainelQualidadeGolsCard />
-        ) : (
-          <ClubEvolutionChart
-            clubeNome={expandedClube || clubeEvolucao || (clubesFiltrados[0]?.clube || 'Flamengo')}
-            partidas={[]}
-            altura={230}
-          />
-        )}
-      </div>
-
-      {/* ================= TABELA ANALÍTICA PRINCIPAL ================= */}
-      <div className="editorial-panel" style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h3 className="font-editorial" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Classificação por Desempenho e Eficiência
-            </h3>
-            <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-              Clique em qualquer coluna para reordenar a classificação.
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Torneio:</span>
+              <select
+                value={timesCampeonato}
+                onChange={e => {
+                  setTimesCampeonato(e.target.value);
+                  if (onRecarregar) onRecarregar(timesRecorte, e.target.value);
+                }}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: 'var(--radius-control)',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--surface-page)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.82rem'
+                }}
+              >
+                <option value="">Todas as Competições</option>
+                <option value="Brasileirão Série A">Brasileirão Série A</option>
+                <option value="Copa do Brasil">Copa do Brasil</option>
+                <option value="Libertadores">Libertadores</option>
+                <option value="Paulista">Paulista</option>
+                <option value="Carioca">Carioca</option>
+              </select>
+            </div>
           </div>
 
-          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-            Exibindo <strong>{clubesFiltrados.length}</strong> clubes
-          </div>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table className="editorial-table">
-            <thead>
-              <tr>
-                <th style={{ width: '44px', textAlign: 'center', position: 'sticky', left: 0, zIndex: 3, backgroundColor: 'var(--surface-raised)' }}>#</th>
-                <th onClick={() => handleSort('nome')} style={{ cursor: 'pointer', position: 'sticky', left: '44px', zIndex: 3, backgroundColor: 'var(--surface-raised)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Clube {sortBy === 'nome' && <ArrowUpDown size={12} color="var(--accent)" />}
-                  </div>
-                </th>
-                <th onClick={() => handleSort('jogos')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                  J {sortBy === 'jogos' && <ArrowUpDown size={12} />}
-                </th>
-                <th style={{ textAlign: 'center' }}>V - E - D</th>
-                <th style={{ textAlign: 'center' }}>Forma Recente</th>
-                <th onClick={() => handleSort('gols_marcados')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                  GP {sortBy === 'gols_marcados' && <ArrowUpDown size={12} />}
-                </th>
-                <th onClick={() => handleSort('gols_sofridos')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                  GC {sortBy === 'gols_sofridos' && <ArrowUpDown size={12} />}
-                </th>
-                <th onClick={() => handleSort('saldo_gols')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                  SG {sortBy === 'saldo_gols' && <ArrowUpDown size={12} />}
-                </th>
-                <th onClick={() => handleSort('aproveitamento')} style={{ cursor: 'pointer' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    Aprov. % {sortBy === 'aproveitamento' && <ArrowUpDown size={12} color="var(--accent)" />}
-                  </div>
-                </th>
-                <th className="hide-tablet-col" onClick={() => handleSort('btts_pct')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                  BTTS % {sortBy === 'btts_pct' && <ArrowUpDown size={12} />}
-                </th>
-                <th className="hide-tablet-col" onClick={() => handleSort('clean_sheets_pct')} style={{ cursor: 'pointer', textAlign: 'center' }}>
-                  CS % {sortBy === 'clean_sheets_pct' && <ArrowUpDown size={12} />}
-                </th>
-                <th style={{ width: '40px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {clubesFiltrados.map((clube, idx) => {
-                const nomeClube = clube.clube || clube.nome || 'Clube';
-                const isExpanded = expandedClube === nomeClube;
-                const aprov = (clube.aproveitamento || 0).toFixed(1);
-                const forma = clube.sequencia || clube.forma_recente || [];
-                const gp = clube.gols_pro ?? clube.gols_marcados ?? 0;
-                const gc = clube.gols_contra ?? clube.gols_sofridos ?? 0;
-                const sg = clube.saldo_gols ?? (gp - gc);
-                const partidasRec = clube.partidas_recentes || clube.ultimos_jogos || [];
-
-                return (
-                  <React.Fragment key={nomeClube || idx}>
-                    <tr 
-                      onClick={() => {
-                        setExpandedClube(isExpanded ? null : nomeClube);
-                        setClubeEvolucao(nomeClube);
-                      }}
-                      style={{ cursor: 'pointer', backgroundColor: isExpanded ? 'var(--surface-raised)' : 'transparent' }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') setExpandedClube(isExpanded ? null : nomeClube); }}
-                      aria-expanded={isExpanded}
-                      aria-label={`Detalhes de ${nomeClube}`}
-                    >
-                      <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600, position: 'sticky', left: 0, zIndex: 2, backgroundColor: isExpanded ? 'var(--surface-raised)' : 'var(--surface-panel)' }}>
-                        {idx + 1}
-                      </td>
-
-                      <td style={{ fontWeight: 600, color: 'var(--text-primary)', position: 'sticky', left: '44px', zIndex: 2, backgroundColor: isExpanded ? 'var(--surface-raised)' : 'var(--surface-panel)', boxShadow: '2px 0 6px -2px rgba(0,0,0,0.1)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <ClubBadge nome={nomeClube} size={22} />
-                          <span>{nomeClube}</span>
-                        </div>
-                      </td>
-
-                      <td style={{ textAlign: 'center' }}>{clube.jogos}</td>
-
-                      <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                        {clube.vitorias}-{clube.empates}-{clube.derrotas}
-                      </td>
-
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                          {forma.slice(-5).map((res, i) => {
-                            let bg = 'var(--surface-raised)';
-                            let fg = 'var(--text-secondary)';
-                            if (res === 'V') { bg = 'var(--positive-bg)'; fg = 'var(--positive)'; }
-                            else if (res === 'D') { bg = 'var(--negative-bg)'; fg = 'var(--negative)'; }
-                            return (
-                              <span
-                                key={i}
-                                style={{
-                                  display: 'inline-block',
-                                  width: '20px',
-                                  height: '20px',
-                                  borderRadius: '3px',
-                                  backgroundColor: bg,
-                                  color: fg,
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  lineHeight: '20px',
-                                  textAlign: 'center'
-                                }}
-                              >
-                                {res}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-
-                      <td style={{ textAlign: 'center' }}>{gp}</td>
-                      <td style={{ textAlign: 'center' }}>{gc}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 600, color: sg >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
-                        {sg > 0 ? `+${sg}` : sg}
-                      </td>
-
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 700, minWidth: '42px' }}>{aprov}%</span>
-                          <div style={{ flex: 1, height: '4px', backgroundColor: 'var(--border-subtle)', borderRadius: '2px', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(clube.aproveitamento || 0, 100)}%`, height: '100%', backgroundColor: 'var(--accent)' }} />
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="hide-tablet-col" style={{ textAlign: 'center' }}>
-                        {(clube.btts_pct || 0).toFixed(0)}%
-                      </td>
-
-                      <td className="hide-tablet-col" style={{ textAlign: 'center' }}>
-                        {(clube.clean_sheets_pct || 0).toFixed(0)}%
-                      </td>
-
-                      <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                        {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </td>
+          {/* Tabela de Forma Recente */}
+          {timesLoading ? (
+            <div style={{ padding: '60px 20px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <RefreshCw size={28} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Carregando métricas de forma recente...</div>
+            </div>
+          ) : (
+            <div style={{ backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 14px' }}>Clube</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>Jogos</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>V-E-D</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>Gols Pró/Contra</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>Clean Sheets</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>BTTS %</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'right' }}>Aproveitamento</th>
                     </tr>
-
-                    {/* Expansão das últimas partidas do clube */}
-                    {isExpanded && (
-                      <tr>
-                        <td colSpan={12} style={{ backgroundColor: 'var(--surface-panel)', padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-                              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                Histórico recente dos jogos de {nomeClube} na amostra:
-                              </span>
-                              <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                                Casa: {clube.casa?.aproveitamento || 0}% ({clube.casa?.vitorias || 0}V em {clube.casa?.jogos || 0}J) • Fora: {clube.fora?.aproveitamento || 0}%
-                              </span>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px' }}>
-                              {partidasRec.map((j, k) => (
-                                <div
-                                  key={k}
-                                  style={{
-                                    backgroundColor: 'var(--surface-raised)',
-                                    border: '1px solid var(--border-subtle)',
-                                    borderRadius: 'var(--radius-control)',
-                                    padding: '8px 12px',
-                                    fontSize: '0.78rem'
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
-                                    <span>{j.data || 'Data N/I'}</span>
-                                    <span>{j.mando === 'Casa' || j.mando === 'C' ? 'Em Casa' : 'Fora'}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontWeight: 600 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                      <ClubBadge nome={j.adversario} size={16} />
-                                      <span>{j.adversario}</span>
-                                    </div>
-                                    <span 
-                                      className="tabular-nums" 
-                                      style={{ 
-                                        color: j.resultado === 'V' ? 'var(--positive)' : j.resultado === 'D' ? 'var(--negative)' : 'var(--text-secondary)',
-                                        fontWeight: 700
-                                      }}
-                                    >
-                                      {j.placar} ({j.resultado})
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                  </thead>
+                  <tbody>
+                    {(timesAnalise || []).map((t, idx) => (
+                      <tr
+                        key={idx}
+                        onClick={() => {
+                          if (t.clube_id) handleSelectClube(t.clube_id);
+                        }}
+                        style={{
+                          borderBottom: '1px solid var(--border-subtle)',
+                          cursor: t.clube_id ? 'pointer' : 'default'
+                        }}
+                      >
+                        <td style={{ padding: '12px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ClubBadge nome={t.clube || t.nome} size={24} />
+                            <strong style={{ color: 'var(--text-primary)' }}>{t.clube || t.nome}</strong>
                           </div>
                         </td>
+                        <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>{t.jogos ?? 0}</td>
+                        <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          <span style={{ color: '#15803D' }}>{t.vitorias ?? 0}</span>-<span>{t.empates ?? 0}</span>-<span style={{ color: '#DC2626' }}>{t.derrotas ?? 0}</span>
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          {t.gols_pro ?? t.gols_marcados ?? 0} : {t.gols_contra ?? t.gols_sofridos ?? 0}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          {t.clean_sheets_pct != null ? `${t.clean_sheets_pct}%` : '—'}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          {t.btts_pct != null ? `${t.btts_pct}%` : '—'}
+                        </td>
+                        <td className="font-mono" style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>
+                          {t.aproveitamento ?? 0}%
+                        </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-
-      {/* ================= NOTA DE FONTE & COBERTURA ================= */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-        <Info size={14} />
-        <span>Fonte: Base de dados relacional oficial FutStats. Amostras ordenadas cronologicamente pelas partidas mais recentes com placares auditados.</span>
-      </div>
+      )}
     </div>
   );
 }

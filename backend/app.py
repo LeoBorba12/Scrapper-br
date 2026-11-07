@@ -97,6 +97,19 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
 FRONTEND_DIST = os.path.join(ROOT_DIR, 'frontend', 'dist')
 def find_db_path(filename):
+    if filename == 'futebol.db' and os.environ.get('DB_PATH'):
+        env_p = os.environ.get('DB_PATH')
+        candidates_env = [
+            env_p,
+            os.path.join(ROOT_DIR, env_p),
+            os.path.join('/var/task', env_p),
+            os.path.join('/var/task/data', os.path.basename(env_p)),
+        ]
+        for c in candidates_env:
+            if os.path.exists(c):
+                return c
+        return env_p
+
     candidates = [
         os.path.join(ROOT_DIR, 'data', filename),
         os.path.join(BASE_DIR, '..', 'data', filename),
@@ -328,6 +341,16 @@ except ImportError:
         app.register_blueprint(fase6_paginas_bp)
     except Exception as e_bp:
         print(f"[AVISO] Falha ao registrar Blueprint fase6_paginas: {e_bp}")
+
+try:
+    from backend.rotas_clubes_canonica import rotas_clubes_canonica_bp
+    app.register_blueprint(rotas_clubes_canonica_bp)
+except ImportError:
+    try:
+        from rotas_clubes_canonica import rotas_clubes_canonica_bp
+        app.register_blueprint(rotas_clubes_canonica_bp)
+    except Exception as e_bp:
+        print(f"[AVISO] Falha ao registrar Blueprint rotas_clubes_canonica: {e_bp}")
 
 @app.errorhandler(500)
 def handle_500(err):

@@ -8,6 +8,11 @@ scripts/
 !requirements.txt
 
 # Ignorar acervos brutos e bancos redundantes na Vercel (economiza >260 MB de bundle)
+data/futebol.db
+data/futebol.db-wal
+data/futebol.db-shm
+data/backups/
+data/backups/**
 api/data/
 data/futebol_acervo.db
 data/clima.db
