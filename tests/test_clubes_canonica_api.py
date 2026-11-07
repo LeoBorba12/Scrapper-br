@@ -196,3 +196,81 @@ def test_clube_historico_titulos_artilheiros(client):
     assert 'campanhas_historicas' in data
     assert len(data['campanhas_historicas']) > 0
 
+
+
+def test_clube_elenco_resolucao_posicoes_e_marcelo_lomba(client):
+    """Valida resolução tática em 4 passos: Marcelo Lomba e Carlos Miguel são goleiros, sem gols colididos."""
+    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    
+    goleiros = [a['atleta'] for a in data['setores']['goleiros']]
+    assert 'Marcelo Lomba' in goleiros, 'Marcelo Lomba deve estar no setor de goleiros!'
+    assert 'Carlos Miguel' in goleiros, 'Carlos Miguel deve estar no setor de goleiros!'
+    
+    lomba = next(a for a in data['setores']['goleiros'] if a['atleta'] == 'Marcelo Lomba')
+    assert lomba['posicao'] == 'Goleiro'
+    assert lomba['gols'] == 0, 'Marcelo Lomba não pode herdar gols de ID cruzado (Adaílton)!'
+    
+    atacantes = [a['atleta'] for a in data['setores']['atacantes']]
+    assert 'Marcelo Lomba' not in atacantes, 'Goleiro jamais pode cair em atacantes!'
+    assert 'Carlos Miguel' not in atacantes
+
+
+def test_clube_elenco_semantica_jogos_e_relacionados(client):
+    """Valida semântica de elenco: banco não conta como jogo atuado; coberturas nulas viram None."""
+    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    
+    # Atleta com BED que só entrou vindo do banco (Larson)
+    outros = {a['atleta']: a for a in data['setores']['outros']}
+    assert 'Larson' in outros
+    larson = outros['Larson']
+    assert larson['posicao'] == 'Posição a Confirmar'
+    assert larson['titularidades'] == 0
+    assert larson['reservas'] == 40
+    assert larson['substituto_entrou'] == 8
+    assert larson['jogos_disputados'] == 8
+    
+    # Atleta sem minutos nem titularidades (Erick Machado)
+    assert 'Erick Machado' in outros
+    erick = outros['Erick Machado']
+    assert erick['titularidades'] == 0
+    assert erick['jogos_disputados'] == 0
+    assert erick['reservas'] > 0
+
+
+def test_clube_historico_escopos_gols_ademir_e_marcos(client):
+    """Valida explicitação de escopos e reconciliação honesta de Ademir da Guia e Marcos."""
+    resp = client.get('/api/clubes/detalhe/2459/historico')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    
+    assert 'escopo_artilheiros' in data
+    assert 'acervo' in data['escopo_artilheiros']['rotulo'].lower()
+    
+    assert 'escopo_idolos' in data
+    assert 'enciclopédia' in data['escopo_idolos']['rotulo'].lower()
+    assert 'nota_reconciliacao' in data['escopo_idolos']
+    
+    # Marcos (goleiro) não pode ficar sem gols
+    marcos = next(i for i in data['idolos_historicos'] if i['nome'] == 'Marcos')
+    assert marcos['posicao'] == 'Goleiro'
+    assert marcos['gols'] == 0
+    assert marcos['jogos'] == 533
+
+
+def test_partida_santos_0x0_palmeiras_consistencia(client):
+    """Valida que Santos 0x0 Palmeiras em 2026 é um jogo legítimo e consistente."""
+    resp = client.get('/api/clubes/detalhe/2459/jogos?ano=2026&limit=10')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    jogos = data['jogos']
+    
+    # O jogo mais recente disputado em 2026 foi Santos 0x0 Palmeiras em 28/10/2026
+    jogo_santos = next((j for j in jogos if j['id_partida'] == 202532949), None)
+    assert jogo_santos is not None
+    assert jogo_santos['data'] == '2026-10-28'
+    assert jogo_santos['placar'] == '0 x 0'
+    assert jogo_santos['status_conflito'] is None

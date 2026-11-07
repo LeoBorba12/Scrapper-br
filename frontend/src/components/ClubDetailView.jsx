@@ -468,13 +468,13 @@ export default function ClubDetailView({
             }}
           >
             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Base Canônica FutStats
+              Acervo Documentado
             </div>
             <div className="font-mono" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {cobertura?.total_jogos_acervo?.toLocaleString('pt-BR') || '0'}
+              {cobertura?.total_jogos_acervo?.toLocaleString('pt-BR') || '0'} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)' }}>partidas</span>
             </div>
             <div style={{ fontSize: '0.7rem', color: 'var(--accent)', marginTop: '2px' }}>
-              {cobertura?.ano_min && cobertura?.ano_max ? `Registros de ${cobertura.ano_min} a ${cobertura.ano_max}` : 'Jogos catalogados'}
+              {cobertura?.ano_min && cobertura?.ano_max ? `Partidas oficiais de ${cobertura.ano_min} a ${cobertura.ano_max}` : 'Partidas catalogadas'}
             </div>
           </div>
         </div>
@@ -745,7 +745,7 @@ export default function ClubDetailView({
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                 <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Flame size={16} color="var(--accent)" /> Artilheiros do Recorte ({ano})
+                  <Flame size={16} color="var(--accent)" /> Artilheiros no Recorte ({ano})
                 </h3>
                 <button
                   onClick={() => handleTrocaSubTab('elenco')}
@@ -790,7 +790,138 @@ export default function ClubDetailView({
                 </div>
               )}
             </div>
+
+            {/* ATLETAS MAIS UTILIZADOS NO RECORTE */}
+            <div
+              className="editorial-panel"
+              style={{
+                padding: '20px',
+                backgroundColor: 'var(--surface-panel)',
+                borderRadius: 'var(--radius-panel)',
+                border: '1px solid var(--border-subtle)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Users size={16} color="var(--accent)" /> Atletas Mais Utilizados ({ano})
+                </h3>
+                <button
+                  onClick={() => handleTrocaSubTab('elenco')}
+                  style={{ background: 'none', border: 'none', fontSize: '0.76rem', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Minutos & Titularidades &rarr;
+                </button>
+              </div>
+
+              {!clubeData?.atletas_mais_utilizados_recorte || clubeData.atletas_mais_utilizados_recorte.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                  Nenhum registro de titularidade no recorte.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {clubeData.atletas_mais_utilizados_recorte.map((at, idx) => (
+                    <div
+                      key={at.atleta}
+                      style={{
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-control)',
+                        backgroundColor: 'var(--surface-card)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', width: '18px' }}>
+                          #{idx + 1}
+                        </span>
+                        <div
+                          onClick={() => {
+                            if (at.id_jogador && onSelectJogador) {
+                              onSelectJogador(at.atleta, at.id_jogador);
+                            }
+                          }}
+                          style={{
+                            cursor: at.id_jogador ? 'pointer' : 'default',
+                            fontSize: '0.86rem',
+                            fontWeight: 600,
+                            color: at.id_jogador ? 'var(--accent)' : 'var(--text-primary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <span>{at.atleta}</span>
+                          {at.id_jogador && <ExternalLink size={11} />}
+                        </div>
+                      </div>
+                      <div className="font-mono tabular-nums" style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        {at.titularidades} {at.titularidades === 1 ? 'titularidade' : 'titularidades'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* DESEMPENHO CASA X FORA E MÉDIAS */}
+          {resumo_recorte?.desempenho_mando && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <div
+                className="soft-card"
+                style={{
+                  padding: '16px 20px',
+                  backgroundColor: 'var(--surface-panel)',
+                  borderRadius: 'var(--radius-panel)',
+                  border: '1px solid var(--border-subtle)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    🏟️ Desempenho em Casa
+                  </span>
+                  <span className="font-mono" style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent)' }}>
+                    {resumo_recorte.desempenho_mando.casa?.aproveitamento_pct}% aprov.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                  <span>{resumo_recorte.desempenho_mando.casa?.jogos} jogos</span>
+                  <span className="font-mono">
+                    <strong style={{ color: '#15803D' }}>{resumo_recorte.desempenho_mando.casa?.vitorias}V</strong> - {resumo_recorte.desempenho_mando.casa?.empates}E - <strong style={{ color: '#DC2626' }}>{resumo_recorte.desempenho_mando.casa?.derrotas}D</strong>
+                  </span>
+                  <span>Gols: {resumo_recorte.desempenho_mando.casa?.gols_pro}:{resumo_recorte.desempenho_mando.casa?.gols_contra}</span>
+                </div>
+              </div>
+
+              <div
+                className="soft-card"
+                style={{
+                  padding: '16px 20px',
+                  backgroundColor: 'var(--surface-panel)',
+                  borderRadius: 'var(--radius-panel)',
+                  border: '1px solid var(--border-subtle)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    ✈️ Desempenho Fora
+                  </span>
+                  <span className="font-mono" style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--accent)' }}>
+                    {resumo_recorte.desempenho_mando.fora?.aproveitamento_pct}% aprov.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                  <span>{resumo_recorte.desempenho_mando.fora?.jogos} jogos</span>
+                  <span className="font-mono">
+                    <strong style={{ color: '#15803D' }}>{resumo_recorte.desempenho_mando.fora?.vitorias}V</strong> - {resumo_recorte.desempenho_mando.fora?.empates}E - <strong style={{ color: '#DC2626' }}>{resumo_recorte.desempenho_mando.fora?.derrotas}D</strong>
+                  </span>
+                  <span>Gols: {resumo_recorte.desempenho_mando.fora?.gols_pro}:{resumo_recorte.desempenho_mando.fora?.gols_contra}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* PREVIEW DE MÉTRICAS AVANÇADAS BED 2026 */}
           {metricas_avancadas_preview && (
@@ -1029,7 +1160,29 @@ export default function ClubDetailView({
             </div>
 
             <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-              Súmulas registradas em {ano}
+              Súmulas registradas em {ano} • {elencoData?.cobertura?.fonte_metricas || 'Súmulas Canônicas'}
+            </div>
+          </div>
+
+          {/* BANNER DE SEMÂNTICA HONESTA DO ELENCO */}
+          <div
+            style={{
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-card)',
+              backgroundColor: 'rgba(56, 189, 248, 0.05)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              fontSize: '0.76rem',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}
+          >
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>Critério Metodológico:</strong> <strong>Jogos Atuados</strong> computa partidas com presença física em campo (titulares e substitutos confirmados). Atletas relacionados que permaneceram no <strong>Banco</strong> não são somados aos jogos disputados.
+            </div>
+            <div>
+              Indicador <strong>—</strong> denota ausência de monitoramento da métrica para a competição (não falseado como zero).
             </div>
           </div>
 
@@ -1091,12 +1244,12 @@ export default function ClubDetailView({
                               <th style={{ padding: '8px 12px', width: '40px', textAlign: 'center' }}>Nº</th>
                               <th style={{ padding: '8px 14px' }}>Atleta</th>
                               <th style={{ padding: '8px 12px' }}>Posição</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Jogos</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Titular</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Reserva</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }} title="Partidas efetivamente disputadas em campo">Jogos Atuados</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }} title="Partidas iniciadas como titular">Titular</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center', color: 'var(--text-muted)' }} title="Relacionado no banco de reservas sem ingressar em campo">Banco</th>
                               <th style={{ padding: '8px 10px', textAlign: 'center', color: '#15803D' }}>Gols</th>
                               <th style={{ padding: '8px 10px', textAlign: 'center', color: 'var(--accent)' }}>Ast</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Cartões</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Cartões (A/V)</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1143,7 +1296,7 @@ export default function ClubDetailView({
                                   {a.posicao}
                                 </td>
                                 <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600 }}>
-                                  {a.jogos}
+                                  {a.jogos_disputados != null ? a.jogos_disputados : a.jogos}
                                 </td>
                                 <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                   {a.titularidades}
@@ -1154,17 +1307,23 @@ export default function ClubDetailView({
                                 <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 700, color: a.gols > 0 ? '#15803D' : 'var(--text-muted)' }}>
                                   {a.gols}
                                 </td>
-                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: a.assistencias > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
-                                  {a.assistencias}
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: a.assistencias != null && a.assistencias > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                                  {a.assistencias != null ? a.assistencias : '—'}
                                 </td>
                                 <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontSize: '0.76rem' }}>
-                                  {a.cartoes_amarelos > 0 && (
-                                    <span style={{ color: '#CA8A04', marginRight: '6px' }}>🟨 {a.cartoes_amarelos}</span>
-                                  )}
-                                  {a.cartoes_vermelhos > 0 && (
-                                    <span style={{ color: '#DC2626' }}>🟥 {a.cartoes_vermelhos}</span>
-                                  )}
-                                  {a.cartoes_amarelos === 0 && a.cartoes_vermelhos === 0 && (
+                                  {a.cartoes_amarelos != null || a.cartoes_vermelhos != null ? (
+                                    <span>
+                                      {a.cartoes_amarelos > 0 && (
+                                        <span style={{ color: '#CA8A04', marginRight: '6px' }}>🟨 {a.cartoes_amarelos}</span>
+                                      )}
+                                      {a.cartoes_vermelhos > 0 && (
+                                        <span style={{ color: '#DC2626' }}>🟥 {a.cartoes_vermelhos}</span>
+                                      )}
+                                      {(!a.cartoes_amarelos && !a.cartoes_vermelhos) && (
+                                        <span style={{ color: 'var(--text-muted)' }}>0</span>
+                                      )}
+                                    </span>
+                                  ) : (
                                     <span style={{ color: 'var(--text-muted)' }}>—</span>
                                   )}
                                 </td>
@@ -1523,9 +1682,17 @@ export default function ClubDetailView({
                     border: '1px solid var(--border-subtle)'
                   }}
                 >
-                  <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Flame size={17} color="var(--accent)" /> Maiores Artilheiros no Acervo FutStats
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Flame size={17} color="var(--accent)" /> Maiores Artilheiros no Acervo
+                    </h3>
+                    <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(21, 128, 61, 0.12)', color: '#15803D', fontWeight: 600 }}>
+                      Súmulas Digitais (1959–2026)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                    Gols computados lance a lance nas partidas oficiais registradas no banco de dados.
+                  </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {historicoData.maiores_artilheiros?.map((art, idx) => (
@@ -1589,9 +1756,17 @@ export default function ClubDetailView({
                     border: '1px solid var(--border-subtle)'
                   }}
                 >
-                  <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Award size={17} color="var(--accent)" /> Ídolos e Lendas Catalogados
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Award size={17} color="var(--accent)" /> Ídolos e Lendas Catalogados
+                    </h3>
+                    <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(56, 189, 248, 0.12)', color: 'var(--accent)', fontWeight: 600 }}>
+                      Enciclopédia Oficial do Clube
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                    Totais consolidados de carreira (oficiais e amistosos de época).
+                  </div>
 
                   {historicoData.idolos_historicos?.length === 0 ? (
                     <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
@@ -1622,7 +1797,7 @@ export default function ClubDetailView({
                           </div>
                           <div style={{ textAlign: 'right' }}>
                             <span className="font-mono" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {idolo.jogos ? `${idolo.jogos}j` : ''} {idolo.gols ? `• ${idolo.gols}g` : ''}
+                              {idolo.jogos ? `${idolo.jogos}j` : ''} {idolo.posicao === 'Goleiro' ? '• 0g' : (idolo.gols != null ? `• ${idolo.gols}g` : '')}
                             </span>
                           </div>
                         </div>
@@ -1632,7 +1807,27 @@ export default function ClubDetailView({
                 </div>
               </div>
 
-              {/* CAMPANHAS HISTÓRICAS NO ACERVO */}
+              {/* NOTA DE ESCOPO E RECONCILIAÇÃO HISTÓRICA */}
+              <div
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: 'var(--radius-card)',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '0.76rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ fontSize: '1rem', lineHeight: '1' }}>💡</div>
+                <div>
+                  <strong style={{ color: 'var(--text-primary)' }}>Reconciliação Metodológica de Escopos:</strong> {historicoData?.escopo_idolos?.nota_reconciliacao || 'A divergência entre os gols do acervo digital (súmulas partidas a partidas) e os números da enciclopédia decorre de partidas e amistosos históricos de época anteriores ou paralelos à cobertura digital lance a lance.'}
+                </div>
+              </div>
+
+                            {/* CAMPANHAS HISTÓRICAS NO ACERVO */}
               <div
                 className="editorial-panel"
                 style={{

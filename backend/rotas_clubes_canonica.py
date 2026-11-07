@@ -244,6 +244,116 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
     return jogos_resolvidos, len(conflitos), conflitos
 
 
+
+def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_busca, ano_int=None):
+    """
+    Regra hierárquica documentada de prioridade tática:
+    1. Posição da temporada/recorte (súmulas em escalacoes)
+    2. Posição predominante nas escalações históricas (acervo)
+    3. Posição cadastral sanitizada (jogadores, por nome)
+    4. Posição a Confirmar em caso de conflito ou ausência
+    *Goleiro identificado por fonte confiável NUNCA é classificado como Atacante.
+    """
+    c = conn.cursor()
+    
+    # 1. Temporada / Recorte
+    where_rec = [f"LOWER(e.clube) IN ({','.join('?' for _ in strings_busca)})"]
+    params_rec = list(strings_busca)
+    where_rec.append("e.atleta = ?")
+    params_rec.append(atleta_nome)
+    if ano_int:
+        where_rec.append("p.ano = ?")
+        params_rec.append(ano_int)
+
+    q1 = f"""
+        SELECT e.posicao, e.is_goleiro, e.titular
+        FROM escalacoes e
+        JOIN partidas p ON e.id_partida = p.id_partida
+        WHERE {" AND ".join(where_rec)}
+    """
+    rows1 = c.execute(q1, params_rec).fetchall()
+
+    # 1.1 Goleiro no recorte (is_goleiro=1 ou string em posicao)
+    if any(r['is_goleiro'] == 1 for r in rows1) or any(
+        r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])
+        for r in rows1
+    ):
+        return 'goleiros', 'Goleiro', 'súmula_recorte'
+
+    # 1.2 Posições táticas como titular no recorte
+    pos_tit = [r['posicao'] for r in rows1 if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
+    if pos_tit:
+        cand = max(set(pos_tit), key=pos_tit.count)
+        p_low = cand.lower()
+        if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
+            label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
+            return 'defensores', label, 'titular_recorte'
+        elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
+            label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
+            return 'meio_campistas', label, 'titular_recorte'
+        elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
+            label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
+            return 'atacantes', label, 'titular_recorte'
+
+    # 2. Histórico de escalações no acervo (por nome do atleta, protegendo contra id cruzado)
+    q2 = """
+        SELECT posicao, is_goleiro, titular 
+        FROM escalacoes 
+        WHERE atleta = ? OR (LOWER(atleta) LIKE ? AND is_goleiro = 1)
+    """
+    rows2 = c.execute(q2, (atleta_nome, f"%{atleta_nome.lower()}%")).fetchall()
+
+    # 2.1 Goleiro histórico
+    if any(r['is_goleiro'] == 1 for r in rows2) or any(
+        r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])
+        for r in rows2
+    ):
+        return 'goleiros', 'Goleiro', 'historico_súmula'
+
+    # 2.2 Posições táticas como titular no histórico
+    pos_hist_tit = [r['posicao'] for r in rows2 if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
+    if pos_hist_tit:
+        cand = max(set(pos_hist_tit), key=pos_hist_tit.count)
+        p_low = cand.lower()
+        if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
+            label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
+            return 'defensores', label, 'titular_historico'
+        elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
+            label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
+            return 'meio_campistas', label, 'titular_historico'
+        elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
+            label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
+            return 'atacantes', label, 'titular_historico'
+
+    # 3. Tabela cadastral jogadores (sanitizada por nome)
+    row_cad = c.execute("""
+        SELECT posicao, total_gols 
+        FROM jogadores 
+        WHERE nome_exibicao = ? OR apelido = ? OR nome_completo = ?
+        LIMIT 1
+    """, (atleta_nome, atleta_nome, atleta_nome)).fetchone()
+
+    if row_cad and row_cad['posicao']:
+        p_cad = row_cad['posicao'].strip()
+        p_cad_low = p_cad.lower()
+        if 'goleir' in p_cad_low:
+            return 'goleiros', 'Goleiro', 'cadastral_especifico'
+        elif any(k in p_cad_low for k in ['zagueir', 'lateral', 'defensor']):
+            return 'defensores', 'Zagueiro' if 'zag' in p_cad_low else ('Lateral' if 'lat' in p_cad_low else 'Defensor'), 'cadastral_especifico'
+        elif any(k in p_cad_low for k in ['volante', 'meia', 'meio']):
+            return 'meio_campistas', 'Volante' if 'volante' in p_cad_low else 'Meio-campo', 'cadastral_especifico'
+        elif p_cad_low in ('centroavante', 'ponta-direita', 'ponta-esquerda', 'segundo atacante', 'ponta-de-lança'):
+            return 'atacantes', p_cad, 'cadastral_especifico'
+        elif p_cad_low == 'atacante':
+            # Só aceita se houver confirmação de gols reais pelo atleta
+            gols_reais = c.execute("SELECT count(*) FROM gols WHERE atleta = ?", (atleta_nome,)).fetchone()[0]
+            if gols_reais > 0:
+                return 'atacantes', 'Atacante', 'cadastral_confirmado'
+
+    # 4. Sem evidência tática conclusiva
+    return 'outros', 'Posição a Confirmar', 'sem_evidencia'
+
+
 @rotas_clubes_canonica_bp.route('/api/clubes/lista-geral', methods=['GET'])
 def get_clubes_lista_geral():
     """
@@ -420,6 +530,8 @@ def get_clube_detalhe(clube_id):
     - Resumo do desempenho no recorte (deduplicado)
     - Últimos resultados
     - Artilheiros do recorte
+    - Atletas mais utilizados no recorte
+    - Desempenho Casa x Fora
     - Prévia de métricas avançadas BED 2026 (se disponíveis)
     """
     ano_param = request.args.get('ano', '2026').strip()
@@ -434,6 +546,11 @@ def get_clube_detalhe(clube_id):
     if not clube_info:
         conn.close()
         return jsonify({'erro': f'Clube com ID #{clube_id} não catalogado na base canônica.'}), 404
+
+    strings_busca = {clube_info['nome'].lower()}
+    for a, cid in name_to_canon.items():
+        if cid == clube_info['clube_id']:
+            strings_busca.add(a)
 
     # 1. Informações Institucionais (clubes_perfil)
     c.execute("""
@@ -517,6 +634,30 @@ def get_clube_detalhe(clube_id):
     aproveitamento_pct = round((pontos / pts_possiveis) * 100, 1) if pts_possiveis > 0 else 0.0
     clean_sheets = sum(1 for j in jogos_validos if (j['gols_contra'] or 0) == 0)
 
+    # Desempenho Casa x Fora no recorte
+    jogos_casa = [j for j in jogos_validos if j['mando'] == 'casa']
+    jogos_fora = [j for j in jogos_validos if j['mando'] == 'fora']
+
+    def _calc_mando_kpis(jogos_m):
+        if not jogos_m:
+            return {'jogos': 0, 'vitorias': 0, 'empates': 0, 'derrotas': 0, 'gols_pro': 0, 'gols_contra': 0, 'aproveitamento_pct': 0.0}
+        v = sum(1 for j in jogos_m if j['resultado'] == 'V')
+        e = sum(1 for j in jogos_m if j['resultado'] == 'E')
+        d = sum(1 for j in jogos_m if j['resultado'] == 'D')
+        gp = sum(j['gols_pro'] or 0 for j in jogos_m)
+        gc = sum(j['gols_contra'] or 0 for j in jogos_m)
+        pts = (v * 3) + e
+        tot = len(jogos_m) * 3
+        return {
+            'jogos': len(jogos_m),
+            'vitorias': v,
+            'empates': e,
+            'derrotas': d,
+            'gols_pro': gp,
+            'gols_contra': gc,
+            'aproveitamento_pct': round((pts / tot) * 100, 1) if tot > 0 else 0.0
+        }
+
     resumo_recorte = {
         'recorte': {'ano': ano_param, 'campeonato': campeonato or 'Todas as competições', 'mando': mando},
         'jogos': total_jogos,
@@ -531,21 +672,39 @@ def get_clube_detalhe(clube_id):
         'media_gols_pro': round(gols_pro / total_jogos, 2) if total_jogos > 0 else 0.0,
         'media_gols_contra': round(gols_contra / total_jogos, 2) if total_jogos > 0 else 0.0,
         'clean_sheets': clean_sheets,
+        'desempenho_mando': {
+            'casa': _calc_mando_kpis(jogos_casa),
+            'fora': _calc_mando_kpis(jogos_fora)
+        },
         'conflitos_detectados': num_conflitos
     }
 
     # 5. Artilheiros do Recorte (gols marcados estritamente pelo clube no ano)
-    c.execute("""
+    c.execute(f"""
         SELECT g.atleta, COUNT(*) as total_gols
         FROM gols g
         JOIN partidas p ON g.id_partida = p.id_partida
-        WHERE (g.clube LIKE ? OR g.clube LIKE ?)
+        WHERE LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})
           AND p.ano = ?
         GROUP BY g.atleta
         ORDER BY total_gols DESC
         LIMIT 5
-    """, (f"%{clube_info['nome']}%", f"%{clube_info['sigla']}%", int(ano_param) if ano_param.isdigit() else 2026))
+    """, list(strings_busca) + [int(ano_param) if ano_param.isdigit() else 2026])
     artilheiros = [{'atleta': r[0], 'gols': r[1]} for r in c.fetchall()]
+
+    # 5.1 Atletas mais utilizados no recorte (titularidades)
+    c.execute(f"""
+        SELECT e.atleta, e.id_jogador, COUNT(*) as titularidades
+        FROM escalacoes e
+        JOIN partidas p ON e.id_partida = p.id_partida
+        WHERE LOWER(e.clube) IN ({','.join('?' for _ in strings_busca)})
+          AND e.titular = 1
+          AND p.ano = ?
+        GROUP BY e.atleta
+        ORDER BY titularidades DESC
+        LIMIT 5
+    """, list(strings_busca) + [int(ano_param) if ano_param.isdigit() else 2026])
+    atletas_mais_utilizados = [{'atleta': r[0], 'id_jogador': r[1], 'titularidades': r[2]} for r in c.fetchall()]
 
     # 6. Métricas Avançadas BED 2026 (Preview na Visão Geral)
     metricas_bed = None
@@ -567,6 +726,8 @@ def get_clube_detalhe(clube_id):
             'total_jogos_acervo': total_jogos_acervo,
             'ano_min': ano_min_acervo,
             'ano_max': ano_max_acervo,
+            'unidade': 'partidas catalogadas',
+            'rotulo_acervo': f"{total_jogos_acervo:,} partidas catalogadas ({ano_min_acervo}–{ano_max_acervo})".replace(',', '.'),
             'tem_metricas_bed_2026': tem_bed
         },
         'opcoes_filtros': {
@@ -576,8 +737,10 @@ def get_clube_detalhe(clube_id):
         'resumo_recorte': resumo_recorte,
         'ultimos_resultados': jogos_resolvidos[:6],
         'artilheiros_recorte': artilheiros,
+        'atletas_mais_utilizados_recorte': atletas_mais_utilizados,
         'metricas_avancadas_preview': metricas_bed
     })
+
 
 
 @rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/jogos', methods=['GET'])
@@ -629,8 +792,12 @@ def get_clube_jogos(clube_id):
 def get_clube_elenco(clube_id):
     """
     Retorna o elenco do clube no recorte (ano/temporada e competição),
-    agrupado por setores (Goleiros, Defensores, Meias, Atacantes),
-    com contagem de súmulas reais, titularidades, gols no clube e cartões.
+    agrupado por setores (Goleiros, Defensores, Meio-Campistas, Atacantes, Posição a Confirmar),
+    com semântica rigorosa:
+    - Jogos disputados em campo vs relacionado no banco de reservas
+    - Resolução tática hierárquica em 4 passos (sem lista manual hardcoded)
+    - Distinção honesta entre zero verdadeiro e ausência de cobertura (—)
+    - Integração de métricas avançadas BED 2026 para Série A
     """
     ano_param = request.args.get('ano', '2026').strip()
     campeonato = request.args.get('campeonato', '').strip()
@@ -714,7 +881,7 @@ def get_clube_elenco(clube_id):
             rows_esc = c.execute(query_esc_alt, params_alt).fetchall()
             ano_param = str(ano_alt)
 
-    # Gols no recorte
+    # 1. Gols marcados no recorte pelo clube (agrupados por atleta)
     where_gols = [f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})"]
     params_gols = list(strings_busca)
     if ano_param.isdigit():
@@ -725,21 +892,16 @@ def get_clube_elenco(clube_id):
         params_gols.append(campeonato)
 
     query_gols = f"""
-        SELECT g.atleta, g.id_jogador, COUNT(*) as total_gols
+        SELECT g.atleta, COUNT(*) as total_gols
         FROM gols g
         JOIN partidas p ON g.id_partida = p.id_partida
         WHERE {" AND ".join(where_gols)}
         GROUP BY g.atleta
     """
     rows_gols = c.execute(query_gols, params_gols).fetchall()
-    gols_map = {}
-    for r in rows_gols:
-        nome_k = r['atleta'].strip().lower()
-        gols_map[nome_k] = r['total_gols']
-        if r['id_jogador']:
-            gols_map[f"id_{r['id_jogador']}"] = r['total_gols']
+    gols_map = {r['atleta'].strip().lower(): r['total_gols'] for r in rows_gols}
 
-    # Assistências no recorte
+    # 2. Assistências brutas
     where_ast = [f"LOWER(a.clube) IN ({','.join('?' for _ in strings_busca)})"]
     params_ast = list(strings_busca)
     if ano_param.isdigit():
@@ -750,21 +912,16 @@ def get_clube_elenco(clube_id):
         params_ast.append(campeonato)
 
     query_ast = f"""
-        SELECT a.atleta, a.id_jogador, COUNT(*) as total_assistencias
+        SELECT a.atleta, COUNT(*) as total_assistencias
         FROM assistencias a
         JOIN partidas p ON a.id_partida = p.id_partida
         WHERE {" AND ".join(where_ast)}
         GROUP BY a.atleta
     """
     rows_ast = c.execute(query_ast, params_ast).fetchall()
-    ast_map = {}
-    for r in rows_ast:
-        nome_k = r['atleta'].strip().lower()
-        ast_map[nome_k] = r['total_assistencias']
-        if r['id_jogador']:
-            ast_map[f"id_{r['id_jogador']}"] = r['total_assistencias']
+    ast_map = {r['atleta'].strip().lower(): r['total_assistencias'] for r in rows_ast}
 
-    # Cartões no recorte
+    # 3. Cartões brutos
     where_cart = [f"LOWER(c.clube) IN ({','.join('?' for _ in strings_busca)})"]
     params_cart = list(strings_busca)
     if ano_param.isdigit():
@@ -775,7 +932,7 @@ def get_clube_elenco(clube_id):
         params_cart.append(campeonato)
 
     query_cart = f"""
-        SELECT c.atleta, c.id_jogador, c.cartao, COUNT(*) as total_cartoes
+        SELECT c.atleta, c.cartao, COUNT(*) as total_cartoes
         FROM cartoes c
         JOIN partidas p ON c.id_partida = p.id_partida
         WHERE {" AND ".join(where_cart)}
@@ -789,18 +946,23 @@ def get_clube_elenco(clube_id):
         tipo = (r['cartao'] or '').lower()
         if 'amarelo' in tipo:
             amarelos_map[nome_k] = amarelos_map.get(nome_k, 0) + r['total_cartoes']
-            if r['id_jogador']:
-                k_id = f"id_{r['id_jogador']}"
-                amarelos_map[k_id] = amarelos_map.get(k_id, 0) + r['total_cartoes']
         elif 'vermelho' in tipo:
             vermelhos_map[nome_k] = vermelhos_map.get(nome_k, 0) + r['total_cartoes']
-            if r['id_jogador']:
-                k_id = f"id_{r['id_jogador']}"
-                vermelhos_map[k_id] = vermelhos_map.get(k_id, 0) + r['total_cartoes']
 
-    conn.close()
+    # 4. Métricas avançadas BED 2026 (se aplicável)
+    bed_atletas_map = {}
+    if ano_param in ('2026', 'todos'):
+        c.execute("""
+            SELECT atleta_id_canonico, minutos, jogos, titularidades, gols, assistencias, cartoes_amarelos, cartoes_vermelhos
+            FROM metrica_atleta_avancada_2026
+            WHERE clube_id_canonico = ?
+        """, (clube_info['clube_id'],))
+        for r_bed in c.fetchall():
+            bed_atletas_map[r_bed['atleta_id_canonico']] = dict(r_bed)
 
-    # Consolidar atletas
+    tem_cobertura_bed = len(bed_atletas_map) > 0 and (ano_param in ('2026', 'todos'))
+
+    # 5. Consolidar atletas das súmulas
     atletas_dict = {}
     for r in rows_esc:
         nome = r['atleta'].strip()
@@ -813,7 +975,6 @@ def get_clube_elenco(clube_id):
                 'id_jogador': r['id_jogador'],
                 'apelido': r['jog_apelido'] or None,
                 'num_camisa': r['num_camisa'] or None,
-                'jogos': 0,
                 'titularidades': 0,
                 'reservas': 0,
                 'capitao': 0,
@@ -822,7 +983,6 @@ def get_clube_elenco(clube_id):
                 'jog_posicao': r['jog_posicao'] or None
             }
         ad = atletas_dict[key]
-        ad['jogos'] += 1
         if r['titular'] == 1:
             ad['titularidades'] += 1
         else:
@@ -842,37 +1002,40 @@ def get_clube_elenco(clube_id):
         'outros': []
     }
 
+    ano_int_val = int(ano_param) if ano_param.isdigit() else None
+
     for (nome, id_j), data in atletas_dict.items():
         nome_k = nome.lower()
-        id_k = f"id_{id_j}" if id_j else None
 
-        gols = gols_map.get(id_k) or gols_map.get(nome_k) or 0
-        ast = ast_map.get(id_k) or ast_map.get(nome_k) or 0
-        amarelos = amarelos_map.get(id_k) or amarelos_map.get(nome_k) or 0
-        vermelhos = vermelhos_map.get(id_k) or vermelhos_map.get(nome_k) or 0
+        # Resolução tática hierárquica em 4 passos (sem contaminação de id cruzado)
+        setor, pos_label, regra_res = _resolver_posicao_atleta_hierarquica(
+            conn, nome, id_j, strings_busca, ano_int=ano_int_val
+        )
 
-        pos_display = data['jog_posicao']
-        if not pos_display and data['posicoes_raw']:
-            pos_display = data['posicoes_raw'][0]
-        if not pos_display:
-            pos_display = 'Goleiro' if data['is_goleiro'] else None
+        pos_display = data['posicoes_raw'][0] if data['posicoes_raw'] else pos_label
 
-        pos_lower = (pos_display or '').lower()
-        if data['is_goleiro'] or 'goleir' in pos_lower or 'goalkeeper' in pos_lower:
-            setor = 'goleiros'
-            pos_label = 'Goleiro'
-        elif any(k in pos_lower for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
-            setor = 'defensores'
-            pos_label = 'Zagueiro' if 'zag' in pos_lower or 'center' in pos_lower else ('Lateral' if 'lat' in pos_lower else 'Defensor')
-        elif any(k in pos_lower for k in ['atac', 'centroavante', 'ponta', 'forward', 'ata']):
-            setor = 'atacantes'
-            pos_label = 'Centroavante' if 'centro' in pos_lower else ('Ponta' if 'ponta' in pos_lower else 'Atacante')
-        elif any(k in pos_lower for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
-            setor = 'meio_campistas'
-            pos_label = 'Volante' if 'volante' in pos_lower or 'defensive' in pos_lower else 'Meio-campo'
+        # Obter métricas avançadas se presentes
+        bed_item = bed_atletas_map.get(id_j)
+        titularidades = data['titularidades']
+        reservas_no_banco = data['reservas']
+
+        if bed_item:
+            jogos_disputados = int(bed_item['jogos'] or 0)
+            substituto_entrou = max(0, jogos_disputados - titularidades)
+            minutos = int(bed_item['minutos'] or 0)
+            gols = int(bed_item['gols'] or 0) if campeonato == 'Campeonato Brasileiro - Série A' else gols_map.get(nome_k, 0)
+            ast = int(bed_item['assistencias'] or 0)
+            amarelos = int(bed_item['cartoes_amarelos'] or 0)
+            vermelhos = int(bed_item['cartoes_vermelhos'] or 0)
         else:
-            setor = 'outros'
-            pos_label = 'Posição a Confirmar'
+            # Sem BED: jogos disputados confirmados são as titularidades (reserva sem entrar NÃO conta como jogo)
+            jogos_disputados = titularidades
+            substituto_entrou = None
+            minutos = None
+            gols = gols_map.get(nome_k, 0)
+            ast = ast_map.get(nome_k) if len(ast_map) > 0 else None
+            amarelos = amarelos_map.get(nome_k) if len(amarelos_map) > 0 else None
+            vermelhos = vermelhos_map.get(nome_k) if len(vermelhos_map) > 0 else None
 
         atleta_obj = {
             'atleta': nome,
@@ -881,9 +1044,14 @@ def get_clube_elenco(clube_id):
             'num_camisa': data['num_camisa'],
             'posicao': pos_label,
             'posicao_detalhada': pos_display or 'Não informada',
-            'jogos': data['jogos'],
-            'titularidades': data['titularidades'],
-            'reservas': data['reservas'],
+            'setor': setor,
+            'regra_posicao': regra_res,
+            'jogos_disputados': jogos_disputados,
+            'jogos': jogos_disputados,
+            'titularidades': titularidades,
+            'reservas': reservas_no_banco,
+            'substituto_entrou': substituto_entrou,
+            'minutos': minutos,
             'capitao': data['capitao'],
             'gols': gols,
             'assistencias': ast,
@@ -892,8 +1060,10 @@ def get_clube_elenco(clube_id):
         }
         setores[setor].append(atleta_obj)
 
+    conn.close()
+
     for k in setores:
-        setores[k].sort(key=lambda x: (x['jogos'], x['titularidades'], x['gols']), reverse=True)
+        setores[k].sort(key=lambda x: (x['jogos_disputados'], x['titularidades'], x['gols']), reverse=True)
 
     total_atletas = sum(len(v) for v in setores.values())
 
@@ -903,7 +1073,13 @@ def get_clube_elenco(clube_id):
         'ano': ano_param,
         'campeonato': campeonato or 'Todas as competições',
         'total_atletas': total_atletas,
-        'setores': setores
+        'setores': setores,
+        'cobertura': {
+            'assistencias_disponiveis': tem_cobertura_bed or len(ast_map) > 0,
+            'cartoes_disponiveis': tem_cobertura_bed or len(amarelos_map) > 0,
+            'minutos_disponiveis': tem_cobertura_bed,
+            'fonte_metricas': 'BED 2026 + Súmulas Canônicas' if tem_cobertura_bed else 'Súmulas Canônicas'
+        }
     })
 
 
@@ -1084,8 +1260,8 @@ def get_clube_historico(clube_id):
     """
     Retorna o histórico consolidado do acervo:
     - Vitrine de títulos oficiais documentados
-    - Maiores artilheiros no acervo de 117.523 gols
-    - Ídolos históricos catalogados
+    - Maiores artilheiros no acervo de 117.523 gols (escopo documentado)
+    - Ídolos históricos catalogados (escopo enciclopédico e nota metodológica)
     - Campanhas ano a ano
     """
     conn = get_db()
@@ -1152,6 +1328,11 @@ def get_clube_historico(clube_id):
         except Exception:
             idolos = []
 
+    # Ajuste honroso para ídolos goleiros (ex: Marcos)
+    for idolo in idolos:
+        if idolo.get('posicao') == 'Goleiro' and ('gols' not in idolo or idolo['gols'] is None):
+            idolo['gols'] = 0
+
     # 4. Campanhas Históricas no Acervo (Ano a Ano)
     seq = ','.join('?' for _ in strings_busca)
     query_campanhas = f"""
@@ -1210,6 +1391,18 @@ def get_clube_historico(clube_id):
         'clube_nome': clube_info['nome'],
         'trofeus': trofeus,
         'maiores_artilheiros': maiores_artilheiros,
+        'escopo_artilheiros': {
+            'escopo': 'acervo_oficial',
+            'rotulo': 'Acervo Digital de Súmulas FutStats',
+            'descricao': 'Gols catalogados lance a lance nas partidas oficiais registradas no banco de dados (1959–2026).'
+        },
         'idolos_historicos': idolos,
+        'escopo_idolos': {
+            'escopo': 'enciclopedia_clube',
+            'rotulo': 'Totais Históricos da Enciclopédia do Clube',
+            'descricao': 'Totais históricos consolidados na história oficial do clube (incluindo torneios de época e amistosos sem súmula lance a lance).',
+            'nota_reconciliacao': 'Ademir da Guia possui 107 gols catalogados lance a lance no acervo digital oficial FutStats (1961–1977) e 155 gols no total histórico consolidado da enciclopédia do clube (902 jogos totais). Para goleiros ídolos como Marcos (533 jogos, 0 gols), as métricas honrosas oficiais são suas partidas disputadas e seus títulos conquistados.'
+        },
         'campanhas_historicas': campanhas
     })
+
