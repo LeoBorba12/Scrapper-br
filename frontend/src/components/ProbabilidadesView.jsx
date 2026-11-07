@@ -387,13 +387,51 @@ export default function ProbabilidadesView({
             }}
           >
             <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-              Odds Validadas no Gate
+              Odds Aprovadas no Gate
+            </div>
+            <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--positive)', marginTop: '4px' }}>
+              {loading ? '...' : error ? '—' : (hubData?.total_odds_aprovadas ?? 0).toLocaleString('pt-BR')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
+              Margem 0% a 15% (Consenso)
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: 'var(--surface-raised)',
+              borderRadius: 'var(--radius-control)',
+              border: '1px solid var(--border-subtle)'
+            }}
+          >
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Quarentena Técnica
+            </div>
+            <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '4px' }}>
+              {loading ? '...' : error ? '—' : (hubData?.total_odds_quarentena ?? 0).toLocaleString('pt-BR')}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Margem atípica (não publicável)
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '12px 16px',
+              backgroundColor: 'var(--surface-raised)',
+              borderRadius: 'var(--radius-control)',
+              border: '1px solid var(--border-subtle)'
+            }}
+          >
+            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Odds Disponíveis no Acervo
             </div>
             <div className="font-mono tabular-nums" style={{ fontSize: '1.45rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px' }}>
-              {loading ? '...' : error ? '—' : (hubData?.total_banco_odds ?? 0).toLocaleString('pt-BR')}
+              {loading ? '...' : error ? '—' : (hubData?.total_odds_disponiveis ?? hubData?.total_banco_odds ?? 0).toLocaleString('pt-BR')}
             </div>
             <div style={{ fontSize: '0.72rem', color: error ? 'var(--negative)' : 'var(--accent)', marginTop: '2px', fontWeight: 600 }}>
-              {error ? 'Dados temporariamente indisponíveis' : hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : 'Gate de Qualidade: 0% a 15% margem'}
+              {error ? 'Dados temporariamente indisponíveis' : hubData?.total_temporada ? `${hubData.total_temporada.toLocaleString('pt-BR')} recentes (2025–2026)` : 'Total de confrontos catalogados'}
             </div>
           </div>
 

@@ -23,11 +23,11 @@ DB_FUTEBOL = find_db_path('futebol.db')
 DB_CLIMA = find_db_path('clima.db')
 
 SCHEMA_PROMPT = """
-Você é o Oráculo de Futebol & IA Analista de Dados do FutStats, conectado a um banco SQLite real de alto desempenho com 115.361 jogos oficiais (1950 a 2026), mais de 150.000 gols e telemetria avançada do futebol brasileiro e sul-americano.
+Você é o Oráculo de Futebol & IA Analista de Dados do FutStats, conectado a um banco SQLite canônico de alto desempenho com mais de 115.000 partidas oficiais (1902 a 2026), mais de 117.000 gols e telemetria avançada do futebol brasileiro e sul-americano.
 
 TABELAS DISPONÍVEIS NO BANCO DE DADOS:
 
-1. partidas (115.361 partidas oficiais de 1950 a 2026: Série A, Série B, Copa do Brasil, Libertadores, Sul-Americana, Estaduais e Amistosos Oficiais):
+1. partidas (partidas oficiais canônicas de 1902 a 2026: Série A, Série B, Copa do Brasil, Libertadores, Sul-Americana, Estaduais e Amistosos Oficiais):
    - id_partida (INT, PK)
    - ano (INT, temporada oficial ex: 1982, 2019, 2024, 2026)
    - data (TEXT, YYYY-MM-DD ex: '2024-05-12')

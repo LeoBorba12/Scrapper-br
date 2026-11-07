@@ -4990,12 +4990,32 @@ def get_apostas_hub():
 
     where_sql = " AND ".join(where_clauses)
 
-    # 1. Totais Globais para Métricas Reais do Banco
+    # 1. Totais Globais para Métricas Reais do Banco (Gate 0% a 15% e Quarentena)
     try:
-        total_banco_odds = c.execute("SELECT COUNT(*) FROM odds_partidas WHERE odd_mandante IS NOT NULL").fetchone()[0]
+        q_odds_status = """
+            SELECT 
+                COUNT(*) as total_disponiveis,
+                SUM(CASE WHEN odd_mandante > 1.0 AND odd_empate > 1.0 AND odd_visitante > 1.0 
+                         AND ((1.0/odd_mandante) + (1.0/odd_empate) + (1.0/odd_visitante) - 1.0) >= 0.0
+                         AND ((1.0/odd_mandante) + (1.0/odd_empate) + (1.0/odd_visitante) - 1.0) <= 0.15
+                    THEN 1 ELSE 0 END) as total_aprovadas,
+                SUM(CASE WHEN odd_mandante IS NOT NULL 
+                         AND NOT (odd_mandante > 1.0 AND odd_empate > 1.0 AND odd_visitante > 1.0 
+                         AND ((1.0/odd_mandante) + (1.0/odd_empate) + (1.0/odd_visitante) - 1.0) >= 0.0
+                         AND ((1.0/odd_mandante) + (1.0/odd_empate) + (1.0/odd_visitante) - 1.0) <= 0.15)
+                    THEN 1 ELSE 0 END) as total_quarentena
+            FROM odds_partidas
+            WHERE odd_mandante IS NOT NULL
+        """
+        row_odds = c.execute(q_odds_status).fetchone()
+        total_banco_odds = row_odds[0] or 0
+        total_odds_aprovadas = row_odds[1] or 0
+        total_odds_quarentena = row_odds[2] or 0
     except Exception as e_count:
         app.logger.warning(f"Falha ao consultar contagem global de odds: {e_count}")
         total_banco_odds = 0
+        total_odds_aprovadas = 0
+        total_odds_quarentena = 0
 
     try:
         total_temporada = c.execute("""
@@ -5176,6 +5196,9 @@ def get_apostas_hub():
     resumo = {
         'total_jogos': total_filtrado,
         'total_banco_odds': total_banco_odds,
+        'total_odds_disponiveis': total_banco_odds,
+        'total_odds_aprovadas': total_odds_aprovadas,
+        'total_odds_quarentena': total_odds_quarentena,
         'total_temporada': total_temporada,
         'total_filtrado': total_filtrado,
         'partidas_exibidas': len(partidas_processadas),

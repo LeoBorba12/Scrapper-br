@@ -27,6 +27,9 @@ def test_probabilidades_hub_contrato_geral(client):
 
     chaves_esperadas = [
         'total_banco_odds',
+        'total_odds_disponiveis',
+        'total_odds_aprovadas',
+        'total_odds_quarentena',
         'total_temporada',
         'total_filtrado',
         'partidas_exibidas',
@@ -45,6 +48,9 @@ def test_probabilidades_hub_contrato_geral(client):
     assert isinstance(data['tendencias_quentes'], list)
     assert data['total_banco_odds'] > 0
     assert data['total_temporada'] > 0
+    assert data['total_odds_aprovadas'] > 0
+    assert data['total_odds_quarentena'] > 0
+    assert data['total_odds_aprovadas'] + data['total_odds_quarentena'] == data['total_odds_disponiveis']
 
 def test_probabilidades_hub_contrato_partida_individual(client):
     """Valida o payload de uma partida processada (probabilidades Poisson, Dixon-Coles, selos e odds)."""
@@ -103,3 +109,17 @@ def test_probabilidades_hub_resposta_vazia_legitima(client):
     assert data['total_filtrado'] == 0
     assert len(data['partidas']) == 0
     assert data['partidas_exibidas'] == 0
+
+def test_seguranca_telemetria_boot():
+    """Valida que o handler de erro de boot serverless em api/index.py não vaza dados sensíveis."""
+    from api import index
+    # Se houver função vercel_boot_diagnostic no módulo
+    if hasattr(index, 'vercel_boot_diagnostic'):
+        with index.app.test_request_context():
+            res, code = index.vercel_boot_diagnostic('')
+            data = res.get_json()
+            assert code == 500
+            assert 'traceback' not in data
+            assert 'cwd' not in data
+            assert 'sys_path' not in data
+

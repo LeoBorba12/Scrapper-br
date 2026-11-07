@@ -939,7 +939,7 @@ export default function App() {
       // Rodapé marca
       ctx.fillStyle = '#64748b';
       ctx.font = '500 18px system-ui, -apple-system, sans-serif';
-      ctx.fillText('Gerado por FutStats • Base Oficial com 115.361 Partidas', 540, 1020);
+      ctx.fillText(`Gerado por FutStats • Base Oficial com ${(overview?.total_partidas || 115753).toLocaleString('pt-BR')} Partidas`, 540, 1020);
 
       // Download do PNG
       const link = document.createElement('a');
@@ -1029,7 +1029,7 @@ export default function App() {
       // Badge do Insight
       ctx.fillStyle = '#10b981';
       ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-      ctx.fillText('VEREDITO DOS DADOS (115.361 PARTIDAS)', 540, cardStartY + 50);
+      ctx.fillText(`VEREDITO DOS DADOS (${(overview?.total_partidas || 115753).toLocaleString('pt-BR')} PARTIDAS)`, 540, cardStartY + 50);
 
       // Texto do Insight
       ctx.fillStyle = '#f1f5f9';

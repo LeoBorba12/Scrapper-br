@@ -229,7 +229,7 @@ export function exportarRelatorioScoutingPDF(atleta) {
     </div>
     <div class="sub-meta">
       <div>Emissão: <strong>${dataEmissao}</strong></div>
-      <div>Acervo Oficial: <strong>115.361 Partidas</strong></div>
+      <div>Acervo Oficial: <strong>Base Histórica Canônica</strong></div>
       <div>Autenticação: <strong>VERIFICADO</strong></div>
     </div>
   </div>
