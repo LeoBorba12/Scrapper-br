@@ -1472,12 +1472,12 @@ def get_clube_historico(clube_id):
         'metadados_idolos_carreira': {
             'tabela_origem': 'clubes_perfil',
             'campo': 'idolos_historicos_json',
-            'cobertura_temporal': '1914–2026 (carreira histórica consolidada)',
-            'metodo_coleta': 'Censo histórico e enciclopédia oficial do clube',
+            'cobertura_temporal': 'Período indicado por atleta no registro JSON',
+            'metodo_coleta': 'Carga estruturada JSON em clubes_perfil',
             'data_importacao': atualizado_em_perfil,
             'tem_lance_a_lance': False,
-            'rotulo_escopo': 'Estatística de Carreira Catalogada (Enciclopédia Oficial do Clube)',
-            'nota_reconciliacao': 'Ademir da Guia possui 107 gols catalogados lance a lance no acervo digital oficial FutStats (1961–1977, tabela gols) e 155 gols na estatística de carreira catalogada (902 jogos, fonte: Enciclopédia Oficial do Palmeiras, tabela clubes_perfil). Para goleiros ídolos como Marcos (533 jogos, 0 gols), a métrica principal são as partidas disputadas e os títulos conquistados.'
+            'fonte': None,
+            'rotulo_escopo': 'Registro Histórico Catalogado (clubes_perfil)'
         },
         'campanhas_historicas': campanhas
     })

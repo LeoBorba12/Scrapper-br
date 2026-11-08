@@ -300,12 +300,13 @@ def test_clube_historico_escopos_gols_verificaveis(client):
     assert meta_acervo['tabela_origem'] == 'gols (JOIN partidas)'
     assert meta_acervo['tem_lance_a_lance'] is True
 
-    # Estatística de Carreira Catalogada
+    # Estatística de Carreira Catalogada (apenas metadados comprovados em schema)
     assert 'metadados_idolos_carreira' in data
     meta_idolos = data['metadados_idolos_carreira']
     assert meta_idolos['tabela_origem'] == 'clubes_perfil'
+    assert meta_idolos['campo'] == 'idolos_historicos_json'
     assert meta_idolos['tem_lance_a_lance'] is False
-    assert 'Enciclopédia Oficial' in meta_idolos['rotulo_escopo']
+    assert meta_idolos['fonte'] is None  # ausente no schema de clubes_perfil
 
     # Marcos
     marcos = next(i for i in data['idolos_historicos'] if i['nome'] == 'Marcos')

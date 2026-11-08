@@ -1297,8 +1297,66 @@ export default function ClubDetailView({
                                     </div>
                                   )}
                                 </td>
-                                <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
-                                  {a.posicao}
+                                <td style={{ padding: '10px 12px' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{a.posicao}</span>
+                                    {a.metodo_posicao === 'posicao_do_recorte' && (
+                                      <span style={{
+                                        fontSize: '0.62rem',
+                                        padding: '1px 5px',
+                                        borderRadius: '3px',
+                                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                                        color: '#15803D',
+                                        border: '1px solid rgba(34, 197, 94, 0.25)',
+                                        width: 'fit-content',
+                                        lineHeight: 1.2
+                                      }}>
+                                        Confirmada no recorte
+                                      </span>
+                                    )}
+                                    {a.metodo_posicao === 'predominante_em_escalacoes' && (
+                                      <span style={{
+                                        fontSize: '0.62rem',
+                                        padding: '1px 5px',
+                                        borderRadius: '3px',
+                                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                        color: '#1D4ED8',
+                                        border: '1px solid rgba(59, 130, 246, 0.25)',
+                                        width: 'fit-content',
+                                        lineHeight: 1.2
+                                      }}>
+                                        Predominante no acervo
+                                      </span>
+                                    )}
+                                    {(a.metodo_posicao === 'posicao_a_confirmar' || !a.metodo_posicao) && (
+                                      <span style={{
+                                        fontSize: '0.62rem',
+                                        padding: '1px 5px',
+                                        borderRadius: '3px',
+                                        backgroundColor: 'rgba(156, 163, 175, 0.12)',
+                                        color: 'var(--text-muted)',
+                                        border: '1px solid rgba(156, 163, 175, 0.25)',
+                                        width: 'fit-content',
+                                        lineHeight: 1.2
+                                      }}>
+                                        Posição a confirmar
+                                      </span>
+                                    )}
+                                    {a.metodo_posicao === 'cadastro_validado' && (
+                                      <span style={{
+                                        fontSize: '0.62rem',
+                                        padding: '1px 5px',
+                                        borderRadius: '3px',
+                                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                                        color: '#7E22CE',
+                                        border: '1px solid rgba(168, 85, 247, 0.25)',
+                                        width: 'fit-content',
+                                        lineHeight: 1.2
+                                      }}>
+                                        Cadastro validado
+                                      </span>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600 }}>
                                   {a.jogos_disputados != null ? a.jogos_disputados : a.jogos}
@@ -1767,12 +1825,13 @@ export default function ClubDetailView({
                       <Award size={17} color="var(--accent)" /> Ídolos e Lendas Catalogados
                     </h3>
                     <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(56, 189, 248, 0.12)', color: 'var(--accent)', fontWeight: 600 }}>
-                      Enciclopédia Oficial do Clube
+                      Registro Histórico em Schema
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '14px', backgroundColor: 'var(--surface-raised)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
-                    <div><strong>Origem:</strong> Tabela <code>clubes_perfil</code> (campo <code>idolos_historicos_json</code>) • <strong>Lance a Lance:</strong> Não</div>
-                    <div><strong>Tipo:</strong> Estatística de carreira catalogada (Enciclopédia Oficial do Clube)</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '14px', backgroundColor: 'var(--surface-raised)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-subtle)', lineHeight: 1.4 }}>
+                    <div><strong>Tabela:</strong> <code>clubes_perfil</code> • <strong>Campo:</strong> <code>idolos_historicos_json</code></div>
+                    <div><strong>Lance a lance:</strong> Ausente (sem partidas individuais na tabela <code>gols</code>)</div>
+                    <div><strong>Data do registro:</strong> {historicoData.metadados_idolos_carreira?.data_importacao || '2026-11-05 21:12:45'} • <strong>Fonte:</strong> Não declarada no schema</div>
                   </div>
 
                   {historicoData.idolos_historicos?.length === 0 ? (
