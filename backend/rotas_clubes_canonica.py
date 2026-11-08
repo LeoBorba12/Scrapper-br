@@ -299,11 +299,13 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
             label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
             return 'atacantes', label, 'posicao_do_recorte'
 
-    # 2. Posição predominante em escalações confiáveis na carreira (acervo histórico)
+    # 2. Posição predominante em escalações confiáveis na carreira (acervo 2023-2026)
     q2 = """
-        SELECT posicao, is_goleiro, titular 
-        FROM escalacoes 
-        WHERE atleta = ? OR (LOWER(atleta) LIKE ? AND is_goleiro = 1)
+        SELECT e.posicao, e.is_goleiro, e.titular 
+        FROM escalacoes e 
+        JOIN partidas p ON e.id_partida = p.id_partida
+        WHERE (e.atleta = ? OR (LOWER(e.atleta) LIKE ? AND e.is_goleiro = 1))
+          AND p.ano BETWEEN 2023 AND 2026
     """
     rows2 = c.execute(q2, (atleta_nome, f"%{atleta_nome.lower()}%")).fetchall()
 
@@ -842,6 +844,38 @@ def get_clube_elenco(clube_id):
         where_parts.append("p.campeonato = ?")
         params.append(campeonato)
 
+    # Anos anteriores a 2023 não possuem escalações digitalizadas no acervo
+    if ano_param.isdigit() and int(ano_param) < 2023:
+        conn.close()
+        return jsonify({
+            'clube_id': clube_info['clube_id'],
+            'clube_nome': clube_info['nome'],
+            'ano': ano_param,
+            'campeonato': campeonato or 'Todas as competições',
+            'total_atletas': 0,
+            'setores': {
+                'goleiros': [],
+                'defensores': [],
+                'meio_campistas': [],
+                'atacantes': [],
+                'outros': []
+            },
+            'auditoria_posicoes': {
+                'metodos_classificacao': {},
+                'criterio': 'Sem escalações digitalizadas pré-2023'
+            },
+            'cobertura': {
+                'escalacoes_digitalizadas': False,
+                'ano_inicio_escalacoes': 2023,
+                'ano_fim_escalacoes': 2026,
+                'assistencias_disponiveis': False,
+                'cartoes_disponiveis': False,
+                'minutos_disponiveis': False,
+                'fonte_metricas': 'Sem súmulas digitalizadas',
+                'nota_recorte': f'Escalações detalhadas não estão digitalizadas no acervo para temporadas anteriores a 2023 ({ano_param}). O acervo registra partidas e gols dessa época, mas as súmulas digitalizadas de atletas iniciam em 2023.'
+            }
+        })
+
     where_sql = " AND ".join(where_parts)
 
     query_esc = f"""
@@ -861,40 +895,6 @@ def get_clube_elenco(clube_id):
         WHERE {where_sql}
     """
     rows_esc = c.execute(query_esc, params).fetchall()
-
-    if not rows_esc and ano_param.isdigit():
-        query_ano_alt = f"""
-            SELECT p.ano, COUNT(*) as qtd
-            FROM escalacoes e
-            JOIN partidas p ON e.id_partida = p.id_partida
-            WHERE LOWER(e.clube) IN ({','.join('?' for _ in strings_busca)})
-              AND p.ano IS NOT NULL
-            GROUP BY p.ano
-            ORDER BY p.ano DESC
-            LIMIT 1
-        """
-        row_alt = c.execute(query_ano_alt, list(strings_busca)).fetchone()
-        if row_alt:
-            ano_alt = row_alt['ano']
-            params_alt = list(strings_busca) + [ano_alt]
-            query_esc_alt = f"""
-                SELECT 
-                    e.atleta,
-                    e.id_jogador,
-                    e.posicao as esc_posicao,
-                    e.is_goleiro,
-                    e.num_camisa,
-                    e.titular,
-                    e.is_capitao,
-                    j.posicao as jog_posicao,
-                    j.apelido as jog_apelido
-                FROM escalacoes e
-                JOIN partidas p ON e.id_partida = p.id_partida
-                LEFT JOIN jogadores j ON e.id_jogador = j.id_jogador
-                WHERE LOWER(e.clube) IN ({','.join('?' for _ in strings_busca)}) AND p.ano = ?
-            """
-            rows_esc = c.execute(query_esc_alt, params_alt).fetchall()
-            ano_param = str(ano_alt)
 
     # 1. Gols marcados no recorte pelo clube (agrupados por atleta pelo nome, evitando ID cruzado)
     where_gols = [f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})"]

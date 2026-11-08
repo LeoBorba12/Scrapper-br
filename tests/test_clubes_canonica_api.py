@@ -338,3 +338,15 @@ def test_partidas_santos_0x0_distintas_com_fase(client):
     # Conferir presença de fase
     for j in santos_jogos:
         assert j['fase'] is not None
+
+
+def test_elenco_temporada_pre_2023_sem_escalacao_ficticia(client):
+    """Valida que temporadas anteriores a 2023 retornam 0 atletas e aviso explícito de não digitalizado."""
+    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=1993')
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['total_atletas'] == 0
+    assert data['cobertura']['escalacoes_digitalizadas'] is False
+    assert 'não estão digitalizadas' in data['cobertura']['nota_recorte']
+    for setor, lista in data['setores'].items():
+        assert len(lista) == 0

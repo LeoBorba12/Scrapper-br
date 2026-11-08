@@ -1187,8 +1187,8 @@ export default function ClubDetailView({
                 <span title="Posição confirmada diretamente na súmula tática do ano e competição selecionados" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.12)', color: '#15803D', border: '1px solid rgba(34, 197, 94, 0.25)' }}>
                   ● Confirmada no recorte: súmula com setor tático explícito no ano
                 </span>
-                <span title="Moda estatística de partidas como titular na carreira no acervo de escalações" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#1D4ED8', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
-                  ● Predominante no acervo: função mais frequente como titular na carreira (quando a edição atual usa rótulo genérico 'Titular'/'Substitute')
+                <span title="Moda estatística de partidas como titular na carreira restrita ao intervalo 2023–2026" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#1D4ED8', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                  ● Predominante no acervo (2023–2026): função mais frequente como titular na carreira dentro do acervo digitalizado (quando a edição atual usa rótulo genérico 'Titular'/'Substitute')
                 </span>
                 <span title="Ausência de codificação tática suficiente na súmula" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(156, 163, 175, 0.15)', color: 'var(--text-muted)', border: '1px solid rgba(156, 163, 175, 0.25)' }}>
                   ● Posição a confirmar: sem detalhamento funcional na súmula
@@ -1210,7 +1210,35 @@ export default function ClubDetailView({
             </div>
           )}
 
-          {!elencoLoading && elencoData && (
+          {!elencoLoading && elencoData && (elencoData.cobertura?.escalacoes_digitalizadas === false || parseInt(ano, 10) < 2023 || elencoData.total_atletas === 0) && (
+            <div
+              className="editorial-panel"
+              style={{
+                padding: '36px 24px',
+                textAlign: 'center',
+                backgroundColor: 'var(--surface-card)',
+                borderRadius: 'var(--radius-card)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '12px'
+              }}
+            >
+              <div style={{ fontSize: '2rem' }}>📜</div>
+              <h4 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                Escalações detalhadas não digitalizadas para {ano}
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)', maxWidth: '640px', lineHeight: 1.5 }}>
+                {elencoData.cobertura?.nota_recorte || `O acervo histórico do FutStats preserva fichas de partidas e gols desse período, porém as súmulas digitalizadas com listas individualizadas de atletas e escalações iniciam na temporada de 2023 (cobrindo o intervalo 2023–2026).`}
+              </p>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', backgroundColor: 'var(--surface-raised)', padding: '6px 14px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                O elenco deste período não é preenchido com dados anacrônicos ou classificações fictícias.
+              </div>
+            </div>
+          )}
+
+          {!elencoLoading && elencoData && elencoData.total_atletas > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {['goleiros', 'defensores', 'meio_campistas', 'atacantes', 'outros']
                 .filter(s => setorFiltro === 'todos' || setorFiltro === s)
