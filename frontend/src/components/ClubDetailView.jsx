@@ -719,7 +719,7 @@ export default function ClubDetailView({
                             {j.mando === 'casa' ? `vs ${j.adversario_nome}` : `@ ${j.adversario_nome}`}
                           </div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            {j.data} • {j.campeonato}
+                            {j.data} • {j.campeonato} {j.fase ? `• ${j.fase}` : (j.rodada ? `• ${j.rodada}` : '')}
                           </div>
                         </div>
                       </div>
@@ -1291,6 +1291,11 @@ export default function ClubDetailView({
                                     )}
                                     {a.id_jogador && <ExternalLink size={11} color="var(--accent)" />}
                                   </div>
+                                  {a.nota_participacao && (
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                      {a.nota_participacao}
+                                    </div>
+                                  )}
                                 </td>
                                 <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
                                   {a.posicao}
@@ -1690,8 +1695,9 @@ export default function ClubDetailView({
                       Súmulas Digitais (1959–2026)
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                    Gols computados lance a lance nas partidas oficiais registradas no banco de dados.
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '14px', backgroundColor: 'var(--surface-raised)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                    <div><strong>Origem:</strong> Tabela <code>gols</code> (JOIN <code>partidas</code>) • <strong>Lance a Lance:</strong> Sim</div>
+                    <div><strong>Cobertura:</strong> {historicoData?.metadados_artilheiros_acervo?.cobertura_temporal || '1959–2026'} • <strong>Método:</strong> Digitalização de súmulas oficiais</div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1764,8 +1770,9 @@ export default function ClubDetailView({
                       Enciclopédia Oficial do Clube
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                    Totais consolidados de carreira (oficiais e amistosos de época).
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '14px', backgroundColor: 'var(--surface-raised)', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
+                    <div><strong>Origem:</strong> Tabela <code>clubes_perfil</code> (campo <code>idolos_historicos_json</code>) • <strong>Lance a Lance:</strong> Não</div>
+                    <div><strong>Tipo:</strong> Estatística de carreira catalogada (Enciclopédia Oficial do Clube)</div>
                   </div>
 
                   {historicoData.idolos_historicos?.length === 0 ? (

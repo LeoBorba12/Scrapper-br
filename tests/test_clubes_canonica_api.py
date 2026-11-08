@@ -199,78 +199,141 @@ def test_clube_historico_titulos_artilheiros(client):
 
 
 def test_clube_elenco_resolucao_posicoes_e_marcelo_lomba(client):
-    """Valida resolução tática em 4 passos: Marcelo Lomba e Carlos Miguel são goleiros, sem gols colididos."""
+    """Valida resolução tática em 5 métodos auditáveis: Marcelo Lomba e Carlos Miguel são goleiros, sem gols colididos."""
     resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
     assert resp.status_code == 200
     data = resp.get_json()
-    
+
     goleiros = [a['atleta'] for a in data['setores']['goleiros']]
     assert 'Marcelo Lomba' in goleiros, 'Marcelo Lomba deve estar no setor de goleiros!'
     assert 'Carlos Miguel' in goleiros, 'Carlos Miguel deve estar no setor de goleiros!'
-    
+
     lomba = next(a for a in data['setores']['goleiros'] if a['atleta'] == 'Marcelo Lomba')
     assert lomba['posicao'] == 'Goleiro'
     assert lomba['gols'] == 0, 'Marcelo Lomba não pode herdar gols de ID cruzado (Adaílton)!'
-    
+    assert lomba['metodo_posicao'] in ('posicao_do_recorte', 'predominante_em_escalacoes')
+    assert lomba['nota_participacao'] is not None
+
     atacantes = [a['atleta'] for a in data['setores']['atacantes']]
     assert 'Marcelo Lomba' not in atacantes, 'Goleiro jamais pode cair em atacantes!'
     assert 'Carlos Miguel' not in atacantes
 
 
-def test_clube_elenco_semantica_jogos_e_relacionados(client):
-    """Valida semântica de elenco: banco não conta como jogo atuado; coberturas nulas viram None."""
+def test_invariante_matematica_titulares_menor_igual_jogos(client):
+    """
+    Invariantes obrigatórias em 100% dos atletas:
+    1. titulares <= jogos_disputados
+    2. jogos_disputados = titulares + substituto_entrou
+    3. relacionado sem atuar (reservas) permanece estritamente separado
+    """
     resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
     assert resp.status_code == 200
     data = resp.get_json()
-    
-    # Atleta com BED que só entrou vindo do banco (Larson)
-    outros = {a['atleta']: a for a in data['setores']['outros']}
-    assert 'Larson' in outros
-    larson = outros['Larson']
-    assert larson['posicao'] == 'Posição a Confirmar'
-    assert larson['titularidades'] == 0
-    assert larson['reservas'] == 40
-    assert larson['substituto_entrou'] == 8
-    assert larson['jogos_disputados'] == 8
-    
-    # Atleta sem minutos nem titularidades (Erick Machado)
-    assert 'Erick Machado' in outros
-    erick = outros['Erick Machado']
-    assert erick['titularidades'] == 0
-    assert erick['jogos_disputados'] == 0
-    assert erick['reservas'] > 0
+
+    todos_atletas = []
+    for s in data['setores'].values():
+        todos_atletas.extend(s)
+
+    assert len(todos_atletas) == 43, f"Esperado 43 atletas, encontrado {len(todos_atletas)}"
+
+    for a in todos_atletas:
+        tit = a['titularidades']
+        sub = a['substituto_entrou'] or 0
+        disp = a['jogos_disputados']
+        banco = a['reservas']
+
+        # Invariante 1
+        assert tit <= disp, f"Incoerência no atleta {a['atleta']}: tit={tit} > disp={disp}"
+        # Invariante 2
+        assert disp == tit + sub, f"Incoerência na soma de {a['atleta']}: disp={disp} != {tit} + {sub}"
+        # Invariante 3
+        assert banco >= 0
+
+    # Testes específicos para os 4 atletas auditados
+    at_map = {a['atleta']: a for a in todos_atletas}
+
+    carlos = at_map['Carlos Miguel']
+    assert carlos['titularidades'] == 44
+    assert carlos['jogos_disputados'] == 44
+    assert carlos['reservas'] == 0
+
+    andreas = at_map['Andreas Pereira']
+    assert andreas['titularidades'] == 41
+    assert andreas['jogos_disputados'] == 41
+    assert andreas['reservas'] == 0
+
+    gomez = at_map['Gustavo Gómez']
+    assert gomez['titularidades'] == 39
+    assert gomez['jogos_disputados'] == 39
+    assert gomez['reservas'] == 2
+
+    lomba = at_map['Marcelo Lomba']
+    assert lomba['titularidades'] == 1
+    assert lomba['jogos_disputados'] == 1
+    assert lomba['reservas'] == 44
+    assert "1 partida como titular, 44 no banco" in lomba['nota_participacao']
 
 
-def test_clube_historico_escopos_gols_ademir_e_marcos(client):
-    """Valida explicitação de escopos e reconciliação honesta de Ademir da Guia e Marcos."""
+def test_auditoria_5_metodos_posicoes(client):
+    """Valida que gols não confirmam posição e contagem por método é transparente."""
+    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
+    assert resp.status_code == 200
+    data = resp.get_json()
+
+    assert 'auditoria_posicoes' in data
+    metodos = data['auditoria_posicoes']['metodos_classificacao']
+    assert metodos['posicao_do_recorte'] == 25
+    assert metodos['predominante_em_escalacoes'] == 6
+    assert metodos['cadastro_validado'] == 1
+    assert metodos['posicao_a_confirmar'] == 11
+
+
+def test_clube_historico_escopos_gols_verificaveis(client):
+    """Valida metadados verificáveis de escopo (tabela_origem, lance a lance, Ademir e Marcos)."""
     resp = client.get('/api/clubes/detalhe/2459/historico')
     assert resp.status_code == 200
     data = resp.get_json()
-    
-    assert 'escopo_artilheiros' in data
-    assert 'acervo' in data['escopo_artilheiros']['rotulo'].lower()
-    
-    assert 'escopo_idolos' in data
-    assert 'enciclopédia' in data['escopo_idolos']['rotulo'].lower()
-    assert 'nota_reconciliacao' in data['escopo_idolos']
-    
-    # Marcos (goleiro) não pode ficar sem gols
+
+    # Acervo Oficial
+    assert 'metadados_artilheiros_acervo' in data
+    meta_acervo = data['metadados_artilheiros_acervo']
+    assert meta_acervo['tabela_origem'] == 'gols (JOIN partidas)'
+    assert meta_acervo['tem_lance_a_lance'] is True
+
+    # Estatística de Carreira Catalogada
+    assert 'metadados_idolos_carreira' in data
+    meta_idolos = data['metadados_idolos_carreira']
+    assert meta_idolos['tabela_origem'] == 'clubes_perfil'
+    assert meta_idolos['tem_lance_a_lance'] is False
+    assert 'Enciclopédia Oficial' in meta_idolos['rotulo_escopo']
+
+    # Marcos
     marcos = next(i for i in data['idolos_historicos'] if i['nome'] == 'Marcos')
     assert marcos['posicao'] == 'Goleiro'
     assert marcos['gols'] == 0
     assert marcos['jogos'] == 533
 
+    # Ademir da Guia
+    ademir_acervo = next(a for a in data['maiores_artilheiros'] if a['atleta'] == 'Ademir da Guia')
+    assert ademir_acervo['total_gols'] == 107
+    ademir_carreira = next(i for i in data['idolos_historicos'] if i['nome'] == 'Ademir da Guia')
+    assert ademir_carreira['gols'] == 155
 
-def test_partida_santos_0x0_palmeiras_consistencia(client):
-    """Valida que Santos 0x0 Palmeiras em 2026 é um jogo legítimo e consistente."""
-    resp = client.get('/api/clubes/detalhe/2459/jogos?ano=2026&limit=10')
+
+def test_partidas_santos_0x0_distintas_com_fase(client):
+    """Valida que os dois Santos 0x0 de 2026 permanecem distintos e exibem fase e competição."""
+    resp = client.get('/api/clubes/detalhe/2459/jogos?ano=2026&limit=20')
     assert resp.status_code == 200
     data = resp.get_json()
     jogos = data['jogos']
-    
-    # O jogo mais recente disputado em 2026 foi Santos 0x0 Palmeiras em 28/10/2026
-    jogo_santos = next((j for j in jogos if j['id_partida'] == 202532949), None)
-    assert jogo_santos is not None
-    assert jogo_santos['data'] == '2026-10-28'
-    assert jogo_santos['placar'] == '0 x 0'
-    assert jogo_santos['status_conflito'] is None
+
+    santos_jogos = [j for j in jogos if 'santos' in j['adversario_nome'].lower() and j['placar'] == '0 x 0']
+    assert len(santos_jogos) == 2, f"Esperado 2 empates 0x0 contra o Santos em 2026, encontrado {len(santos_jogos)}"
+
+    ids = {j['id_partida'] for j in santos_jogos}
+    assert 202532949 in ids  # Brasileirão Série A
+    assert 202425567 in ids  # Copa do Brasil
+
+    # Conferir presença de fase
+    for j in santos_jogos:
+        assert j['fase'] is not None
