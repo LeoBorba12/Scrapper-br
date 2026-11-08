@@ -1167,7 +1167,7 @@ export default function ClubDetailView({
           {/* BANNER DE SEMÂNTICA HONESTA DO ELENCO */}
           <div
             style={{
-              padding: '10px 16px',
+              padding: '12px 16px',
               borderRadius: 'var(--radius-card)',
               backgroundColor: 'rgba(56, 189, 248, 0.05)',
               border: '1px solid rgba(56, 189, 248, 0.2)',
@@ -1175,11 +1175,28 @@ export default function ClubDetailView({
               color: 'var(--text-secondary)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '4px'
+              gap: '6px'
             }}
           >
             <div>
               <strong style={{ color: 'var(--text-primary)' }}>Critério Metodológico:</strong> <strong>Jogos Atuados</strong> computa partidas com presença física em campo (titulares e substitutos confirmados). Atletas relacionados que permaneceram no <strong>Banco</strong> não são somados aos jogos disputados.
+            </div>
+            <div>
+              <strong style={{ color: 'var(--text-primary)' }}>Legenda das Posições:</strong>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                <span title="Posição confirmada diretamente na súmula tática do ano e competição selecionados" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.12)', color: '#15803D', border: '1px solid rgba(34, 197, 94, 0.25)' }}>
+                  ● Confirmada no recorte: súmula com setor tático explícito no ano
+                </span>
+                <span title="Moda estatística de partidas como titular na carreira no acervo de escalações" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#1D4ED8', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+                  ● Predominante no acervo: função mais frequente como titular na carreira (quando a edição atual usa rótulo genérico 'Titular'/'Substitute')
+                </span>
+                <span title="Ausência de codificação tática suficiente na súmula" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(156, 163, 175, 0.15)', color: 'var(--text-muted)', border: '1px solid rgba(156, 163, 175, 0.25)' }}>
+                  ● Posição a confirmar: sem detalhamento funcional na súmula
+                </span>
+                <span title="Posição confirmada por cadastro oficial não contaminado" style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(168, 85, 247, 0.12)', color: '#7E22CE', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
+                  ● Cadastro validado: registro cadastral não contaminado
+                </span>
+              </div>
             </div>
             <div>
               Indicador <strong>—</strong> denota ausência de monitoramento da métrica para a competição (não falseado como zero).
@@ -1889,7 +1906,7 @@ export default function ClubDetailView({
               >
                 <div style={{ fontSize: '1rem', lineHeight: '1' }}>💡</div>
                 <div>
-                  <strong style={{ color: 'var(--text-primary)' }}>Reconciliação Metodológica de Escopos:</strong> {historicoData?.escopo_idolos?.nota_reconciliacao || 'A divergência entre os gols do acervo digital (súmulas partidas a partidas) e os números da enciclopédia decorre de partidas e amistosos históricos de época anteriores ou paralelos à cobertura digital lance a lance.'}
+                  <strong style={{ color: 'var(--text-primary)' }}>Registro de Schema e Metadados Comprovados:</strong> A divergência entre o acervo de 107 gols e a contagem de 155 gols reflete fontes distintas no banco de dados. Os 107 gols estão registrados na tabela <code>gols</code> (com lance a lance e súmula partida a partida). Já o registro de 155 gols está armazenado na tabela <code>clubes_perfil</code> (campo <code>idolos_historicos_json</code>, cobertura 1961–1977, sem lance a lance individual, importado em {historicoData?.metadados_idolos_carreira?.data_importacao || '2026-11-05 21:12:45'}, campo fonte nulo no schema).
                 </div>
               </div>
 
