@@ -9,6 +9,7 @@ Endpoints RESTful para listagem geral de clubes e perfil individual canônico.
 
 import sqlite3
 import os
+from collections import Counter
 from flask import Blueprint, request, jsonify
 
 rotas_clubes_canonica_bp = Blueprint('rotas_clubes_canonica', __name__)
@@ -246,6 +247,52 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
 
 
 
+def _nomes_estritamente_compativeis(nome_consulta, nome_registro):
+    """
+    Valida compatibilidade estrita de nomes para evitar contaminações:
+    - Exige igualdade exata de tokens na mesma ordem (insensível a maiúsculas e espaços).
+    - Não aceita nomes compostos diferentes sem evidência explícita (sem issubset).
+    - Não trata reordenação de tokens como igualdade (ex: 'José Carlos' vs 'Carlos José' é False).
+    - Nomes isolados (ex: 'Fabiano') nunca casam com nomes compostos com elipse.
+    - Elipses da súmula (ex: '...') exigem sequência contígua exata na mesma ordem.
+    - Para abreviações não comprovadas, não assume compatibilidade nominal como prova de identidade.
+    """
+    if not nome_consulta or not nome_registro:
+        return False
+    n1 = " ".join(nome_consulta.strip().lower().split())
+    n2 = " ".join(nome_registro.strip().lower().split())
+    if n1 == n2:
+        return True
+
+    # Sem elipse explícita, rejeita qualquer diferença de palavras ou ordem
+    tem_elipse = ("..." in n1 or "..." in n2 or ".." in n1 or ".." in n2)
+    if not tem_elipse:
+        return False
+
+    tokens1 = [t for t in n1.split() if t not in ("...", "..", ".")]
+    tokens2 = [t for t in n2.split() if t not in ("...", "..", ".")]
+
+    if not tokens1 or not tokens2:
+        return False
+
+    # Nomes simples isolados de um token nunca casam com registros compostos com elipse
+    if len(tokens1) <= 1 or len(tokens2) <= 1:
+        return False
+
+    # Verifica se a sequência de tokens menores aparece contígua e na ordem exata na sequência maior
+    if len(tokens1) <= len(tokens2):
+        menor, maior = tokens1, tokens2
+    else:
+        menor, maior = tokens2, tokens1
+
+    len_m = len(menor)
+    for i in range(len(maior) - len_m + 1):
+        if maior[i:i + len_m] == menor:
+            return True
+
+    return False
+
+
 def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_busca, ano_int=None):
     """
     Regra pericial revisada de prioridade tática (auditoria de 5 métodos):
@@ -265,77 +312,166 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
     # 1. Evidência direta na súmula do recorte
     where_rec = [f"LOWER(e.clube) IN ({','.join('?' for _ in strings_busca)})"]
     params_rec = list(strings_busca)
-    where_rec.append("e.atleta = ?")
-    params_rec.append(atleta_nome)
+    if id_jogador and id_jogador > 0:
+        where_rec.append("(e.id_jogador = ? OR LOWER(TRIM(e.atleta)) = LOWER(TRIM(?)))")
+        params_rec.extend([id_jogador, atleta_nome])
+    else:
+        where_rec.append("LOWER(TRIM(e.atleta)) = LOWER(TRIM(?))")
+        params_rec.append(atleta_nome)
     if ano_int:
         where_rec.append("p.ano = ?")
         params_rec.append(ano_int)
 
     q1 = f"""
-        SELECT e.posicao, e.is_goleiro, e.titular
+        SELECT e.posicao, e.is_goleiro, e.titular, e.atleta, e.id_jogador
         FROM escalacoes e
         JOIN partidas p ON e.id_partida = p.id_partida
         WHERE {" AND ".join(where_rec)}
     """
     rows1 = c.execute(q1, params_rec).fetchall()
 
-    if any(r['is_goleiro'] == 1 for r in rows1) or any(
+    rows1_validas = []
+    for r in rows1:
+        if id_jogador and r['id_jogador'] and r['id_jogador'] != id_jogador:
+            continue
+        if not _nomes_estritamente_compativeis(atleta_nome, r['atleta']):
+            continue
+        rows1_validas.append(r)
+
+    if any(r['is_goleiro'] == 1 for r in rows1_validas) or any(
         r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])
-        for r in rows1
+        for r in rows1_validas
     ):
         return 'goleiros', 'Goleiro', 'posicao_do_recorte'
 
-    pos_tit = [r['posicao'] for r in rows1 if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
+    pos_tit = [r['posicao'] for r in rows1_validas if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
     if pos_tit:
-        cand = max(set(pos_tit), key=pos_tit.count)
-        p_low = cand.lower()
-        if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
-            label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
-            return 'defensores', label, 'posicao_do_recorte'
-        elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
-            label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
-            return 'meio_campistas', label, 'posicao_do_recorte'
-        elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
-            label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
-            return 'atacantes', label, 'posicao_do_recorte'
+        cont_rec = Counter(pos_tit)
+        mc_rec = cont_rec.most_common()
+        if len(mc_rec) > 1 and mc_rec[0][1] == mc_rec[1][1]:
+            # Empate no recorte: sem predominância única, não escolhe arbitrariamente
+            pass
+        else:
+            cand = mc_rec[0][0]
+            p_low = cand.lower()
+            if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
+                label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
+                return 'defensores', label, 'posicao_do_recorte'
+            elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
+                label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
+                return 'meio_campistas', label, 'posicao_do_recorte'
+            elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
+                label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
+                return 'atacantes', label, 'posicao_do_recorte'
 
     # 2. Posição predominante em escalações confiáveis na carreira (acervo 2023-2026)
-    q2 = """
-        SELECT e.posicao, e.is_goleiro, e.titular 
+    # Regras de auditoria:
+    # - Jamais busca parcial LIKE.
+    # - Rejeita homônimos exatos com IDs distintos (r['id_jogador'] != id_jogador).
+    # - Rejeita ID compartilhado com nome conflitante (ex: Kaique vs Kaique Kenji).
+    # - Exige volume mínimo de 3 titularidades auditáveis para inferência confiável na carreira.
+    where_q2 = ["p.ano BETWEEN 2023 AND 2026"]
+    params_q2 = []
+    if id_jogador and id_jogador > 0:
+        where_q2.append("(e.id_jogador = ? OR LOWER(TRIM(e.atleta)) = LOWER(TRIM(?)))")
+        params_q2.extend([id_jogador, atleta_nome])
+    else:
+        where_q2.append("LOWER(TRIM(e.atleta)) = LOWER(TRIM(?))")
+        params_q2.append(atleta_nome)
+
+    q2 = f"""
+        SELECT e.posicao, e.is_goleiro, e.titular, e.atleta, e.id_jogador, e.clube 
         FROM escalacoes e 
         JOIN partidas p ON e.id_partida = p.id_partida
-        WHERE (e.atleta = ? OR (LOWER(e.atleta) LIKE ? AND e.is_goleiro = 1))
-          AND p.ano BETWEEN 2023 AND 2026
+        WHERE {" AND ".join(where_q2)}
     """
-    rows2 = c.execute(q2, (atleta_nome, f"%{atleta_nome.lower()}%")).fetchall()
+    rows2 = c.execute(q2, params_q2).fetchall()
 
-    if any(r['is_goleiro'] == 1 for r in rows2) or any(
-        r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])
-        for r in rows2
-    ):
-        return 'goleiros', 'Goleiro', 'predominante_em_escalacoes'
+    rows2_validas = []
+    for r in rows2:
+        if id_jogador and r['id_jogador'] and r['id_jogador'] != id_jogador:
+            continue
+        if not _nomes_estritamente_compativeis(atleta_nome, r['atleta']):
+            continue
+        rows2_validas.append(r)
 
-    pos_hist_tit = [r['posicao'] for r in rows2 if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
-    if pos_hist_tit:
-        cand = max(set(pos_hist_tit), key=pos_hist_tit.count)
-        p_low = cand.lower()
-        if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
-            label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
-            return 'defensores', label, 'predominante_em_escalacoes'
-        elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
-            label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
-            return 'meio_campistas', label, 'predominante_em_escalacoes'
-        elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
-            label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
-            return 'atacantes', label, 'predominante_em_escalacoes'
+    # Construção de posições históricas a partir de titularidades auditáveis (inclusive goleiros)
+    pos_hist_tit = []
+    for r in rows2_validas:
+        if r['titular'] != 1:
+            continue
+        if r['is_goleiro'] == 1 or (r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])):
+            pos_hist_tit.append('Goleiro')
+        elif r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador'):
+            pos_hist_tit.append(r['posicao'])
+
+    if len(pos_hist_tit) >= 3:
+        cont_hist = Counter(pos_hist_tit)
+        mc_hist = cont_hist.most_common()
+        if len(mc_hist) > 1 and mc_hist[0][1] == mc_hist[1][1]:
+            # Empate nas posições históricas: sem predominância única, não escolhe arbitrariamente
+            pass
+        else:
+            cand = mc_hist[0][0]
+            p_low = cand.lower()
+            if any(k in p_low for k in ['goalkeeper', 'goleir']):
+                return 'goleiros', 'Goleiro', 'predominante_em_escalacoes'
+            elif any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
+                label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
+                return 'defensores', label, 'predominante_em_escalacoes'
+            elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
+                label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
+                return 'meio_campistas', label, 'predominante_em_escalacoes'
+            elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
+                label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
+                return 'atacantes', label, 'predominante_em_escalacoes'
 
     # 3. Cadastro validado específico em jogadores (sanitizado: rejeita Atacante genérico)
-    row_cad = c.execute("""
-        SELECT posicao 
-        FROM jogadores 
-        WHERE nome_exibicao = ? OR apelido = ? OR nome_completo = ?
-        LIMIT 1
-    """, (atleta_nome, atleta_nome, atleta_nome)).fetchone()
+    # Regras de auditoria:
+    # - Não resolve com OR por ID/nome e LIMIT 1.
+    # - Retorna os campos completos para validar o candidato (id_jogador, nome_exibicao, apelido, nome_completo, posicao).
+    # - Rejeita conflito (ex: ID aponta para atleta com nome diferente) e ambiguidade (múltiplos candidatos divergentes).
+    # - Se id_jogador fornecido colidir com cadastro divergente, não permite fallback para identidade incompatível.
+    row_cad = None
+    if id_jogador and id_jogador > 0:
+        cands_cad = c.execute("""
+            SELECT id_jogador, nome_exibicao, apelido, nome_completo, posicao 
+            FROM jogadores 
+            WHERE id_jogador = ?
+        """, [id_jogador]).fetchall()
+
+        if cands_cad:
+            cand = cands_cad[0]
+            compativel = any(
+                _nomes_estritamente_compativeis(atleta_nome, cand[col])
+                for col in ('nome_exibicao', 'apelido', 'nome_completo')
+                if cand[col]
+            )
+            if compativel:
+                row_cad = cand
+    else:
+        cands_cad = c.execute("""
+            SELECT id_jogador, nome_exibicao, apelido, nome_completo, posicao 
+            FROM jogadores 
+            WHERE LOWER(TRIM(nome_exibicao)) = LOWER(TRIM(?))
+               OR LOWER(TRIM(apelido)) = LOWER(TRIM(?))
+               OR LOWER(TRIM(nome_completo)) = LOWER(TRIM(?))
+        """, [atleta_nome, atleta_nome, atleta_nome]).fetchall()
+
+        cands_validos = [
+            cand for cand in cands_cad
+            if any(
+                _nomes_estritamente_compativeis(atleta_nome, cand[col])
+                for col in ('nome_exibicao', 'apelido', 'nome_completo')
+                if cand[col]
+            )
+        ]
+
+        if len(cands_validos) == 1:
+            row_cad = cands_validos[0]
+        # Se len(cands_validos) > 1: permanece inconclusivo no Método 3.
+        # Proibida a aceitação de múltiplos candidatos por mera coincidência de posição.
+        # O desempate ou classificação só pode ocorrer pelo Método 4 via evidência independente válida.
 
     if row_cad and row_cad['posicao']:
         p_cad = row_cad['posicao'].strip()
@@ -350,24 +486,63 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
             return 'atacantes', p_cad, 'cadastro_validado'
 
     # 4. Nome com evidência complementar (clube + período)
+    # Regras de auditoria:
+    # - Aplica os mesmos critérios estritos de identidade (rejeita r['id_jogador'] != id_jogador).
+    # - Rejeita homônimos no mesmo clube com IDs distintos.
+    # - Não seleciona posição arbitrária por LIMIT 1 (avalia predominância única via Counter e rejeita empate).
+    # - Sem evidência válida ou em caso de empate, mantém 'Posição a Confirmar'.
     seq = ','.join('?' for _ in strings_busca)
+    where_q4 = [
+        f"LOWER(e.clube) IN ({seq})",
+        "e.posicao IS NOT NULL",
+        "e.posicao NOT IN ('Substitute', 'Titular', 'Reserva', 'Jogador')"
+    ]
+    params_q4 = list(strings_busca)
+    if id_jogador and id_jogador > 0:
+        where_q4.append("(e.id_jogador = ? OR LOWER(TRIM(e.atleta)) = LOWER(TRIM(?)))")
+        params_q4.extend([id_jogador, atleta_nome])
+    else:
+        where_q4.append("LOWER(TRIM(e.atleta)) = LOWER(TRIM(?))")
+        params_q4.append(atleta_nome)
+
     q4 = f"""
-        SELECT e.posicao 
+        SELECT e.posicao, e.is_goleiro, e.titular, e.atleta, e.id_jogador, e.clube 
         FROM escalacoes e 
         JOIN partidas p ON e.id_partida = p.id_partida 
-        WHERE e.atleta = ? AND LOWER(e.clube) IN ({seq})
-          AND e.posicao IS NOT NULL AND e.posicao NOT IN ('Substitute', 'Titular', 'Reserva', 'Jogador')
-        LIMIT 1
+        WHERE {" AND ".join(where_q4)}
     """
-    row4 = c.execute(q4, [atleta_nome] + list(strings_busca)).fetchone()
-    if row4:
-        p_low = row4['posicao'].lower()
-        if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor']):
-            return 'defensores', 'Defensor', 'nome_com_evidencia_complementar'
-        elif any(k in p_low for k in ['volante', 'meia', 'meio']):
-            return 'meio_campistas', 'Meio-campo', 'nome_com_evidencia_complementar'
-        elif any(k in p_low for k in ['atac', 'centro', 'ponta', 'forward']):
-            return 'atacantes', 'Atacante', 'nome_com_evidencia_complementar'
+    rows4 = c.execute(q4, params_q4).fetchall()
+
+    rows4_validas = []
+    for r in rows4:
+        if id_jogador and r['id_jogador'] and r['id_jogador'] != id_jogador:
+            # Rejeita homônimo no mesmo clube com ID distinto
+            continue
+        if not _nomes_estritamente_compativeis(atleta_nome, r['atleta']):
+            continue
+        rows4_validas.append(r)
+
+    pos4 = [r['posicao'] for r in rows4_validas if r['posicao']]
+    if pos4:
+        cont4 = Counter(pos4)
+        mc4 = cont4.most_common()
+        if len(mc4) > 1 and mc4[0][1] == mc4[1][1]:
+            # Empate: sem predominância única, não escolhe arbitrariamente
+            pass
+        else:
+            cand = mc4[0][0]
+            p_low = cand.lower()
+            if any(k in p_low for k in ['goalkeeper', 'goleir']):
+                return 'goleiros', 'Goleiro', 'nome_com_evidencia_complementar'
+            elif any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
+                label = 'Zagueiro' if any(k in p_low for k in ['zag', 'center', 'sweeper']) else ('Lateral' if any(k in p_low for k in ['lat', 'left back', 'right back']) else 'Defensor')
+                return 'defensores', label, 'nome_com_evidencia_complementar'
+            elif any(k in p_low for k in ['volante', 'meia', 'meio', 'midfield', 'armador']):
+                label = 'Volante' if any(k in p_low for k in ['volante', 'defensive']) else 'Meio-campo'
+                return 'meio_campistas', label, 'nome_com_evidencia_complementar'
+            elif any(k in p_low for k in ['atac', 'centroavante', 'ponta', 'forward', 'striker', 'winger']):
+                label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
+                return 'atacantes', label, 'nome_com_evidencia_complementar'
 
     # 5. Posição a confirmar (para qualquer ambiguidade ou ausência de função tática)
     return 'outros', 'Posição a Confirmar', 'posicao_a_confirmar'
@@ -705,6 +880,7 @@ def get_clube_detalhe(clube_id):
         JOIN partidas p ON g.id_partida = p.id_partida
         WHERE LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})
           AND p.ano = ?
+          AND (g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')
         GROUP BY g.atleta
         ORDER BY total_gols DESC
         LIMIT 5
@@ -896,8 +1072,11 @@ def get_clube_elenco(clube_id):
     """
     rows_esc = c.execute(query_esc, params).fetchall()
 
-    # 1. Gols marcados no recorte pelo clube (agrupados por atleta pelo nome, evitando ID cruzado)
-    where_gols = [f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})"]
+    # 1. Gols marcados no recorte pelo clube (agrupados por atleta pelo nome, separando gols contra)
+    where_gols = [
+        f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})",
+        "(g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')"
+    ]
     params_gols = list(strings_busca)
     if ano_param.isdigit():
         where_gols.append("p.ano = ?")
@@ -915,6 +1094,28 @@ def get_clube_elenco(clube_id):
     """
     rows_gols = c.execute(query_gols, params_gols).fetchall()
     gols_map = {r['atleta'].strip().lower(): r['total_gols'] for r in rows_gols}
+
+    # 1.1 Gols contra recebidos a favor do clube no recorte (separados dos gols individuais de atletas)
+    where_gc = [
+        f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})",
+        "LOWER(g.tipo_de_gol) = 'contra'"
+    ]
+    params_gc = list(strings_busca)
+    if ano_param.isdigit():
+        where_gc.append("p.ano = ?")
+        params_gc.append(int(ano_param))
+    if campeonato:
+        where_gc.append("p.campeonato = ?")
+        params_gc.append(campeonato)
+
+    query_gc = f"""
+        SELECT COUNT(*) as total_gc
+        FROM gols g
+        JOIN partidas p ON g.id_partida = p.id_partida
+        WHERE {" AND ".join(where_gc)}
+    """
+    row_gc = c.execute(query_gc, params_gc).fetchone()
+    gols_contra_a_favor = row_gc['total_gc'] if row_gc else 0
 
     # 2. Assistências brutas
     where_ast = [f"LOWER(a.clube) IN ({','.join('?' for _ in strings_busca)})"]
@@ -1130,11 +1331,12 @@ def get_clube_elenco(clube_id):
             'criterio': 'Gols não confirmam posição; prevalência estrita de súmula e função tática'
         },
         'cobertura': {
+            'gols_contra_a_favor': gols_contra_a_favor,
             'assistencias_disponiveis': tem_cobertura_bed or len(ast_map) > 0,
             'cartoes_disponiveis': tem_cobertura_bed or len(amarelos_map) > 0,
             'minutos_disponiveis': tem_cobertura_bed,
             'fonte_metricas': 'BED 2026 (Série A) + Súmulas Canônicas' if tem_cobertura_bed else 'Súmulas Canônicas',
-            'nota_recorte': 'Titularidades e jogos disputados cobrem todas as partidas do recorte selecionado. Métricas de assistências e cartões detalhados são originárias do tracking da Série A.'
+            'nota_recorte': 'Titularidades e jogos disputados cobrem todas as partidas do recorte selecionado. Gols contra recebidos são contabilizados para o clube e expostos separadamente dos gols individuais.'
         }
     })
 
@@ -1184,8 +1386,8 @@ def get_clube_estatisticas(clube_id):
     gols_pro = sum(j['gols_pro'] or 0 for j in jogos_validos)
     gols_contra = sum(j['gols_contra'] or 0 for j in jogos_validos)
 
-    jogos_casa = [j for j in jogos_validos if j['mando'] == 'mandante']
-    jogos_fora = [j for j in jogos_validos if j['mando'] == 'visitante']
+    jogos_casa = [j for j in jogos_validos if j['mando'] == 'casa']
+    jogos_fora = [j for j in jogos_validos if j['mando'] == 'fora']
 
     gp_casa = sum(j['gols_pro'] or 0 for j in jogos_casa)
     gc_casa = sum(j['gols_contra'] or 0 for j in jogos_casa)
@@ -1371,6 +1573,7 @@ def get_clube_historico(clube_id):
         FROM gols g
         JOIN partidas p ON g.id_partida = p.id_partida
         WHERE LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})
+          AND (g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')
         GROUP BY g.atleta
         ORDER BY total_gols DESC
         LIMIT 10

@@ -12,8 +12,10 @@ Cobre:
 9. Consistência de filtros de recorte (ano, competição e mando)
 """
 
+import sqlite3
 import pytest
 from backend.app import app
+from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
 
 @pytest.fixture
 def client():
@@ -283,9 +285,9 @@ def test_auditoria_5_metodos_posicoes(client):
     assert 'auditoria_posicoes' in data
     metodos = data['auditoria_posicoes']['metodos_classificacao']
     assert metodos['posicao_do_recorte'] == 25
-    assert metodos['predominante_em_escalacoes'] == 6
+    assert metodos['predominante_em_escalacoes'] == 2
     assert metodos['cadastro_validado'] == 1
-    assert metodos['posicao_a_confirmar'] == 11
+    assert metodos['posicao_a_confirmar'] == 15
 
 
 def test_clube_historico_escopos_gols_verificaveis(client):
@@ -350,3 +352,610 @@ def test_elenco_temporada_pre_2023_sem_escalacao_ficticia(client):
     assert 'não estão digitalizadas' in data['cobertura']['nota_recorte']
     for setor, lista in data['setores'].items():
         assert len(lista) == 0
+
+
+def test_regressao_estatisticas_fechamento_mando_totais(client):
+    """
+    Valida que o endpoint de estatísticas cumpre estritamente o fechamento:
+    casa + fora = total para jogos, gols pró e gols contra.
+    Testado com Palmeiras #2459 (caso conhecido com 37 casa e 37 fora em 2026).
+    """
+    resp = client.get('/api/clubes/detalhe/2459/estatisticas?ano=2026')
+    assert resp.status_code == 200
+    eb = resp.get_json()['estatisticas_basicas']
+
+    mc = eb['desempenho_mando']['casa']
+    mf = eb['desempenho_mando']['fora']
+
+    assert mc['jogos'] == 37
+    assert mf['jogos'] == 37
+    assert mc['jogos'] + mf['jogos'] == eb['jogos'] == 74
+
+    assert mc['gols_pro'] == 72
+    assert mf['gols_pro'] == 52
+    assert mc['gols_pro'] + mf['gols_pro'] == eb['gols_pro'] == 124
+
+    assert mc['gols_contra'] == 21
+    assert mf['gols_contra'] == 33
+    assert mc['gols_contra'] + mf['gols_contra'] == eb['gols_contra'] == 54
+
+
+def test_regressao_gol_contra_separado_de_artilharia_individual(client):
+    """
+    Valida que:
+    1. O gol contra de Fabiano (Vitória 0x4 Palmeiras) não é computado na
+       artilharia individual do atleta Fabiano no Palmeiras (gols == 0).
+    2. O evento original permanece íntegro e compõe os gols_pro do Palmeiras.
+    3. Gols contra recebidos são expostos separadamente em cobertura.gols_contra_a_favor.
+    """
+    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
+    assert resp.status_code == 200
+    data = resp.get_json()
+
+    # Gols contra recebidos a favor
+    assert data['cobertura']['gols_contra_a_favor'] == 3
+
+    # Localizar Fabiano no elenco do Palmeiras
+    todos_atletas = []
+    for setor, lista in data['setores'].items():
+        todos_atletas.extend(lista)
+
+    fabianos = [a for a in todos_atletas if a['atleta'].strip().lower() == 'fabiano']
+    assert len(fabianos) == 1
+    fab = fabianos[0]
+
+    # Artilharia individual deve ser zero (gol contra não pertence à artilharia do atleta)
+    assert fab['gols'] == 0
+    assert fab['jogos'] == 0
+    assert fab['titularidades'] == 0
+    assert fab['reservas'] == 2
+    assert fab['nota_participacao'] == '2 partidas relacionado no banco sem entrar'
+
+
+def test_regressao_posicao_identidade_estrita_fabiano_vs_emerson_fabiano(client):
+    """
+    Valida que:
+    1. LIKE '%fabiano%' não transfere a posição de Emerson Fabiano para Fabiano.
+    2. Fabiano não está no setor de goleiros.
+    3. Emerson Fabiano resolve para goleiro por mérito próprio de súmula.
+    4. Atleta sem evidência tática suficiente cai em 'Posição a Confirmar'.
+    """
+    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
+    assert resp.status_code == 200
+    data = resp.get_json()
+
+    # Fabiano NÃO deve estar em goleiros
+    goleiros = data['setores']['goleiros']
+    assert all('fabiano' not in g['atleta'].lower() for g in goleiros)
+
+    # Teste unitário da função pericial hierárquica
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+    from backend.app import get_db
+
+    conn = get_db()
+    try:
+        # Emerson Fabiano (goleiro id 18925)
+        setor_ef, pos_ef, met_ef = _resolver_posicao_atleta_hierarquica(
+            conn, "Emerson Fabiano", 18925, {"internacional"}, 2026
+        )
+        assert setor_ef == 'goleiros'
+        assert pos_ef == 'Goleiro'
+
+        # Fabiano (id 1561) - sem evidência suficiente, não pode ser Goleiro nem Lateral
+        setor_f, pos_f, met_f = _resolver_posicao_atleta_hierarquica(
+            conn, "Fabiano", 1561, {"palmeiras"}, 2026
+        )
+        assert setor_f == 'outros'
+        assert pos_f == 'Posição a Confirmar'
+        assert met_f == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_homonimo_exato_com_ids_distintos():
+    """
+    Regressão 1: Homônimo exato com IDs distintos.
+    Garante que quando dois atletas possuem exatamente o mesmo nome,
+    mas IDs cadastrais distintos, as escalações de um NÃO são atribuídas ao outro.
+    """
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+    from backend.app import get_db
+
+    conn = get_db()
+    try:
+        # ID inexistente com mesmo nome não herda escalações do atleta canônico
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Eduardo", 9999999, {"palmeiras"}, 2026
+        )
+        assert setor == 'outros'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_id_compartilhado_por_identidades_conflitantes():
+    """
+    Regressão 2: ID compartilhado por identidades conflitantes.
+    Kaique (#1423 no Palmeiras) e Kaique Kenji (#1423 no Cruzeiro) compartilham o mesmo ID 1423.
+    A função deve rejeitar o vínculo entre identidades de nomes conflitantes e
+    NÃO atribuir a posição de meia/atacante do Cruzeiro ao Kaique do Palmeiras.
+    """
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+    from backend.app import get_db
+
+    conn = get_db()
+    try:
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Kaique", 1423, {"palmeiras"}, 2026
+        )
+        # Não pode herdar Meio-campo ou Atacante de Kaique Kenji
+        assert setor == 'outros'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_nome_curto_versus_nome_composto():
+    """
+    Regressão 3: Nome curto versus nome composto.
+    Garante que nomes curtos isolados ('Fabiano', 'Kaique') não sofram
+    correspondência com nomes compostos distintos ('Emerson Fabiano', 'Kaique Kenji').
+    """
+    from backend.rotas_clubes_canonica import _nomes_estritamente_compativeis
+
+    # Casos proibidos de contaminação por substring
+    assert _nomes_estritamente_compativeis("Fabiano", "Emerson Fabiano") is False
+    assert _nomes_estritamente_compativeis("Emerson Fabiano", "Fabiano") is False
+    assert _nomes_estritamente_compativeis("Kaique", "Kaique Kenji") is False
+    assert _nomes_estritamente_compativeis("Eduardo", "Carlos Eduardo") is False
+
+    # Casos de nomes compostos distintos sem elipse (rejeição de subconjunto de tokens)
+    assert _nomes_estritamente_compativeis("João Pedro", "João Pedro Silva") is False
+    assert _nomes_estritamente_compativeis("João Pedro Silva", "João Pedro") is False
+
+    # Casos de reordenação de tokens (não tratados como igualdade)
+    assert _nomes_estritamente_compativeis("José Carlos", "Carlos José") is False
+    assert _nomes_estritamente_compativeis("Carlos José", "José Carlos") is False
+
+    # Casos legítimos aceitos (igualdade exata ou elipses de súmula oficial)
+    assert _nomes_estritamente_compativeis("Eduardo", "eduardo ") is True
+    assert _nomes_estritamente_compativeis("Emerson Fabiano", "Emerson Ju ... Emerson Fabiano Kerb ...") is True
+
+
+def test_regressao_evidencia_insuficiente_retorna_posicao_a_confirmar():
+    """
+    Regressão 4: Evidência insuficiente.
+    Atletas sem amostragem tática suficiente (< 3 titularidades comprovadas na carreira,
+    contradições cadastrais ou apenas banco de reservas sem entrar) devem retornar
+    'Posição a Confirmar' e NÃO uma posição inventada ou extrapolada.
+    """
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+    from backend.app import get_db
+
+    conn = get_db()
+    try:
+        # Fabiano (camisa 37 do Palmeiras, 2 bancos, contradição com cadastro Atacante)
+        setor_f, pos_f, met_f = _resolver_posicao_atleta_hierarquica(
+            conn, "Fabiano", 1561, {"palmeiras"}, 2026
+        )
+        assert setor_f == 'outros'
+        assert pos_f == 'Posição a Confirmar'
+        assert met_f == 'posicao_a_confirmar'
+
+        # Aranha (camisa 24 do Palmeiras, 5 jogos como reserva, 0 titularidades)
+        setor_a, pos_a, met_a = _resolver_posicao_atleta_hierarquica(
+            conn, "Aranha", 3435, {"palmeiras"}, 2026
+        )
+        assert setor_a == 'outros'
+        assert pos_a == 'Posição a Confirmar'
+        assert met_a == 'posicao_a_confirmar'
+
+        # Atleta totalmente fictício sem registros
+        setor_x, pos_x, met_x = _resolver_posicao_atleta_hierarquica(
+            conn, "Atleta Sem Registros 123", None, {"palmeiras"}, 2026
+        )
+        assert setor_x == 'outros'
+        assert pos_x == 'Posição a Confirmar'
+        assert met_x == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_minuto_desconhecido_fora_do_numerador_temporal(client):
+    """
+    Regressão 5: minuto_desconhecido fora do numerador temporal.
+    Valida que o payload de estatísticas separa a chave minuto_desconhecido,
+    e que a fórmula de consolidação de cobertura exclui essa chave do somatório
+    de gols com minutagem catalogada.
+    """
+    resp = client.get('/api/clubes/detalhe/2459/estatisticas?ano=2026')
+    assert resp.status_code == 200
+    eb = resp.get_json()['estatisticas_basicas']
+
+    dist_marcados = eb['distribuicao_gols_temporais']['gols_marcados']
+    dist_sofridos = eb['distribuicao_gols_temporais']['gols_sofridos']
+
+    # A chave minuto_desconhecido existe explicitamente no payload para auditoria
+    assert 'minuto_desconhecido' in dist_marcados
+    assert 'minuto_desconhecido' in dist_sofridos
+
+    # Faixas válidas digitalizadas consumidas pelo JSX
+    faixas_validas = [
+        '0_15', '16_30', '31_45', '46_60', '61_75', '76_90',
+        'acrescimos_1t', 'acrescimos_2t', 'prorrogacao'
+    ]
+
+    total_com_minuto_marcados = sum(dist_marcados.get(k, 0) for k in faixas_validas)
+    total_com_minuto_sofridos = sum(dist_sofridos.get(k, 0) for k in faixas_validas)
+
+    # O numerador NÃO pode somar minuto_desconhecido
+    assert total_com_minuto_marcados == sum(v for k, v in dist_marcados.items() if k != 'minuto_desconhecido')
+    assert total_com_minuto_sofridos == sum(v for k, v in dist_sofridos.items() if k != 'minuto_desconhecido')
+
+    # Garantir que se houver minuto desconhecido, o total de lances catalogados não é inflacionado
+    total_com_desconhecido = sum(dist_marcados.values())
+    assert total_com_minuto_marcados <= total_com_desconhecido
+
+
+def test_regressao_empate_posicoes_historicas():
+    """
+    Regressão 6: Empate nas posições históricas.
+    Garante que quando há empate na contagem máxima de posições históricas (sem predominância única),
+    o sistema não escolhe uma posição arbitrariamente e descende na hierarquia até 'Posição a Confirmar'.
+    """
+    import sqlite3
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE partidas (
+            id_partida INTEGER PRIMARY KEY,
+            ano INTEGER
+        )
+    """)
+    c.execute("""
+        CREATE TABLE escalacoes (
+            id_escalacao INTEGER PRIMARY KEY,
+            id_partida INTEGER,
+            clube TEXT,
+            atleta TEXT,
+            id_jogador INTEGER,
+            posicao TEXT,
+            is_goleiro INTEGER,
+            titular INTEGER
+        )
+    """)
+    c.execute("""
+        CREATE TABLE jogadores (
+            id_jogador INTEGER PRIMARY KEY,
+            nome_exibicao TEXT,
+            apelido TEXT,
+            nome_completo TEXT,
+            posicao TEXT
+        )
+    """)
+
+    # Partidas 2024 (fora do recorte 2026, mas dentro de 2023-2026)
+    c.execute("INSERT INTO partidas (id_partida, ano) VALUES (1, 2024), (2, 2024), (3, 2024), (4, 2024)")
+    # Empate: 2 titularidades como 'Zagueiro' e 2 titularidades como 'Lateral'
+    c.execute("INSERT INTO escalacoes (id_partida, clube, atleta, id_jogador, posicao, is_goleiro, titular) VALUES (1, 'Outro Clube', 'Atleta Teste Empate', 9999, 'Zagueiro', 0, 1)")
+    c.execute("INSERT INTO escalacoes (id_partida, clube, atleta, id_jogador, posicao, is_goleiro, titular) VALUES (2, 'Outro Clube', 'Atleta Teste Empate', 9999, 'Zagueiro', 0, 1)")
+    c.execute("INSERT INTO escalacoes (id_partida, clube, atleta, id_jogador, posicao, is_goleiro, titular) VALUES (3, 'Outro Clube', 'Atleta Teste Empate', 9999, 'Lateral', 0, 1)")
+    c.execute("INSERT INTO escalacoes (id_partida, clube, atleta, id_jogador, posicao, is_goleiro, titular) VALUES (4, 'Outro Clube', 'Atleta Teste Empate', 9999, 'Lateral', 0, 1)")
+    # Em jogadores, posicao = None (sem cadastro pré-validado)
+    c.execute("INSERT INTO jogadores (id_jogador, nome_exibicao, posicao) VALUES (9999, 'Atleta Teste Empate', NULL)")
+    conn.commit()
+
+    try:
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Atleta Teste Empate", 9999, {"qualquer_clube"}, 2026
+        )
+        # Havendo empate entre Zagueiro (2) e Lateral (2), não pode escolher arbitrariamente nenhum dos dois
+        assert setor == 'outros'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_metodo_3_id_colidido_cadastro_nao_nulo():
+    """
+    Regressão: ID colidido com cadastro de posição não nula no Método 3.
+    Garante que se um atleta consultado (ex: 'Fabiano', ID 1561) possui id_jogador que aponta
+    no cadastro para outro atleta ('Outro Atleta', Lateral), o conflito nominal é detectado
+    e rejeitado, sem retornar a posição indevida por OR/LIMIT 1 e sem buscar identidade divergente.
+    """
+    import sqlite3
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("CREATE TABLE partidas (id_partida INTEGER PRIMARY KEY, ano INTEGER)")
+    c.execute("""CREATE TABLE escalacoes (
+        id_escalacao INTEGER PRIMARY KEY,
+        id_partida INTEGER,
+        clube TEXT,
+        atleta TEXT,
+        id_jogador INTEGER,
+        posicao TEXT,
+        is_goleiro INTEGER,
+        titular INTEGER
+    )""")
+    c.execute("""CREATE TABLE jogadores (
+        id_jogador INTEGER PRIMARY KEY,
+        nome_exibicao TEXT,
+        apelido TEXT,
+        nome_completo TEXT,
+        posicao TEXT
+    )""")
+
+    # Jogador com ID 1561 cadastrado com nome diferente e posição 'Lateral'
+    c.execute("INSERT INTO jogadores (id_jogador, nome_exibicao, apelido, nome_completo, posicao) VALUES (1561, 'Outro Atleta', 'Outro', 'Outro Atleta Completo', 'Lateral')")
+    conn.commit()
+
+    try:
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Fabiano", 1561, {"palmeiras"}, 2026
+        )
+        # O ID colidido não pode transferir 'Lateral' para Fabiano
+        assert setor == 'outros'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_metodo_4_homonimo_mesmo_clube_id_distinto():
+    """
+    Regressão: Homônimo no mesmo clube alcançável pelo Método 4.
+    Garante que uma entrada em escalações do mesmo clube com mesmo nome ('Eduardo'),
+    mas id_jogador divergente (9999 != 382), seja rejeitada pelos mesmos critérios estritos
+    de identidade, impedindo seleção indevida por LIMIT 1.
+    """
+    import sqlite3
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("CREATE TABLE partidas (id_partida INTEGER PRIMARY KEY, ano INTEGER)")
+    c.execute("""CREATE TABLE escalacoes (
+        id_escalacao INTEGER PRIMARY KEY,
+        id_partida INTEGER,
+        clube TEXT,
+        atleta TEXT,
+        id_jogador INTEGER,
+        posicao TEXT,
+        is_goleiro INTEGER,
+        titular INTEGER
+    )""")
+    c.execute("""CREATE TABLE jogadores (
+        id_jogador INTEGER PRIMARY KEY,
+        nome_exibicao TEXT,
+        apelido TEXT,
+        nome_completo TEXT,
+        posicao TEXT
+    )""")
+
+    # Partida prévia fora do recorte da temporada (ex: 2022) no mesmo clube ('palmeiras')
+    c.execute("INSERT INTO partidas (id_partida, ano) VALUES (1, 2022)")
+    # Entrada de escalação no mesmo clube ('palmeiras'), com mesmo nome ('Eduardo'), mas id_jogador divergente (9999)
+    c.execute("INSERT INTO escalacoes (id_partida, clube, atleta, id_jogador, posicao, is_goleiro, titular) VALUES (1, 'palmeiras', 'Eduardo', 9999, 'Zagueiro', 0, 1)")
+    conn.commit()
+
+    try:
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Eduardo", 382, {"palmeiras"}, 2026
+        )
+        # O homônimo com ID divergente (9999) no mesmo clube não pode contaminar o atleta (382)
+        assert setor == 'outros'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_metodo_2_amostra_minima_goleiro_externo():
+    """
+    Regressão: Uma única ocorrência externa de goleiro, insuficiente para o Método 2.
+    Garante que a regra declarada de amostra mínima (>= 3 titularidades auditáveis) se aplica
+    também a goleiros no histórico de carreira (Método 2), rejeitando inferência por aparição única isolada.
+    """
+    import sqlite3
+    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("CREATE TABLE partidas (id_partida INTEGER PRIMARY KEY, ano INTEGER)")
+    c.execute("""CREATE TABLE escalacoes (
+        id_escalacao INTEGER PRIMARY KEY,
+        id_partida INTEGER,
+        clube TEXT,
+        atleta TEXT,
+        id_jogador INTEGER,
+        posicao TEXT,
+        is_goleiro INTEGER,
+        titular INTEGER
+    )""")
+    c.execute("""CREATE TABLE jogadores (
+        id_jogador INTEGER PRIMARY KEY,
+        nome_exibicao TEXT,
+        apelido TEXT,
+        nome_completo TEXT,
+        posicao TEXT
+    )""")
+
+    # Única partida histórica externa em 2024 em 'Outro Clube'
+    c.execute("INSERT INTO partidas (id_partida, ano) VALUES (1, 2024)")
+    c.execute("INSERT INTO escalacoes (id_partida, clube, atleta, id_jogador, posicao, is_goleiro, titular) VALUES (1, 'Outro Clube', 'Goleiro Amostra Insuficiente', 5555, 'Goleiro', 1, 1)")
+    conn.commit()
+
+    try:
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Goleiro Amostra Insuficiente", 5555, {"palmeiras"}, 2026
+        )
+        # Uma única ocorrência externa é insuficiente (< 3 titularidades) para o Método 2
+        assert setor == 'outros'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_metodo_3_multiplos_candidatos_mesma_posicao_inconclusivo():
+    """Valida que múltiplos cadastros candidatos com mesma posição não validam no Método 3.
+    
+    Regra estrita: coincidência de posição entre homônimos com IDs distintos
+    deve permanecer inconclusiva. Não pode retornar 'cadastro_validado'.
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("CREATE TABLE partidas (id_partida INTEGER PRIMARY KEY, ano INTEGER)")
+    c.execute("""CREATE TABLE escalacoes (
+        id_escalacao INTEGER PRIMARY KEY,
+        id_partida INTEGER,
+        clube TEXT,
+        atleta TEXT,
+        id_jogador INTEGER,
+        posicao TEXT,
+        is_goleiro INTEGER,
+        titular INTEGER
+    )""")
+    c.execute("""CREATE TABLE jogadores (
+        id_jogador INTEGER PRIMARY KEY,
+        nome_exibicao TEXT,
+        apelido TEXT,
+        nome_completo TEXT,
+        posicao TEXT
+    )""")
+
+    # Dois atletas homônimos distintos com mesma posição cadastral ('Zagueiro')
+    c.execute("""
+        INSERT INTO jogadores (id_jogador, nome_exibicao, apelido, nome_completo, posicao)
+        VALUES (9001, 'Lucas Silva', 'Lucas', 'Lucas Silva Ferreira', 'Zagueiro')
+    """)
+    c.execute("""
+        INSERT INTO jogadores (id_jogador, nome_exibicao, apelido, nome_completo, posicao)
+        VALUES (9002, 'Lucas Silva', 'Lucas Silva', 'Lucas Silva Santos', 'Zagueiro')
+    """)
+    conn.commit()
+
+    try:
+        # Consulta sem id_jogador definido: cai no Método 3 por busca de nome
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Lucas Silva", None, {"palmeiras"}, 2026
+        )
+        # Mais de um candidato candidato: Método 3 deve ser inconclusivo
+        # Não pode aceitar por coincidência de posição nem retornar 'cadastro_validado'
+        assert met != 'cadastro_validado'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+def test_regressao_metodo_3_candidato_unico_valida():
+    """Valida o caminho positivo do Método 3: candidato único cadastral deve validar.
+    
+    Demonstra que a tabela 'jogadores' é a fonte do Método 3 e que, havendo
+    exatamente 1 candidato compatível, o retorno legítimo é 'cadastro_validado'.
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("CREATE TABLE partidas (id_partida INTEGER PRIMARY KEY, ano INTEGER)")
+    c.execute("""CREATE TABLE escalacoes (
+        id_escalacao INTEGER PRIMARY KEY,
+        id_partida INTEGER,
+        clube TEXT,
+        atleta TEXT,
+        id_jogador INTEGER,
+        posicao TEXT,
+        is_goleiro INTEGER,
+        titular INTEGER
+    )""")
+    c.execute("""CREATE TABLE jogadores (
+        id_jogador INTEGER PRIMARY KEY,
+        nome_exibicao TEXT,
+        apelido TEXT,
+        nome_completo TEXT,
+        posicao TEXT
+    )""")
+
+    # Apenas um único atleta no cadastro com esse nome
+    c.execute("""
+        INSERT INTO jogadores (id_jogador, nome_exibicao, apelido, nome_completo, posicao)
+        VALUES (8001, 'Marcos Rocha', 'Marcos Rocha', 'Marcos Luis Rocha Aquino', 'Lateral')
+    """)
+    conn.commit()
+
+    try:
+        # Consulta sem id_jogador definido: deve desambiguar pelo cadastro único
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Marcos Rocha", None, {"palmeiras"}, 2026
+        )
+        assert met == 'cadastro_validado'
+        assert pos == 'Lateral'
+        assert setor == 'defensores'
+    finally:
+        conn.close()
+
+
+def test_regressao_metodo_3_multiplos_candidatos_posicoes_diferentes_inconclusivo():
+    """Valida que múltiplos cadastros candidatos com posições distintas permanecem inconclusivos.
+    
+    Comprova que a inconclusão no Método 3 decorre estritamente da pluralidade
+    de candidatos (len > 1), independentemente de as posições coincidirem ou divergirem.
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("CREATE TABLE partidas (id_partida INTEGER PRIMARY KEY, ano INTEGER)")
+    c.execute("""CREATE TABLE escalacoes (
+        id_escalacao INTEGER PRIMARY KEY,
+        id_partida INTEGER,
+        clube TEXT,
+        atleta TEXT,
+        id_jogador INTEGER,
+        posicao TEXT,
+        is_goleiro INTEGER,
+        titular INTEGER
+    )""")
+    c.execute("""CREATE TABLE jogadores (
+        id_jogador INTEGER PRIMARY KEY,
+        nome_exibicao TEXT,
+        apelido TEXT,
+        nome_completo TEXT,
+        posicao TEXT
+    )""")
+
+    # Dois homônimos com posições divergentes (Zagueiro vs Atacante)
+    c.execute("""
+        INSERT INTO jogadores (id_jogador, nome_exibicao, apelido, nome_completo, posicao)
+        VALUES (9001, 'Lucas Silva', 'Lucas', 'Lucas Silva Ferreira', 'Zagueiro')
+    """)
+    c.execute("""
+        INSERT INTO jogadores (id_jogador, nome_exibicao, apelido, nome_completo, posicao)
+        VALUES (9003, 'Lucas Silva', 'Lucas Silva', 'Lucas Silva Santos', 'Atacante')
+    """)
+    conn.commit()
+
+    try:
+        setor, pos, met = _resolver_posicao_atleta_hierarquica(
+            conn, "Lucas Silva", None, {"palmeiras"}, 2026
+        )
+        assert met != 'cadastro_validado'
+        assert pos == 'Posição a Confirmar'
+        assert met == 'posicao_a_confirmar'
+    finally:
+        conn.close()
+
+
+
