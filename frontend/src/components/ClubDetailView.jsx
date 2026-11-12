@@ -313,7 +313,16 @@ export default function ClubDetailView({
     );
   }
 
-  const { identificacao, cobertura, opcoes_filtros, resumo_recorte, ultimos_resultados, artilheiros_recorte, metricas_avancadas_preview } = detalhe;
+  const {
+    identificacao,
+    cobertura,
+    opcoes_filtros,
+    resumo_recorte,
+    ultimos_resultados,
+    artilheiros_recorte,
+    atletas_mais_utilizados_recorte,
+    metricas_avancadas_preview
+  } = detalhe;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
@@ -813,13 +822,13 @@ export default function ClubDetailView({
                 </button>
               </div>
 
-              {!clubeData?.atletas_mais_utilizados_recorte || clubeData.atletas_mais_utilizados_recorte.length === 0 ? (
+              {!Array.isArray(atletas_mais_utilizados_recorte) || atletas_mais_utilizados_recorte.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
                   Nenhum registro de titularidade no recorte.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {clubeData.atletas_mais_utilizados_recorte.map((at, idx) => (
+                  {atletas_mais_utilizados_recorte.map((at, idx) => (
                     <div
                       key={at.atleta}
                       style={{
@@ -1594,6 +1603,35 @@ export default function ClubDetailView({
                       </div>
                     );
                   })}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: '14px',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-card)',
+                    backgroundColor: 'var(--surface-card)',
+                    border: '1px solid var(--border-subtle)',
+                    fontSize: '0.74rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.45
+                  }}
+                >
+                  {(() => {
+                    const faixasValidas = ['0_15', '16_30', '31_45', '46_60', '61_75', '76_90', 'acrescimos_1t', 'acrescimos_2t', 'prorrogacao'];
+                    const gpDist = estatisticasData.estatisticas_basicas?.distribuicao_gols_temporais?.gols_marcados || {};
+                    const gcDist = estatisticasData.estatisticas_basicas?.distribuicao_gols_temporais?.gols_sofridos || {};
+                    const gpComMinuto = faixasValidas.reduce((acc, k) => acc + (gpDist[k] || 0), 0);
+                    const gcComMinuto = faixasValidas.reduce((acc, k) => acc + (gcDist[k] || 0), 0);
+                    const gpTotal = estatisticasData.estatisticas_basicas?.gols_pro ?? 0;
+                    const gcTotal = estatisticasData.estatisticas_basicas?.gols_contra ?? 0;
+
+                    return (
+                      <>
+                        <strong style={{ color: 'var(--text-primary)' }}>ℹ️ Cobertura de Minutos no Recorte:</strong> A distribuição temporal contabiliza os gols de partidas com lance a lance digitalizado ({gpComMinuto} de {gpTotal} gols pró e {gcComMinuto} de {gcTotal} contra). Partidas sem minuto individual catalogado permanecem sem distribuição arbitrária.
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
