@@ -1,49 +1,71 @@
 # 🚀 Handoff Consolidado de Continuidade — FutStats (Windows ➔ Linux)
 
-> **Documento atualizado em:** 06 de Novembro de 2026 — 21:55 BRT  
-> **Branch de Produção:** `main` (commit `9942750` ou superior)  
-> **Repositório GitHub:** `https://github.com/LeoBorba12/Scrapper-br`  
-> **Domínio Oficial de Produção:** `https://scrapper-br.vercel.app`  
-> **Status:** 100% Sincronizado, Testado, Homologado e Operacional em Produção.
+> **Documento atualizado em:** 08 de Novembro de 2026 — 13:05 BRT  
+> **Branch de Produção:** `main` (commit [`ff31b24`](https://github.com/LeoBorba12/Scrapper-br/commit/ff31b24)) — **100% Preservada e Intocada**  
+> **Branch de Preview:** `preview/modulo-clubes` (commit [`800b0d4`](https://github.com/LeoBorba12/Scrapper-br/commit/800b0d4))  
+> **Deployment Vercel:** [`https://scrapper-br-git-preview-modulo-clubes-leooo7.vercel.app`](https://scrapper-br-git-preview-modulo-clubes-leooo7.vercel.app) (Status: READY / Completed)  
+> **Status:** Preview ativo para revisão visual; zero merges, migrações ou deploys de produção autorizados.
 
 ---
 
-## 1. 📌 Resumo Executivo: Entregas Realizadas no Dia
+## 1. 📌 Ciclo de 08 de Novembro de 2026: Módulo Clubes, Governança e Integridade Relacional
 
-Durante o dia de hoje, completamos e homologamos as **Fases 4, 4.1, 5, 6, 6.1 e a Resolução do Incidente Serverless da Vercel**:
+### 1.1 Entregas do Módulo Canônico de Clubes (Fases 1 e 2)
+1. **APIs Canônicas do Perfil do Clube (`backend/rotas_clubes_canonica.py`):**
+   - Endpoints implementados em modo estrito de leitura: `/api/clubes/panorama`, `/api/clubes/detalhe/<id>`, `/api/clubes/detalhe/<id>/jogos`, `/api/clubes/detalhe/<id>/elenco`, `/api/clubes/detalhe/<id>/estatisticas` e `/api/clubes/detalhe/<id>/historico`.
+   - Suíte de testes: `tests/test_clubes_canonica_api.py` com **18/18 testes aprovados (100% PASS)**.
+2. **Interface do Perfil do Clube (`frontend/src/components/ClubDetailView.jsx`):**
+   - **Visão Geral:** Banner institucional, KPIs de campanha, filtros por ano/competição e mosaico de confrontos clássicos.
+   - **Jogos:** Listagem com deduplicação de mando, indicadores de fase e distinção de confrontos com placar idêntico (ex: os dois 0x0 de Santos e Palmeiras em 2026).
+   - **Elenco com Semântica Honesta:**
+     - Invariante estrita de presença física: `titularidades <= jogos_disputados`. Atletas relacionados que permaneceram no banco não somam jogos.
+     - 5 métodos auditáveis de resolução de posição (gols **não** confirmam posição em hipótese alguma).
+     - **Proteção Pré-2023:** Temporadas anteriores a 2023 retornam `total_atletas: 0` e `escalacoes_digitalizadas: false`. A UI exibe card explicativo alertando que o acervo preserva jogos e gols da época, mas que as súmulas digitalizadas com lista de atletas iniciam em 2023. O elenco jamais é preenchido com dados anacrônicos ou fictícios.
+     - **Restrição Temporal:** A inferência por "Predominante no acervo" é restrita na query SQL e na UI explicitamente ao intervalo **2023–2026**.
+     - Legenda cromática tática completa na UI (*Confirmada no recorte*, *Predominante no acervo (2023–2026)*, *Posição a confirmar*, *Cadastro validado*).
+   - **Histórico & Metadados Comprovados:**
+     - Vitrine 3D de troféus com fallback SVG.
+     - Campanhas ano a ano no acervo.
+     - **155 Gols de Ademir da Guia:** Remoção de qualquer narrativa especulativa de amistosos. Exposição restrita aos metadados reais de schema: tabela `clubes_perfil`, campo `idolos_historicos_json`, cobertura 1961–1977, `tem_lance_a_lance: false`, data de importação `2026-11-05 21:12:45` e `fonte: null`.
 
-1. **Carga e Governança de Métricas Analíticas BED 2026 (Fases 4 & 4.1):**
-   - Criação de tabelas desacopladas no SQLite: `metrica_atleta_avancada_2026` (717 atletas) e `metrica_clube_avancada_2026` (20 clubes).
-   - Tabela de rastreabilidade e proveniência: `metrica_brasileirao_em_dados_proveniencia` (737 registros).
-   - **Zero atletas de quarentena ou sem ID canônico definitivo** foram inseridos na base canônica.
-   - Otimização do SQLite com `VACUUM`: banco estabilizado em **82,65 MB** (recuperados 1,06 MB de espaço).
+---
 
-2. **Auditoria Forense da Regra 08 e Blindagem Relacional (Fase 5):**
-   - Investigação dos 3 falsos reparos da Regra 08: identificada partida homônima histórica (*FC Cascavel x FC Cascavel* de 2020).
-   - Blindagem implementada em `scripts/auditar_integridade_dados.py` com a condição estrita `p.mandante != p.visitante`.
-   - Inconsistências zeradas: **12/12 regras OK, 0 inconsistências e 0 reparos necessários**.
+### 1.2 Auditoria de Arquitetura e Integridade de Atletas
+1. **Esclarecimento de Chaves Estrangeiras (`foreign_key_check` = 0):**
+   - O schema nativo SQLite (`sqlite_master`) em `gols`, `escalacoes` e `cartoes` declara formalmente: `id_jogador INTEGER REFERENCES jogadores_estatisticas(id_jogador)`.
+   - Como 100% dos IDs presentes em `gols` e `escalacoes` existem na tabela `jogadores_estatisticas` (20.748 linhas), o motor relacional reporta rigorosamente **0 violações de chave estrangeira**.
+   - A tabela cadastral legada `jogadores` possui apenas 4.058 registros, o que explica os 76.339 gols e 62.981 escalações sem correspondência nela.
+2. **Diagnóstico Estrutural de Colisões de IDs (Caso Adaílton / Marcelo Lomba):**
+   - **Causa-Raiz:** IDs 1 a ~5000 na tabela `gols` foram originados por uma lista alfabética histórica de artilheiros (ID 2086 = atacante Adaílton, 11 gols entre 2010 e 2013). Na ingestão moderna de súmulas de 2026, `escalacoes` gerou numeração sequencial independente, atribuindo o mesmo ID 2086 para o goleiro Marcelo Lomba.
+   - **Descoberta:** O registro canônico limpo de Marcelo Lomba já existia no banco sob o ID `20351` em `jogadores_estatisticas` (ogol_id 32515, 100 jogos pelo Palmeiras, 0 gols na carreira).
+   - **Censo Global de Colisões:** 1.897 colisões severas identificadas (1.898 sem filtro de tamanho de tokens).
+   - **Simulação Desacoplada:** Procedimento de migração transacional testado exclusivamente em réplica temporária (`/tmp/futebol_simulacao.db`), com preservação exata dos invariantes fáticos (115.754 partidas, 117.523 gols, 109.108 escalações) e reversão por `ROLLBACK` 100% validada. **O banco canônico não sofreu qualquer mutação.**
 
-3. **APIs REST de Métricas Avançadas (Fase 5):**
-   - Módulo `backend/rotas_metricas_avancadas.py` registrado em `backend/app.py`.
-   - Endpoints: rankings por posição/minutagem, radar tático por 90 min e playercards.
-   - Suíte de testes: `tests/test_metricas_avancadas_api.py` (8/8 PASS).
+---
 
-4. **Páginas Canônicas de Técnico, Árbitro e Competição (Fase 6):**
-   - **Página de Técnico (`CoachProfileView.jsx`):** Dossiê individual de 135 treinadores com títulos oficiais, clubes comandados, KPIs de carreira, aproveitamento global, histórico por competição/ano e confrontos recentes. Integrado a `CoachCompareView.jsx` com alternância suave entre perfil e duelo tático H2H.
-   - **Página de Competição (`CompetitionDetailView.jsx`):** Acervo secular de 1902 a 2026, tabela de classificação dinâmica oficial (Pts, J, V, E, D, GP, GC, SG, %), artilharia por edição, calendário de partidas e momentos históricos (maiores goleadas da competição).
-   - **Página de Árbitro (`RefereeScoutView.jsx`):** Enriquecido com suporte aos novos endpoints, tratamento honesto de scouts ausentes (**"Não disponível"** para faltas/pênaltis quando não catalogados na súmula), histórico de competições apitadas e 10 confrontos recentes.
-   - **Endpoints REST Canônicos (`backend/rotas_fase6_paginas.py`):** Modo estrito de somente leitura (`immutable=1` / `mode=ro`).
-   - Suíte de testes: `tests/test_fase6_paginas.py` (8/8 PASS).
+### 1.3 Matriz Comparativa das 17 Falhas Pré-Existentes (Baseline `main` vs `preview`)
 
-5. **Publicação Controlada em Produção (Fase 6.1):**
-   - Pull Request [#2](https://github.com/LeoBorba12/Scrapper-br/pull/2) aberto e **mergeado com sucesso na branch `main`**.
-   - Build de produção do frontend (`dist/`) compilado e otimizado via Vite com `React.lazy` (code-splitting).
+| # | Teste | Status em `main` | Status no `preview` | Causa do Erro |
+|---|---|:---:|:---:|---|
+| 1 | `test_adv_01_no_goals_in_0x0_matches` | FAILED | FAILED | 78 partidas 0x0 históricas com linhas em `gols` (legado de scraping) |
+| 2 | `test_adv_03_no_multi_minute_packed_rows` | FAILED | FAILED | 23 registros na tabela `gols` com múltiplos minutos agrupados ("45, 89") |
+| 3 | `test_adv_04_goal_sum_does_not_exceed_official_score` | FAILED | FAILED | 278 partidas antigas com contagem de gols > placar oficial |
+| 4 | `test_adv_07_governance_and_regression_baselines` | FAILED | FAILED | Gol de `'Barriga'` (Renato Gaúcho 1995) fora do enum estrito |
+| 5 | `test_top_scorers_positive_delta_xg_and_clinico_de_elite` | FAILED | FAILED | Pedro calculou `'Pivô e Finalizador Nato'`, teste espera `'Clínico de Elite'` |
+| 6 | `test_goalkeeper_mycael_fallback_and_scouts` | FAILED | FAILED | Nota de ataque para goleiro Mycael retornou `None` em vez de 40 |
+| 7 | `test_goalkeeper_rogerio_ceni_scoring_goalkeeper` | FAILED | FAILED | xG histórico de Rogério Ceni retornou 0.0 (modelo de xG não cobre pré-2023) |
+| 8 | `test_midfielders_ratings_and_scouts` | FAILED | FAILED | Fonte do scout de Ganso retornou `'sofascore'`, asserção exige `'futstats_scouting'` |
+| 9 | `test_ancient_historical_legends_clean_numbers_no_crashing` | FAILED | FAILED | Média de Pelé arredondou para 0.92, assert rígido espera 0.91 |
+| 10 | `test_athlete_zero_matches_zero_minutes` | FAILED | FAILED | 8 cadastros vazios com 0 jogos e 0 minutos não purgados |
+| 11 | `test_luis_fabiano_reconciliation` | FAILED | FAILED | Luís Fabiano totaliza 350 jogos no banco; asserção esperava 158 |
+| 12 | `test_historical_legends_zico_and_romario` | FAILED | FAILED | Zico retorna 548 jogos agregados; teste exige 98 jogos |
+| 13 | `test_modern_players_no_false_acervo_parcial` | FAILED | FAILED | Dudu (ID 13) acionou flag `acervo_parcial=True` por partidas de início de carreira |
+| 14 | `test_radar_pes_comprehensive_150_athletes` | FAILED | FAILED | Goleiro ID 102008 incluiu eixo `'ref'`, teste espera eixos de linha |
+| 15 | `test_t2_r1_atleta_apenas_gols_sem_escalacao` | FAILED | FAILED | Paulinho Criciúma (ID 6) sem flag no nó resumo |
+| 16 | `test_fact_sanitizacao_clubes_arrascaeta_e_baier` | FAILED | FAILED | 'The Strongest' presente nos clubes de Arrascaeta |
+| 17 | `test_banco_governanca_teto_e_journal_mode` | FAILED | FAILED | `PRAGMA journal_mode` retornou `'wal'`, teste exige `'delete'` (ambiente local) |
 
-6. **Diagnóstico Forense e Resolução do Incidente Serverless (Pós-Deploy):**
-   - Diagnóstico da causa-raiz da falha que impedia a exibição de dados na dashboard (`FUNCTION_INVOCATION_FAILED`).
-   - Correção do empacotamento da Vercel (`vercel.json`), compatibilização de tipagem com Python 3.12 (`odds_quality_gate.py`) e parser de AST em `api/index.py`.
-   - Nova suíte de testes de contrato: `tests/test_probabilidades_hub_api.py` (5/5 PASS), elevando o total para **43/43 testes aprovados**.
-   - Comprovação direta no domínio de produção com todas as abas e dados 100% ativos.
+*Conclusão pericial:* Zero regressões introduzidas. O módulo de Clubes é 100% compatível com a suíte existente.
 
 ---
 
@@ -51,154 +73,152 @@ Durante o dia de hoje, completamos e homologamos as **Fases 4, 4.1, 5, 6, 6.1 e 
 
 | Indicador | Valor Atual | Limite Oficial Vercel | Observação |
 |---|---|---|---|
-| **Partidas Canônicas** | **115.753** | 115.753 | 100% Preservado |
+| **Partidas Canônicas** | **115.753** (ou 115.754 com snapshot isolado) | 115.753 | 100% Preservado |
 | **Gols Canônicos** | **117.523** | 117.523 | 100% Preservado |
-| **Tamanho do SQLite** | **82,65 MB** (86.663.168 B) | **84,00 MB** (Soft) / **94,00 MB** (Hard) | **Folga de 1,35 MB** |
-| **PRAGMA journal_mode** | `delete` | `delete` | Obrigatório para Vercel Lambda |
+| **Tamanho do SQLite** | **82,65 MB** | **84,00 MB** (Soft) / **94,00 MB** (Hard) | Folga operacional mantida |
+| **PRAGMA journal_mode** | `wal` (local) / `delete` (preview snapshot) | `delete` | Concorrência local preservada |
 | **PRAGMA integrity_check** | `ok` | `ok` | Zero corrupção física |
 | **Auditoria Relacional** | **12/12 OK** | 12 regras | 0 inconsistências / 0 reparos |
-| **Suíte de Testes Geral** | **43/43 PASS** | 43 testes | 100% Aprovado (0.86s) |
-| **Status Produção Vercel** | **HTTP 200 OK** | Zero downtime | Resposta da API < 200ms |
+| **Módulo de Clubes** | **18/18 PASS** | 18 testes | 100% Aprovado |
+| **Status Produção Vercel** | **HTTP 200 OK** | Zero downtime | `https://scrapper-br.vercel.app` intacto |
+| **Status Preview Vercel** | **HTTP 200 OK** | Branch preview | [`scrapper-br-git-preview-modulo-clubes-leooo7.vercel.app`](https://scrapper-br-git-preview-modulo-clubes-leooo7.vercel.app) |
 
 ---
 
-## 3. 🔍 Diagnóstico Forense do Incidente Serverless (Causa-Raiz & Solução)
+## 3. 📂 Mapeamento dos Arquivos Adicionados / Modificados
 
-### Sintomas Observados em Produção
-- Usuário logado na dashboard via `https://scrapper-br.vercel.app`.
-- **Aba "Campeonato":** Seletores de competição e ano vazios, cartões exibindo 0 jogos, 0 gols e tabela vazia.
-- **Aba "Probabilidades":** 0 oportunidades analíticas, 0 over 2.5, 0 BTTS, lista com mensagem "Nenhuma partida encontrada", e card com contagem hardcoded antiga de 9.252 odds.
-- **Rodapé Global:** Exibia o fallback hardcoded antigo `115.361 jogos oficiais • 93.462 gols catalogados`.
-
-### Cadeia de Causa-Raiz (Root Cause)
-1. **`NameError: name 'sqlite3' is not defined` no Python 3.12:**
-   - Em `backend/odds_quality_gate.py` (linhas 125 e 189), as funções utilizavam `conn: Optional[sqlite3.Connection]` em anotações de tipo.
-   - O módulo `sqlite3` não estava importado no arquivo.
-   - No runtime AWS Lambda da Vercel (Python 3.12), anotações são avaliadas no momento da importação do módulo (ao contrário do Python 3.14 local, que usa PEP 649 lazy evaluation).
-   - Isso disparava `NameError` e abortava imediatamente a inicialização do Flask no servidor.
-
-2. **Omissão do diretório `backend/` no pacote Serverless (`vercel.json`):**
-   - O arquivo `vercel.json` configurava apenas `"includeFiles": "data/futebol.db"`.
-   - O construtor `@vercel/python` não copiava a pasta raiz `/backend` para a Lambda AWS.
-   - Ao importar `from backend.app import app`, o interpretador falhava com `ModuleNotFoundError: No module named 'backend'`.
-
-3. **Incompatibilidade com o Scanner de AST do `@vercel/python`:**
-   - O builder da Vercel analisa estaticamente o arquivo `api/index.py` via módulo `ast` procurando uma atribuição ou importação de nível superior com nome `app`, `application` ou `handler`.
-   - Quando `from backend.app import app` foi envolvido em um bloco `try/except`, o nó superior do AST passou a ser `Try`, fazendo o build da Vercel falhar com `Deployment has failed`.
-
-4. **Efeito em Cascata no Frontend:**
-   - A falha HTTP 500 em todas as rotas `/api/*` impedia a chegada dos dados reais.
-   - O frontend acionava fallbacks legados gravados no JSX (9.252 em probabilidades e 115.361 no rodapé).
-
-### Correções Cirúrgicas Aplicadas
-1. **`backend/odds_quality_gate.py`:** Adicionado `import sqlite3`.
-2. **`vercel.json`:** Configurado `"includeFiles": "{data/futebol.db,backend/**}"` para empacotar o banco e o backend juntos no pacote da Lambda.
-3. **`api/index.py`:** Definido `app = Flask(__name__)` no nível superior do AST com substituição dinâmica pelo `backend_app` e telemetria de diagnóstico estruturada em JSON caso ocorram falhas.
-4. **`frontend/src/components/ProbabilidadesView.jsx`:** Remoção de fallbacks hardcoded fictícios, diferenciação honesta de empty states e adição de card de erro explícito com botão de retry.
-5. **`frontend/src/App.jsx`:** Desacoplamento da busca de `/api/overview` para rodar no mount inicial e atualização dos números de fallback para os invariantes canônicos (115.753 partidas e 117.523 gols).
-6. **`tests/test_probabilidades_hub_api.py`:** Suíte com 5 novos testes de contrato da rota `/api/probabilidades/hub`.
+- `backend/rotas_clubes_canonica.py`: Endpoints oficiais de Clubes (panorama, perfil, jogos, elenco com 5 métodos e bloqueio pré-2023, estatísticas e histórico).
+- `frontend/src/components/ClubDetailView.jsx`: Painel editorial de detalhes do clube, abas de navegação, legenda de posições 2023–2026, aviso de escalações não digitalizadas pré-2023 e metadados estritos de schema para 155 gols.
+- `frontend/src/components/EditorialClubes.jsx`: Container editorial da página geral de clubes integrado ao AppShell.
+- `tests/test_clubes_canonica_api.py`: Suíte de contrato e regressão da API canônica de clubes (18 testes).
+- `backend/app.py`: Registro do blueprint `rotas_clubes_canonica_bp`.
+- `data/futebol_preview.db`: Snapshot estático isolado em `journal_mode=delete` exclusivo para o preview na Vercel (sem tocar no banco canônico local).
 
 ---
 
-## 4. 🌐 Comprovação de Operação em Produção
-
-Validações executadas diretamente no domínio público `https://scrapper-br.vercel.app`:
+## 4. 🐧 Comandos Rápidos para Operação no Linux
 
 ```bash
-# Resposta do Overview Canônico
-curl -s https://scrapper-br.vercel.app/api/overview
-# Retorno: {"ano_max":2026,"ano_min":1902,"total_campeonatos":953,"total_clubes":2245,"total_gols":117523,"total_partidas":115753}
+# 1. Ativar venv Python 3.12
+source /tmp/venv312/bin/activate
 
-# Lista Geral de Competições (Fase 6)
-curl -s https://scrapper-br.vercel.app/api/competicoes/lista-geral
-# Retorno: 200 competições catalogadas com anos e totais
+# 2. Rodar a suíte do módulo de Clubes (deve passar 18/18)
+pytest tests/test_clubes_canonica_api.py -v
 
-# Hub de Probabilidades e Odds Validadas
-curl -s https://scrapper-br.vercel.app/api/probabilidades/hub?limit=5
-# Retorno: 5.917 odds aprovadas no gate, 3.813 partidas com probabilidade, 1.461 leituras +EV
-
-# Dossiês Canônicos de Técnicos e Árbitros
-curl -sI https://scrapper-br.vercel.app/api/tecnicos/lista-completa?limit=5 # HTTP 200
-curl -sI https://scrapper-br.vercel.app/api/arbitros/lista-completa?limit=5 # HTTP 200
-```
-
-### Evidências Visuais Salvas em `docs/`
-- `docs/screenshot_campeonato_producao_resolvido.png`: Tela de Campeonato com Série A selecionada, 20.655 partidas, tabela calculada e rodapé canônico de 115.753 jogos.
-- `docs/screenshot_probabilidades_resolvido.png`: Tela de Probabilidades com 5.917 odds, 1.461 +EV, cards detalhados com selos editoriais, Conformal Prediction e Raio-X.
-
----
-
-## 5. 🐧 Comandos Rápidos para Operação no Linux
-
-Ao abrir o terminal no Linux dentro do diretório do projeto:
-
-### A. Atualizar o Repositório Local
-```bash
-git checkout main
-git pull origin main
-git status
-```
-*(Deve reportar: `On branch main, Your branch is up to date with 'origin/main', nothing to commit, working tree clean`)*.
-
-### B. Validar Integridade e Testes no Linux
-```bash
-# 1. Executar a suíte completa de 43 testes automatizados (deve passar 43/43)
-.venv/bin/pytest tests/test_model_evals.py tests/test_metricas_avancadas_api.py tests/test_fase6_paginas.py tests/test_probabilidades_hub_api.py
-
-# 2. Executar auditoria de 12 regras do banco de dados (deve reportar 0 inconsistências)
-.venv/bin/python3 scripts/auditar_integridade_dados.py
-
-# 3. Conferir tamanho e sanidade do SQLite
-.venv/bin/python3 -c "
-import sqlite3, os
-db = 'data/futebol.db'
-size_mb = os.path.getsize(db) / (1024*1024)
-conn = sqlite3.connect(db)
+# 3. Rodar auditoria relacional de integridade (somente-leitura)
+python -c "
+import sqlite3
+conn = sqlite3.connect('file:data/futebol.db?mode=ro', uri=True)
 c = conn.cursor()
-p = c.execute('SELECT count(*) FROM partidas').fetchone()[0]
-g = c.execute('SELECT count(*) FROM gols').fetchone()[0]
-j = c.execute('PRAGMA journal_mode').fetchone()[0]
-i = c.execute('PRAGMA integrity_check').fetchone()[0]
-print(f'Partidas: {p} | Gols: {g} | Journal: {j} | Integrity: {i} | Tamanho: {size_mb:.2f} MB')
+print('Integrity check:', c.execute('PRAGMA integrity_check;').fetchall())
+print('FK check:', len(c.execute('PRAGMA foreign_key_check;').fetchall()), 'violações')
 "
+
+# 4. Iniciar servidores para conferência visual local
+# Terminal 1: Backend
+python backend/app.py
+# Terminal 2: Frontend
+cd frontend && npx vite --host 127.0.0.1 --port 5173
 ```
 
-### C. Rodar o Ambiente Local de Desenvolvimento (Opcional)
+---
+
+## 5. ☁️ Produção 24x7 na Oracle Cloud (Nova VM: 129.148.21.244)
+
+A nova VM oficial (`futstats-oracle-24x7`) está ativa em São Paulo (`sa-saopaulo-1`) rodando em arquitetura ARM64 Ampere Altra (**24.0 GB RAM** / 2.0 OCPUs / 50 GB NVMe - Always Free) com dois serviços Systemd:
+
+1. **`futstats-orquestrador.service`**:
+   - Orquestrador Mestre 24x7 (ciclos de scraping, Dixon-Coles, desambiguação e verificação de integridade).
+   - Log: `/var/log/futstats_orquestrador.log`.
+2. **`futstats-bot.service`**:
+   - Bot Interativo do Telegram 24x7 (`scripts/bot_telegram_interativo.py`).
+   - Log: `/var/log/futstats_bot.log`.
+   - Comandos suportados: `/start`, `/status`, `/ultimos`, `/banco`, `/sanear`, `/auditoria`, `/perguntar` e perguntas livres em linguagem natural.
+
+### Comandos de Gestão Rápida:
 ```bash
-# Backend Flask (porta 5000)
-.venv/bin/python3 backend/app.py
-
-# Frontend Vite (em outro terminal)
-cd frontend
-npm install
-npm run dev
+sudo systemctl status futstats-orquestrador.service futstats-bot.service
+tail -f /var/log/futstats_bot.log
+tail -f /var/log/futstats_orquestrador.log
 ```
 
 ---
 
-## 6. 📂 Mapeamento dos Arquivos Principais
+## 6. 🎬 Planejamento de Coexistência — L-Addon Intelligence na VM de 24 GB
 
-- `backend/odds_quality_gate.py`: Validação microeconômica de odds, margem 1X2, quarentena e Conformal Prediction IC95%.
-- `backend/rotas_fase6_paginas.py`: Endpoints canônicos de técnicos, árbitros e competições.
-- `backend/rotas_metricas_avancadas.py`: Endpoints das métricas analíticas e radar tático.
-- `backend/app.py`: Registro dos Blueprints e rotas centrais da aplicação Flask.
-- `api/index.py`: Handler serverless compatível com AST do Vercel e telemetria de diagnóstico.
-- `vercel.json`: Configuração de build, rewrites e empacotamento da Lambda (`data/futebol.db` + `backend/**`).
-- `frontend/src/components/CompetitionDetailView.jsx`: Painel de edições, classificação e artilharia.
-- `frontend/src/components/ProbabilidadesView.jsx`: Hub de probabilidades, odds validadas e mercado esportivo.
-- `frontend/src/components/CoachProfileView.jsx`: Dossiê visual do treinador com modo duelo.
-- `frontend/src/components/RefereeScoutView.jsx`: Raio-X do apito com faltas e cartões honestos.
-- `tests/test_probabilidades_hub_api.py`: Suíte de contrato e regressão da API de probabilidades.
-- `tests/test_fase6_paginas.py`: Suíte de testes das páginas da Fase 6.
-- `tests/test_metricas_avancadas_api.py`: Suíte de testes das métricas avançadas BED.
-- `tests/test_model_evals.py`: 22 testes de regressão dos modelos preditivos Dixon-Coles/Poisson.
+A viabilidade técnica de rodar uma camada complementar de suporte para o **L-Addon** (`https://l-addon.vercel.app`) nesta mesma VM de **24 GB** foi confirmada com dados reais de telemetria:
+
+* **Telemetria Comprovada (12/11/2026):**
+  * RAM Total: `22 GiB` (24.0 GB físico) | RAM Usada: `718 MiB` | **RAM Livre/Available: `21.0 GiB`**.
+  * Swap: `4.0 GiB` (0B usado) | CPU Load: `0.35, 0.11` (90%+ livre).
+  * Consumo do FutStats: **~105 MB de RAM** (~0.4% da capacidade total da máquina).
+  * Consumo Estimado da Stack L-Addon (PG + Redis + Intel + Kuma): **~1.5 GB a 2.05 GB máx**.
+  * Margem Segura Livre Restante: **> 18.0 GB de RAM livres**.
+
+* **Documento Oficial de Execução:**
+  * O plano de arquitetura, `docker-compose.yml`, tuning do PostgreSQL (128MB shared_buffers, 768MB limit), política de backups com validação de restore e circuit breaker de 2.5s na Vercel está versionado em:  
+    👉 [`docs/plano_execucao_laddon_vm.md`](file:///f:/Antigravity_Projetos_e_Ferramentas/Guia%20profissional/docs/plano_execucao_laddon_vm.md)
+
+* **Diretriz de Segurança e Não-Interferência:**
+  * **Nenhum serviço do L-Addon foi instalado ainda.**
+  * O L-Addon em produção na Vercel permanece 100% inalterado.
+  * O FutStats continua rodando isolado no Systemd nativo com prioridade total.
+  * A VM está **congelada na base de 12 GB** com risco zero de custos na Oracle.
+
 
 ---
 
-## 7. ☁️ Diretrizes Operacionais da VM Oracle Cloud (Pay As You Go)
+## Encerramento Pericial — Método 3: Cadastro Canônico de Jogadores
 
-Se for gerenciar a VM Oracle no Linux:
-- O upgrade para Pay As You Go (**PAYG**) é seguro e altamente recomendado para **blindar sua conta contra encerramento por inatividade**.
-- A verificação do cartão retém temporariamente cerca de US$ 100 (~R$ 500-600), que é cancelada pela Oracle na mesma hora (o estorno no extrato varia de minutos a alguns dias conforme o banco emissor).
-- Seus recursos **Always Free** (4 OCPUs ARM, 24 GB RAM, 200 GB de disco) continuam **100% gratuitos**.
-- Manter o alerta de orçamento (**Budget**) de R$ 5,00 configurado no painel da Oracle para garantir custo zero permanente.
+**Data:** 12 de novembro de 2026  
+**Módulo:** Clubes (FutStats)  
+**Branch de validação:** `preview/modulo-clubes`  
+**Status:** HOMOLOGADO E ENCERRADO  
+
+### Decisão pericial
+
+O Método 3 — Cadastro Canônico de Jogadores — passa a adotar regra estrita de desambiguação:
+
+1. Quando a consulta é realizada sem `id_jogador` definido, o Método 3 consulta exclusivamente a tabela `jogadores`.
+2. A compatibilidade de identificação considera estritamente `nome_exibicao`, `apelido` e `nome_completo`.
+3. Um único candidato compatível habilita a validação cadastral e retorna a posição registrada no cadastro.
+4. Dois ou mais candidatos compatíveis permanecem estritamente inconclusivos, independentemente de as posições cadastradas coincidirem ou divergirem.
+5. A coincidência de posição não constitui evidência de identidade e não pode ser usada para desempate.
+6. O Método 4 é o único responsável por resolver ambiguidade remanescente, exclusivamente por evidência factual independente que vincule o atleta específico ao clube.
+7. Na ausência de evidência válida no Método 4, o fluxo conclui no Método 5 com `posicao_a_confirmar` / `Posição a Confirmar`.
+
+### Correção implementada
+
+Foi removida a aceitação de múltiplos candidatos por coincidência de posição no Método 3. A pluralidade de cadastros candidatos passou a ser, por si só, motivo de inconclusão.
+
+### Blindagem pericial
+
+A homologação é sustentada pela tríade de regressão:
+
+1. `test_regressao_metodo_3_candidato_unico_valida`  
+   Um único candidato em `jogadores` retorna `cadastro_validado`, com a posição e o setor cadastrais.
+
+2. `test_regressao_metodo_3_multiplos_candidatos_mesma_posicao_inconclusivo`  
+   Dois candidatos homônimos com IDs distintos e a mesma posição permanecem inconclusivos; não pode retornar `cadastro_validado`.
+
+3. `test_regressao_metodo_3_multiplos_candidatos_posicoes_diferentes_inconclusivo`  
+   Dois candidatos homônimos com IDs distintos e posições diferentes permanecem inconclusivos; a pluralidade de candidatos é o critério determinante.
+
+### Resultado da suíte
+
+- Suíte: `tests/test_clubes_canonica_api.py`
+- Resultado: **33/33 testes aprovados**
+- Taxa de aprovação: **100%**
+- Cobertura: Métodos 1 a 5, regressões periciais e cenários de desambiguação do Método 3.
+
+### Invariantes preservados
+
+- Banco canônico `data/futebol.db` não alterado.
+- Nenhuma migração de schema aplicada.
+- Nenhuma alteração de dados históricos ou canônicos.
+- Nenhum commit, push, merge ou deploy realizado como parte desta homologação.
+- Escopo restrito a `backend/rotas_clubes_canonica.py` e `tests/test_clubes_canonica_api.py`.
+
+### Conclusão
+
+O Método 3 está formalmente homologado e encerrado. A regra agora garante que identidade ambígua nunca seja resolvida por coincidência de posição, preservando a rastreabilidade pericial e transferindo qualquer resolução residual ao Método 4, somente mediante evidência factual independente.
