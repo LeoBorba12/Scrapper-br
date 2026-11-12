@@ -222,3 +222,18 @@ A homologação é sustentada pela tríade de regressão:
 ### Conclusão
 
 O Método 3 está formalmente homologado e encerrado. A regra agora garante que identidade ambígua nunca seja resolvida por coincidência de posição, preservando a rastreabilidade pericial e transferindo qualquer resolução residual ao Método 4, somente mediante evidência factual independente.
+
+
+---
+
+## Aprovação Funcional e Visual — Módulo Clubes
+
+**Status:** APROVADO PARA RITO FINAL DE FECHAMENTO  
+**Commit de validação:** `a33e745`  
+**Branch:** `preview/modulo-clubes`  
+
+A validação dirigida confirmou o funcionamento das páginas de Clubes, incluindo Visão Geral, Elenco, Estatísticas e Histórico. O Método 3 e o fallback do Método 5 foram validados em dados reais: atletas sem evidência suficiente permanecem rotulados como `Posição a Confirmar`, sem atribuição arbitrária de posição.
+
+A correção de UI no `ClubDetailView.jsx` foi cirúrgica, resolveu o `ReferenceError` identificado e não alterou dados canônicos, backend ou regras de resolução hierárquica.
+
+O módulo permanece aprovado apenas para o rito final de fechamento. Merge e produção permanecem condicionados à reexecução da suíte (33/33 aprovados), confirmação de integridade do banco (ok) e decisão explícita de aprovação.
