@@ -237,3 +237,51 @@ A validação dirigida confirmou o funcionamento das páginas de Clubes, incluin
 A correção de UI no `ClubDetailView.jsx` foi cirúrgica, resolveu o `ReferenceError` identificado e não alterou dados canônicos, backend ou regras de resolução hierárquica.
 
 O módulo permanece aprovado apenas para o rito final de fechamento. Merge e produção permanecem condicionados à reexecução da suíte (33/33 aprovados), confirmação de integridade do banco (ok) e decisão explícita de aprovação.
+
+
+---
+
+## Encerramento Oficial — Módulo de Clubes (FutStats)
+
+**Status:** HOMOLOGADO E CONCLUÍDO NA BRANCH DE PREVIEW  
+**Branch:** `preview/modulo-clubes`  
+**Commit de fechamento:** `14e6f24`  
+**Data:** 12 de novembro de 2026 — 14:55 BRT  
+**Auditor / Revisor:** Consultor Técnico Sênior (Perplexity via Chrome DevTools MCP)  
+
+### 1. Resumo Executivo da Homologação
+
+O Módulo Canônico de Clubes foi formalmente homologado e concluído na branch `preview/modulo-clubes`, cumprindo 100% dos requisitos periciais, de regressão e de validação funcional/visual em tela:
+
+1. **Método 3 (Resolução Cadastral Estrita):**
+   - Removida a brecha de aceitação de homônimos por coincidência de posição.
+   - Mais de um cadastro candidato em `jogadores` permanece estritamente inconclusivo (`row_cad = None`), não gerando `cadastro_validado`.
+   - O fluxo desce para o Método 4 (apenas por evidência factual independente) e para o Método 5 (`posicao_a_confirmar`).
+2. **Tríade Pericial de Testes de Regressão:**
+   - `test_regressao_metodo_3_candidato_unico_valida`: 1 candidato em `jogadores` -> valida legitimamente com a posição cadastral (`cadastro_validado`).
+   - `test_regressao_metodo_3_multiplos_candidatos_mesma_posicao_inconclusivo`: 2 candidatos com mesma posição -> não valida por coincidência (`posicao_a_confirmar`).
+   - `test_regressao_metodo_3_multiplos_candidatos_posicoes_diferentes_inconclusivo`: 2 candidatos com posições distintas -> inconclusivo pela pluralidade de cadastros (`posicao_a_confirmar`).
+   - Suíte `tests/test_clubes_canonica_api.py`: **33/33 testes aprovados (100% PASS)** em 32.76s.
+3. **Auditoria de Integridade do Banco de Dados:**
+   - `PRAGMA integrity_check` em `data/futebol.db` -> **`ok`**.
+   - Banco canônico 100% preservado e intocado (zero mutações, zero migrações).
+4. **Validação Funcional e Visual em Produção de Preview (Vercel):**
+   - Rota `/` e `/?tab=clubes`: Tabela canônica de 20 clubes com ordenação e métricas BED 2026 aprovada.
+   - Rota `/?tab=clube&id=2459&sub=elenco`: 43 atletas renderizados. **15 atletas ambíguos validados com a tag visual âmbar "Posição a Confirmar"** (comprovando a eficácia do Método 3/5 em dados reais).
+   - Rota `/?tab=clube&id=2459&sub=estatisticas`: Painéis de gols, cartões e métricas consolidadas 100% íntegros.
+   - Rota `/?tab=clube&id=1389&sub=historico` (Flamengo): 55 títulos catalogados, vitrine, artilharia histórica (Zico 374 gols, Pedro 148 gols) e 115 temporadas catalogadas.
+5. **Correção Cirúrgica de UI:**
+   - Commit `a33e745`: Corrigido `ReferenceError: clubeData is not defined` em `frontend/src/components/ClubDetailView.jsx` substituindo para a prop `atletas_mais_utilizados_recorte` com guarda `Array.isArray()`.
+   - Build Vite validado sem erros (`npm run build` em 19.23s).
+6. **Histórico de Commits na Branch `preview/modulo-clubes`:**
+   - `19f78f2`: *Homologa Método 3: proíbe desambiguação por coincidência de posição*
+   - `3d47fda`: *docs(handoff): encerramento pericial e patch homologado do Metodo 3*
+   - `a33e745`: *fix(ui): resolve ReferenceError clubeData em ClubDetailView*
+   - `14e6f24`: *docs(handoff): registro de aprovacao funcional e visual do modulo de clubes*
+
+### 2. Diretriz de Não-Merge & Próximo Ciclo
+
+- A branch `main` de produção permanece 100% limpa e intocada no commit [`ff31b24`](https://github.com/LeoBorba12/Scrapper-br/commit/ff31b24).
+- A homologação é válida restritamente para o ambiente de preview.
+- **Nenhum merge para `main` ou deploy de produção foi executado.**
+- A promoção para produção será tratada em momento oportuno através de um relatório formal de pré-merge e verificação de integridade pós-deploy.
