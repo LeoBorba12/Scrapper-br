@@ -328,3 +328,44 @@ O Pull Request deve ser aberto, auditado e aprovado antes do merge. O deploy de 
 ### 3. Evidências Visuais Arquivadas:
 - Screenshots de tela cheia e setor auditado salvos na pasta de evidências do navegador.
 - O ciclo do Módulo Canônico de Clubes está **oficialmente concluído, promovido e ativo em produção**!
+
+
+---
+
+## 📜 Parecer Oficial do Consultor Técnico Sênior (Perplexity) & Arquitetura Final
+
+**Data:** 16 de novembro de 2026 — 00:38 BRT  
+**Status Oficial:** CONCLUÍDO E OPERACIONAL EM PRODUÇÃO  
+**Produção Vercel:** [`https://scrapper-br.vercel.app/`](https://scrapper-br.vercel.app/)  
+**Último Commit `main`:** [`4ad13ed`](https://github.com/LeoBorba12/Scrapper-br/commit/4ad13ed)  
+
+### 1. Parecer Final do Consultor (Transcrição Oficial)
+
+> *"Confirmo: o ciclo do Módulo de Clubes está formalmente concluído e o módulo está operacional em produção. A correção pós-merge resolveu uma falha de empacotamento/serverless — o `.vercelignore` excluía `data/futebol.db` do bundle — e o health check, endpoints de clubes e a validação do Método 3/5 em produção comprovam a recuperação."*
+
+#### Quadro Pericial de Validação em Produção:
+| Verificação | Resultado Oficial |
+| :--- | :--- |
+| `/api/health` | **ok / connected** |
+| Base canônica | **115.754 partidas catalogadas** |
+| Latência de consulta | **10,98 ms** (SLO target: $\le 200\text{ ms}$) |
+| `/api/clubes/lista-geral` | **HTTP 200**, 274 clubes catalogados |
+| `/api/clubes/detalhe/2459` | **HTTP 200**, Palmeiras com 74 jogos no recorte |
+| Elenco do Palmeiras | **43 atletas**, 15 em **Posição a Confirmar** |
+| Goleiros | **Marcelo Lomba e Carlos Miguel** corretamente classificados |
+| Console do frontend | **Sem erros (zero ReferenceError)** |
+
+### 2. Infraestrutura Atualizada da VM Oracle 24 GB (`129.148.21.244`)
+- **Coexistência L-Addon + FutStats:** 100% comprovada ao vivo.
+- **L-Addon Stack (`/opt/l-addon`):**
+  - Caddy 2, Node.js Intelligence, Postgres 16, Redis 7, Uptime Kuma.
+  - Consumo total da stack Docker: **~220 MB de RAM**.
+  - Backups diários ativos no Crontab às 03:00 com validação de restore aos domingos às 04:00.
+- **FutStats Daemons Nativos (Systemd):**
+  - `futstats-orquestrador.service` (213 MB RAM, ativo há 3+ dias).
+  - `futstats-bot.service` (13 MB RAM, ativo há 3+ dias).
+- **Recursos Livres da VM:** **20 GiB de RAM livres (92% de folga)**, CPU fria (Load 0.24) e 17 GB de disco disponíveis.
+
+### 3. Próximo Marco Estratégico (Roadmap)
+1. **Janela de Estabilidade (24–48h):** Observação passiva dos endpoints e da integridade operacional.
+2. **Fase 3 do Módulo de Clubes:** Comparador de Clubes e Dossiê Avançado, agora construído sobre a fundação canônica de produção 100% validada.
