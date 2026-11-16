@@ -352,6 +352,16 @@ except ImportError:
     except Exception as e_bp:
         print(f"[AVISO] Falha ao registrar Blueprint rotas_clubes_canonica: {e_bp}")
 
+try:
+    from backend.rotas_h2h_canonica import rotas_h2h_canonica_bp
+    app.register_blueprint(rotas_h2h_canonica_bp)
+except ImportError:
+    try:
+        from rotas_h2h_canonica import rotas_h2h_canonica_bp
+        app.register_blueprint(rotas_h2h_canonica_bp)
+    except Exception as e_h2h:
+        print(f"[AVISO] Falha ao registrar Blueprint rotas_h2h_canonica: {e_h2h}")
+
 @app.errorhandler(500)
 def handle_500(err):
     return jsonify({"error": f"Erro interno do servidor: {str(err)}"}), 500
