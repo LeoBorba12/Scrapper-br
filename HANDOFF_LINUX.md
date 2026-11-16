@@ -285,3 +285,18 @@ O Módulo Canônico de Clubes foi formalmente homologado e concluído na branch 
 - A homologação é válida restritamente para o ambiente de preview.
 - **Nenhum merge para `main` ou deploy de produção foi executado.**
 - A promoção para produção será tratada em momento oportuno através de um relatório formal de pré-merge e verificação de integridade pós-deploy.
+
+
+---
+
+## Fechamento do Ciclo — Promoção do Módulo de Clubes
+
+**Status:** PRONTO PARA ABERTURA E MERGE DO PULL REQUEST  
+**Origem:** `promo/modulo-clubes`  
+**Destino:** `main`  
+**Método:** Merge commit  
+**Data:** 15 de novembro de 2026 — 23:15 BRT  
+
+A branch de promoção foi publicada e validada após merge local sem conflitos. A suíte do módulo Clubes retornou 33/33 testes aprovados, o banco canônico permanece íntegro e o contrato de produção foi restaurado para `data/futebol.db`.
+
+O Pull Request deve ser aberto, auditado e aprovado antes do merge. O deploy de produção permanece condicionado a uma etapa separada, após confirmação do estado final de `main` e do contrato de deploy.
