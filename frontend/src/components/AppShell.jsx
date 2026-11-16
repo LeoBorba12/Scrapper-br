@@ -297,7 +297,9 @@ export default function AppShell({
             }}
           >
             {navItems.map((item) => {
-              const active = activeTab === item.id || (item.id === 'probabilidades' && activeTab === 'apostas');
+              const active = activeTab === item.id || 
+                (item.id === 'probabilidades' && activeTab === 'apostas') ||
+                (item.id === 'times' && activeTab === 'clube');
               return (
                 <button
                   key={item.id}
