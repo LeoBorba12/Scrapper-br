@@ -21,7 +21,22 @@ import urllib.parse
 import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 DB_LOCAL = os.path.join(BASE_DIR, "data", "futebol.db")
+
+try:
+    from backend.alertas_valor_esperado import (
+        obter_anomalias_ev,
+        formatar_ficha_telegram,
+        gerar_relatorio_resumido_ev
+    )
+except ImportError:
+    from alertas_valor_esperado import (
+        obter_anomalias_ev,
+        formatar_ficha_telegram,
+        gerar_relatorio_resumido_ev
+    )
 
 def carregar_env():
     env_file = os.path.join(BASE_DIR, ".env")
@@ -95,6 +110,10 @@ TECLADO_INLINE_MENU = {
         [
             {"text": "🧹 Sanear Banco (Limpeza)", "callback_data": "/sanear"},
             {"text": "🛡️ Auditoria Universal", "callback_data": "/auditoria"}
+        ],
+        [
+            {"text": "🎯 Scanner +EV", "callback_data": "/ev"},
+            {"text": "📑 Fichas (+EV)", "callback_data": "/ev_alertas"}
         ],
         [
             {"text": "🌐 Abrir FutStats Web", "url": DASHBOARD_URL}
@@ -493,6 +512,27 @@ def tratar_comando(chat_id: str, texto: str):
 
     elif cmd in ("/auditoria", "/auditar"):
         executar_acao_auditoria(chat_id)
+
+    elif cmd in ("/ev", "/ev_scanner", "/anomalias"):
+        notificar(chat_id, "🔍 *Escaneando anomalias estatísticas (+EV)... Aguarde.*")
+        try:
+            resumo = gerar_relatorio_resumido_ev(limite=5, min_ev=4.0, dashboard_url=DASHBOARD_URL)
+            notificar(chat_id, resumo)
+        except Exception as e:
+            notificar(chat_id, f"❌ Erro ao escanear anomalias (+EV): {e}")
+
+    elif cmd in ("/ev_alertas", "/fichas_ev"):
+        notificar(chat_id, "📑 *Compilando fichas completas de investigação editorial (+EV)...*")
+        try:
+            anomalias = obter_anomalias_ev(min_ev=6.0, limite=3)
+            if not anomalias:
+                notificar(chat_id, "🎯 *Nenhuma anomalia com +EV >= 6.0% encontrada no momento.*")
+            else:
+                for a in anomalias:
+                    ficha = formatar_ficha_telegram(a, dashboard_url=DASHBOARD_URL)
+                    notificar(chat_id, ficha)
+        except Exception as e:
+            notificar(chat_id, f"❌ Erro ao gerar fichas de anomalia (+EV): {e}")
 
     elif cmd == "/perguntar" or not cmd.startswith("/"):
         pergunta = texto[len("/perguntar"):].strip() if cmd == "/perguntar" else texto.strip()
