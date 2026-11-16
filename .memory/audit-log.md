@@ -69,7 +69,6 @@
   - Criado `scripts/auditar_sanidade_atletas.py` e integrado na Fase C do `scripts/orquestrador_mestre_24x7.py` (auto-reparou 196 inconsistências herdadas no banco).
 - **Validação de Pre-Flight**: 22/22 pytest aprovados, frontend buildado em 6.8s, 115.356 partidas íntegras e banco SQLite em 84.8 MB. Commits `8338a5e` e `105c522` enviados para produção na Vercel (`main`).
 
-
 ## [2026-10-28] Extensão do Pilar 4: Filtros de Competição no Comparador Head-to-Head
 - **Backend (`backend/app.py`)**:
   - Implementado `_obter_condicao_campeonato()` e parâmetro `campeonato_filtro` em `_construir_perfil_jogador()` e rota `/api/jogadores/comparar`.
@@ -108,3 +107,41 @@
   - **Fase 3 (Escala Total Top 1.000)**: 1.000 atletas auditados no acumulado, 478 com discrepâncias, 1.043 gols alienígenas curados cirurgicamente e sincronizados em `jogadores` e `jogadores_estatisticas`.
   - **Fase 4 (Gate Permanente & Regra 11)**: Implementada a Regra 11 em `scripts/auditar_integridade_dados.py` para detecção e auto-reparo de qualquer gol registrado para adversário em que o atleta conste escalado. Desambiguação de Gabriel Barbosa (Gabigol ID 7) desvinculando 32 escalações e 1 gol de homônimos (restringindo seu perfil estritamente a Santos, Flamengo e Cruzeiro).
 - **Validação de Pre-Flight**: 22/22 pytest aprovados, integridade do banco (86.27 MB < 94 MB), 11/11 regras de auditoria passando com 0 inconsistências e build frontend concluído com sucesso.
+
+## [2026-11-16] Fase 3 do Módulo Canônico de Clubes: Dossiê Institucional & Curva de Momento Tático (PR #5)
+- **Contexto e Objetivos**:
+  - Implementar os endpoints avançados da Fase 3 do Módulo Canônico de Clubes: Dossiê Institucional (`/dossie`) e Curva de Momento/Tendência Tática (`/tendencia`).
+  - Desenvolver suíte TDD determinística (`tests/test_clube_dossie_tendencia_api.py`) cobrindo contratos, limites (5, 10, 20 jogos), deduplicação canônica e guardrails de ausência.
+  - Implementar a nova aba interativa no frontend (`ClubDetailView.jsx`) no padrão Editorial 2026 e WCAG 2.2 AA.
+  - Submeter Pull Request #5 e mesclar na branch `main`.
+- **Implementações Técnicas**:
+  1. **Backend (`backend/rotas_clubes_canonica.py`)**:
+     - `GET /api/clubes/detalhe/<clube_id>/dossie`:
+       - Consulta em `dim_clube` e `clubes_perfil`.
+       - Extração de estádio, capacidade oficial, ano de fundação, presidente, treinador e troféus em formato estruturado.
+       - Aplicação estrita do *Princípio da Honestidade de Dados*: campos vazios ou ausentes são rotulados explicitamente como `"Não catalogado"`, sem inventar valores ou preencher zeros arbitrários.
+       - Contagem consolidada de partidas catalogadas e cobertura temporal no acervo canônico.
+     - `GET /api/clubes/detalhe/<clube_id>/tendencia`:
+       - Parâmetros `jogos=5|10|20` e filtro opcional por `campeonato`.
+       - Deduplicação determinística rigorosa de partidas através da rotina `_obter_jogos_deduplicados_clube()`.
+       - Exclusão expressa de partidas agendadas (sem placar finalizado).
+       - Cálculo de aproveitamento percentual, médias de gols pró e contra e saldo de gols.
+       - Cálculo de desvio padrão amostral via biblioteca nativa `statistics.stdev` para qualificação da consistência ofensiva e defensiva.
+       - Distribuição temporal de gols em 6 faixas de 15 minutos (`1-15'`, `16-30'`, `31-45+'`, `46-60'`, `61-75'`, `76-90+'`).
+  2. **Suíte de Testes Automatizados TDD (`tests/test_clube_dossie_tendencia_api.py`)**:
+     - 10 testes cobrindo contratos de schema, respeito rigoroso aos limites de amostra (5, 10, 20 jogos), deduplicação, ausências honestas ("Não catalogado") e retorno HTTP 404 para entidades inexistentes.
+  3. **Frontend Editorial 2026 (`frontend/src/components/ClubDetailView.jsx`)**:
+     - Nova aba interativa `subTab === 'dossie'` com botão dedicado na barra de navegação.
+     - Seletor tátil de recorte temporal (5, 10 e 20 jogos).
+     - Grid editorial com cards de perfil institucional (fundação, estádio/capacidade, presidente, técnico, acervo, troféus em badges).
+     - Painel analítico de momento recente com aproveitamento (%), médias por jogo, saldo, sequência cronológica de resultados (V, E, D) e desvio padrão com chips de interpretação.
+     - Gráfico de barras temporal comparativo de gols marcados (`#15803D`) e sofridos (`#DC2626`) em 6 intervalos de 15 minutos.
+     - Tabela de partidas da amostra com data, torneio, mando, placar e resultado.
+     - Nota metodológica transparente de rodapé.
+- **Governança Git & Merge**:
+  - Pull Request #5 criado e mesclado na branch `main` via commit `2a7d0c0ed2f40bc618dec8b7c1fb0c19b23ba058`.
+  - ADR-011 registrado formalmente em `.memory/decisions.md`.
+  - Handoff de continuidade atualizado em `HANDOFF_LINUX.md`.
+- **Integridade e Guardrails**:
+  - Base canônica `data/futebol.db` mantida intacta em 81.28 MB (folga de 12.72 MB abaixo do teto de 94.00 MB da Vercel).
+  - Schema de dados inalterado (zero migrações invasivas).
