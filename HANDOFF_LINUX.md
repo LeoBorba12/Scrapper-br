@@ -372,36 +372,40 @@ O Pull Request deve ser aberto, auditado e aprovado antes do merge. O deploy de 
 
 ---
 
-## ⚔️ Marco Ativo: Fase 3 (H2H — Confrontos Diretos) & Governança da VM
+## ⚔️ Marco Concluído: Fase 3 (H2H — Confrontos Diretos) & Central de Valor Esperado (+EV)
 
-**Data:** 16 de novembro de 2026 — 00:45 BRT  
-**Branch Ativa:** `feat/modulo-h2h-confrontos-diretos`  
-**Último Commit:** [`c2c7bf9`](https://github.com/LeoBorba12/Scrapper-br/commit/c2c7bf900562503761640424ab147f12e45f9fbc)  
-**Status dos Gates:** 100% Aprovado (33/33 Clubes PASS + 5/5 H2H PASS)
+**Data:** 16 de novembro de 2026 — 11:40 BRT  
+**Branch:** `main` (Mesclado e Homologado)  
+**Últimos Commits `main`:**
+- [`780f7cc`](https://github.com/LeoBorba12/Scrapper-br/commit/780f7ccd7ef84b7ed166276bc30566eb29524f54): Integração homologada da Central de Valor Esperado (+EV) e radar de odds
+- [`808fe11`](https://github.com/LeoBorba12/Scrapper-br/commit/808fe112d7c04192bfeeb2b4eb3ddbdf90f23719): Sincronização dos assets de compilação do frontend com HeadToHeadView e ValorEsperadoView
+**Status dos Gates:** 100% Aprovado (33/33 Clubes PASS, 5/5 H2H PASS, 3/3 Valor Esperado PASS, 22/22 Model Evals PASS)
 
-### 1. Entregas Técnicas Realizadas:
-1. **Módulo Canônico de H2H (`backend/rotas_h2h_canonica.py`):**
-   - Blueprint registrado no Flask `app.py`.
-   - Implementação resiliente com `_find_db_path()` e conexões seguras `immutable=1 / mode=ro` compatíveis com Vercel Serverless.
-   - Endpoint `/api/h2h/confronto/<clube1_id>/<clube2_id>`: computa vitórias, empates, derrotas, gols pró/contra, distribuição por mando de campo e lista cronológica de jogos históricos.
-   - Endpoint `/api/h2h/busca-rapida`: resolução rápida de confrontos por nome ou alias.
-2. **Suíte de Testes Automatizados H2H (`tests/test_h2h_canonica_api.py`):**
-   - 5/5 testes passando com 100% de sucesso.
-   - Validação de confrontos clássicos (ex: Palmeiras vs Corinthians, Flamengo vs Fluminense) sobre a base real de 115.754 partidas.
-3. **Scripts de Infraestrutura e Governança da VM Oracle (`scripts/`):**
-   - `scripts/backup_sqlite_vm.sh`: rotina de backup determinístico com `sqlite3 .backup`, verificação de integridade (`PRAGMA integrity_check`) e retenção rotativa de 7 dias na VM.
-   - `scripts/sqlite_vm_tuning.py`: script de otimização de pragmas para o ambiente Linux da VM (`journal_mode=WAL`, `synchronous=NORMAL`, `cache_size=-64000`, `mmap_size=268435456`).
+### 1. Entregas Técnicas em Produção:
+1. **Módulo Canônico de Confrontos Diretos (H2H):**
+   - Backend: `backend/rotas_h2h_canonica.py` (`/api/confrontos/h2h?clube_a=...&clube_b=...`).
+   - Frontend: `HeadToHeadView.jsx` integrado sob a aba de confrontos diretos com lazy loading.
+   - Projeção Estatística: Bivariada Dixon-Coles calibrada ($\rho = -0.08$), xG de cada agremiação, Fair Odds justas e placar mais provável.
+   - Validação Vercel: HTTP 200 para Palmeiras vs Santos (398 jogos catalogados).
+2. **Central de Mercados e Valor Esperado (+EV):**
+   - Backend: `backend/rotas_valor_esperado.py` (`/api/mercados/valor-esperado`).
+   - Frontend: `ValorEsperadoView.jsx` integrado sob a aba de probabilidades com lazy loading (`ValorEsperadoView-CxSJCxA4.js`, 8.86 kB).
+   - Scanner de Anomalias: Compara odd justa do modelo estatístico vs odd de mercado, calculando `+EV%` e sinalizando oportunidades qualificadas.
+   - Validação Vercel: HTTP 200 operacional.
+3. **VM Oracle Always Free (`129.148.21.244`):**
+   - Uptime estável de 4 dias.
+   - FutStats daemons (`orquestrador_mestre_24x7` e `bot_telegram_interativo`) ativos.
+   - L-Addon Docker stack (Caddy, Intelligence, Postgres, Redis, Uptime Kuma) 100% saudável.
+   - 21.17 GB de RAM livres (92% de folga).
 
-### 2. Status dos Quality Gates:
+### 2. Quadro de Quality Gates:
 | Suíte de Testes | Arquivo | Cobertura / Itens | Status |
 | :--- | :--- | :--- | :--- |
 | **Módulo Canônico de Clubes** | `tests/test_clubes_canonica_api.py` | 33 testes | **33/33 PASS (100%)** |
 | **Módulo Canônico de H2H** | `tests/test_h2h_canonica_api.py` | 5 testes | **5/5 PASS (100%)** |
-| **Integridade de Dados Canônicos** | `data/futebol.db` | 115.754 partidas | **81.28 MB (Abaixo de 94 MB)** |
-| **SLO de Latência SQLite** | `/api/health` em produção | $p_{95} \le 200\text{ ms}$ | **10.98 ms (Aprovado)** |
+| **Módulo de Valor Esperado (+EV)** | `tests/test_valor_esperado_api.py` | 3 testes | **3/3 PASS (100%)** |
+| **Regression Gates (Model Evals)** | `tests/test_model_evals.py` | 22 testes | **22/22 PASS (100%)** |
+| **Base Canônica de Futebol** | `data/futebol.db` | 115.754 partidas | **81.28 MB (Abaixo de 94 MB)** |
+| **SLO de Latência SQLite** | `/api/health` em produção | $p_{95} \le 200\text{ ms}$ | **17.3 ms (Aprovado)** |
 
-### 3. Próximos Passos Imediatos:
-1. Integrar interface frontend do Comparador H2H na aba de Clubes (`frontend/src/views/ClubCompareView.jsx`).
-2. Abrir Pull Request da branch `feat/modulo-h2h-confrontos-diretos` para homologação quando a interface estiver concluída.
-3. Manter a janela de observação e estabilidade de produção da Vercel e da VM Oracle.
 
