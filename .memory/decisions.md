@@ -38,3 +38,21 @@
   2. Implementar medição ativa de latência via cabeçalho `X-Response-Time-Ms` e rota de healthcheck detalhada em `/api/health`.
   3. Corrigir importação ausente de `datetime` no orquestrador mestre e adicionar cooldown de proteção contra flood crítico (mínimo 300s) no watchdog de saúde da VM.
 
+## ADR-008: Resolução de Caminho SQLite e Imutabilidade Serverless na Vercel
+- **Status**: Implementado e Aprovado
+- **Contexto**: No ambiente serverless da Vercel (AWS Lambda sob o capô), o CWD pode variar entre invocações e o filesystem da task é estritamente read-only, disparando `sqlite3.OperationalError: unable to open database file` se a conexão tentar abrir em modo leitura/escrita padrão ou se o caminho relativo falhar. Além disso, regras no `.vercelignore` têm precedência sobre `includeFiles` do `vercel.json`.
+- **Decisão**:
+  1. Remover `data/futebol.db` do `.vercelignore` para empacotamento mandatório na lambda da API.
+  2. Padronizar em todos os blueprints a função utilitária `_find_db_path()` testando recursivamente caminhos candidatos (`ROOT_DIR/data`, `/var/task/data`, `BASE_DIR/../data`).
+  3. Abrir a conexão SQLite no ambiente Vercel com URI formatada em modo imutável `file:{path}?immutable=1` com fallback para `mode=ro`, eliminando bloqueios de concorrência e exigências de lock em disco read-only.
+
+## ADR-009: Módulo Canônico de Confrontos Diretos (H2H) e Governança de Scripts da VM
+- **Status**: Implementado na branch `feat/modulo-h2h-confrontos-diretos`
+- **Contexto**: Necessidade de fornecer cruzamento analítico histórico entre dois clubes quaisquer (Head-to-Head) utilizando a base canônica íntegra de 115.754 partidas, além de automatizar backups e tuning operacional na VM Oracle sem impactar a stack L-Addon.
+- **Decisão**:
+  1. Criar `backend/rotas_h2h_canonica.py` acoplado ao `app.py` sob o blueprint `rotas_h2h_canonica_bp`, com endpoints `/api/h2h/confronto/<c1>/<c2>`, busca rápida e métricas agregadas (vitórias, gols, mando, sequência histórica).
+  2. Implementar `scripts/backup_sqlite_vm.sh` com `sqlite3 .backup` determinístico, verificação de integridade (`PRAGMA integrity_check`) e rotação de retenção.
+  3. Implementar `scripts/sqlite_vm_tuning.py` para aplicação controlada de `PRAGMA journal_mode=WAL`, `mmap_size` e `cache_size` no SQLite da VM.
+  4. Garantir 100% de aprovação na suíte `tests/test_h2h_canonica_api.py`.
+
+
