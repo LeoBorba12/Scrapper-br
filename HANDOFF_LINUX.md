@@ -404,8 +404,32 @@ O Pull Request deve ser aberto, auditado e aprovado antes do merge. O deploy de 
 | **Módulo Canônico de Clubes** | `tests/test_clubes_canonica_api.py` | 33 testes | **33/33 PASS (100%)** |
 | **Módulo Canônico de H2H** | `tests/test_h2h_canonica_api.py` | 5 testes | **5/5 PASS (100%)** |
 | **Módulo de Valor Esperado (+EV)** | `tests/test_valor_esperado_api.py` | 3 testes | **3/3 PASS (100%)** |
+| **Alertas Telegram (+EV Editorial)** | `tests/test_alertas_valor_esperado.py` | 5 testes | **5/5 PASS (100%)** |
 | **Regression Gates (Model Evals)** | `tests/test_model_evals.py` | 22 testes | **22/22 PASS (100%)** |
+| **Auditoria Universal de Dados** | `scripts/auditar_integridade_dados.py` | 12 regras | **12/12 OK (0 erros)** |
 | **Base Canônica de Futebol** | `data/futebol.db` | 115.754 partidas | **81.28 MB (Abaixo de 94 MB)** |
 | **SLO de Latência SQLite** | `/api/health` em produção | $p_{95} \le 200\text{ ms}$ | **17.3 ms (Aprovado)** |
+
+---
+
+## 🎯 Marco Concluído: Integração do Scanner +EV ao Bot Telegram (PR #4)
+
+**Data:** 16 de novembro de 2026 — 12:45 BRT  
+**Branch:** `feat/alertas-ev-telegram` $\rightarrow$ `main`  
+**Pull Request:** [#4](https://github.com/LeoBorba12/Scrapper-br/pull/4) (Mesclado via merge commit [`2811a24`](https://github.com/LeoBorba12/Scrapper-br/commit/2811a24647fd218936c67b4d54239f62c5dde850))  
+**Auditor / Consultor:** Consultor Técnico Sênior (Perplexity via Chrome DevTools MCP)  
+
+### 1. Entregáveis Implementados:
+1. **Motor de Alertas Editoriais (`backend/alertas_valor_esperado.py`):**
+   - Cálculo determinístico de anomalias estatísticas ($EV = P_{modelo} \times Odd_{mercado} - 1$).
+   - Guardrails anti-tipster: enquadramento estritamente analítico e jornalístico ("Ficha de Anomalia Estatística para Investigação"), ausência de jargão de apostas ou recomendação financeira.
+   - Formatação rica em Markdown para Telegram com links de aprofundamento no FutStats Web.
+2. **Comandos Interativos no Bot (`scripts/bot_telegram_interativo.py`):**
+   - `/ev`: Digest rápido com o Top 5 desvios de mercado no recorte.
+   - `/ev_alertas`: Fichas completas de investigação editorial para os moderadores.
+   - Teclado inline expandido com botões táteis dedicados (`🎯 Scanner +EV` e `📑 Fichas (+EV)`).
+3. **Suíte TDD de Validação (`tests/test_alertas_valor_esperado.py`):**
+   - 5/5 testes aprovados cobrindo integridade de schema, ordenação decrescente por +EV, filtro de corte e conformidade com os guardrails textuais.
+
 
 

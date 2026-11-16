@@ -47,12 +47,22 @@
   3. Abrir a conexão SQLite no ambiente Vercel com URI formatada em modo imutável `file:{path}?immutable=1` com fallback para `mode=ro`, eliminando bloqueios de concorrência e exigências de lock em disco read-only.
 
 ## ADR-009: Módulo Canônico de Confrontos Diretos (H2H) e Governança de Scripts da VM
-- **Status**: Implementado na branch `feat/modulo-h2h-confrontos-diretos`
+- **Status**: Implementado e Aprovado na main
 - **Contexto**: Necessidade de fornecer cruzamento analítico histórico entre dois clubes quaisquer (Head-to-Head) utilizando a base canônica íntegra de 115.754 partidas, além de automatizar backups e tuning operacional na VM Oracle sem impactar a stack L-Addon.
 - **Decisão**:
-  1. Criar `backend/rotas_h2h_canonica.py` acoplado ao `app.py` sob o blueprint `rotas_h2h_canonica_bp`, com endpoints `/api/h2h/confronto/<c1>/<c2>`, busca rápida e métricas agregadas (vitórias, gols, mando, sequência histórica).
+  1. Criar `backend/rotas_h2h_canonica.py` acoplado ao `app.py` sob o blueprint `rotas_h2h_canonica_bp`, com endpoints `/api/confrontos/h2h`, busca rápida e métricas agregadas (vitórias, gols, mando, sequência histórica, projeção bivariada Dixon-Coles calibrada e Fair Odds).
   2. Implementar `scripts/backup_sqlite_vm.sh` com `sqlite3 .backup` determinístico, verificação de integridade (`PRAGMA integrity_check`) e rotação de retenção.
   3. Implementar `scripts/sqlite_vm_tuning.py` para aplicação controlada de `PRAGMA journal_mode=WAL`, `mmap_size` e `cache_size` no SQLite da VM.
   4. Garantir 100% de aprovação na suíte `tests/test_h2h_canonica_api.py`.
+
+## ADR-010: Scanner de Anomalias de Valor Esperado (+EV) e Alertas Editoriais no Telegram
+- **Status**: Implementado e Aprovado na main (PR #4)
+- **Contexto**: Necessidade de integrar o radar matemático de anomalias de odds (+EV) ao bot interativo de moderação no Telegram sem desvirtuar o FutStats para linguagem de tipster ou apostas comerciais.
+- **Decisão**:
+  1. Criar motor independente `backend/alertas_valor_esperado.py` calculando $EV = (P_{modelo} \times Odd_{mercado}) - 1$, com corte padrão de $+4.0\%$ e classificação de confiança editorial ("Alta" $\ge 8\%$, "Moderada" $\ge 5\%$).
+  2. Aplicar guardrails obrigatórios: enquadramento estritamente jornalístico ("Ficha de Anomalia Estatística para Investigação"), ausência de jargão de apostas ("dica", "lucro certo"), links diretos para investigação no painel FutStats Web e notas metodológicas transparentes.
+  3. Integrar comandos `/ev` e `/ev_alertas` no `scripts/bot_telegram_interativo.py`, adicionando botões dedicados ao teclado inline.
+  4. Garantir 100% de aprovação na suíte TDD `tests/test_alertas_valor_esperado.py`.
+
 
 
