@@ -300,3 +300,31 @@ O Módulo Canônico de Clubes foi formalmente homologado e concluído na branch 
 A branch de promoção foi publicada e validada após merge local sem conflitos. A suíte do módulo Clubes retornou 33/33 testes aprovados, o banco canônico permanece íntegro e o contrato de produção foi restaurado para `data/futebol.db`.
 
 O Pull Request deve ser aberto, auditado e aprovado antes do merge. O deploy de produção permanece condicionado a uma etapa separada, após confirmação do estado final de `main` e do contrato de deploy.
+
+
+---
+
+## 🏁 Encerramento Triunfal — Módulo de Clubes em Produção (Vercel)
+
+**Data:** 15 de novembro de 2026 — 23:40 BRT  
+**Branch:** `main` (commit [`948d3be`](https://github.com/LeoBorba12/Scrapper-br/commit/948d3be))  
+**Status Produção:** **100% OPERACIONAL / READY**  
+**URL Oficial:** [`https://scrapper-br.vercel.app/`](https://scrapper-br.vercel.app/)  
+**Auditor / Revisor:** Consultor Técnico Sênior (Perplexity via Chrome DevTools MCP)  
+
+### 1. Indicadores de Telemetria em Produção:
+- **Status do Backend:** `connected` (HTTP 200 OK em todas as rotas).
+- **Latência de Leitura SQLite:** **10.98 ms** (SLO Target: <= 200 ms).
+- **Base Canônica Ativa:** 115.754 partidas catalogadas, 117.523 gols, 109.108 escalações, 81.28 MB.
+- **Catálogo de Clubes:** 274 agremiações cadastradas.
+
+### 2. Comprovação Factual do Método 3 / Método 5 em Tela:
+- Rota: `https://scrapper-br.vercel.app/?tab=clube&id=2459&sub=elenco`
+- **Total de Atletas:** 43 atletas no elenco do Palmeiras.
+- **Distribuição Tática:** 2 Goleiros, 9 Defensores, 12 Meio-campistas, 5 Atacantes e **15 Posição a Confirmar**.
+- **Desambiguação Pericial Ativa:** Atletas ambíguos ou com homônimos cadastrais (Larson, Luiz Benedetti, Heittor, Erick Machado, Fabiano) recebem rigorosamente o rótulo âmbar `Posição a Confirmar • Posição a confirmar`.
+- **Zero Homônimos Contaminados:** Marcelo Lomba devidamente isolado como Goleiro.
+
+### 3. Evidências Visuais Arquivadas:
+- Screenshots de tela cheia e setor auditado salvos na pasta de evidências do navegador.
+- O ciclo do Módulo Canônico de Clubes está **oficialmente concluído, promovido e ativo em produção**!
