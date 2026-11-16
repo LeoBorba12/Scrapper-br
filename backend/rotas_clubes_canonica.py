@@ -20,13 +20,47 @@ def api_delay(secs):
     time.sleep(min(secs, 10.0))
     return "// delay ok", 200, {'Content-Type': 'application/javascript'}
 
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'futebol.db')
+def _find_db_path(filename='futebol.db'):
+    if os.environ.get('DB_PATH'):
+        env_p = os.environ.get('DB_PATH')
+        for c in [
+            env_p,
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), env_p),
+            os.path.join('/var/task', env_p),
+            os.path.join('/var/task/data', os.path.basename(env_p)),
+        ]:
+            if os.path.exists(c):
+                return c
+        return env_p
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(base_dir)
+    candidates = [
+        os.path.join(root_dir, 'data', filename),
+        os.path.join(base_dir, '..', 'data', filename),
+        os.path.join(base_dir, 'data', filename),
+        os.path.join('/var/task/data', filename),
+        os.path.join(root_dir, 'api', 'data', filename),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return os.path.join(root_dir, 'data', filename)
+
+DEFAULT_DB_PATH = _find_db_path('futebol.db')
 
 def get_db():
-    db_path = os.environ.get('DB_PATH', DEFAULT_DB_PATH)
-    # Abre em modo estrito de leitura se na Vercel (read-only)
-    uri = f"file:{os.path.abspath(db_path)}?mode=ro" if os.environ.get('VERCEL') else db_path
-    conn = sqlite3.connect(uri, uri=bool(os.environ.get('VERCEL')), check_same_thread=False)
+    db_path = _find_db_path('futebol.db')
+    if os.environ.get('VERCEL') and os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(f"file:{os.path.abspath(db_path)}?immutable=1", uri=True, timeout=15, check_same_thread=False)
+        except Exception:
+            try:
+                conn = sqlite3.connect(f"file:{os.path.abspath(db_path)}?mode=ro", uri=True, timeout=15, check_same_thread=False)
+            except Exception:
+                conn = sqlite3.connect(db_path, timeout=15, check_same_thread=False)
+    else:
+        conn = sqlite3.connect(db_path, timeout=15, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
