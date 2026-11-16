@@ -29,6 +29,7 @@ const MetricasAvancadasView = lazy(() => import('./components/MetricasAvancadasV
 const CoachProfileView = lazy(() => import('./components/CoachProfileView'));
 const CompetitionDetailView = lazy(() => import('./components/CompetitionDetailView'));
 const HeadToHeadView = lazy(() => import('./components/HeadToHeadView'));
+const ValorEsperadoView = lazy(() => import('./components/ValorEsperadoView'));
 
 function ViewSuspenseFallback({ darkMode }) {
   return (
@@ -65,6 +66,7 @@ export default function App() {
   const [coachSubView, setCoachSubView] = useState('perfil'); // 'perfil' | 'comparar'
   const [competitionSubView, setCompetitionSubView] = useState('edicao'); // 'edicao' | 'scouts'
   const [h2hSubView, setH2hSubView] = useState('canonica'); // 'canonica' | 'comparador'
+  const [probabilidadesSubView, setProbabilidadesSubView] = useState('hub'); // 'hub' | 'valor_esperado'
 
   const [compararAtletasState, setCompararAtletasState] = useState(() => {
     try {
@@ -1289,12 +1291,33 @@ export default function App() {
 
         {/* ABA: PROBABILIDADES MATEMÁTICAS & LEITURA ANALÍTICA */}
         {(activeTab === 'probabilidades' || activeTab === 'apostas') && (
-          <ProbabilidadesView
-            currentUser={currentUser}
-            apiFetch={apiFetch}
-            onNavigateTab={(t) => setActiveTab(t)}
-            onSelectH2H={(c1, c2) => { setClube1(c1); setClube2(c2); setActiveTab('h2h'); }}
-          />
+          <div className="space-y-6">
+            <div className="flex gap-2 p-1 bg-[#EAE0D2] rounded-lg w-fit">
+              <button
+                onClick={() => setProbabilidadesSubView('hub')}
+                className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${probabilidadesSubView === 'hub' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+              >
+                📊 Hub de Probabilidades
+              </button>
+              <button
+                onClick={() => setProbabilidadesSubView('valor_esperado')}
+                className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${probabilidadesSubView === 'valor_esperado' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+              >
+                🎯 Radar de Valor Esperado (+EV)
+              </button>
+            </div>
+
+            {probabilidadesSubView === 'valor_esperado' ? (
+              <ValorEsperadoView />
+            ) : (
+              <ProbabilidadesView
+                currentUser={currentUser}
+                apiFetch={apiFetch}
+                onNavigateTab={(t) => setActiveTab(t)}
+                onSelectH2H={(c1, c2) => { setClube1(c1); setClube2(c2); setActiveTab('h2h'); }}
+              />
+            )}
+          </div>
         )}
 
       {/* ABA 1: RAIO-X H2H / CONFRONTOS DIRETOS CANÔNICOS (EDITORIAL 2026) */}
