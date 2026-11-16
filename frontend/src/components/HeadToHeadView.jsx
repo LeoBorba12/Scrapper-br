@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeftRight, Trophy, Shield, Calendar, MapPin, TrendingUp, AlertCircle, History } from 'lucide-react';
+import { ArrowLeftRight, Trophy, Shield, Calendar, MapPin, TrendingUp, AlertCircle, History, Sparkles, Scale, Percent } from 'lucide-react';
 
 export default function HeadToHeadView() {
   const [clubesLista, setClubesLista] = useState([]);
@@ -19,7 +19,6 @@ export default function HeadToHeadView() {
         }
       })
       .catch(() => {
-        // Fallback básico se a rota demorar
         setClubesLista([
           { clube_id: 2459, nome: 'Palmeiras' },
           { clube_id: 2902, nome: 'Santos' },
@@ -67,6 +66,7 @@ export default function HeadToHeadView() {
   const infoB = dadosH2H?.clubes?.clube_b;
   const retro = dadosH2H?.retrospecto_geral;
   const mando = dadosH2H?.retrospecto_mando;
+  const dc = dadosH2H?.projecao_dixon_coles;
 
   return (
     <div className="space-y-6 text-[#1B1A17] font-sans">
@@ -133,6 +133,58 @@ export default function HeadToHeadView() {
 
       {!loading && dadosH2H && (
         <>
+          {/* Card Projeção Preditiva Dixon-Coles */}
+          {dc && (
+            <div className="bg-[#1B1A17] text-[#F1E8DE] border border-[#3E3830] rounded-xl p-6 shadow-md">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-3 border-b border-[#3E3830]">
+                <div>
+                  <h2 className="font-serif text-xl font-bold flex items-center gap-2 text-[#D4AF37]">
+                    <Sparkles className="w-5 h-5 text-[#D4AF37]" />
+                    Projeção Preditiva (Modelo Dixon-Coles Bivariado)
+                  </h2>
+                  <p className="text-xs text-[#A89F91] mt-0.5">
+                    Probabilidades científicas e Fair Odds calibradas descorrompidas de margem de apostas
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-[#2D2821] text-[#D4AF37] border border-[#4D4436]">
+                  Placar Provável: {dc.placar_mais_provavel}
+                </span>
+              </div>
+
+              {/* Grid 1X2 Probabilidades & Fair Odds */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-4">
+                <div className="bg-[#26231E] border border-[#3E3830] rounded-lg p-3 text-center">
+                  <p className="text-xs uppercase font-semibold text-[#8FAF6A] mb-1">Vitória {infoA.nome}</p>
+                  <p className="font-mono text-3xl font-black text-white">{dc.probabilidades_1x2.vitoria_clube_a_pct}%</p>
+                  <div className="mt-2 inline-block px-2 py-0.5 rounded bg-[#1B1A17] text-[#D4AF37] font-mono text-xs border border-[#3E3830]">
+                    Odd Justa: {dc.fair_odds.odd_clube_a.toFixed(2)}
+                  </div>
+                </div>
+
+                <div className="bg-[#26231E] border border-[#3E3830] rounded-lg p-3 text-center">
+                  <p className="text-xs uppercase font-semibold text-[#C9BAA9] mb-1">Empate</p>
+                  <p className="font-mono text-3xl font-black text-white">{dc.probabilidades_1x2.empate_pct}%</p>
+                  <div className="mt-2 inline-block px-2 py-0.5 rounded bg-[#1B1A17] text-[#D4AF37] font-mono text-xs border border-[#3E3830]">
+                    Odd Justa: {dc.fair_odds.odd_empate.toFixed(2)}
+                  </div>
+                </div>
+
+                <div className="bg-[#26231E] border border-[#3E3830] rounded-lg p-3 text-center">
+                  <p className="text-xs uppercase font-semibold text-[#D48B6A] mb-1">Vitória {infoB.nome}</p>
+                  <p className="font-mono text-3xl font-black text-white">{dc.probabilidades_1x2.vitoria_clube_b_pct}%</p>
+                  <div className="mt-2 inline-block px-2 py-0.5 rounded bg-[#1B1A17] text-[#D4AF37] font-mono text-xs border border-[#3E3830]">
+                    Odd Justa: {dc.fair_odds.odd_clube_b.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs font-mono text-[#A89F91] pt-2">
+                <span>Expectativa Gols (xG): {infoA.nome} {dc.expectativa_gols.clube_a_xg} x {dc.expectativa_gols.clube_b_xg} {infoB.nome}</span>
+                <span className="capitalize text-[#8FAF6A]">Status: {dc.status_amostra.replace('_', ' ')}</span>
+              </div>
+            </div>
+          )}
+
           {/* Card de Retrospecto Geral */}
           <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-4">

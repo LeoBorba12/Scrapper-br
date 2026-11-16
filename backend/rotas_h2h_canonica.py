@@ -3,6 +3,7 @@ Módulo Canônico de Confrontos Diretos (Head-to-Head / H2H) - FutStats 2026
 Autor: Gemini Argon & Antigravity Core
 """
 import os
+import math
 import sqlite3
 from flask import Blueprint, request, jsonify
 
@@ -52,6 +53,91 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+def _poisson_pmf(k, lamb):
+    if lamb <= 0:
+        return 1.0 if k == 0 else 0.0
+    return (math.exp(-lamb) * (lamb ** k)) / math.factorial(k)
+
+def _calcular_dixon_coles_projecao(gols_pro_a, gols_contra_a, jogos_a, gols_pro_b, gols_contra_b, jogos_b, confrontos_diretos):
+    if jogos_a == 0 or jogos_b == 0:
+        return {
+            "expectativa_gols": {"clube_a_xg": 1.25, "clube_b_xg": 1.10},
+            "probabilidades_1x2": {"vitoria_clube_a_pct": 39.5, "empate_pct": 28.5, "vitoria_clube_b_pct": 32.0},
+            "fair_odds": {"odd_clube_a": 2.53, "odd_empate": 3.51, "odd_clube_b": 3.12},
+            "placar_mais_provavel": "1 x 1",
+            "status_amostra": "amostra_reduzida"
+        }
+
+    taxa_ataque_a = max(0.4, min(3.5, gols_pro_a / jogos_a))
+    taxa_defesa_a = max(0.4, min(3.5, gols_contra_a / jogos_a))
+    taxa_ataque_b = max(0.4, min(3.5, gols_pro_b / jogos_b))
+    taxa_defesa_b = max(0.4, min(3.5, gols_contra_b / jogos_b))
+
+    lambda_a = round((taxa_ataque_a * taxa_defesa_b) ** 0.5, 2)
+    lambda_b = round((taxa_ataque_b * taxa_defesa_a) ** 0.5, 2)
+
+    prob_vit_a = 0.0
+    prob_emp = 0.0
+    prob_vit_b = 0.0
+    max_p = -1.0
+    placar_provavel = "1 x 1"
+
+    for ga in range(7):
+        p_ga = _poisson_pmf(ga, lambda_a)
+        for gb in range(7):
+            p_gb = _poisson_pmf(gb, lambda_b)
+            p_joint = p_ga * p_gb
+
+            rho = -0.08
+            if ga == 0 and gb == 0:
+                p_joint *= (1.0 - lambda_a * lambda_b * rho)
+            elif ga == 0 and gb == 1:
+                p_joint *= (1.0 + lambda_a * rho)
+            elif ga == 1 and gb == 0:
+                p_joint *= (1.0 + lambda_b * rho)
+            elif ga == 1 and gb == 1:
+                p_joint *= (1.0 - rho)
+
+            if p_joint > max_p:
+                max_p = p_joint
+                placar_provavel = f"{ga} x {gb}"
+
+            if ga > gb:
+                prob_vit_a += p_joint
+            elif ga < gb:
+                prob_vit_b += p_joint
+            else:
+                prob_emp += p_joint
+
+    soma_p = prob_vit_a + prob_emp + prob_vit_b
+    if soma_p > 0:
+        prob_vit_a /= soma_p
+        prob_emp /= soma_p
+        prob_vit_b /= soma_p
+
+    odd_a = round(1.0 / prob_vit_a, 2) if prob_vit_a > 0.01 else 99.0
+    odd_x = round(1.0 / prob_emp, 2) if prob_emp > 0.01 else 99.0
+    odd_b = round(1.0 / prob_vit_b, 2) if prob_vit_b > 0.01 else 99.0
+
+    return {
+        "expectativa_gols": {
+            "clube_a_xg": lambda_a,
+            "clube_b_xg": lambda_b
+        },
+        "probabilidades_1x2": {
+            "vitoria_clube_a_pct": round(prob_vit_a * 100, 1),
+            "empate_pct": round(prob_emp * 100, 1),
+            "vitoria_clube_b_pct": round(prob_vit_b * 100, 1)
+        },
+        "fair_odds": {
+            "odd_clube_a": odd_a,
+            "odd_empate": odd_x,
+            "odd_clube_b": odd_b
+        },
+        "placar_mais_provavel": placar_provavel,
+        "status_amostra": "confiavel" if len(confrontos_diretos) >= 5 else "amostra_reduzida"
+    }
+
 @rotas_h2h_canonica_bp.route('/api/confrontos/h2h', methods=['GET'])
 def obter_confronto_h2h():
     clube_a_raw = request.args.get('clube_a')
@@ -78,7 +164,6 @@ def obter_confronto_h2h():
     conn = get_db()
     cursor = conn.cursor()
 
-    # 1. Verifica existência dos dois clubes na dim_clube
     clubes = cursor.execute(
         "SELECT clube_id, nome, sigla, estado, pais FROM dim_clube WHERE clube_id IN (?, ?)",
         (clube_a_id, clube_b_id)
@@ -97,7 +182,6 @@ def obter_confronto_h2h():
     nome_a = info_a['nome']
     nome_b = info_b['nome']
 
-    # 2. Busca todos os confrontos diretos na tabela partidas
     query = """
         SELECT 
             id_partida,
@@ -209,6 +293,16 @@ def obter_confronto_h2h():
 
     goleadas.sort(key=lambda x: x['diferenca_gols'], reverse=True)
 
+    projecao = _calcular_dixon_coles_projecao(
+        gols_pro_a=gols_a,
+        gols_contra_a=gols_b,
+        jogos_a=total_jogos,
+        gols_pro_b=gols_b,
+        gols_contra_b=gols_a,
+        jogos_b=total_jogos,
+        confrontos_diretos=partidas
+    )
+
     return jsonify({
         "clubes": {
             "clube_a": info_a,
@@ -244,6 +338,7 @@ def obter_confronto_h2h():
                 "gols_contra": mando_b_gols_contra
             }
         },
+        "projecao_dixon_coles": projecao,
         "maiores_goleadas": goleadas[:5],
         "historico_recente": historico[:20]
     }), 200

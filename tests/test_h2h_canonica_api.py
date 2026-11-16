@@ -43,6 +43,17 @@ def test_h2h_classico_palmeiras_vs_santos(client):
     mando = data['retrospecto_mando']
     assert mando['clube_a_mandante']['total_jogos'] + mando['clube_b_mandante']['total_jogos'] == retro['total_jogos']
 
+    # Validação da projeção Dixon-Coles
+    dc = data.get('projecao_dixon_coles')
+    assert dc is not None
+    assert 'expectativa_gols' in dc
+    assert 'probabilidades_1x2' in dc
+    assert 'fair_odds' in dc
+    p1x2 = dc['probabilidades_1x2']
+    soma_p = p1x2['vitoria_clube_a_pct'] + p1x2['empate_pct'] + p1x2['vitoria_clube_b_pct']
+    assert 99.0 <= soma_p <= 101.0
+    assert dc['fair_odds']['odd_clube_a'] > 1.0
+
 def test_h2h_invariante_inversao_de_perspectiva(client):
     # Testar se a perspectiva de A vs B é o reflexo exato de B vs A
     res_ab = client.get('/api/confrontos/h2h?clube_a=2459&clube_b=2902').get_json()
