@@ -9,6 +9,8 @@ Endpoints RESTful para listagem geral de clubes e perfil individual canônico.
 
 import sqlite3
 import os
+import math
+import statistics
 from collections import Counter
 from flask import Blueprint, request, jsonify
 
@@ -140,7 +142,6 @@ def _resolver_clube(nome_ou_id, id_to_club, name_to_canon):
     """Retorna o dict canônico do clube ou None se não encontrado."""
     if isinstance(nome_ou_id, int) or (isinstance(nome_ou_id, str) and nome_ou_id.isdigit()):
         cid = int(nome_ou_id)
-        # Casos onde o ID precisa ser canônico
         if cid == 323: cid = 324 # Athletico -> Athletico-PR
         if cid == 351: cid = 414 # Atlético -> Atlético-MG
         return id_to_club.get(cid)
@@ -165,7 +166,6 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
     if not clube_info:
         return [], 0, []
 
-    # Identificar todas as strings associadas a esse clube_id
     strings_busca = {clube_info['nome'].lower()}
     for alias, cid in name_to_canon.items():
         if cid == clube_info['clube_id']:
@@ -196,7 +196,6 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
     """
     rows = [dict(r) for r in c.execute(sql, params).fetchall()]
 
-    # Deduplicação Determinística
     dedup_map = {}
     conflitos = []
 
@@ -208,15 +207,12 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
         v_nome_canon = v_canon['nome'] if v_canon else r['visitante']
         key = (r['data'], m_nome_canon, v_nome_canon)
 
-        # Mando do clube avaliado
         sou_mandante = (m_canon and m_canon['clube_id'] == clube_info['clube_id'])
 
-        # Classificação do resultado
         gm = r['gols_mandante']
         gv = r['gols_visitante']
         placar_str = r['placar'] or ''
 
-        # Tratar jogos agendados/futuros honestamente (não é 0x0)
         is_agendado = (gm is None and gv is None) or ('vs' in placar_str.lower())
         resultado = None
         if not is_agendado and gm is not None and gv is not None:
@@ -251,7 +247,6 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
             'status_conflito': None
         }
 
-        # Filtro de mando opcional
         if mando == 'casa' and not sou_mandante:
             continue
         if mando == 'fora' and sou_mandante:
@@ -259,14 +254,11 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
 
         if key in dedup_map:
             existente = dedup_map[key]
-            # Verificar se placar é idêntico
             if existente['placar'] != item['placar'] and not is_agendado:
                 conflito_msg = f"Divergência de placar: ID {existente['id_partida']} ({existente['placar']}) vs ID {item['id_partida']} ({item['placar']})"
                 existente['status_conflito'] = conflito_msg
                 conflitos.append(conflito_msg)
 
-            # Critério determinístico de seleção do representante:
-            # Preferir nome oficial padrão ("Brasileirão Série A") sobre formatos genéricos
             if 'Série A' in item['campeonato'] and 'Série A' not in existente['campeonato']:
                 item['duplicatas_associadas'] = existente['duplicatas_associadas'] + [existente['id_partida']]
                 dedup_map[key] = item
@@ -282,15 +274,6 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
 
 
 def _nomes_estritamente_compativeis(nome_consulta, nome_registro):
-    """
-    Valida compatibilidade estrita de nomes para evitar contaminações:
-    - Exige igualdade exata de tokens na mesma ordem (insensível a maiúsculas e espaços).
-    - Não aceita nomes compostos diferentes sem evidência explícita (sem issubset).
-    - Não trata reordenação de tokens como igualdade (ex: 'José Carlos' vs 'Carlos José' é False).
-    - Nomes isolados (ex: 'Fabiano') nunca casam com nomes compostos com elipse.
-    - Elipses da súmula (ex: '...') exigem sequência contígua exata na mesma ordem.
-    - Para abreviações não comprovadas, não assume compatibilidade nominal como prova de identidade.
-    """
     if not nome_consulta or not nome_registro:
         return False
     n1 = " ".join(nome_consulta.strip().lower().split())
@@ -298,7 +281,6 @@ def _nomes_estritamente_compativeis(nome_consulta, nome_registro):
     if n1 == n2:
         return True
 
-    # Sem elipse explícita, rejeita qualquer diferença de palavras ou ordem
     tem_elipse = ("..." in n1 or "..." in n2 or ".." in n1 or ".." in n2)
     if not tem_elipse:
         return False
@@ -309,11 +291,9 @@ def _nomes_estritamente_compativeis(nome_consulta, nome_registro):
     if not tokens1 or not tokens2:
         return False
 
-    # Nomes simples isolados de um token nunca casam com registros compostos com elipse
     if len(tokens1) <= 1 or len(tokens2) <= 1:
         return False
 
-    # Verifica se a sequência de tokens menores aparece contígua e na ordem exata na sequência maior
     if len(tokens1) <= len(tokens2):
         menor, maior = tokens1, tokens2
     else:
@@ -328,19 +308,6 @@ def _nomes_estritamente_compativeis(nome_consulta, nome_registro):
 
 
 def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_busca, ano_int=None):
-    """
-    Regra pericial revisada de prioridade tática (auditoria de 5 métodos):
-    - Gols NÃO confirmam posição em hipótese alguma.
-    - Prioriza evidência funcional direta em súmulas e escalações comprovadas.
-    - Em caso de ambiguidade ou ausência de função tática, retorna 'Posição a Confirmar'.
-
-    Métodos auditáveis retornados:
-    1. 'posicao_do_recorte'
-    2. 'predominante_em_escalacoes'
-    3. 'cadastro_validado'
-    4. 'nome_com_evidencia_complementar'
-    5. 'posicao_a_confirmar'
-    """
     c = conn.cursor()
 
     # 1. Evidência direta na súmula do recorte
@@ -383,7 +350,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
         cont_rec = Counter(pos_tit)
         mc_rec = cont_rec.most_common()
         if len(mc_rec) > 1 and mc_rec[0][1] == mc_rec[1][1]:
-            # Empate no recorte: sem predominância única, não escolhe arbitrariamente
             pass
         else:
             cand = mc_rec[0][0]
@@ -399,11 +365,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
                 return 'atacantes', label, 'posicao_do_recorte'
 
     # 2. Posição predominante em escalações confiáveis na carreira (acervo 2023-2026)
-    # Regras de auditoria:
-    # - Jamais busca parcial LIKE.
-    # - Rejeita homônimos exatos com IDs distintos (r['id_jogador'] != id_jogador).
-    # - Rejeita ID compartilhado com nome conflitante (ex: Kaique vs Kaique Kenji).
-    # - Exige volume mínimo de 3 titularidades auditáveis para inferência confiável na carreira.
     where_q2 = ["p.ano BETWEEN 2023 AND 2026"]
     params_q2 = []
     if id_jogador and id_jogador > 0:
@@ -429,7 +390,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
             continue
         rows2_validas.append(r)
 
-    # Construção de posições históricas a partir de titularidades auditáveis (inclusive goleiros)
     pos_hist_tit = []
     for r in rows2_validas:
         if r['titular'] != 1:
@@ -443,7 +403,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
         cont_hist = Counter(pos_hist_tit)
         mc_hist = cont_hist.most_common()
         if len(mc_hist) > 1 and mc_hist[0][1] == mc_hist[1][1]:
-            # Empate nas posições históricas: sem predominância única, não escolhe arbitrariamente
             pass
         else:
             cand = mc_hist[0][0]
@@ -460,12 +419,7 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
                 label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
                 return 'atacantes', label, 'predominante_em_escalacoes'
 
-    # 3. Cadastro validado específico em jogadores (sanitizado: rejeita Atacante genérico)
-    # Regras de auditoria:
-    # - Não resolve com OR por ID/nome e LIMIT 1.
-    # - Retorna os campos completos para validar o candidato (id_jogador, nome_exibicao, apelido, nome_completo, posicao).
-    # - Rejeita conflito (ex: ID aponta para atleta com nome diferente) e ambiguidade (múltiplos candidatos divergentes).
-    # - Se id_jogador fornecido colidir com cadastro divergente, não permite fallback para identidade incompatível.
+    # 3. Cadastro validado específico em jogadores
     row_cad = None
     if id_jogador and id_jogador > 0:
         cands_cad = c.execute("""
@@ -503,9 +457,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
 
         if len(cands_validos) == 1:
             row_cad = cands_validos[0]
-        # Se len(cands_validos) > 1: permanece inconclusivo no Método 3.
-        # Proibida a aceitação de múltiplos candidatos por mera coincidência de posição.
-        # O desempate ou classificação só pode ocorrer pelo Método 4 via evidência independente válida.
 
     if row_cad and row_cad['posicao']:
         p_cad = row_cad['posicao'].strip()
@@ -520,11 +471,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
             return 'atacantes', p_cad, 'cadastro_validado'
 
     # 4. Nome com evidência complementar (clube + período)
-    # Regras de auditoria:
-    # - Aplica os mesmos critérios estritos de identidade (rejeita r['id_jogador'] != id_jogador).
-    # - Rejeita homônimos no mesmo clube com IDs distintos.
-    # - Não seleciona posição arbitrária por LIMIT 1 (avalia predominância única via Counter e rejeita empate).
-    # - Sem evidência válida ou em caso de empate, mantém 'Posição a Confirmar'.
     seq = ','.join('?' for _ in strings_busca)
     where_q4 = [
         f"LOWER(e.clube) IN ({seq})",
@@ -550,7 +496,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
     rows4_validas = []
     for r in rows4:
         if id_jogador and r['id_jogador'] and r['id_jogador'] != id_jogador:
-            # Rejeita homônimo no mesmo clube com ID distinto
             continue
         if not _nomes_estritamente_compativeis(atleta_nome, r['atleta']):
             continue
@@ -561,7 +506,6 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
         cont4 = Counter(pos4)
         mc4 = cont4.most_common()
         if len(mc4) > 1 and mc4[0][1] == mc4[1][1]:
-            # Empate: sem predominância única, não escolhe arbitrariamente
             pass
         else:
             cand = mc4[0][0]
@@ -578,16 +522,12 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
                 label = 'Centroavante' if 'centro' in p_low else ('Ponta' if 'ponta' in p_low or 'winger' in p_low else 'Atacante')
                 return 'atacantes', label, 'nome_com_evidencia_complementar'
 
-    # 5. Posição a confirmar (para qualquer ambiguidade ou ausência de função tática)
+    # 5. Posição a confirmar
     return 'outros', 'Posição a Confirmar', 'posicao_a_confirmar'
 
 
 @rotas_clubes_canonica_bp.route('/api/clubes/lista-geral', methods=['GET'])
 def get_clubes_lista_geral():
-    """
-    Retorna a lista paginada de clubes com busca universal (nome e aliases),
-    filtros de competição e temporada, e estatísticas agregadas no recorte.
-    """
     busca = (request.args.get('busca') or request.args.get('q') or '').strip()
     campeonato = request.args.get('campeonato', '').strip()
     ano = request.args.get('ano', '2026').strip()
@@ -600,14 +540,11 @@ def get_clubes_lista_geral():
     c = conn.cursor()
     id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
 
-    # 1. Opções de Filtros Disponíveis no Banco
     anos_disp = [r[0] for r in c.execute("SELECT DISTINCT ano FROM partidas WHERE ano IS NOT NULL ORDER BY ano DESC LIMIT 30").fetchall()]
     comps_disp = [r[0] for r in c.execute("SELECT DISTINCT campeonato FROM partidas WHERE ano = ? AND campeonato IS NOT NULL ORDER BY campeonato", (int(ano) if ano.isdigit() else 2026,)).fetchall()]
 
-    # 2. Clubes com métricas BED 2026
     bed_clubes_ids = set(r[0] for r in c.execute("SELECT clube_id_canonico FROM metrica_clube_avancada_2026").fetchall())
 
-    # 3. Consulta de Agregação por Clube no Recorte Solicitado
     where_p = []
     params_p = []
     if ano and ano.isdigit():
@@ -628,7 +565,6 @@ def get_clubes_lista_geral():
     """
     rows_p = c.execute(sql_partidas, params_p).fetchall()
 
-    # Deduplicar partidas do recorte de forma consistente
     seen_matches = {}
     for r in rows_p:
         m_canon = _resolver_clube(r['mandante'], id_to_club, name_to_canon)
@@ -639,7 +575,6 @@ def get_clubes_lista_geral():
         if k not in seen_matches:
             seen_matches[k] = (r, m_canon, v_canon)
 
-    # Agregar estatísticas por clube canônico
     clubes_stats = {}
     for (data, m_id, v_id), (r, m_canon, v_canon) in seen_matches.items():
         gm = r['gols_mandante']
@@ -696,7 +631,6 @@ def get_clubes_lista_geral():
                         'adversario': v_canon['nome'] if is_mandante else m_canon['nome']
                     })
 
-    # Calcular aproveitamento e saldo
     lista_clubes = []
     for cid, cs in clubes_stats.items():
         cs['saldo_gols'] = cs['gols_pro'] - cs['gols_contra']
@@ -705,7 +639,6 @@ def get_clubes_lista_geral():
         cs['aproveitamento'] = cs['aproveitamento_pct']
         lista_clubes.append(cs)
 
-    # Filtrar por busca textual (nome, sigla, estado, apelidos/aliases)
     if busca:
         b_lower = busca.lower()
         cids_por_alias = {cid for alias, cid in name_to_canon.items() if b_lower in alias}
@@ -718,7 +651,6 @@ def get_clubes_lista_geral():
             or cl['clube_id'] in cids_por_alias
         ]
 
-    # Ordenação
     reverse_order = (order != 'asc')
     valid_sorts = {'pontos', 'jogos', 'vitorias', 'aproveitamento_pct', 'gols_pro', 'saldo_gols', 'nome'}
     actual_sort = sort_by if sort_by in valid_sorts else 'pontos'
@@ -752,16 +684,6 @@ def get_clubes_lista_geral():
 
 @rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>', methods=['GET'])
 def get_clube_detalhe(clube_id):
-    """
-    Retorna o dossiê detalhado do clube para a página individual:
-    - Identificação canônica (sem campos inventados)
-    - Resumo do desempenho no recorte (deduplicado)
-    - Últimos resultados
-    - Artilheiros do recorte
-    - Atletas mais utilizados no recorte
-    - Desempenho Casa x Fora
-    - Prévia de métricas avançadas BED 2026 (se disponíveis)
-    """
     ano_param = request.args.get('ano', '2026').strip()
     campeonato = request.args.get('campeonato', '').strip()
     mando = request.args.get('mando', 'todos').strip()
@@ -780,7 +702,6 @@ def get_clube_detalhe(clube_id):
         if cid == clube_info['clube_id']:
             strings_busca.add(a)
 
-    # 1. Informações Institucionais (clubes_perfil)
     c.execute("""
         SELECT nome_oficial, alcunhas, fundacao, cidade, estado, pais,
                estadio_nome, estadio_capacidade, presidente, treinador_atual,
@@ -791,7 +712,6 @@ def get_clube_detalhe(clube_id):
     """, (clube_id, clube_info['nome'], clube_info['nome_oficial']))
     row_perfil = c.fetchone()
 
-    # Montar identificação sem campos fictícios (se ausente, manter None honesto)
     identificacao = {
         'clube_id': clube_info['clube_id'],
         'nome': clube_info['nome'],
@@ -808,7 +728,6 @@ def get_clube_detalhe(clube_id):
         'valor_elenco_milhoes_eur': row_perfil['valor_elenco_milhoes_eur'] if (row_perfil and row_perfil['valor_elenco_milhoes_eur']) else None
     }
 
-    # 2. Cobertura Histórica no Acervo
     c.execute("""
         SELECT count(*), min(ano), max(ano)
         FROM partidas
@@ -819,11 +738,9 @@ def get_clube_detalhe(clube_id):
     ano_min_acervo = row_cob[1]
     ano_max_acervo = row_cob[2]
 
-    # Verificar se possui BED 2026
     c.execute("SELECT 1 FROM metrica_clube_avancada_2026 WHERE clube_id_canonico = ?", (clube_info['clube_id'],))
     tem_bed = c.fetchone() is not None
 
-    # 3. Anos e Competições Disponíveis para Filtro do Clube
     c.execute("""
         SELECT DISTINCT ano 
         FROM partidas 
@@ -840,7 +757,6 @@ def get_clube_detalhe(clube_id):
     """, (clube_info['nome'], clube_info['nome'], int(ano_param) if ano_param.isdigit() else 2026))
     comps_clube = [r[0] for r in c.fetchall()]
 
-    # 4. Jogos e Desempenho no Recorte (Deduplicados)
     jogos_resolvidos, num_conflitos, conflitos = _obter_jogos_deduplicados_clube(
         conn, clube_info['clube_id'], 
         ano=int(ano_param) if ano_param.isdigit() else None, 
@@ -848,7 +764,6 @@ def get_clube_detalhe(clube_id):
         mando=mando
     )
 
-    # Calcular KPIs do recorte
     jogos_validos = [j for j in jogos_resolvidos if not j['is_agendado']]
     vitorias = sum(1 for j in jogos_validos if j['resultado'] == 'V')
     empates = sum(1 for j in jogos_validos if j['resultado'] == 'E')
@@ -862,7 +777,6 @@ def get_clube_detalhe(clube_id):
     aproveitamento_pct = round((pontos / pts_possiveis) * 100, 1) if pts_possiveis > 0 else 0.0
     clean_sheets = sum(1 for j in jogos_validos if (j['gols_contra'] or 0) == 0)
 
-    # Desempenho Casa x Fora no recorte
     jogos_casa = [j for j in jogos_validos if j['mando'] == 'casa']
     jogos_fora = [j for j in jogos_validos if j['mando'] == 'fora']
 
@@ -907,7 +821,6 @@ def get_clube_detalhe(clube_id):
         'conflitos_detectados': num_conflitos
     }
 
-    # 5. Artilheiros do Recorte (gols marcados estritamente pelo clube no ano)
     c.execute(f"""
         SELECT g.atleta, COUNT(*) as total_gols
         FROM gols g
@@ -921,7 +834,6 @@ def get_clube_detalhe(clube_id):
     """, list(strings_busca) + [int(ano_param) if ano_param.isdigit() else 2026])
     artilheiros = [{'atleta': r[0], 'gols': r[1]} for r in c.fetchall()]
 
-    # 5.1 Atletas mais utilizados no recorte (titularidades)
     c.execute(f"""
         SELECT e.atleta, e.id_jogador, COUNT(*) as titularidades
         FROM escalacoes e
@@ -935,7 +847,6 @@ def get_clube_detalhe(clube_id):
     """, list(strings_busca) + [int(ano_param) if ano_param.isdigit() else 2026])
     atletas_mais_utilizados = [{'atleta': r[0], 'id_jogador': r[1], 'titularidades': r[2]} for r in c.fetchall()]
 
-    # 6. Métricas Avançadas BED 2026 (Preview na Visão Geral)
     metricas_bed = None
     if tem_bed and (ano_param in ('2026', 'todos')):
         c.execute("""
@@ -974,10 +885,6 @@ def get_clube_detalhe(clube_id):
 
 @rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/jogos', methods=['GET'])
 def get_clube_jogos(clube_id):
-    """
-    Retorna a lista paginada de partidas do clube no recorte,
-    com deduplicação determinística e links de partida.
-    """
     ano_param = request.args.get('ano', '2026').strip()
     campeonato = request.args.get('campeonato', '').strip()
     mando = request.args.get('mando', 'todos').strip()
@@ -1019,14 +926,6 @@ def get_clube_jogos(clube_id):
 
 @rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/elenco', methods=['GET'])
 def get_clube_elenco(clube_id):
-    """
-    Retorna o elenco do clube no recorte com integridade matemática absoluta:
-    - titulares <= jogos disputados (sempre garantido)
-    - jogos disputados = titulares + entradas como substituto
-    - relacionado no banco sem atuar permanece estritamente separado
-    - nunca mistura jogos de torneio monocompetitivo (BED) com titularidades multitorneio
-    - classificação por 5 métodos auditáveis (gols NÃO confirmam posição)
-    """
     ano_param = request.args.get('ano', '2026').strip()
     campeonato = request.args.get('campeonato', '').strip()
 
@@ -1054,7 +953,6 @@ def get_clube_elenco(clube_id):
         where_parts.append("p.campeonato = ?")
         params.append(campeonato)
 
-    # Anos anteriores a 2023 não possuem escalações digitalizadas no acervo
     if ano_param.isdigit() and int(ano_param) < 2023:
         conn.close()
         return jsonify({
@@ -1106,7 +1004,6 @@ def get_clube_elenco(clube_id):
     """
     rows_esc = c.execute(query_esc, params).fetchall()
 
-    # 1. Gols marcados no recorte pelo clube (agrupados por atleta pelo nome, separando gols contra)
     where_gols = [
         f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})",
         "(g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')"
@@ -1129,7 +1026,6 @@ def get_clube_elenco(clube_id):
     rows_gols = c.execute(query_gols, params_gols).fetchall()
     gols_map = {r['atleta'].strip().lower(): r['total_gols'] for r in rows_gols}
 
-    # 1.1 Gols contra recebidos a favor do clube no recorte (separados dos gols individuais de atletas)
     where_gc = [
         f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})",
         "LOWER(g.tipo_de_gol) = 'contra'"
@@ -1151,7 +1047,6 @@ def get_clube_elenco(clube_id):
     row_gc = c.execute(query_gc, params_gc).fetchone()
     gols_contra_a_favor = row_gc['total_gc'] if row_gc else 0
 
-    # 2. Assistências brutas
     where_ast = [f"LOWER(a.clube) IN ({','.join('?' for _ in strings_busca)})"]
     params_ast = list(strings_busca)
     if ano_param.isdigit():
@@ -1171,7 +1066,6 @@ def get_clube_elenco(clube_id):
     rows_ast = c.execute(query_ast, params_ast).fetchall()
     ast_map = {r['atleta'].strip().lower(): r['total_assistencias'] for r in rows_ast}
 
-    # 3. Cartões brutos
     where_cart = [f"LOWER(c.clube) IN ({','.join('?' for _ in strings_busca)})"]
     params_cart = list(strings_busca)
     if ano_param.isdigit():
@@ -1199,7 +1093,6 @@ def get_clube_elenco(clube_id):
         elif 'vermelho' in tipo:
             vermelhos_map[nome_k] = vermelhos_map.get(nome_k, 0) + r['total_cartoes']
 
-    # 4. Métricas avançadas BED 2026 (exclusivas do Brasileirão Série A 2026)
     bed_atletas_map = {}
     if ano_param in ('2026', 'todos'):
         c.execute("""
@@ -1212,7 +1105,6 @@ def get_clube_elenco(clube_id):
 
     tem_cobertura_bed = len(bed_atletas_map) > 0 and (ano_param in ('2026', 'todos'))
 
-    # 5. Consolidar atletas das súmulas do recorte
     atletas_dict = {}
     for r in rows_esc:
         nome = r['atleta'].strip()
@@ -1264,7 +1156,6 @@ def get_clube_elenco(clube_id):
     for (nome, id_j), data in atletas_dict.items():
         nome_k = nome.lower()
 
-        # Resolução tática hierárquica estrita (5 métodos, sem gols)
         setor, pos_label, metodo_pos = _resolver_posicao_atleta_hierarquica(
             conn, nome, id_j, strings_busca, ano_int=ano_int_val
         )
@@ -1276,21 +1167,15 @@ def get_clube_elenco(clube_id):
         titularidades = data['titularidades']
         reservas_no_banco = data['reservas']
 
-        # Entradas como substituto conhecidas
         substituto_entrou = 0
         if bed_item and 'jogos' in bed_item and 'titularidades' in bed_item:
-            # No BED, substituições que entraram = jogos - titularidades
             substituto_entrou = max(0, int(bed_item['jogos'] or 0) - int(bed_item['titularidades'] or 0))
 
-        # FÓRMULA ESTRITA: jogos disputados = titularidades + substituto_entrou
-        # Garante: titularidades <= jogos_disputados SEMPRE
         jogos_disputados = titularidades + substituto_entrou
         assert titularidades <= jogos_disputados, f"Incoerência: {nome} tit={titularidades} > jog_disp={jogos_disputados}"
 
-        # Gols do atleta no recorte
         gols = gols_map.get(nome_k, 0)
 
-        # Minutos, assistências e cartões (cobertura explícita ou None)
         if bed_item:
             minutos = int(bed_item['minutos'] or 0)
             ast = int(bed_item['assistencias'] or 0)
@@ -1312,7 +1197,6 @@ def get_clube_elenco(clube_id):
             vermelhos = vermelhos_map.get(nome_k) if len(vermelhos_map) > 0 else None
             scouts_bed = None
 
-        # Nota de participação explicativa para reservas/banco
         nota_part = None
         if titularidades > 0 and reservas_no_banco > 0:
             nota_part = f"{titularidades} {'partida' if titularidades == 1 else 'partidas'} como titular, {reservas_no_banco} no banco"
@@ -1377,13 +1261,6 @@ def get_clube_elenco(clube_id):
 
 @rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/estatisticas', methods=['GET'])
 def get_clube_estatisticas(clube_id):
-    """
-    Retorna estatísticas canônicas agregadas no recorte:
-    - Médias gerais, casa e fora
-    - Clean sheets e BTTS
-    - Distribuição temporal de gols por faixas de 15 minutos
-    - Métricas avançadas BED 2026 (quando aplicável)
-    """
     ano_param = request.args.get('ano', '2026').strip()
     campeonato = request.args.get('campeonato', '').strip()
     mando = request.args.get('mando', 'todos').strip()
@@ -1549,13 +1426,6 @@ def get_clube_estatisticas(clube_id):
 
 @rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/historico', methods=['GET'])
 def get_clube_historico(clube_id):
-    """
-    Retorna o histórico consolidado do acervo com metadados verificáveis de escopo:
-    - Vitrine de títulos oficiais documentados
-    - Maiores artilheiros no acervo de 117.523 gols (tabela gols, lance a lance)
-    - Ídolos históricos catalogados (tabela clubes_perfil, estatística de carreira)
-    - Campanhas ano a ano
-    """
     conn = get_db()
     id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
     clube_info = _resolver_clube(clube_id, id_to_club, name_to_canon)
@@ -1570,7 +1440,6 @@ def get_clube_historico(clube_id):
 
     c = conn.cursor()
 
-    # 1. Títulos / Troféus
     query_trofeus = f"""
         SELECT torneio, tipo_trofeu, quantidade, anos_conquistados, modelo_3d_tipo
         FROM clubes_trofeus_vitrine
@@ -1591,7 +1460,6 @@ def get_clube_historico(clube_id):
     rows_trofeus = c.execute(query_trofeus, list(strings_busca)).fetchall()
     trofeus = [dict(r) for r in rows_trofeus]
 
-    # 2. Maiores Artilheiros no Acervo Oficial (Tabela: gols com lance a lance)
     c.execute(f"""
         SELECT MIN(p.ano), MAX(p.ano)
         FROM gols g
@@ -1615,7 +1483,6 @@ def get_clube_historico(clube_id):
     rows_artilheiros = c.execute(query_artilheiros, list(strings_busca)).fetchall()
     maiores_artilheiros = [dict(r) for r in rows_artilheiros]
 
-    # 3. Ídolos Históricos Catalogados (Tabela: clubes_perfil.idolos_historicos_json)
     c.execute("""
         SELECT idolos_historicos_json, fundacao, presidente, treinador_atual, atualizado_em
         FROM clubes_perfil
@@ -1633,12 +1500,10 @@ def get_clube_historico(clube_id):
         except Exception:
             idolos = []
 
-    # Ajuste para goleiros ídolos (ex: Marcos)
     for idolo in idolos:
         if idolo.get('posicao') == 'Goleiro' and ('gols' not in idolo or idolo['gols'] is None):
             idolo['gols'] = 0
 
-    # 4. Campanhas Históricas no Acervo (Ano a Ano)
     seq = ','.join('?' for _ in strings_busca)
     query_campanhas = f"""
         WITH partidas_clube AS (
@@ -1719,3 +1584,290 @@ def get_clube_historico(clube_id):
         'campanhas_historicas': campanhas
     })
 
+
+# ==============================================================================
+# FASE 3: DOSSIÊ INSTITUCIONAL AVANÇADO E TENDÊNCIA TÁTICA (HOMOLOGAÇÃO PERPLEXITY)
+# ==============================================================================
+
+@rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/dossie', methods=['GET'])
+def get_clube_dossie_institucional(clube_id):
+    """
+    Endpoint 1: Dossiê Institucional Avançado
+    Retorna identificação canônica, estádio oficial, capacidade, acervo histórico
+    e títulos catalogados. Ausências são rotuladas honestamente como 'Não catalogado'.
+    """
+    conn = get_db()
+    c = conn.cursor()
+    id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
+    clube_info = _resolver_clube(clube_id, id_to_club, name_to_canon)
+
+    if not clube_info:
+        conn.close()
+        return jsonify({"erro": f"Clube com ID #{clube_id} não encontrado na base canônica."}), 404
+
+    # 1. Dados Institucionais (clubes_perfil)
+    c.execute("""
+        SELECT nome_oficial, alcunhas, fundacao, cidade, estado, pais,
+               estadio_nome, estadio_capacidade, presidente, treinador_atual,
+               valor_elenco_milhoes_eur, cores_principais
+        FROM clubes_perfil
+        WHERE id_clube = ? OR nome = ? OR nome_oficial = ?
+        LIMIT 1
+    """, (clube_id, clube_info['nome'], clube_info['nome_oficial']))
+    row_perfil = c.fetchone()
+
+    # 2. Acervo Histórico de Partidas
+    c.execute("""
+        SELECT 
+            MIN(ano) as primeiro_ano,
+            MAX(ano) as ultimo_ano,
+            COUNT(*) as total_partidas
+        FROM partidas
+        WHERE mandante = ? OR visitante = ?
+    """, (clube_info['nome'], clube_info['nome']))
+    row_acervo = c.fetchone()
+    primeiro_ano = row_acervo['primeiro_ano'] if (row_acervo and row_acervo['primeiro_ano']) else "Não catalogado"
+    ultimo_ano = row_acervo['ultimo_ano'] if (row_acervo and row_acervo['ultimo_ano']) else "Não catalogado"
+    total_partidas = row_acervo['total_partidas'] if (row_acervo and row_acervo['total_partidas']) else 0
+
+    c.execute("""
+        SELECT DISTINCT campeonato
+        FROM partidas
+        WHERE (mandante = ? OR visitante = ?) AND campeonato IS NOT NULL
+        ORDER BY campeonato
+    """, (clube_info['nome'], clube_info['nome']))
+    competicoes_cobertas = [r['campeonato'] for r in c.fetchall() if r['campeonato']]
+
+    # 3. Títulos / Troféus Catalogados
+    titulos_catalogados = []
+    if row_perfil:
+        try:
+            c.execute("SELECT trofeus_json FROM clubes_perfil WHERE id_clube = ? LIMIT 1", (clube_id,))
+            row_t = c.fetchone()
+            if row_t and row_t['trofeus_json']:
+                import json
+                titulos_catalogados = json.loads(row_t['trofeus_json'])
+        except Exception:
+            titulos_catalogados = []
+
+    conn.close()
+
+    estadio_info = "Não catalogado"
+    if row_perfil and (row_perfil['estadio_nome'] or row_perfil['estadio_capacidade']):
+        estadio_info = {
+            "nome": row_perfil['estadio_nome'] if row_perfil['estadio_nome'] else "Não catalogado",
+            "capacidade": row_perfil['estadio_capacidade'] if row_perfil['estadio_capacidade'] is not None else "Não catalogado",
+            "cidade": row_perfil['cidade'] if row_perfil['cidade'] else "Não catalogado"
+        }
+
+    resposta = {
+        "identificacao": {
+            "clube_id": clube_info['clube_id'],
+            "nome": clube_info['nome'],
+            "nome_oficial": row_perfil['nome_oficial'] if (row_perfil and row_perfil['nome_oficial']) else clube_info.get('nome_oficial', "Não catalogado"),
+            "sigla": clube_info['sigla'] if clube_info['sigla'] else "Não catalogado",
+            "estado": row_perfil['estado'] if (row_perfil and row_perfil['estado']) else clube_info.get('estado', "Não catalogado"),
+            "cidade": row_perfil['cidade'] if (row_perfil and row_perfil['cidade']) else "Não catalogado",
+            "pais": row_perfil['pais'] if (row_perfil and row_perfil['pais']) else clube_info.get('pais', "Brasil")
+        },
+        "institucional": {
+            "fundacao": row_perfil['fundacao'] if (row_perfil and row_perfil['fundacao']) else "Não catalogado",
+            "estadio": estadio_info,
+            "presidente": row_perfil['presidente'] if (row_perfil and row_perfil['presidente']) else "Não catalogado",
+            "treinador_atual": row_perfil['treinador_atual'] if (row_perfil and row_perfil['treinador_atual']) else "Não catalogado",
+            "cores_principais": row_perfil['cores_principais'] if (row_perfil and row_perfil['cores_principais']) else "Não catalogado",
+            "titulos_catalogados": titulos_catalogados,
+            "evolucao_historica": []
+        },
+        "acervo": {
+            "primeiro_ano": primeiro_ano,
+            "ultimo_ano": ultimo_ano,
+            "total_partidas": total_partidas,
+            "competicoes_cobertas": competicoes_cobertas
+        },
+        "mensagem_metodologica": "Dados institucionais catalogados; ausências não são imputadas."
+    }
+
+    return jsonify(resposta), 200
+
+
+@rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/tendencia', methods=['GET'])
+def get_clube_tendencia_tatica(clube_id):
+    """
+    Endpoint 2: Tendência Tática e Curva de Momento
+    Analisa os últimos N jogos realizados (5, 10 ou 20) com deduplicação determinística,
+    exclusão rigorosa de jogos agendados, cálculo de médias, consistência e distribuição
+    temporal de gols por faixas de 15 minutos.
+    """
+    try:
+        n_jogos = int(request.args.get('jogos', 10))
+        if n_jogos not in (5, 10, 20):
+            n_jogos = 10
+    except (ValueError, TypeError):
+        n_jogos = 10
+
+    campeonato_filtro = request.args.get('campeonato', '').strip() or None
+
+    conn = get_db()
+    c = conn.cursor()
+    id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
+    clube_info = _resolver_clube(clube_id, id_to_club, name_to_canon)
+
+    if not clube_info:
+        conn.close()
+        return jsonify({"erro": f"Clube com ID #{clube_id} não encontrado na base canônica."}), 404
+
+    todos_jogos, _, _ = _obter_jogos_deduplicados_clube(conn, clube_id, campeonato=campeonato_filtro)
+
+    jogos_realizados = [
+        j for j in todos_jogos 
+        if not j.get('is_agendado') 
+        and j.get('placar') is not None 
+        and j.get('gols_pro') is not None 
+        and j.get('gols_contra') is not None
+    ]
+
+    jogos_realizados.sort(key=lambda x: (x.get('data') or '', x.get('id_partida', 0)), reverse=True)
+    amostra = jogos_realizados[:n_jogos]
+    amostra.reverse()
+
+    total_analisado = len(amostra)
+
+    aviso_amostra = None
+    if total_analisado < 5:
+        aviso_amostra = "Amostra insuficiente para cálculo de tendência confiável"
+    elif 5 <= total_analisado < 10:
+        aviso_amostra = "Amostra reduzida (menos de 10 partidas)"
+
+    vitorias = 0
+    empates = 0
+    derrotas = 0
+    gols_pro_total = 0
+    gols_contra_total = 0
+    gols_pro_lista = []
+    gols_contra_lista = []
+    sequencia_resultados = []
+    evolucao_por_jogo = []
+    partidas_ids = [j['id_partida'] for j in amostra]
+
+    for j in amostra:
+        gp = j['gols_pro']
+        gc = j['gols_contra']
+        res = j.get('resultado') or ('V' if gp > gc else ('D' if gp < gc else 'E'))
+
+        if res == 'V': vitorias += 1
+        elif res == 'E': empates += 1
+        elif res == 'D': derrotas += 1
+
+        sequencia_resultados.append(res)
+        gols_pro_total += gp
+        gols_contra_total += gc
+        gols_pro_lista.append(gp)
+        gols_contra_lista.append(gc)
+
+        evolucao_por_jogo.append({
+            "id_partida": j['id_partida'],
+            "data": j['data'],
+            "campeonato": j['campeonato'],
+            "adversario": j['adversario_nome'],
+            "mando": j['mando'],
+            "placar": j['placar'],
+            "resultado": res,
+            "gols_pro": gp,
+            "gols_contra": gc
+        })
+
+    aproveitamento_pct = round(((vitorias * 3 + empates) / (total_analisado * 3) * 100) if total_analisado > 0 else 0.0, 2)
+    media_gols_pro = round(gols_pro_total / total_analisado, 2) if total_analisado > 0 else 0.0
+    media_gols_contra = round(gols_contra_total / total_analisado, 2) if total_analisado > 0 else 0.0
+    saldo_gols = gols_pro_total - gols_contra_total
+
+    consistencia_ofensiva = round(statistics.stdev(gols_pro_lista), 2) if len(gols_pro_lista) > 1 else 0.0
+    consistencia_defensiva = round(statistics.stdev(gols_contra_lista), 2) if len(gols_contra_lista) > 1 else 0.0
+
+    faixas_tempo = {
+        "1-15": {"pro": 0, "contra": 0},
+        "16-30": {"pro": 0, "contra": 0},
+        "31-45+": {"pro": 0, "contra": 0},
+        "46-60": {"pro": 0, "contra": 0},
+        "61-75": {"pro": 0, "contra": 0},
+        "76-90+": {"pro": 0, "contra": 0}
+    }
+
+    if partidas_ids:
+        strings_busca = {clube_info['nome'].lower()}
+        for a, cid in name_to_canon.items():
+            if cid == clube_info['clube_id']:
+                strings_busca.add(a)
+
+        placeholders = ','.join('?' for _ in partidas_ids)
+        c.execute(f"""
+            SELECT g.id_partida, g.clube, g.minuto, g.tipo_de_gol
+            FROM gols g
+            WHERE g.id_partida IN ({placeholders})
+        """, partidas_ids)
+        gols_rows = c.fetchall()
+
+        for g in gols_rows:
+            minuto = g['minuto']
+            if minuto is None:
+                continue
+
+            clube_gol = (g['clube'] or '').strip().lower()
+            tipo_gol = (g['tipo_de_gol'] or '').strip().lower()
+            sou_autor = clube_gol in strings_busca
+
+            if tipo_gol == 'contra':
+                eh_gol_pro = not sou_autor
+            else:
+                eh_gol_pro = sou_autor
+
+            faixa = None
+            if 1 <= minuto <= 15: faixa = "1-15"
+            elif 16 <= minuto <= 30: faixa = "16-30"
+            elif 31 <= minuto <= 45: faixa = "31-45+"
+            elif 46 <= minuto <= 60: faixa = "46-60"
+            elif 61 <= minuto <= 75: faixa = "61-75"
+            elif minuto >= 76: faixa = "76-90+"
+            else:
+                if minuto <= 45: faixa = "31-45+"
+                else: faixa = "76-90+"
+
+            if faixa:
+                if eh_gol_pro:
+                    faixas_tempo[faixa]["pro"] += 1
+                else:
+                    faixas_tempo[faixa]["contra"] += 1
+
+    conn.close()
+
+    resposta = {
+        "amostra_analisada": total_analisado,
+        "aviso_amostra": aviso_amostra,
+        "curva_momento": {
+            "vitorias": vitorias,
+            "empates": empates,
+            "derrotas": derrotas,
+            "aproveitamento_pct": aproveitamento_pct,
+            "gols_pro": gols_pro_total,
+            "gols_contra": gols_contra_total,
+            "saldo_gols": saldo_gols,
+            "media_gols_pro": media_gols_pro,
+            "media_gols_contra": media_gols_contra,
+            "xg_pro": "Não catalogado",
+            "xg_contra": "Não catalogado",
+            "saldo_xg": None,
+            "cobertura_xg_jogos": 0,
+            "consistencia_ofensiva_desvio_padrao": consistencia_ofensiva,
+            "consistencia_defensiva_desvio_padrao": consistencia_defensiva,
+            "sequencia_resultados": "-".join(sequencia_resultados) if sequencia_resultados else "N/D"
+        },
+        "distribuicao_temporal_gols": {
+            "faixas": faixas_tempo,
+            "nota": "Minutos de gols catalogados conforme eventos oficiais disponíveis no acervo."
+        },
+        "evolucao_por_jogo": evolucao_por_jogo,
+        "mensagem_metodologica": "Tendência descritiva baseada nos últimos jogos realizados; não constitui previsão de resultados futuros nem recomendação de aposta."
+    }
+
+    return jsonify(resposta), 200
