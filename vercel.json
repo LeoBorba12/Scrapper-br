@@ -4,13 +4,12 @@
   "outputDirectory": "frontend/dist",
   "functions": {
     "api/index.py": {
-      "includeFiles": "{data/futebol_preview.db,backend/**}",
+      "includeFiles": "{data/futebol.db,backend/**}",
       "maxDuration": 30
     }
   },
   "env": {
-    "SECRET_KEY": "futstats-jwt-secret-stable-auth-2026-production-sig-key-vercel",
-    "DB_PATH": "data/futebol_preview.db"
+    "SECRET_KEY": "futstats-jwt-secret-stable-auth-2026-production-sig-key-vercel"
   },
   "rewrites": [
     {
