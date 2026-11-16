@@ -28,6 +28,7 @@ const TournamentStatsView = lazy(() => import('./components/TournamentStatsView'
 const MetricasAvancadasView = lazy(() => import('./components/MetricasAvancadasView'));
 const CoachProfileView = lazy(() => import('./components/CoachProfileView'));
 const CompetitionDetailView = lazy(() => import('./components/CompetitionDetailView'));
+const HeadToHeadView = lazy(() => import('./components/HeadToHeadView'));
 
 function ViewSuspenseFallback({ darkMode }) {
   return (
@@ -63,6 +64,7 @@ export default function App() {
 
   const [coachSubView, setCoachSubView] = useState('perfil'); // 'perfil' | 'comparar'
   const [competitionSubView, setCompetitionSubView] = useState('edicao'); // 'edicao' | 'scouts'
+  const [h2hSubView, setH2hSubView] = useState('canonica'); // 'canonica' | 'comparador'
 
   const [compararAtletasState, setCompararAtletasState] = useState(() => {
     try {
@@ -1295,14 +1297,35 @@ export default function App() {
           />
         )}
 
-      {/* ABA 1: RAIO-X H2H / COMPARADOR DE CLUBES (EDITORIAL 2026) */}
+      {/* ABA 1: RAIO-X H2H / CONFRONTOS DIRETOS CANÔNICOS (EDITORIAL 2026) */}
       {activeTab === 'h2h' && (
-        <ClubCompareView
-          darkMode={darkMode}
-          clubesList={clubesList}
-          clubeInicial1={clube1 || 'Flamengo'}
-          clubeInicial2={clube2 || 'Vasco'}
-        />
+        <div className="space-y-6">
+          <div className="flex gap-2 p-1 bg-[#EAE0D2] rounded-lg w-fit">
+            <button
+              onClick={() => setH2hSubView('canonica')}
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${h2hSubView === 'canonica' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+            >
+              ⚔️ Confrontos Diretos Históricos
+            </button>
+            <button
+              onClick={() => setH2hSubView('comparador')}
+              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${h2hSubView === 'comparador' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+            >
+              📊 Comparador Multidimensional
+            </button>
+          </div>
+
+          {h2hSubView === 'canonica' ? (
+            <HeadToHeadView />
+          ) : (
+            <ClubCompareView
+              darkMode={darkMode}
+              clubesList={clubesList}
+              clubeInicial1={clube1 || 'Flamengo'}
+              clubeInicial2={clube2 || 'Vasco'}
+            />
+          )}
+        </div>
       )}
 
       {/* ABA TÉCNICOS: PERFIL INDIVIDUAL & COMPARADOR DE MESTRES TÁTICOS */}
