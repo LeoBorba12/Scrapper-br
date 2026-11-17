@@ -74,7 +74,7 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 11. `karpathy-guidelines`: Simplicidade radical, diagnósticos de causa-raiz e modificações cirúrgicas mínimas.
 12. `brainstorming`: Transforma ideias brutas em designs validados antes de qualquer implementação (Socratic dialogue, YAGNI, understanding lock).
 13. `multi-agent-brainstorming`: Revisão sequencial por papéis (Challenger, Constraint Guardian, User Advocate) para blindar designs complexos.
-14. `triad-ai-orchestration`: Orquestração estrita em 5 estágios entre Perplexity (estratégia/arquitetura), Gemini Argon/Hydrogen (código/TDD) e Antigravity (execução/testes/deploy/governança).
+14. `triade` (alias: `triad-ai-orchestration`): Orquestração estrita em 5 estágios entre Perplexity (planejamento), Gemini Argon/Hydrogen (código/TDD) e Antigravity (execução/deploy/governança). Acionável via slash commands `/triade` ou `/tri`.
 
 ---
 
