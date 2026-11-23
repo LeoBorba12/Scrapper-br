@@ -1,0 +1,126 @@
+services:
+  worker_sniper:
+    build: .
+    container_name: futstats_sniper
+    command: ["python", "-m", "workers.worker_sniper"]
+    restart: unless-stopped
+    stop_grace_period: 15s
+    volumes:
+      - ../data:/app/data:z
+    env_file:
+      - ../.env
+    environment:
+      - FUTSTATS_DB_PATH=/app/data/futebol.db
+      - LIVE_FEED_API_URL=${LIVE_FEED_API_URL:-}
+      - LIVE_FEED_API_KEY=${LIVE_FEED_API_KEY:-}
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+  worker_healer:
+    build: .
+    container_name: futstats_healer
+    command: ["python", "-m", "workers.worker_healer"]
+    restart: unless-stopped
+    stop_grace_period: 20s
+    volumes:
+      - ../data:/app/data:z
+    env_file:
+      - ../.env
+    environment:
+      - FUTSTATS_DB_PATH=/app/data/futebol.db
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  worker_quant:
+    build: .
+    container_name: futstats_quant
+    command: ["python", "-m", "workers.worker_quant"]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - ../data:/app/data:z
+    env_file:
+      - ../.env
+    environment:
+      - FUTSTATS_DB_PATH=/app/data/futebol.db
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 1024M
+
+  worker_guardiao:
+    build: .
+    container_name: futstats_guardiao
+    command: ["python", "-m", "workers.worker_guardiao"]
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - ../data:/app/data:z
+    env_file:
+      - ../.env
+    environment:
+      - FUTSTATS_DB_PATH=/app/data/futebol.db
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.35"
+          memory: 384M
+        reservations:
+          memory: 192M
+
+  worker_agenda_transmissoes:
+    build: .
+    container_name: futstats_agenda
+    command: ["python", "-m", "workers.worker_agenda_transmissoes"]
+    restart: unless-stopped
+    stop_grace_period: 15s
+    volumes:
+      - ../data:/app/data:z
+    env_file:
+      - ../.env
+    environment:
+      - FUTSTATS_DB_PATH=/app/data/futebol.db
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.20"
+          memory: 256M
+
+  worker_gap_hunter:
+    build: .
+    container_name: futstats_gap_hunter
+    command: ["python", "-m", "workers.worker_gap_hunter"]
+    restart: unless-stopped
+    stop_grace_period: 25s
+    volumes:
+      - ../data:/app/data:z
+    env_file:
+      - ../.env
+    environment:
+      - FUTSTATS_DB_PATH=/app/data/futebol.db
+      - RSSSF_ADAPTER_URL=${RSSSF_ADAPTER_URL:-}
+      - OGOL_ADAPTER_URL=${OGOL_ADAPTER_URL:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        limits:
+          cpus: "0.35"
+          memory: 384M
