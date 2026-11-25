@@ -1,9 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Percent, ShieldCheck, CheckCircle2, XCircle, HelpCircle, Filter, Sparkles, Scale, Info, ArrowUpRight } from 'lucide-react';
+import {
+  TrendingUp, CheckCircle2, XCircle, Filter, Sparkles, Scale, Info, ArrowUpRight
+} from 'lucide-react';
+
+const cardStyle = {
+  backgroundColor: 'var(--surface-card)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius-card)',
+  padding: '20px',
+  boxShadow: 'var(--shadow-sm)'
+};
+
+const subCardStyle = {
+  backgroundColor: 'var(--surface-raised)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius-control)',
+  padding: '14px',
+  textAlign: 'center'
+};
 
 export default function ValorEsperadoView() {
-  const [minEv, setMinEv] = useState(5.0); // Padrão +5%
-  const [limite, setLimite] = useState(30);
+  const [minEv, setMinEv] = useState(5.0);
+  const [limite] = useState(30);
   const [loading, setLoading] = useState(false);
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
@@ -30,37 +48,44 @@ export default function ValorEsperadoView() {
   const resumo = dados?.resumo_performance;
 
   return (
-    <div className="space-y-6 text-[#1B1A17] font-sans">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: 'var(--text-primary)' }}>
       {/* Topo Editorial */}
-      <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#85573B]">
-              Inteligência Preditiva & Anomalias de Mercado
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+          <div style={{ flex: '1 1 320px' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#85573B' }}>
+              Inteligência Preditiva &amp; Anomalias de Mercado
             </span>
-            <h1 className="font-serif text-2xl font-bold text-[#1B1A17] flex items-center gap-2 mt-1">
-              <TrendingUp className="w-6 h-6 text-[#5A673E]" />
+            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.5rem', fontWeight: 800, margin: '4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={22} color="#5A673E" />
               Radar de Valor Esperado (+EV)
             </h1>
-            <p className="text-xs text-gray-600 mt-1 max-w-2xl">
-              Cruzamento matemático entre as probabilidades reais calculadas pelo modelo Dixon-Coles calibrado e as Odds de fechamento de casas de aposta (Pinnacle/Bet365), detectando precificações incorretas favoráveis ao apostador.
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0', maxWidth: '680px', lineHeight: 1.45 }}>
+              Cruzamento matemático entre as probabilidades reais calculadas pelo modelo Dixon-Coles calibrado e as Odds de fechamento, detectando desvios estatísticos relevantes.
             </p>
           </div>
 
-          {/* Filtros Táteis de +EV */}
-          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#EAE0D2] rounded-lg border border-[#D8C7B5]">
-            <span className="text-xs font-semibold text-[#85573B] px-2 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5" /> Corte:
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', padding: '6px 10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', border: '1px solid var(--border-subtle)' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#85573B', display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+              <Filter size={14} /> Corte:
             </span>
             {[2.0, 5.0, 8.0, 12.0].map(corte => (
               <button
                 key={`corte-${corte}`}
+                type="button"
                 onClick={() => setMinEv(corte)}
-                className={`px-3 py-1.5 text-xs font-mono font-bold rounded-md transition-all touch-tactile ${
-                  minEv === corte
-                    ? 'bg-[#5A673E] text-white shadow-sm'
-                    : 'bg-white/80 text-[#1B1A17] hover:bg-white'
-                }`}
+                className="touch-tactile"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.76rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-control)',
+                  cursor: 'pointer',
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: minEv === corte ? '#5A673E' : 'var(--surface-card)',
+                  color: minEv === corte ? '#FFFFFF' : 'var(--text-primary)'
+                }}
               >
                 +{corte}%
               </button>
@@ -70,133 +95,105 @@ export default function ValorEsperadoView() {
       </div>
 
       {erro && (
-        <div className="bg-[#FDF2F0] border border-[#EAC4BE] rounded-lg p-4 text-[#85573B] flex items-center gap-3">
-          <Info className="w-5 h-5 flex-shrink-0" />
+        <div style={{ ...cardStyle, backgroundColor: '#FDF2F0', borderColor: '#EAC4BE', color: '#85573B', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Info size={18} />
           <span>{erro}</span>
         </div>
       )}
 
-      {/* Grade de KPIs de Performance */}
       {resumo && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] p-4 rounded-xl shadow-sm text-center">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-              Oportunidades no Acervo
-            </span>
-            <span className="font-mono text-3xl font-black text-[#1B1A17]">
-              {resumo.total_oportunidades_encontradas}
-            </span>
-            <span className="text-[11px] text-gray-500 font-mono block mt-1">Corte ≥ +{minEv}%</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+          <div style={subCardStyle}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Oportunidades no Acervo</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, margin: '4px 0' }}>{resumo.total_oportunidades_encontradas}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Corte ≥ +{minEv}%</div>
           </div>
-
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] p-4 rounded-xl shadow-sm text-center">
-            <span className="text-xs font-semibold text-[#5A673E] uppercase tracking-wider block mb-1">
-              +EV Médio Detectado
-            </span>
-            <span className="font-mono text-3xl font-black text-[#5A673E]">
-              +{resumo.ev_medio_pct}%
-            </span>
-            <span className="text-[11px] text-gray-500 font-mono block mt-1">Vantagem Teórica</span>
+          <div style={subCardStyle}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#5A673E' }}>+EV Médio Detectado</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, color: '#5A673E', margin: '4px 0' }}>+{resumo.ev_medio_pct}%</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Vantagem Teórica</div>
           </div>
-
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] p-4 rounded-xl shadow-sm text-center">
-            <span className="text-xs font-semibold text-[#85573B] uppercase tracking-wider block mb-1">
-              Taxa de Acerto Real
-            </span>
-            <span className="font-mono text-3xl font-black text-[#85573B]">
-              {resumo.taxa_acerto_historico_pct}%
-            </span>
-            <span className="text-[11px] text-gray-500 font-mono block mt-1">Win Rate Auditada</span>
+          <div style={subCardStyle}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: '#85573B' }}>Taxa de Acerto Real</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, color: '#85573B', margin: '4px 0' }}>{resumo.taxa_acerto_historico_pct}%</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Win Rate Auditada</div>
           </div>
-
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] p-4 rounded-xl shadow-sm text-center">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">
-              Amostragem Exibida
-            </span>
-            <span className="font-mono text-3xl font-black text-gray-700">
-              {resumo.total_retornadas}
-            </span>
-            <span className="text-[11px] text-gray-500 font-mono block mt-1">Top Desvios Ordenados</span>
+          <div style={subCardStyle}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Amostragem Exibida</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.85rem', fontWeight: 900, margin: '4px 0' }}>{resumo.total_retornadas}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Top Desvios Ordenados</div>
           </div>
         </div>
       )}
 
       {loading && (
-        <div className="p-12 text-center text-[#5A673E] space-y-3">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#5A673E] border-t-transparent" />
-          <p className="font-serif italic">Auditando 5.922 partidas com odds e calculando matrizes de valor esperado...</p>
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '40px 20px', color: '#5A673E' }}>
+          <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', margin: 0 }}>
+            Auditando partidas com odds e calculando matrizes de valor esperado...
+          </p>
         </div>
       )}
 
       {!loading && dados?.oportunidades && (
         <>
-          {/* Tabela de Oportunidades +EV */}
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-serif text-xl font-bold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#D4AF37]" />
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.15rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} color="#85573B" />
                 Oportunidades de Maior Valor Esperado Catalogadas
               </h2>
-              <span className="text-xs font-mono bg-[#EAE0D2] px-3 py-1 rounded-full text-[#85573B] font-bold">
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', fontWeight: 700, backgroundColor: 'var(--surface-raised)', padding: '5px 12px', borderRadius: '999px', color: '#85573B', border: '1px solid var(--border-subtle)' }}>
                 Ordenado por +EV%
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
                 <thead>
-                  <tr className="border-b border-[#E5DBCF] text-xs font-semibold uppercase text-gray-500 font-sans">
-                    <th className="py-2.5 px-3">Data</th>
-                    <th className="py-2.5 px-3">Partida</th>
-                    <th className="py-2.5 px-3">Mercado Analisado</th>
-                    <th className="py-2.5 px-3 text-center">Odd Mercado</th>
-                    <th className="py-2.5 px-3 text-center">Odd Justa</th>
-                    <th className="py-2.5 px-3 text-center">Prob. Modelo</th>
-                    <th className="py-2.5 px-3 text-center">+EV %</th>
-                    <th className="py-2.5 px-3 text-center">Resultado Factual</th>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '10px 8px' }}>Data</th>
+                    <th style={{ padding: '10px 8px' }}>Partida</th>
+                    <th style={{ padding: '10px 8px' }}>Mercado Analisado</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Odd Mercado</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Odd Justa</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Prob. Modelo</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>+EV %</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Resultado Factual</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#EDE5DB] font-mono text-sm">
+                <tbody>
                   {dados.oportunidades.map((op, idx) => (
-                    <tr key={`ev-${op.id_partida}-${idx}`} className="hover:bg-white/60 transition-colors">
-                      <td className="py-3 px-3 text-xs text-gray-600">{op.data}</td>
-                      <td className="py-3 px-3 font-sans">
-                        <span className="font-bold">{op.mandante}</span>
-                        <span className="text-gray-400 mx-1.5">vs</span>
-                        <span className="font-bold">{op.visitante}</span>
-                        <span className="block text-[11px] text-gray-500">{op.campeonato}</span>
+                    <tr key={`ev-${op.id_partida}-${idx}`} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{op.data}</td>
+                      <td style={{ padding: '10px 8px' }}>
+                        <div style={{ fontWeight: 700 }}>{op.mandante} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>vs</span> {op.visitante}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{op.campeonato}</div>
                       </td>
-                      <td className="py-3 px-3 font-sans">
-                        <span className="inline-block px-2 py-0.5 rounded bg-[#EAE0D2] text-[#85573B] text-xs font-semibold">
+                      <td style={{ padding: '10px 8px' }}>
+                        <span style={{ display: 'inline-block', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--surface-raised)', color: '#85573B', fontSize: '0.74rem', fontWeight: 700, border: '1px solid var(--border-subtle)' }}>
                           {op.mercado}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-center font-bold text-gray-800">
-                        {op.odd_mercado.toFixed(2)}
-                      </td>
-                      <td className="py-3 px-3 text-center text-[#5A673E] font-bold">
-                        {op.odd_justa_modelo.toFixed(2)}
-                      </td>
-                      <td className="py-3 px-3 text-center text-gray-700">
-                        {op.probabilidade_modelo_pct}%
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#5A673E]/15 text-[#5A673E] font-black text-xs border border-[#5A673E]/30">
-                          <ArrowUpRight className="w-3.5 h-3.5" />
+                      <td style={{ padding: '10px 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800 }}>{op.odd_mercado.toFixed(2)}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#5A673E' }}>{op.odd_justa_modelo.toFixed(2)}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'center', fontFamily: 'var(--font-mono)' }}>{op.probabilidade_modelo_pct}%</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'center' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '4px', backgroundColor: 'rgba(90, 103, 62, 0.14)', color: '#5A673E', fontFamily: 'var(--font-mono)', fontWeight: 900, fontSize: '0.76rem' }}>
+                          <ArrowUpRight size={13} />
                           +{op.ev_percentual}%
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-center font-sans text-xs">
+                      <td style={{ padding: '10px 8px', textAlign: 'center', fontSize: '0.76rem', fontWeight: 700 }}>
                         {op.acerto_historico === true ? (
-                          <span className="inline-flex items-center gap-1 text-[#5A673E] font-semibold">
-                            <CheckCircle2 className="w-4 h-4" /> Green ({op.placar})
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#5A673E' }}>
+                            <CheckCircle2 size={14} /> Green ({op.placar})
                           </span>
                         ) : op.acerto_historico === false ? (
-                          <span className="inline-flex items-center gap-1 text-[#85573B] font-semibold">
-                            <XCircle className="w-4 h-4" /> Red ({op.placar})
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#85573B' }}>
+                            <XCircle size={14} /> Red ({op.placar})
                           </span>
                         ) : (
-                          <span className="text-gray-400">Pendente</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Pendente</span>
                         )}
                       </td>
                     </tr>
@@ -206,20 +203,16 @@ export default function ValorEsperadoView() {
             </div>
           </div>
 
-          {/* Card Teórico Explicativo */}
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm text-xs text-gray-700 space-y-2">
-            <h3 className="font-serif text-sm font-bold text-[#85573B] flex items-center gap-1.5">
-              <Scale className="w-4 h-4 text-[#85573B]" />
+          <div style={{ ...cardStyle, fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '0.92rem', fontWeight: 800, color: '#85573B', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Scale size={16} color="#85573B" />
               Fundamentação Matemática do Valor Esperado (+EV)
             </h3>
-            <p>
-              O Valor Esperado mede a expectativa matemática de lucro a longo prazo de uma decisão:
-              <code className="bg-[#EAE0D2] px-2 py-0.5 rounded mx-1.5 font-mono text-[#1B1A17] font-bold">
+            <p style={{ margin: 0 }}>
+              O Valor Esperado mede a expectativa matemática de retorno no longo prazo:
+              <code style={{ backgroundColor: 'var(--surface-raised)', padding: '2px 8px', borderRadius: '4px', margin: '0 6px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 700 }}>
                 EV = (Probabilidade_do_Modelo × Odd_do_Mercado) - 1.0
               </code>
-            </p>
-            <p className="text-gray-600">
-              Quando o valor percentual é positivo (<span className="text-[#5A673E] font-bold">+EV</span>), significa que a odd oferecida pela casa de apostas paga mais do que o risco real calculado pela distribuição bivariada de Dixon-Coles, invertendo a margem da banca a favor do usuário no longo prazo.
             </p>
           </div>
         </>

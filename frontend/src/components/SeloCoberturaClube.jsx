@@ -1,11 +1,21 @@
 import React from 'react';
 import { ShieldCheck, AlertTriangle, FileText, Ban } from 'lucide-react';
 
-export default function SeloCoberturaClube({ coberturaPct = 100, className = "" }) {
+export default function SeloCoberturaClube({ coberturaPct = 100 }) {
+  const baseStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 12px',
+    borderRadius: '999px',
+    fontSize: '0.75rem',
+    fontWeight: 600
+  };
+
   if (coberturaPct >= 100) {
     return (
-      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#5A673E]/15 text-[#3A4526] border border-[#5A673E]/30 ${className}`}>
-        <ShieldCheck className="w-3.5 h-3.5 text-[#5A673E]" />
+      <div style={{ ...baseStyle, backgroundColor: 'rgba(90, 103, 62, 0.14)', color: '#3A4526', border: '1px solid rgba(90, 103, 62, 0.35)' }}>
+        <ShieldCheck size={14} color="#5A673E" />
         <span>Dossiê Completo (100% Cobertura)</span>
       </div>
     );
@@ -13,8 +23,8 @@ export default function SeloCoberturaClube({ coberturaPct = 100, className = "" 
 
   if (coberturaPct >= 80) {
     return (
-      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#C27D38]/15 text-[#85573B] border border-[#C27D38]/30 ${className}`}>
-        <AlertTriangle className="w-3.5 h-3.5 text-[#C27D38]" />
+      <div style={{ ...baseStyle, backgroundColor: 'rgba(194, 125, 56, 0.14)', color: '#85573B', border: '1px solid rgba(194, 125, 56, 0.35)' }}>
+        <AlertTriangle size={14} color="#C27D38" />
         <span>Dossiê com Aviso ({coberturaPct.toFixed(0)}% Cobertura)</span>
       </div>
     );
@@ -22,16 +32,16 @@ export default function SeloCoberturaClube({ coberturaPct = 100, className = "" 
 
   if (coberturaPct >= 50) {
     return (
-      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#F1E8DE] text-[#7A6B58] border border-[#D9CEBF] ${className}`}>
-        <FileText className="w-3.5 h-3.5 text-[#7A6B58]" />
+      <div style={{ ...baseStyle, backgroundColor: 'var(--surface-raised)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)' }}>
+        <FileText size={14} color="var(--text-secondary)" />
         <span>Retrospecto Básico ({coberturaPct.toFixed(0)}% Cobertura)</span>
       </div>
     );
   }
 
   return (
-    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#85573B]/15 text-[#6B2F1A] border border-[#85573B]/30 ${className}`}>
-      <Ban className="w-3.5 h-3.5 text-[#85573B]" />
+    <div style={{ ...baseStyle, backgroundColor: 'rgba(133, 87, 59, 0.14)', color: '#6B2F1A', border: '1px solid rgba(133, 87, 59, 0.35)' }}>
+      <Ban size={14} color="#85573B" />
       <span>Página Restrita (&lt; 50% Cobertura)</span>
     </div>
   );
