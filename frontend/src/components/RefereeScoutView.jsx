@@ -55,6 +55,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
   const carregarPerfil = (nomeArbitro, clube = '') => {
     if (!nomeArbitro) return;
     setSelectedReferee(nomeArbitro);
+    setClubeFiltro(clube);
     setLoadingProfile(true);
     const url = `/api/arbitros/perfil?nome=${encodeURIComponent(nomeArbitro)}${clube ? `&clube=${encodeURIComponent(clube)}` : ''}`;
     const urlFase6 = `/api/arbitros/detalhe-completo?nome=${encodeURIComponent(nomeArbitro)}`;
@@ -62,8 +63,11 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
     const fetcherFase6 = apiFetch ? apiFetch(urlFase6) : fetch(urlFase6);
 
     Promise.all([
-      fetcher.then(r => r.json()).catch(() => null),
-      fetcherFase6.then(r => r.json()).catch(() => null)
+      fetcher.then(async r => {
+        const body = await r.json().catch(() => ({}));
+        return r.ok ? body : { error: body.error || `Erro HTTP ${r.status} ao carregar perfil.` };
+      }).catch(() => ({ error: 'Falha de rede ao carregar perfil do árbitro.' })),
+      fetcherFase6.then(r => (r.ok ? r.json() : null)).catch(() => null)
     ]).then(([dPerfil, dFase6]) => {
       setRefereeProfile(dPerfil);
       setDetalheFase6(dFase6);
@@ -78,7 +82,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
       if (!matchBusca) return false;
       if (filtroRigor === 'rigoroso') return a.media_cartoes >= 5.2;
       if (filtroRigor === 'padrao') return a.media_cartoes >= 4.5 && a.media_cartoes < 5.2;
-      if (filtroRigor === 'fluir') return a.media_cartoes < 4.5;
+      if (filtroRigor === 'fluir') return a.media_cartoes > 0 && a.media_cartoes < 4.5;
       return true;
     });
   }, [arbitrosList, busca, filtroRigor]);
@@ -90,9 +94,10 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
     const maisRigoroso = [...comScout].sort((a, b) => b.media_cartoes - a.media_cartoes)[0];
     const maisPenaltis = [...arbitrosList].sort((a, b) => b.media_penaltis - a.media_penaltis)[0];
     const maiorMandante = [...arbitrosList].sort((a, b) => b.pct_vit_mandante - a.pct_vit_mandante)[0];
-    const mediaGeral2T = Math.round(
-      arbitrosList.reduce((acc, curr) => acc + (curr.pct_cartoes_2t || 50), 0) / arbitrosList.length
-    );
+    const comTempos = arbitrosList.filter(a => (a.cartoes_1t || 0) + (a.cartoes_2t || 0) > 0);
+    const mediaGeral2T = comTempos.length
+      ? Math.round(comTempos.reduce((acc, curr) => acc + (curr.pct_cartoes_2t || 50), 0) / comTempos.length)
+      : 50;
 
     return {
       maisRigoroso,
@@ -104,6 +109,9 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
 
   // Cor semântica do índice de rigor
   const getRigorBadge = (score, perfil) => {
+    if (perfil === 'Sem Dados' || score == null) {
+      return { bg: 'rgba(120, 113, 108, 0.12)', border: 'rgba(120, 113, 108, 0.25)', text: 'var(--text-secondary)', label: 'Sem Dados' };
+    }
     if (score >= 65) {
       return { bg: 'rgba(220, 38, 38, 0.12)', border: 'rgba(220, 38, 38, 0.3)', text: '#DC2626', label: perfil || 'Ultra Rigoroso' };
     }
@@ -148,8 +156,56 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
             <span>Voltar ao Ranking de Árbitros</span>
           </button>
 
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            Raio-X Oficial do Apito • Base Consolidada FutStats 1902–2026
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              value={clubeFiltro}
+              onChange={(e) => setClubeFiltro(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') carregarPerfil(selectedReferee, clubeFiltro.trim()); }}
+              placeholder="Filtrar por clube (ex: Palmeiras)"
+              style={{
+                backgroundColor: 'var(--surface-raised)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-primary)',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.8rem',
+                minWidth: '200px'
+              }}
+            />
+            <button
+              onClick={() => carregarPerfil(selectedReferee, clubeFiltro.trim())}
+              className="touch-tactile"
+              style={{
+                backgroundColor: 'var(--accent)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Aplicar
+            </button>
+            {clubeFiltro && (
+              <button
+                onClick={() => carregarPerfil(selectedReferee, '')}
+                className="touch-tactile"
+                style={{
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  padding: '8px 10px',
+                  borderRadius: 'var(--radius-control)',
+                  fontSize: '0.78rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Limpar
+              </button>
+            )}
           </div>
         </div>
 
@@ -157,6 +213,13 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
           <div className="editorial-panel" style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }}>
             <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>⏳ Carregando súmulas e histórico disciplinar...</div>
             <span style={{ fontSize: '0.82rem' }}>Cruzando cartões, minutos, pênaltis e aproveitamento de clubes.</span>
+          </div>
+        ) : refereeProfile?.error ? (
+          <div className="editorial-panel" style={{ padding: '32px', textAlign: 'center', borderColor: 'rgba(220, 38, 38, 0.35)' }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#DC2626', marginBottom: '6px' }}>
+              Não foi possível carregar o Raio-X completo de {selectedReferee}
+            </div>
+            <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>{refereeProfile.error}</span>
           </div>
         ) : (
           <>
@@ -671,7 +734,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
 
           <div className="editorial-panel" style={{ padding: '16px' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#B87550', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={14} /> Pico no 2º Tempo
+              <Clock size={14} /> Cartões no 2º Tempo
             </div>
             <div className="font-mono" style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-primary)', marginTop: '2px' }}>
               {kpisGerais.mediaGeral2T}%
@@ -812,7 +875,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
             Tabela Analítica de Rigor Disciplinar
           </h3>
           <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            Exibindo {arbitrosFiltrados.length} juízes com amostragem oficial
+            Exibindo {arbitrosFiltrados.length} {arbitrosFiltrados.length === 1 ? 'juiz' : 'juízes'} com amostragem oficial
           </span>
         </div>
 

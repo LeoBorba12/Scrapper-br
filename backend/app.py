@@ -4233,7 +4233,11 @@ def get_arbitros_destaques():
         FROM stats_arbitro s
         LEFT JOIN cartoes_por_arbitro ca ON s.arbitro = ca.arbitro
         LEFT JOIN penaltis_por_arbitro pa ON s.arbitro = pa.arbitro
-        LEFT JOIN arbitros_estatisticas_detalhadas aed ON LOWER(TRIM(aed.nome)) = LOWER(s.arbitro)
+        LEFT JOIN arbitros_estatisticas_detalhadas aed ON (
+            LOWER(TRIM(aed.nome)) = LOWER(s.arbitro)
+            OR (LOWER(s.arbitro) = 'wilton sampaio' AND LOWER(TRIM(aed.nome)) = 'wilton pereira sampaio')
+            OR (LOWER(s.arbitro) = 'ramon abatti abel' AND LOWER(TRIM(aed.nome)) = 'ramon abatti')
+        )
         ORDER BY s.total_jogos DESC
         LIMIT 40;
     """)
@@ -4243,13 +4247,17 @@ def get_arbitros_destaques():
     arbitros = []
     for r in raw_arbitros:
         m_cart = r.get("media_cartoes") or 0.0
-        # Índice de Rigor de 0 a 100 (Baseline futebol BR: 4.8 cartões = 50)
-        score_rigor = min(max(int(20 + (m_cart - 2.5) * 16), 15), 98) if m_cart > 0 else 50
-        perfil = "Ultra Rigoroso" if m_cart >= 5.5 else ("Disciplinador Padrão" if m_cart >= 4.5 else "Deixa o Jogo Fluir")
+        if m_cart > 0:
+            # Índice de Rigor de 0 a 100 (Baseline futebol BR: 4.8 cartões = 50)
+            score_rigor = min(max(int(20 + (m_cart - 2.5) * 16), 15), 98)
+            perfil = "Ultra Rigoroso" if m_cart >= 5.5 else ("Disciplinador Padrão" if m_cart >= 4.5 else "Deixa o Jogo Fluir")
+        else:
+            score_rigor = None
+            perfil = "Sem Dados"
         # Probabilidade de Over 4.5 Cartões
         lam = m_cart if m_cart > 0 else 4.8
         p_under = sum((math.exp(-lam) * (lam ** k) / math.factorial(k)) for k in range(5))
-        prob_over_45 = round((1.0 - p_under) * 100, 1)
+        prob_over_45 = round((1.0 - p_under) * 100, 1) if m_cart > 0 else None
 
         r["indice_rigor"] = score_rigor
         r["perfil_disciplinar"] = perfil
@@ -4400,8 +4408,6 @@ def get_arbitro_perfil():
     """, params)
     partidas = [dict(r) for r in c.fetchall()]
 
-    conn.close()
-
     total_j = resumo_row.get("total_jogos") or 0
     jc = len(jogos_com_cartoes_set)
     total_cart = amarelos + vermelhos
@@ -4411,9 +4417,11 @@ def get_arbitro_perfil():
 
     # Alinhamento com arbitros_estatisticas_detalhadas quando amostra de cartoes < 10
     if jc < 10 and not clube:
+        nome_low = nome.lower().strip()
+        aed_alias = 'wilton pereira sampaio' if nome_low == 'wilton sampaio' else ('ramon abatti' if nome_low == 'ramon abatti abel' else nome_low)
         aed_row = c.execute(
-            "SELECT jogos_temporada, amarelos_totais, vermelhos_totais, amarelos_por_jogo, vermelhos_por_jogo FROM arbitros_estatisticas_detalhadas WHERE LOWER(nome) LIKE ? LIMIT 1",
-            (f"%{nome.lower()}%",)
+            "SELECT jogos_temporada, amarelos_totais, vermelhos_totais, amarelos_por_jogo, vermelhos_por_jogo FROM arbitros_estatisticas_detalhadas WHERE LOWER(nome) LIKE ? OR LOWER(nome) = ? LIMIT 1",
+            (f"%{nome_low}%", aed_alias)
         ).fetchone()
         if aed_row and (aed_row["jogos_temporada"] or 0) >= 10:
             jc = aed_row["jogos_temporada"]
@@ -4423,6 +4431,8 @@ def get_arbitro_perfil():
             media_am = round(aed_row["amarelos_por_jogo"] or 0.0, 2)
             media_vm = round(aed_row["vermelhos_por_jogo"] or 0.0, 2)
             media_cart = round(media_am + media_vm, 2)
+
+    conn.close()
 
     score_rigor = min(max(int(20 + (media_cart - 2.5) * 16), 15), 98) if media_cart > 0 else 50
     perfil = "Ultra Rigoroso" if media_cart >= 5.5 else ("Disciplinador Padrão" if media_cart >= 4.5 else "Deixa o Jogo Fluir")
