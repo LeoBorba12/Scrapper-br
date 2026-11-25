@@ -781,7 +781,16 @@ export default function ProtagonistaAtleta({
                         <img 
                           src={atleta.foto_url} 
                           alt={atleta.nome || selectedPlayer} 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          style={{
+                            maxWidth: '100%',
+                            height: '92%',
+                            width: 'auto',
+                            objectFit: 'contain',
+                            objectPosition: 'center top',
+                            borderRadius: 'var(--radius-control)',
+                            boxShadow: '0 6px 16px rgba(27,26,23,0.12)',
+                            display: 'block'
+                          }}
                           onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                       ) : null}
