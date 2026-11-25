@@ -35,18 +35,8 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 def notificar_telegram(mensagem: str):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = urllib.parse.urlencode({
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": mensagem,
-        "parse_mode": "Markdown"
-    }).encode("utf-8")
-    try:
-        req = urllib.request.Request(url, data=payload, method="POST")
-        with urllib.request.urlopen(req, timeout=10) as response:
-            pass
-    except Exception as e:
-        safe_print(f"[Telegram Aviso] Falha ao enviar notificação: {e}")
+    # Silenciado permanentemente: apenas notificações da tabela/agenda do dia são enviadas via push
+    pass
 
 BLOCOS = [
     # =========================================================================

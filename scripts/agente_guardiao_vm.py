@@ -94,26 +94,9 @@ def log(msg):
 
 
 def enviar_telegram(msg, env_vars):
-    """Envia alerta ou relatório formatado para o Telegram configurado."""
-    bot_token = env_vars.get("TELEGRAM_BOT_TOKEN")
-    chat_id = env_vars.get("TELEGRAM_CHAT_ID")
-    if not bot_token or not chat_id:
-        return False
-    try:
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {
-            "chat_id": chat_id,
-            "text": msg,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True
-        }
-        data = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status == 200
-    except Exception as e:
-        log(f"Falha ao enviar Telegram: {e}")
-        return False
+    """Silenciado permanentemente: alertas do guardião mantidos em log / menu sob demanda."""
+    log(f"[Telegram Silenciado] {msg[:100]}...")
+    return True
 
 
 def obter_telemetria_sistema():

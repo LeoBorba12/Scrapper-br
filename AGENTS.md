@@ -74,10 +74,12 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 11. `karpathy-guidelines`: Simplicidade radical, diagnósticos de causa-raiz e modificações cirúrgicas mínimas.
 12. `brainstorming`: Transforma ideias brutas em designs validados antes de qualquer implementação (Socratic dialogue, YAGNI, understanding lock).
 13. `multi-agent-brainstorming`: Revisão sequencial por papéis (Challenger, Constraint Guardian, User Advocate) para blindar designs complexos.
+14. `triade` (alias: `triad-ai-orchestration`): Orquestração estrita em 5 estágios entre Perplexity (planejamento), Gemini Argon/Hydrogen (código/TDD) e Antigravity (execução/deploy/governança). Acionável via slash commands `/triade` ou `/tri`. **Hard Gate:** É proibido usar APIs; o acesso ao Perplexity e Gemini no modo Full deve ser 100% via subagente `browser` no primeiro turno.
 
 ---
 
 ## 5. Regras de Execução Pre-flight Obrigatórias
+- **Tríade via Browser:** Ao acionar `/triade` ou o fluxo Tríade no modo Full, nunca tentar chamadas de API, cURL ou scripts. Delegar imediatamente ao subagente `browser` para abrir a interface web do Perplexity e Gemini.
 - **Build Frontend:** Sempre verificar `npm run build` na pasta `frontend/` antes de commitar.
 - **Regression Gates:** Executar `pytest tests/test_model_evals.py` após qualquer alteração em cálculos preditivos, Dixon-Coles ou odds (22/22 testes obrigatórios).
 - **Data Auditor:** Executar `python scripts/auditar_integridade_dados.py` para validar 12 regras de consistência relacional.

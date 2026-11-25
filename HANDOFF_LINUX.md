@@ -69,6 +69,33 @@
 
 ---
 
+### 1.4 Fase 3 do Módulo de Clubes: Dossiê Institucional & Curva de Tendência Tática (PR #5 Mergeado na `main`)
+
+1. **Endpoints Canônicos (`backend/rotas_clubes_canonica.py`):**
+   - `GET /api/clubes/detalhe/<clube_id>/dossie`:
+     - Consolidação institucional a partir de `dim_clube` e `clubes_perfil`.
+     - Estádio, capacidade oficial, data de fundação, presidente, treinador e troféus catalogados.
+     - Princípio da Honestidade de Dados: ausências expressamente rotuladas como `"Não catalogado"`, nunca imputando zeros arbitrários.
+     - Total de partidas e cobertura histórica no acervo.
+   - `GET /api/clubes/detalhe/<clube_id>/tendencia`:
+     - Parâmetros `jogos=5|10|20` e `campeonato`.
+     - Deduplicação canônica via `_obter_jogos_deduplicados_clube()`.
+     - Exclusão estrita de partidas agendadas (sem placar finalizado).
+     - Aproveitamento (%), médias de gols pró/contra e saldo.
+     - Desvio padrão de consistência ofensiva e defensiva via `statistics.stdev`.
+     - Distribuição de gols por 6 faixas de 15 minutos (`1-15'`, `16-30'`, `31-45+'`, `46-60'`, `61-75'`, `76-90+'`).
+2. **Suíte TDD Automatizada (`tests/test_clube_dossie_tendencia_api.py`):**
+   - 10 testes cobrindo contratos de schema, limites de amostra, rotulagem honesta e 404 para entidades inexistentes.
+3. **Frontend Editorial 2026 (`frontend/src/components/ClubDetailView.jsx`):**
+   - Nova aba interativa **Dossiê & Tendência** (`subTab === 'dossie'`).
+   - Seletor de recorte temporal (5, 10, 20 jogos).
+   - Cards institucionais, badges de troféus e chips de consistência tática.
+   - Gráfico de barras temporal de gols e tabela de partidas do recorte.
+4. **Governança Git:**
+   - Branch `feat/dossie-institucional-tendencia-tatica` aberta no Pull Request #5 e mesclada na `main` (commit `2a7d0c0ed2f40bc618dec8b7c1fb0c19b23ba058`).
+
+---
+
 ## 2. 🛡️ Estado Atual do Banco de Dados Canônico & Infraestrutura
 
 | Indicador | Valor Atual | Limite Oficial Vercel | Observação |

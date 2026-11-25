@@ -1,6 +1,6 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-07 21:24:58*
+*Gerado automaticamente em: 2026-11-25 11:59:54*
 
 ## Resumo Executivo da Auditoria
 
@@ -16,7 +16,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 
 | ID | Atleta | OGol ID | Gols Acervo | Gols Carreira | Detalhe da Auto-Arrumação |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| `7` | **Gabriel Barbosa** | `75171` | **251** | 284 | Carreira oficial enriquecida via OGol (284 gols em 625 jogos). Acervo consistente. |
+| `7` | **Gabriel Barbosa** | `75171` | **252** | 285 | Carreira oficial enriquecida via OGol (285 gols em 627 jogos). Acervo consistente. |
 | `12212` | **Romário** | `N/D` | **351** | 699 | Carreira oficial enriquecida via OGol (699 gols em 901 jogos). Acervo consistente. |
 
 

@@ -64,5 +64,15 @@
   3. Integrar comandos `/ev` e `/ev_alertas` no `scripts/bot_telegram_interativo.py`, adicionando botões dedicados ao teclado inline.
   4. Garantir 100% de aprovação na suíte TDD `tests/test_alertas_valor_esperado.py`.
 
+## ADR-011: Dossiê Institucional e Curva de Momento & Tendência Tática (Fase 3 do Módulo Canônico de Clubes)
+- **Status**: Implementado e Aprovado na main (PR #5)
+- **Contexto**: Completar a visão analítica de clubes no padrão Editorial 2026, oferecendo tanto o dossiê cadastral confiável (fundação, estádio, capacidade oficial, presidente, técnico e troféus) quanto a modelagem temporal de momento (curva de forma recente, dispersão estatística de consistência e distribuição de gols por faixas de 15 minutos).
+- **Decisão**:
+  1. Implementar `GET /api/clubes/detalhe/<clube_id>/dossie` consolidando `dim_clube`, `clubes_perfil` e acervo histórico, rotulando ausências expressamente como `"Não catalogado"` (princípio da honestidade de dados, sem inventar zeros arbitrários).
+  2. Implementar `GET /api/clubes/detalhe/<clube_id>/tendencia` com recortes paramétricos (5, 10, 20 jogos), deduplicação canônica via `_obter_jogos_deduplicados_clube()`, exclusão estrita de partidas agendadas/sem placar, desvio padrão amostral (`statistics.stdev`) e agregação de gols por 6 faixas de 15 minutos (`1-15'`, `16-30'`, `31-45+'`, `46-60'`, `61-75'`, `76-90+'`).
+  3. Criar suíte TDD determinística em `tests/test_clube_dossie_tendencia_api.py` (10 testes) cobrindo contratos, guardrails de contagem e resiliência a 404.
+  4. Integrar visualmente na aba interativa `subTab === 'dossie'` em `frontend/src/components/ClubDetailView.jsx` com seletores táteis de recorte, cards institucionais, KPIs de aproveitamento/saldo, badges de troféus e gráfico temporal de gols no padrão visual Editorial 2026 e WCAG 2.2 AA.
+
+
 
 

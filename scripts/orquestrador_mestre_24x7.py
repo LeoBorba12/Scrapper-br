@@ -200,9 +200,9 @@ def executar_auditoria_diaria_04am(size_mb: float):
                 f"• Regression Gates: *22/22 Testes Dixon-Coles/Poisson Aprovados*\n\n"
                 f"🚀 *Ecossistema VM & Vercel*: Operante e 100% Sincronizado."
             )
-            notificar_telegram(msg_auditoria)
+            # notificar_telegram(msg_auditoria)  # Desativado: apenas agenda de jogos e transmissões notifica o bot
             DATA_ULTIMA_AUDITORIA_DIARIA = hoje_str
-            safe_print("[TELEGRAM] Digest de Auditoria Diária das 04:00 AM enviado com sucesso!")
+            safe_print("[TELEGRAM] Digest de Auditoria Diária das 04:00 AM silenciado (mantendo apenas agenda diária).")
     except Exception as e:
         safe_print(f"[Auditoria Diária Falha] {e}")
 
@@ -322,7 +322,8 @@ def ciclo_mestre(numero_ciclo: int):
                 f"Risco iminente de falha de build ou 500 na Vercel (SLI-05).\n"
                 f"Ação automática: limpeza preventiva e bloqueio de novos inserts pesados."
             )
-            notificar_telegram(alerta_slo)
+            # notificar_telegram(alerta_slo)  # Silenciado: acessível sob demanda no menu do bot (/status)
+            safe_print(f"[SLO ALERTA] Teto excedido: {size_mb:.2f} MB / {MAX_DB_SIZE_MB:.1f} MB (notificação silenciada)")
 
     # -------------------------------------------------------------
     # FASE D: PERSISTÊNCIA, GIT PULL/PUSH E TELEGRAM
@@ -385,8 +386,8 @@ def ciclo_mestre(numero_ciclo: int):
             f"{blocos_formatados}\n\n"
             f"🚀 *Infraestrutura VM*: 🟢 100% Estável e Operante 24/7"
         )
-        notificar_telegram(msg_digest)
-        safe_print(f"\n[TELEGRAM] Relatório consolidado de 3 horas enviado com sucesso!")
+        # notificar_telegram(msg_digest)  # Silenciado: apenas jogos e transmissões diárias devem ser notificados
+        safe_print(f"\n[TELEGRAM] Relatório consolidado de 3 horas gerado localmente (notificação silenciada).")
         # Reset da janela de 3 horas
         ESTADO_NOTIFICACAO["ultimo_envio"] = agora_ts
         ESTADO_NOTIFICACAO["ciclos_concluidos"] = 0

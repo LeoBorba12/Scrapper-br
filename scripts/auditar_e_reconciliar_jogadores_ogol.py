@@ -257,18 +257,11 @@ def auditar_e_reconciliar(limit: int = 150):
     gerar_relatorio_markdown(relatorio_casos, total_auto_reparados, total_consistentes, total_pendentes)
 
     # -------------------------------------------------------------
-    # ENVIAR ALERTA NO TELEGRAM SE HOUVER CASOS PENDENTES
+    # REGISTRO DO RELATÓRIO (Notificações espontâneas silenciadas; sob demanda via /auditoria no bot)
     # -------------------------------------------------------------
     if total_pendentes > 0:
-        msg_tg = (
-            f"⚠️ *[AUDITORIA FUTSTATS - RELATÓRIO DE MODERAÇÃO]*\n\n"
-            f"O motor de cruzamento OGol concluiu a auditoria de *{len(relatorio_casos)} atletas*:\n"
-            f"• 🟢 Totalmente consistentes: *{total_consistentes}*\n"
-            f"• 🛠️ Auto-reparados com sucesso: *{total_auto_reparados}*\n"
-            f"• ⚠️ Requerem validação de súmula: *{total_pendentes}*\n\n"
-            f"📄 Consulte o relatório detalhado em:\n`data/relatorio_auditoria_jogadores.md`"
-        )
-        notificar_telegram(msg_tg)
+        # notificar_telegram(msg_tg)  # Silenciado: apenas agenda diária de jogos envia push espontâneo
+        pass
 
     print("\n" + "=" * 75)
     print("  AUDITORIA E CONCILIAÇÃO CONCLUÍDAS:")

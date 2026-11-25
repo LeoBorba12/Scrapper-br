@@ -9,6 +9,8 @@ Endpoints RESTful para listagem geral de clubes e perfil individual canônico.
 
 import sqlite3
 import os
+import math
+import statistics
 from collections import Counter
 from flask import Blueprint, request, jsonify
 
@@ -1718,4 +1720,311 @@ def get_clube_historico(clube_id):
         },
         'campanhas_historicas': campanhas
     })
+
+
+# ==============================================================================
+# FASE 3: DOSSIÊ INSTITUCIONAL AVANÇADO E TENDÊNCIA TÁTICA (HOMOLOGAÇÃO PERPLEXITY)
+# ==============================================================================
+
+@rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/dossie', methods=['GET'])
+def get_clube_dossie_institucional(clube_id):
+    """
+    Endpoint 1: Dossiê Institucional Avançado
+    Retorna identificação canônica, estádio oficial, capacidade, acervo histórico
+    e títulos catalogados. Ausências são rotuladas honestamente como 'Não catalogado'.
+    """
+    conn = get_db()
+    c = conn.cursor()
+    id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
+    clube_info = _resolver_clube(clube_id, id_to_club, name_to_canon)
+
+    if not clube_info:
+        conn.close()
+        return jsonify({"erro": f"Clube com ID #{clube_id} não encontrado na base canônica."}), 404
+
+    # 1. Dados Institucionais (clubes_perfil)
+    c.execute("""
+        SELECT nome_oficial, alcunhas, fundacao, cidade, estado, pais,
+               estadio_nome, estadio_capacidade, presidente, treinador_atual,
+               valor_elenco_milhoes_eur, cores_principais
+        FROM clubes_perfil
+        WHERE id_clube = ? OR nome = ? OR nome_oficial = ?
+        LIMIT 1
+    """, (clube_id, clube_info['nome'], clube_info['nome_oficial']))
+    row_perfil = c.fetchone()
+
+    # 2. Acervo Histórico de Partidas
+    c.execute("""
+        SELECT 
+            MIN(ano) as primeiro_ano,
+            MAX(ano) as ultimo_ano,
+            COUNT(*) as total_partidas
+        FROM partidas
+        WHERE mandante = ? OR visitante = ?
+    """, (clube_info['nome'], clube_info['nome']))
+    row_acervo = c.fetchone()
+    primeiro_ano = row_acervo['primeiro_ano'] if (row_acervo and row_acervo['primeiro_ano']) else "Não catalogado"
+    ultimo_ano = row_acervo['ultimo_ano'] if (row_acervo and row_acervo['ultimo_ano']) else "Não catalogado"
+    total_partidas = row_acervo['total_partidas'] if (row_acervo and row_acervo['total_partidas']) else 0
+
+    c.execute("""
+        SELECT DISTINCT campeonato
+        FROM partidas
+        WHERE (mandante = ? OR visitante = ?) AND campeonato IS NOT NULL
+        ORDER BY campeonato
+    """, (clube_info['nome'], clube_info['nome']))
+    competicoes_cobertas = [r['campeonato'] for r in c.fetchall() if r['campeonato']]
+
+    # 3. Títulos / Troféus Catalogados
+    titulos_catalogados = []
+    if row_perfil:
+        try:
+            c.execute("SELECT trofeus_json FROM clubes_perfil WHERE id_clube = ? LIMIT 1", (clube_id,))
+            row_t = c.fetchone()
+            if row_t and row_t['trofeus_json']:
+                import json
+                titulos_catalogados = json.loads(row_t['trofeus_json'])
+        except Exception:
+            titulos_catalogados = []
+
+    conn.close()
+
+    # Construção da resposta com tratamento honesto de ausências
+    estadio_info = "Não catalogado"
+    if row_perfil and (row_perfil['estadio_nome'] or row_perfil['estadio_capacidade']):
+        estadio_info = {
+            "nome": row_perfil['estadio_nome'] if row_perfil['estadio_nome'] else "Não catalogado",
+            "capacidade": row_perfil['estadio_capacidade'] if row_perfil['estadio_capacidade'] is not None else "Não catalogado",
+            "cidade": row_perfil['cidade'] if row_perfil['cidade'] else "Não catalogado"
+        }
+
+    resposta = {
+        "identificacao": {
+            "clube_id": clube_info['clube_id'],
+            "nome": clube_info['nome'],
+            "nome_oficial": row_perfil['nome_oficial'] if (row_perfil and row_perfil['nome_oficial']) else clube_info.get('nome_oficial', "Não catalogado"),
+            "sigla": clube_info['sigla'] if clube_info['sigla'] else "Não catalogado",
+            "estado": row_perfil['estado'] if (row_perfil and row_perfil['estado']) else clube_info.get('estado', "Não catalogado"),
+            "cidade": row_perfil['cidade'] if (row_perfil and row_perfil['cidade']) else "Não catalogado",
+            "pais": row_perfil['pais'] if (row_perfil and row_perfil['pais']) else clube_info.get('pais', "Brasil")
+        },
+        "institucional": {
+            "fundacao": row_perfil['fundacao'] if (row_perfil and row_perfil['fundacao']) else "Não catalogado",
+            "estadio": estadio_info,
+            "presidente": row_perfil['presidente'] if (row_perfil and row_perfil['presidente']) else "Não catalogado",
+            "treinador_atual": row_perfil['treinador_atual'] if (row_perfil and row_perfil['treinador_atual']) else "Não catalogado",
+            "cores_principais": row_perfil['cores_principais'] if (row_perfil and row_perfil['cores_principais']) else "Não catalogado",
+            "titulos_catalogados": titulos_catalogados,
+            "evolucao_historica": []
+        },
+        "acervo": {
+            "primeiro_ano": primeiro_ano,
+            "ultimo_ano": ultimo_ano,
+            "total_partidas": total_partidas,
+            "competicoes_cobertas": competicoes_cobertas
+        },
+        "mensagem_metodologica": "Dados institucionais catalogados; ausências não são imputadas."
+    }
+
+    return jsonify(resposta), 200
+
+
+@rotas_clubes_canonica_bp.route('/api/clubes/detalhe/<int:clube_id>/tendencia', methods=['GET'])
+def get_clube_tendencia_tatica(clube_id):
+    """
+    Endpoint 2: Tendência Tática e Curva de Momento
+    Analisa os últimos N jogos realizados (5, 10 ou 20) com deduplicação determinística,
+    exclusão rigorosa de jogos agendados, cálculo de médias, consistência e distribuição
+    temporal de gols por faixas de 15 minutos.
+    """
+    try:
+        n_jogos = int(request.args.get('jogos', 10))
+        if n_jogos not in (5, 10, 20):
+            n_jogos = 10
+    except (ValueError, TypeError):
+        n_jogos = 10
+
+    campeonato_filtro = request.args.get('campeonato', '').strip() or None
+
+    conn = get_db()
+    c = conn.cursor()
+    id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
+    clube_info = _resolver_clube(clube_id, id_to_club, name_to_canon)
+
+    if not clube_info:
+        conn.close()
+        return jsonify({"erro": f"Clube com ID #{clube_id} não encontrado na base canônica."}), 404
+
+    # Recupera todos os jogos deduplicados
+    todos_jogos, _, _ = _obter_jogos_deduplicados_clube(conn, clube_id, campeonato=campeonato_filtro)
+
+    # Filtro estrito: apenas jogos realizados (excluir agendados e sem placar)
+    jogos_realizados = [
+        j for j in todos_jogos 
+        if not j.get('is_agendado') 
+        and j.get('placar') is not None 
+        and j.get('gols_pro') is not None 
+        and j.get('gols_contra') is not None
+    ]
+
+    # Ordena decrescente pela data para capturar os últimos N jogos realizados
+    jogos_realizados.sort(key=lambda x: (x.get('data') or '', x.get('id_partida', 0)), reverse=True)
+    amostra = jogos_realizados[:n_jogos]
+    # Reordena a amostra cronologicamente (ASC) para leitura da evolução
+    amostra.reverse()
+
+    total_analisado = len(amostra)
+
+    # Guardrails de amostra
+    aviso_amostra = None
+    if total_analisado < 5:
+        aviso_amostra = "Amostra insuficiente para cálculo de tendência confiável"
+    elif 5 <= total_analisado < 10:
+        aviso_amostra = "Amostra reduzida (menos de 10 partidas)"
+
+    vitorias = 0
+    empates = 0
+    derrotas = 0
+    gols_pro_total = 0
+    gols_contra_total = 0
+    gols_pro_lista = []
+    gols_contra_lista = []
+    sequencia_resultados = []
+    evolucao_por_jogo = []
+    partidas_ids = [j['id_partida'] for j in amostra]
+
+    for j in amostra:
+        gp = j['gols_pro']
+        gc = j['gols_contra']
+        res = j.get('resultado') or ('V' if gp > gc else ('D' if gp < gc else 'E'))
+
+        if res == 'V': vitorias += 1
+        elif res == 'E': empates += 1
+        elif res == 'D': derrotas += 1
+
+        sequencia_resultados.append(res)
+        gols_pro_total += gp
+        gols_contra_total += gc
+        gols_pro_lista.append(gp)
+        gols_contra_lista.append(gc)
+
+        evolucao_por_jogo.append({
+            "id_partida": j['id_partida'],
+            "data": j['data'],
+            "campeonato": j['campeonato'],
+            "adversario": j['adversario_nome'],
+            "mando": j['mando'],
+            "placar": j['placar'],
+            "resultado": res,
+            "gols_pro": gp,
+            "gols_contra": gc
+        })
+
+    # Métricas agregadas
+    aproveitamento_pct = round(((vitorias * 3 + empates) / (total_analisado * 3) * 100) if total_analisado > 0 else 0.0, 2)
+    media_gols_pro = round(gols_pro_total / total_analisado, 2) if total_analisado > 0 else 0.0
+    media_gols_contra = round(gols_contra_total / total_analisado, 2) if total_analisado > 0 else 0.0
+    saldo_gols = gols_pro_total - gols_contra_total
+
+    consistencia_ofensiva = round(statistics.stdev(gols_pro_lista), 2) if len(gols_pro_lista) > 1 else 0.0
+    consistencia_defensiva = round(statistics.stdev(gols_contra_lista), 2) if len(gols_contra_lista) > 1 else 0.0
+
+    # Distribuição temporal de gols por faixa de 15 minutos
+    faixas_tempo = {
+        "1-15": {"pro": 0, "contra": 0},
+        "16-30": {"pro": 0, "contra": 0},
+        "31-45+": {"pro": 0, "contra": 0},
+        "46-60": {"pro": 0, "contra": 0},
+        "61-75": {"pro": 0, "contra": 0},
+        "76-90+": {"pro": 0, "contra": 0}
+    }
+
+    if partidas_ids:
+        strings_busca = {clube_info['nome'].lower()}
+        for a, cid in name_to_canon.items():
+            if cid == clube_info['clube_id']:
+                strings_busca.add(a)
+
+        placeholders = ','.join('?' for _ in partidas_ids)
+        c.execute(f"""
+            SELECT g.id_partida, g.clube, g.minuto, g.tipo_de_gol
+            FROM gols g
+            WHERE g.id_partida IN ({placeholders})
+        """, partidas_ids)
+        gols_rows = c.fetchall()
+
+        for g in gols_rows:
+            raw_minuto = g['minuto']
+            if raw_minuto is None:
+                continue
+            if isinstance(raw_minuto, (int, float)):
+                minuto = int(raw_minuto)
+            else:
+                s_min = str(raw_minuto).strip().replace("'", "")
+                if "+" in s_min:
+                    s_min = s_min.split("+", 1)[0].strip()
+                digits = "".join(ch for ch in s_min if ch.isdigit())
+                if not digits:
+                    continue
+                minuto = int(digits)
+
+            clube_gol = (g['clube'] or '').strip().lower()
+            tipo_gol = (g['tipo_de_gol'] or '').strip().lower()
+            sou_autor = clube_gol in strings_busca
+
+            if tipo_gol == 'contra':
+                eh_gol_pro = not sou_autor
+            else:
+                eh_gol_pro = sou_autor
+
+            faixa = None
+            if 1 <= minuto <= 15: faixa = "1-15"
+            elif 16 <= minuto <= 30: faixa = "16-30"
+            elif 31 <= minuto <= 45: faixa = "31-45+"
+            elif 46 <= minuto <= 60: faixa = "46-60"
+            elif 61 <= minuto <= 75: faixa = "61-75"
+            elif minuto >= 76: faixa = "76-90+"
+            else:
+                if minuto <= 45: faixa = "31-45+"
+                else: faixa = "76-90+"
+
+            if faixa:
+                if eh_gol_pro:
+                    faixas_tempo[faixa]["pro"] += 1
+                else:
+                    faixas_tempo[faixa]["contra"] += 1
+
+    conn.close()
+
+    resposta = {
+        "amostra_analisada": total_analisado,
+        "aviso_amostra": aviso_amostra,
+        "curva_momento": {
+            "vitorias": vitorias,
+            "empates": empates,
+            "derrotas": derrotas,
+            "aproveitamento_pct": aproveitamento_pct,
+            "gols_pro": gols_pro_total,
+            "gols_contra": gols_contra_total,
+            "saldo_gols": saldo_gols,
+            "media_gols_pro": media_gols_pro,
+            "media_gols_contra": media_gols_contra,
+            "xg_pro": "Não catalogado",
+            "xg_contra": "Não catalogado",
+            "saldo_xg": None,
+            "cobertura_xg_jogos": 0,
+            "consistencia_ofensiva_desvio_padrao": consistencia_ofensiva,
+            "consistencia_defensiva_desvio_padrao": consistencia_defensiva,
+            "sequencia_resultados": "-".join(sequencia_resultados) if sequencia_resultados else "N/D"
+        },
+        "distribuicao_temporal_gols": {
+            "faixas": faixas_tempo,
+            "nota": "Minutos de gols catalogados conforme eventos oficiais disponíveis no acervo."
+        },
+        "evolucao_por_jogo": evolucao_por_jogo,
+        "mensagem_metodologica": "Tendência descritiva baseada nos últimos jogos realizados; não constitui previsão de resultados futuros nem recomendação de aposta."
+    }
+
+    return jsonify(resposta), 200
+
 

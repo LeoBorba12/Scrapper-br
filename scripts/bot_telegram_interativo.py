@@ -25,18 +25,8 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 DB_LOCAL = os.path.join(BASE_DIR, "data", "futebol.db")
 
-try:
-    from backend.alertas_valor_esperado import (
-        obter_anomalias_ev,
-        formatar_ficha_telegram,
-        gerar_relatorio_resumido_ev
-    )
-except ImportError:
-    from alertas_valor_esperado import (
-        obter_anomalias_ev,
-        formatar_ficha_telegram,
-        gerar_relatorio_resumido_ev
-    )
+# Módulo de alertas de apostas / +EV desativado por conformidade regulatória no Brasil
+# (backend/alertas_valor_esperado não é importado no bot de moderação)
 
 def carregar_env():
     env_file = os.path.join(BASE_DIR, ".env")
@@ -100,22 +90,19 @@ def responder_callback(callback_id: str, texto: str = ""):
 TECLADO_INLINE_MENU = {
     "inline_keyboard": [
         [
-            {"text": "📊 Status VM", "callback_data": "/status"},
-            {"text": "🎯 Sniper OCI", "callback_data": "/sniper"}
+            {"text": "📅 Jogos de Hoje & Transmissões", "callback_data": "/jogos_hoje"},
+            {"text": "📊 Status VM & Sistema", "callback_data": "/status"}
         ],
         [
-            {"text": "⚽ Últimos Jogos", "callback_data": "/ultimos"},
-            {"text": "💾 Baixar Banco", "callback_data": "/banco"}
+            {"text": "⚽ Últimos Resultados", "callback_data": "/ultimos"},
+            {"text": "📈 Orquestrador 24/7", "callback_data": "/orquestrador"}
         ],
         [
             {"text": "🧹 Sanear Banco (Limpeza)", "callback_data": "/sanear"},
             {"text": "🛡️ Auditoria Universal", "callback_data": "/auditoria"}
         ],
         [
-            {"text": "🎯 Scanner +EV", "callback_data": "/ev"},
-            {"text": "📑 Fichas (+EV)", "callback_data": "/ev_alertas"}
-        ],
-        [
+            {"text": "💾 Baixar Banco SQLite", "callback_data": "/banco"},
             {"text": "🌐 Abrir FutStats Web", "url": DASHBOARD_URL}
         ]
     ]
@@ -457,6 +444,68 @@ def executar_acao_auditoria(chat_id: str):
     except Exception as e:
         notificar(chat_id, f"❌ Falha ao rodar auditoria: {e}")
 
+def obter_jogos_hoje_com_transmissoes() -> str:
+    """Retorna os jogos do dia com canais de transmissão ou a rodada mais recente/próxima."""
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        agora = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    except Exception:
+        agora = datetime.now()
+
+    hoje_iso = agora.strftime("%Y-%m-%d")
+    data_label = agora.strftime("%d/%m/%Y")
+
+    try:
+        squad_dir = os.path.join(BASE_DIR, "squad")
+        if squad_dir not in sys.path:
+            sys.path.insert(0, squad_dir)
+        from squad.workers.worker_agenda_transmissoes import WorkerAgendaTransmissoes, format_agenda_markdown
+        w = WorkerAgendaTransmissoes(db_path=DB_LOCAL)
+        matches = w.fetch_today_matches(hoje_iso)
+        if not matches:
+            # Se não houver jogos para hoje, busca a rodada mais recente catalogada
+            conn = sqlite3.connect(f"file:{DB_LOCAL}?mode=ro", uri=True)
+            c = conn.cursor()
+            c.execute("SELECT MAX(data) FROM partidas WHERE data <= ?", (hoje_iso,))
+            row = c.fetchone()
+            if not row or not row[0]:
+                c.execute("SELECT MAX(data) FROM partidas")
+                row = c.fetchone()
+            conn.close()
+
+            if row and row[0]:
+                data_ref = row[0]
+                matches = w.fetch_today_matches(data_ref)
+                dt_obj = datetime.strptime(data_ref, "%Y-%m-%d")
+                return (
+                    f"ℹ️ _Nenhum jogo oficial agendado para hoje ({data_label})._\n\n"
+                    f"📌 *Exibindo a rodada mais recente catalogada:*\n\n"
+                    + format_agenda_markdown(dt_obj.strftime("%d/%m/%Y"), matches)
+                )
+        return format_agenda_markdown(data_label, matches)
+    except Exception as e:
+        return f"❌ Erro ao consultar agenda de transmissões: {e}"
+
+
+def obter_status_orquestrador() -> str:
+    """Lê o estado e o log recente do Orquestrador Mestre 24x7 sob demanda."""
+    log_candidates = [
+        "/var/log/futstats_orquestrador.log",
+        os.path.join(BASE_DIR, "logs", "orquestrador.log")
+    ]
+    for path in log_candidates:
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    lines = f.readlines()
+                ultimas = "".join(lines[-15:])
+                return f"📈 *[STATUS DO ORQUESTRADOR MESTRE 24x7]*\n\n```text\n{ultimas[-3500:]}\n```"
+            except Exception as e:
+                return f"❌ Erro ao ler log do orquestrador: {e}"
+    return "ℹ️ Log do orquestrador não localizado no caminho padrão."
+
+
 def tratar_comando(chat_id: str, texto: str):
     cmd = texto.strip().split()[0].lower() if texto.strip() else ""
 
@@ -471,6 +520,12 @@ def tratar_comando(chat_id: str, texto: str):
             f"Bem-vindo ao canal de controle do *FutStats / Scrapper-BR*.\n\n"
             f"Toque em um dos botões abaixo ou envie sua pergunta diretamente:\n"
         )
+        notificar(chat_id, msg, reply_markup=TECLADO_INLINE_MENU)
+    elif cmd in ("/jogos_hoje", "/jogos", "/agenda", "/grade", "/transmissoes"):
+        notificar(chat_id, obter_jogos_hoje_com_transmissoes())
+
+    elif cmd in ("/orquestrador", "/daemon", "/relatorio"):
+        notificar(chat_id, obter_status_orquestrador())
         notificar(chat_id, msg, reply_markup=TECLADO_INLINE_MENU)
     elif cmd == "/sniper":
         notificar(chat_id, obter_status_sniper())
@@ -513,26 +568,17 @@ def tratar_comando(chat_id: str, texto: str):
     elif cmd in ("/auditoria", "/auditar"):
         executar_acao_auditoria(chat_id)
 
-    elif cmd in ("/ev", "/ev_scanner", "/anomalias"):
-        notificar(chat_id, "🔍 *Escaneando anomalias estatísticas (+EV)... Aguarde.*")
-        try:
-            resumo = gerar_relatorio_resumido_ev(limite=5, min_ev=4.0, dashboard_url=DASHBOARD_URL)
-            notificar(chat_id, resumo)
-        except Exception as e:
-            notificar(chat_id, f"❌ Erro ao escanear anomalias (+EV): {e}")
-
-    elif cmd in ("/ev_alertas", "/fichas_ev"):
-        notificar(chat_id, "📑 *Compilando fichas completas de investigação editorial (+EV)...*")
-        try:
-            anomalias = obter_anomalias_ev(min_ev=6.0, limite=3)
-            if not anomalias:
-                notificar(chat_id, "🎯 *Nenhuma anomalia com +EV >= 6.0% encontrada no momento.*")
-            else:
-                for a in anomalias:
-                    ficha = formatar_ficha_telegram(a, dashboard_url=DASHBOARD_URL)
-                    notificar(chat_id, ficha)
-        except Exception as e:
-            notificar(chat_id, f"❌ Erro ao gerar fichas de anomalia (+EV): {e}")
+    elif cmd in ("/ev", "/ev_scanner", "/anomalias", "/ev_alertas", "/fichas_ev"):
+        msg_suspensao = (
+            "⛔ *MÓDULO DE APOSTAS & ODDS SUSPENSO*\n\n"
+            "Em estrito cumprimento à regulamentação vigente no Brasil e às diretrizes "
+            "editoriais do FutStats, todos os alertas e funcionalidades relacionados a "
+            "casas de apostas, odds e anomalias de valor esperado (+EV) foram suspensos "
+            "por tempo indeterminado neste bot.\n\n"
+            "O bot permanece 100% focado em estatísticas esportivas oficiais, integridade "
+            "do acervo, telemetria da VM e histórico de partidas."
+        )
+        notificar(chat_id, msg_suspensao)
 
     elif cmd == "/perguntar" or not cmd.startswith("/"):
         pergunta = texto[len("/perguntar"):].strip() if cmd == "/perguntar" else texto.strip()

@@ -47,6 +47,13 @@ export default function ClubDetailView({
   const [modoVitrine3D, setModoVitrine3D] = useState(false);
   const [campanhasPage, setCampanhasPage] = useState(1);
 
+  // Estado de Dossiê Institucional & Tendência Tática (Aba Dossiê - Fase 3)
+  const [dossieData, setDossieData] = useState(null);
+  const [dossieLoading, setDossieLoading] = useState(false);
+  const [tendenciaData, setTendenciaData] = useState(null);
+  const [tendenciaLoading, setTendenciaLoading] = useState(false);
+  const [tendenciaRecorte, setTendenciaRecorte] = useState(10); // 5 | 10 | 20
+
   // Sincronizar parâmetros na URL do navegador sem recarregar a página
   const atualizarUrl = useCallback((novoId, novaSubTab, novoAno, novoCamp, novoMando) => {
     try {
@@ -177,6 +184,42 @@ export default function ClubDetailView({
     }
   }, []);
 
+  // Carregar Dossiê Institucional (Aba Dossiê - Fase 3)
+  const carregarDossie = useCallback(async (cId) => {
+    if (!cId) return;
+    setDossieLoading(true);
+    try {
+      const res = await fetch(`/api/clubes/detalhe/${cId}/dossie`);
+      if (!res.ok) throw new Error(`Falha ao carregar dossiê (${res.status})`);
+      const data = await res.json();
+      setDossieData(data);
+    } catch (err) {
+      console.error('Erro ao carregar dossiê:', err);
+    } finally {
+      setDossieLoading(false);
+    }
+  }, []);
+
+  // Carregar Tendência Tática (Aba Dossiê - Fase 3)
+  const carregarTendencia = useCallback(async (cId, nJogos, c) => {
+    if (!cId) return;
+    setTendenciaLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set('jogos', nJogos ? nJogos.toString() : '10');
+      if (c) params.set('campeonato', c);
+
+      const res = await fetch(`/api/clubes/detalhe/${cId}/tendencia?${params.toString()}`);
+      if (!res.ok) throw new Error(`Falha ao carregar tendência tática (${res.status})`);
+      const data = await res.json();
+      setTendenciaData(data);
+    } catch (err) {
+      console.error('Erro ao carregar tendência tática:', err);
+    } finally {
+      setTendenciaLoading(false);
+    }
+  }, []);
+
   // Efeito inicial e quando muda clubeId
   useEffect(() => {
     // Reset dos estados ao trocar de clube para evitar flashes de dados do clube anterior
@@ -185,6 +228,8 @@ export default function ClubDetailView({
     setElencoData(null);
     setEstatisticasData(null);
     setHistoricoData(null);
+    setDossieData(null);
+    setTendenciaData(null);
     setJogosPage(1);
 
     const params = new URLSearchParams(window.location.search);
@@ -231,8 +276,11 @@ export default function ClubDetailView({
       carregarEstatisticas(clubeId, ano, campeonato, mando);
     } else if (subTab === 'historico') {
       carregarHistorico(clubeId);
+    } else if (subTab === 'dossie') {
+      carregarDossie(clubeId);
+      carregarTendencia(clubeId, tendenciaRecorte, campeonato);
     }
-  }, [clubeId, subTab, ano, campeonato, mando, jogosPage, carregarJogos, carregarElenco, carregarEstatisticas, carregarHistorico]);
+  }, [clubeId, subTab, ano, campeonato, mando, jogosPage, tendenciaRecorte, carregarJogos, carregarElenco, carregarEstatisticas, carregarHistorico, carregarDossie, carregarTendencia]);
 
   // Handler de troca de aba
   const handleTrocaSubTab = (novaTab) => {
@@ -246,6 +294,9 @@ export default function ClubDetailView({
       carregarEstatisticas(clubeId, ano, campeonato, mando);
     } else if (novaTab === 'historico' && !historicoData) {
       carregarHistorico(clubeId);
+    } else if (novaTab === 'dossie') {
+      if (!dossieData) carregarDossie(clubeId);
+      carregarTendencia(clubeId, tendenciaRecorte, campeonato);
     }
   };
 
@@ -495,7 +546,8 @@ export default function ClubDetailView({
             { id: 'jogos', label: 'Jogos', icon: Calendar },
             { id: 'elenco', label: 'Elenco', icon: Users },
             { id: 'estatisticas', label: 'Estatísticas', icon: TrendingUp },
-            { id: 'historico', label: 'Histórico & Títulos', icon: Trophy }
+            { id: 'historico', label: 'Histórico & Títulos', icon: Trophy },
+            { id: 'dossie', label: 'Dossiê & Tendência', icon: Sparkles }
           ].map((tab) => {
             const Icon = tab.icon;
             const active = subTab === tab.id;
@@ -2062,6 +2114,490 @@ export default function ClubDetailView({
                     </button>
                   </div>
                 )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ================= ABA 6: DOSSIÊ INSTITUCIONAL & TENDÊNCIA TÁTICA (FASE 3) ================= */}
+      {subTab === 'dossie' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Header Metodológico */}
+          <div
+            style={{
+              padding: '16px 20px',
+              borderRadius: 'var(--radius-card)',
+              backgroundColor: 'var(--surface-card)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <Sparkles size={18} color="var(--accent)" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Dossiê Institucional & Curva de Momento Tático
+                </h3>
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                Dados canônicos catalogados, deduplicação cronológica e análise de consistência sem imputações arbitrárias.
+              </div>
+            </div>
+
+            {/* Seletor de Jogos da Tendência (5, 10, 20) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '4px' }}>
+                Recorte Tático:
+              </span>
+              {[5, 10, 20].map((n) => {
+                const ativo = tendenciaRecorte === n;
+                return (
+                  <button
+                    key={n}
+                    onClick={() => {
+                      setTendenciaRecorte(n);
+                      carregarTendencia(clubeId, n, campeonato);
+                    }}
+                    className="touch-tactile"
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      border: ativo ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                      backgroundColor: ativo ? 'var(--accent)' : 'var(--surface-raised)',
+                      color: ativo ? '#FFFFFF' : 'var(--text-primary)',
+                      fontWeight: ativo ? 700 : 500,
+                      fontSize: '0.78rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {n} Jogos
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Loading do Dossiê ou Tendência */}
+          {(dossieLoading || tendenciaLoading) && (!dossieData || !tendenciaData) ? (
+            <div style={{ padding: '50px 20px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <RefreshCw size={28} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Consolidando Dossiê e Calculando Tendência Tática...
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* GRID PRINCIPAL: 2 COLUNAS (Dossiê Institucional | Curva de Momento) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px' }}>
+                {/* COLUNA 1: Dossiê Institucional */}
+                <div
+                  style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-card)',
+                    backgroundColor: 'var(--surface-card)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+                    <Shield size={16} color="var(--accent)" />
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                      Perfil Institucional
+                    </h4>
+                  </div>
+
+                  {dossieData ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ padding: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Nome Oficial</span>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                            {dossieData.identificacao?.nome_oficial || 'Não catalogado'}
+                          </div>
+                        </div>
+                        <div style={{ padding: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Fundação</span>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                            {dossieData.institucional?.fundacao || 'Não catalogado'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '12px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Estádio Principal</span>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                          {typeof dossieData.institucional?.estadio === 'object' && dossieData.institucional.estadio !== null
+                            ? `${dossieData.institucional.estadio.nome} (${typeof dossieData.institucional.estadio.capacidade === 'number' ? dossieData.institucional.estadio.capacidade.toLocaleString('pt-BR') : dossieData.institucional.estadio.capacidade} lugares)`
+                            : (dossieData.institucional?.estadio || 'Não catalogado')}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ padding: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Presidente</span>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                            {dossieData.institucional?.presidente || 'Não catalogado'}
+                          </div>
+                        </div>
+                        <div style={{ padding: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Treinador Atual</span>
+                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                            {dossieData.institucional?.treinador_atual || 'Não catalogado'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Acervo Histórico Documentado */}
+                      <div style={{ padding: '12px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                            Acervo de Partidas Oficiais
+                          </span>
+                          <span className="font-mono" style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--accent)' }}>
+                            {dossieData.acervo?.total_partidas?.toLocaleString('pt-BR')} jogos
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          Período catalogado: {dossieData.acervo?.primeiro_ano} a {dossieData.acervo?.ultimo_ano}
+                        </div>
+                      </div>
+
+                      {/* Troféus Catalogados */}
+                      {dossieData.institucional?.titulos_catalogados?.length > 0 && (
+                        <div>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                            Conquistas Catalogadas ({dossieData.institucional.titulos_catalogados.length})
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {dossieData.institucional.titulos_catalogados.map((t, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '12px',
+                                  backgroundColor: 'var(--surface-raised)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 600,
+                                  color: 'var(--text-primary)'
+                                }}
+                              >
+                                🏆 {typeof t === 'string' ? t : (t.competicao ? `${t.competicao} (${t.anos?.length || 1})` : JSON.stringify(t))}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>Dossiê indisponível.</div>
+                  )}
+                </div>
+
+                {/* COLUNA 2: Curva de Momento Tático & Consistência */}
+                <div
+                  style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-card)',
+                    backgroundColor: 'var(--surface-card)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <TrendingUp size={16} color="var(--accent)" />
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                        Momento & Consistência ({tendenciaData?.amostra_analisada || 0} jogos)
+                      </h4>
+                    </div>
+                    {tendenciaData?.aviso_amostra && (
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
+                          padding: '3px 8px',
+                          borderRadius: '10px',
+                          backgroundColor: '#FEF3C7',
+                          color: '#92400E',
+                          border: '1px solid #FDE68A'
+                        }}
+                      >
+                        {tendenciaData.aviso_amostra}
+                      </span>
+                    )}
+                  </div>
+
+                  {tendenciaData ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* Métricas Principais da Curva */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                        <div style={{ padding: '10px 8px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Aprov.</span>
+                          <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent)', marginTop: '2px' }}>
+                            {tendenciaData.curva_momento?.aproveitamento_pct}%
+                          </div>
+                        </div>
+                        <div style={{ padding: '10px 8px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Gols Pró</span>
+                          <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#15803D', marginTop: '2px' }}>
+                            {tendenciaData.curva_momento?.media_gols_pro}/j
+                          </div>
+                        </div>
+                        <div style={{ padding: '10px 8px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Gols Sofr.</span>
+                          <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: '#DC2626', marginTop: '2px' }}>
+                            {tendenciaData.curva_momento?.media_gols_contra}/j
+                          </div>
+                        </div>
+                        <div style={{ padding: '10px 8px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Saldo</span>
+                          <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 700, color: (tendenciaData.curva_momento?.saldo_gols || 0) >= 0 ? '#15803D' : '#DC2626', marginTop: '2px' }}>
+                            {(tendenciaData.curva_momento?.saldo_gols || 0) > 0 ? `+${tendenciaData.curva_momento?.saldo_gols}` : tendenciaData.curva_momento?.saldo_gols}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sequência Recente */}
+                      <div style={{ padding: '12px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>
+                          Sequência Cronológica de Resultados (Mais recente à direita)
+                        </span>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {tendenciaData.evolucao_por_jogo?.map((j, i) => {
+                            const res = j.resultado;
+                            const bg = res === 'V' ? '#15803D' : (res === 'E' ? '#78716C' : '#DC2626');
+                            return (
+                              <div
+                                key={i}
+                                title={`${j.data} - ${j.mando === 'casa' ? 'Casa' : 'Fora'} vs ${j.adversario} (${j.placar})`}
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '6px',
+                                  backgroundColor: bg,
+                                  color: '#FFFFFF',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 700
+                                }}
+                              >
+                                {res}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Consistência Tática (Desvios Padrão) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ padding: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Consistência Ofensiva</span>
+                          <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                            DP {tendenciaData.curva_momento?.consistencia_ofensiva_desvio_padrao}
+                          </div>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                            {tendenciaData.curva_momento?.consistencia_ofensiva_desvio_padrao < 0.9 ? 'Produção regular de gols' : 'Oscilação moderada/alta'}
+                          </span>
+                        </div>
+                        <div style={{ padding: '10px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Consistência Defensiva</span>
+                          <div className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
+                            DP {tendenciaData.curva_momento?.consistencia_defensiva_desvio_padrao}
+                          </div>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                            {tendenciaData.curva_momento?.consistencia_defensiva_desvio_padrao < 0.9 ? 'Defesa sólida/estável' : 'Oscilação defensiva'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>Tendência indisponível.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* DISTRIBUIÇÃO TEMPORAL DE GOLS (FAIXAS DE 15 MINUTOS) */}
+              {tendenciaData?.distribuicao_temporal_gols?.faixas && (
+                <div
+                  style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-card)',
+                    backgroundColor: 'var(--surface-card)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={16} color="var(--accent)" />
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                        Distribuição Temporal de Gols por Faixa de 15 Minutos ({tendenciaRecorte} jogos)
+                      </h4>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.74rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: '#15803D' }} />
+                        <span>Gols Marcados</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: '#DC2626' }} />
+                        <span>Gols Sofridos</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                    {Object.entries(tendenciaData.distribuicao_temporal_gols.faixas).map(([faixa, vals]) => {
+                      const totalFaixa = vals.pro + vals.contra;
+                      return (
+                        <div
+                          key={faixa}
+                          style={{
+                            padding: '12px 10px',
+                            backgroundColor: 'var(--surface-raised)',
+                            borderRadius: 'var(--radius-control)',
+                            textAlign: 'center',
+                            border: '1px solid var(--border-subtle)'
+                          }}
+                        >
+                          <span className="font-mono" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            {faixa}'
+                          </span>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '8px' }}>
+                            <span className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#15803D' }}>
+                              {vals.pro} GP
+                            </span>
+                            <span style={{ color: 'var(--border-subtle)' }}>|</span>
+                            <span className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#DC2626' }}>
+                              {vals.contra} GC
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.66rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            {totalFaixa} evento{totalFaixa !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* LISTA CRONOLÓGICA DAS PARTIDAS ANALISADAS NA CURVA */}
+              {tendenciaData?.evolucao_por_jogo?.length > 0 && (
+                <div
+                  style={{
+                    padding: '20px',
+                    borderRadius: 'var(--radius-card)',
+                    backgroundColor: 'var(--surface-card)',
+                    border: '1px solid var(--border-subtle)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px', marginBottom: '14px' }}>
+                    <Calendar size={16} color="var(--accent)" />
+                    <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                      Partidas Realizadas na Curva ({tendenciaData.evolucao_por_jogo.length})
+                    </h4>
+                  </div>
+
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', textAlign: 'left', fontSize: '0.74rem', textTransform: 'uppercase' }}>
+                          <th style={{ padding: '8px 12px' }}>Data</th>
+                          <th style={{ padding: '8px 12px' }}>Competição</th>
+                          <th style={{ padding: '8px 12px' }}>Mando</th>
+                          <th style={{ padding: '8px 12px' }}>Adversário</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center' }}>Placar</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'center' }}>Resultado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tendenciaData.evolucao_por_jogo.map((p, idx) => {
+                          const res = p.resultado;
+                          const resColor = res === 'V' ? '#15803D' : (res === 'E' ? '#78716C' : '#DC2626');
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td className="font-mono" style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
+                                {p.data || 'N/D'}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                                {p.campeonato || 'Amigável / Outro'}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
+                                <span
+                                  style={{
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'var(--surface-raised)',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  {p.mando === 'casa' ? 'Casa' : 'Fora'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 12px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                                {p.adversario}
+                              </td>
+                              <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {p.placar || `${p.gols_pro} x ${p.gols_contra}`}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    padding: '2px 10px',
+                                    borderRadius: '10px',
+                                    backgroundColor: resColor,
+                                    color: '#FFFFFF',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  {res === 'V' ? 'Vitória' : (res === 'E' ? 'Empate' : 'Derrota')}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Roda-pé Metodológico Editorial */}
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '0.74rem',
+                  color: 'var(--text-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Sparkles size={14} color="var(--accent)" />
+                <span>
+                  {tendenciaData?.mensagem_metodologica || dossieData?.mensagem_metodologica || 'Dados analíticos baseados em partidas catalogadas; ausências não são imputadas.'}
+                </span>
               </div>
             </>
           )}

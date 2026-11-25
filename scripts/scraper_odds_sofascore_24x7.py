@@ -39,8 +39,8 @@ def carregar_env():
 carregar_env()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
-# Controle de envio de alertas de apostas (+EV) no Telegram (desativado por padrão conforme solicitado)
-ALERTAS_APOSTAS_TELEGRAM_ATIVO = os.getenv("ALERTAS_APOSTAS_TELEGRAM_ATIVO", "false").lower() in ("true", "1", "t")
+# Controle de envio de alertas de apostas (+EV) no Telegram (desativado permanentemente conforme solicitado)
+ALERTAS_APOSTAS_TELEGRAM_ATIVO = False
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 

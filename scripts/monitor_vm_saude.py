@@ -184,20 +184,16 @@ def verificar_e_alertar():
                 except Exception:
                     pass
 
-            notificar_telegram(msg)
-            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Alerta enviado ao Telegram: {motivos}", flush=True)
+            # notificar_telegram(msg)  # Silenciado: saúde da VM consultável sob demanda pelo menu (/status)
+            print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Alerta de saúde da VM registrado: {motivos}", flush=True)
 
 def loop_monitoramento():
     print("=" * 60, flush=True)
     print("   WATCHDOG DE MONITORAMENTO DA VM ORACLE INICIADO", flush=True)
     print("=" * 60, flush=True)
     
-    # Envia notificação de inicialização para confirmar funcionamento
-    notificar_telegram(
-        "🛡️ *Scrapper-BR | Monitor de Saúde da VM Ativado!*\n\n"
-        "O watchdog está ativo monitorando RAM, Swap, Disco e CPU 24/7.\n"
-        "Se a máquina estiver sob risco de travamento (< 130MB RAM ou < 150MB Swap), você receberá um alerta imediato."
-    )
+    # Notificação de inicialização silenciada
+    # notificar_telegram(...)
 
     while True:
         try:
