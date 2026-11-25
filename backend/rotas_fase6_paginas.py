@@ -499,6 +499,28 @@ def get_competicoes_lista_geral():
         conn.close()
 
 
+def _obter_filtro_competicao(nome, alias=""):
+    """Retorna (sql_condicao, params) unificando aliases históricos de Brasileirão Série A e Série B."""
+    col = f"{alias}.campeonato" if alias else "campeonato"
+    norm = (nome or "").strip().lower()
+    if norm in ("campeonato brasileiro série a", "campeonato brasileiro - série a", "brasileirão série a", "campeonato brasileiro"):
+        cond = (
+            f"({col} IN ('Campeonato Brasileiro Série A', 'Campeonato Brasileiro - Série A', 'Brasileirão Série A') "
+            f"OR {col} LIKE 'Campeonato Brasileiro Série A %' "
+            f"OR ({col} LIKE 'Brasileirão 19%' AND {col} NOT LIKE '%Série B%') "
+            f"OR ({col} LIKE 'Brasileirão 20%' AND {col} NOT LIKE '%Série B%'))"
+        )
+        return cond, []
+    if norm in ("campeonato brasileiro série b", "campeonato brasileiro - série b", "brasileirão série b"):
+        cond = (
+            f"({col} IN ('Campeonato Brasileiro Série B', 'Campeonato Brasileiro - Série B', 'Brasileirão Série B') "
+            f"OR {col} LIKE 'Brasileirão Série B %' "
+            f"OR {col} LIKE 'Campeonato Brasileiro Série B %')"
+        )
+        return cond, []
+    return f"{col} LIKE ?", [f"%{nome}%"]
+
+
 @fase6_paginas_bp.route('/api/competicoes/detalhe-edicao', methods=['GET'])
 def get_competicao_detalhe_edicao():
     """Retorna a visão geral, tabela de classificação, artilharia, calendário e jogos históricos de uma edição."""
@@ -508,14 +530,19 @@ def get_competicao_detalhe_edicao():
     conn = get_readonly_db()
     c = conn.cursor()
     try:
+        from backend.rotas_clubes_canonica import _obter_resolvedor_aliases, _resolver_clube
+
+        cond_comp, params_comp = _obter_filtro_competicao(nome)
+        cond_comp_p, params_comp_p = _obter_filtro_competicao(nome, alias="p")
+
         # 1. Verificar anos disponíveis para a competição
-        c.execute("""
+        c.execute(f"""
             SELECT DISTINCT ano, COUNT(*) as jogos
             FROM partidas
-            WHERE campeonato LIKE ?
+            WHERE {cond_comp}
             GROUP BY ano
             ORDER BY ano DESC
-        """, (f"%{nome}%",))
+        """, params_comp)
         anos_disponiveis = [dict(r) for r in c.fetchall()]
 
         if not anos_disponiveis:
@@ -527,35 +554,66 @@ def get_competicao_detalhe_edicao():
         else:
             ano_alvo = anos_disponiveis[0]['ano']
 
-        # 2. Partidas da edição
-        c.execute("""
+        # 2. Partidas da edição (com resolução canônica de clubes e deduplicação entre fontes)
+        id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
+
+        def _nome_clube_canonico(raw):
+            info = _resolver_clube(raw, id_to_club, name_to_canon)
+            n = info['nome'] if info else raw
+            return 'Bragantino' if n == 'Red Bull Bragantino' else n
+
+        c.execute(f"""
             SELECT id_partida, data, rodada, fase, mandante, visitante,
                    gols_mandante, gols_visitante, placar, vencedor, estadio, publico
             FROM partidas
-            WHERE campeonato LIKE ? AND ano = ?
+            WHERE {cond_comp} AND ano = ?
             ORDER BY data ASC, rodada ASC, id_partida ASC
-        """, (f"%{nome}%", ano_alvo))
-        partidas_edicao = [dict(r) for r in c.fetchall()]
+        """, params_comp + [ano_alvo])
+        raw_partidas = [dict(r) for r in c.fetchall()]
 
-        total_partidas = len(partidas_edicao)
-        total_gols = sum((p['gols_mandante'] or 0) + (p['gols_visitante'] or 0) for p in partidas_edicao)
-        vit_mand = sum(1 for p in partidas_edicao if p['vencedor'] == p['mandante'])
-        empates = sum(1 for p in partidas_edicao if p['vencedor'] == 'Empate')
-        vit_vis = sum(1 for p in partidas_edicao if p['vencedor'] == p['visitante'])
+        eh_pontos_corridos = (
+            ano_alvo >= 2003
+            and any(k in nome.lower() for k in ("série a", "série b", "brasileirão"))
+        )
+        dedup_partidas = {}
+        for p in raw_partidas:
+            m_canon = _nome_clube_canonico(p['mandante'])
+            v_canon = _nome_clube_canonico(p['visitante'])
+            p['mandante'] = m_canon
+            p['visitante'] = v_canon
+            chave = (m_canon, v_canon) if eh_pontos_corridos else (p['data'], m_canon, v_canon)
+            placar_str = (p.get('placar') or '').lower()
+            eh_jogado = p['gols_mandante'] is not None and p['gols_visitante'] is not None and 'vs' not in placar_str
+            anterior = dedup_partidas.get(chave)
+            if anterior is None:
+                dedup_partidas[chave] = (p, eh_jogado)
+            elif not anterior[1] and eh_jogado:
+                dedup_partidas[chave] = (p, eh_jogado)
+
+        partidas_edicao = [item[0] for item in dedup_partidas.values()]
+        partidas_jogadas = [
+            p for p in partidas_edicao
+            if p['gols_mandante'] is not None and p['gols_visitante'] is not None and 'vs' not in (p.get('placar') or '').lower()
+        ]
+
+        total_partidas = len(partidas_jogadas)
+        total_gols = sum((p['gols_mandante'] or 0) + (p['gols_visitante'] or 0) for p in partidas_jogadas)
+        vit_mand = sum(1 for p in partidas_jogadas if p['gols_mandante'] > p['gols_visitante'])
+        empates = sum(1 for p in partidas_jogadas if p['gols_mandante'] == p['gols_visitante'])
+        vit_vis = sum(1 for p in partidas_jogadas if p['gols_visitante'] > p['gols_mandante'])
 
         media_gols = round(total_gols / total_partidas, 2) if total_partidas > 0 else 0.0
         pct_mand = round((vit_mand / total_partidas) * 100, 1) if total_partidas > 0 else 0.0
         pct_emp = round((empates / total_partidas) * 100, 1) if total_partidas > 0 else 0.0
         pct_vis = round((vit_vis / total_partidas) * 100, 1) if total_partidas > 0 else 0.0
 
-        # 3. Classificação Dinâmica (tabela de pontos corridos / consolidada)
+        # 3. Classificação Dinâmica (apenas partidas efetivamente disputadas)
         tabela_map = {}
-        for p in partidas_edicao:
+        for p in partidas_jogadas:
             m = p['mandante']
             v = p['visitante']
             gm = p['gols_mandante'] or 0
             gv = p['gols_visitante'] or 0
-            venc = p['vencedor']
 
             for clb in (m, v):
                 if clb not in tabela_map:
@@ -576,10 +634,10 @@ def get_competicao_detalhe_edicao():
             tabela_map[m]['jogos'] += 1
             tabela_map[m]['gols_pro'] += gm
             tabela_map[m]['gols_contra'] += gv
-            if venc == m:
+            if gm > gv:
                 tabela_map[m]['vitorias'] += 1
                 tabela_map[m]['pontos'] += 3
-            elif venc == 'Empate':
+            elif gm == gv:
                 tabela_map[m]['empates'] += 1
                 tabela_map[m]['pontos'] += 1
             else:
@@ -589,10 +647,10 @@ def get_competicao_detalhe_edicao():
             tabela_map[v]['jogos'] += 1
             tabela_map[v]['gols_pro'] += gv
             tabela_map[v]['gols_contra'] += gm
-            if venc == v:
+            if gv > gm:
                 tabela_map[v]['vitorias'] += 1
                 tabela_map[v]['pontos'] += 3
-            elif venc == 'Empate':
+            elif gm == gv:
                 tabela_map[v]['empates'] += 1
                 tabela_map[v]['pontos'] += 1
             else:
@@ -612,40 +670,44 @@ def get_competicao_detalhe_edicao():
         for i, row in enumerate(classificacao_ordenada, 1):
             row['posicao'] = i
 
-        # 4. Artilharia da Edição (tabela gols)
-        c.execute("""
-            SELECT g.atleta, g.clube, COUNT(*) as total_gols
-            FROM gols g
-            JOIN partidas p ON g.id_partida = p.id_partida
-            WHERE p.campeonato LIKE ? AND p.ano = ?
-              AND g.atleta IS NOT NULL AND length(g.atleta) > 2
-            GROUP BY g.atleta, g.clube
-            ORDER BY total_gols DESC
-            LIMIT 15
-        """, (f"%{nome}%", ano_alvo))
-        artilharia = [dict(r) for r in c.fetchall()]
+        # 4. Artilharia da Edição (tabela gols sobre partidas deduplicadas)
+        ids_dedup = [p['id_partida'] for p in partidas_jogadas]
+        if ids_dedup:
+            placeholders = ",".join("?" for _ in ids_dedup)
+            c.execute(f"""
+                SELECT g.atleta, g.clube, COUNT(*) as total_gols
+                FROM gols g
+                WHERE g.id_partida IN ({placeholders})
+                  AND g.atleta IS NOT NULL AND length(g.atleta) > 2
+                GROUP BY g.atleta, g.clube
+                ORDER BY total_gols DESC
+                LIMIT 15
+            """, ids_dedup)
+            artilharia = [dict(r) for r in c.fetchall()]
+        else:
+            artilharia = []
 
         # 5. Momentos Históricos Memoráveis (em toda a história da competição)
         # Maiores goleadas
-        c.execute("""
+        c.execute(f"""
             SELECT id_partida, data, ano, mandante, visitante, placar,
                    ABS(gols_mandante - gols_visitante) as diferenca_gols
             FROM partidas
-            WHERE campeonato LIKE ?
+            WHERE {cond_comp} AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
             ORDER BY diferenca_gols DESC, (gols_mandante + gols_visitante) DESC
             LIMIT 5
-        """, (f"%{nome}%",))
+        """, params_comp)
         maiores_goleadas = [dict(r) for r in c.fetchall()]
 
         # Jogos com mais gols
-        c.execute("""
+        c.execute(f"""
             SELECT id_partida, data, ano, mandante, visitante, placar,
                    (gols_mandante + gols_visitante) as total_gols
             FROM partidas
-            WHERE campeonato LIKE ?
+            WHERE {cond_comp} AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
             ORDER BY total_gols DESC, data DESC
             LIMIT 5
-        """, (f"%{nome}%",))
+        """, params_comp)
         jogos_mais_gols = [dict(r) for r in c.fetchall()]
 
         return jsonify({
