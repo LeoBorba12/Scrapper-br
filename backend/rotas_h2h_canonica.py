@@ -166,7 +166,7 @@ def _deduplicar_partidas_h2h(rows, nome_a):
             dedup.append(p)
             continue
 
-        is_a_mand = (p['mandante'] == nome_a)
+        is_a_mand = (nome_a.lower() in (p['mandante'] or '').lower())
         ga = p['gols_mandante'] if is_a_mand else p['gols_visitante']
         gb = p['gols_visitante'] if is_a_mand else p['gols_mandante']
 
@@ -181,7 +181,7 @@ def _deduplicar_partidas_h2h(rows, nome_a):
             if delta_dias > 2:
                 break
 
-            prev_a_mand = (prev['mandante'] == nome_a)
+            prev_a_mand = (nome_a.lower() in (prev['mandante'] or '').lower())
             prev_ga = prev['gols_mandante'] if prev_a_mand else prev['gols_visitante']
             prev_gb = prev['gols_visitante'] if prev_a_mand else prev['gols_mandante']
 

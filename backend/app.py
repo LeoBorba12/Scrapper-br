@@ -1434,7 +1434,9 @@ def get_h2h():
         ORDER BY p.data DESC, p.id_partida DESC;
     """
     c.execute(query, (f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%"))
-    all_rows = [dict(r) for r in c.fetchall()]
+    raw_rows = [dict(r) for r in c.fetchall()]
+    from backend.rotas_h2h_canonica import _deduplicar_partidas_h2h
+    all_rows = _deduplicar_partidas_h2h(raw_rows, c1)
     
     if not all_rows:
         conn.close()

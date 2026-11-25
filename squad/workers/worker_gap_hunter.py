@@ -227,21 +227,37 @@ class WorkerGapHunter(BaseWorker):
     def _collect_internal_snapshot(self, tipo: str, payload: dict[str, Any]) -> dict[str, Any]:
         with read_connection(self.db_path) as conn:
             if tipo == "h2h":
-                clube_a = payload["clube_a_id"]
-                clube_b = payload["clube_b_id"]
-                rows = conn.execute(
-                    """
-                    SELECT substr(p.data_hora, 1, 10) AS data_partida,
-                           ch.nome AS casa, ca.nome AS fora,
-                           p.gols_casa, p.gols_fora
-                    FROM partidas p
-                    JOIN clubes ch ON ch.id = p.clube_casa_id
-                    JOIN clubes ca ON ca.id = p.clube_fora_id
-                    WHERE (p.clube_casa_id = ? AND p.clube_fora_id = ?)
-                       OR (p.clube_casa_id = ? AND p.clube_fora_id = ?)
-                    """,
-                    (clube_a, clube_b, clube_b, clube_a),
-                ).fetchall()
+                cols = [r[1] for r in conn.execute("PRAGMA table_info(partidas)").fetchall()]
+                if "id_partida" in cols:
+                    nome_a = payload.get("clube_a_nome", "")
+                    nome_b = payload.get("clube_b_nome", "")
+                    rows = conn.execute(
+                        """
+                        SELECT data AS data_partida,
+                               mandante AS casa, visitante AS fora,
+                               gols_mandante AS gols_casa, gols_visitante AS gols_fora
+                        FROM partidas
+                        WHERE (mandante = ? AND visitante = ?)
+                           OR (mandante = ? AND visitante = ?)
+                        """,
+                        (nome_a, nome_b, nome_b, nome_a),
+                    ).fetchall()
+                else:
+                    clube_a = payload["clube_a_id"]
+                    clube_b = payload["clube_b_id"]
+                    rows = conn.execute(
+                        """
+                        SELECT substr(p.data_hora, 1, 10) AS data_partida,
+                               ch.nome AS casa, ca.nome AS fora,
+                               p.gols_casa, p.gols_fora
+                        FROM partidas p
+                        JOIN clubes ch ON ch.id = p.clube_casa_id
+                        JOIN clubes ca ON ca.id = p.clube_fora_id
+                        WHERE (p.clube_casa_id = ? AND p.clube_fora_id = ?)
+                           OR (p.clube_casa_id = ? AND p.clube_fora_id = ?)
+                        """,
+                        (clube_a, clube_b, clube_b, clube_a),
+                    ).fetchall()
                 fps = {
                     make_fingerprint(r["data_partida"], r["casa"], r["fora"], f"{r['gols_casa']}x{r['gols_fora']}")
                     for r in rows
