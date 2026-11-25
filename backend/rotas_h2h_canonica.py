@@ -5,6 +5,7 @@ Autor: Gemini Argon & Antigravity Core
 import os
 import math
 import sqlite3
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 rotas_h2h_canonica_bp = Blueprint('rotas_h2h_canonica', __name__)
@@ -138,6 +139,65 @@ def _calcular_dixon_coles_projecao(gols_pro_a, gols_contra_a, jogos_a, gols_pro_
         "status_amostra": "confiavel" if len(confrontos_diretos) >= 5 else "amostra_reduzida"
     }
 
+def _deduplicar_partidas_h2h(rows, nome_a):
+    """
+    Remove duplicatas históricas de confrontos entre os mesmos clubes:
+    - Exclui partidas agendadas/sem placar (ex: placar='vs' ou gols nulos).
+    - Deduplica partidas na mesma data (mesmo com mando invertido entre scrapers)
+      ou com diferença de até 2 dias e placar idêntico sob a perspectiva do Clube A.
+    """
+    validas = []
+    for p in rows:
+        if p['gols_mandante'] is None or p['gols_visitante'] is None:
+            continue
+        if (p['placar'] or '').strip().lower() == 'vs':
+            continue
+        validas.append(p)
+
+    # Ordena cronologicamente ascendente para agrupar duplicatas adjacentes
+    validas.sort(key=lambda r: ((r['data'] or '')[:10], r['id_partida']))
+
+    dedup = []
+    for p in validas:
+        d_str = (p['data'] or '')[:10]
+        try:
+            d_dt = datetime.strptime(d_str, '%Y-%m-%d')
+        except ValueError:
+            dedup.append(p)
+            continue
+
+        is_a_mand = (p['mandante'] == nome_a)
+        ga = p['gols_mandante'] if is_a_mand else p['gols_visitante']
+        gb = p['gols_visitante'] if is_a_mand else p['gols_mandante']
+
+        eh_dup = False
+        for prev in reversed(dedup):
+            prev_str = (prev['data'] or '')[:10]
+            try:
+                prev_dt = datetime.strptime(prev_str, '%Y-%m-%d')
+            except ValueError:
+                continue
+            delta_dias = abs((d_dt - prev_dt).days)
+            if delta_dias > 2:
+                break
+
+            prev_a_mand = (prev['mandante'] == nome_a)
+            prev_ga = prev['gols_mandante'] if prev_a_mand else prev['gols_visitante']
+            prev_gb = prev['gols_visitante'] if prev_a_mand else prev['gols_mandante']
+
+            # Mesmo dia e mesmo placar (incluindo mando invertido) OU até 2 dias com placar idêntico
+            if (ga == prev_ga and gb == prev_gb) or (delta_dias == 0 and ga == prev_gb and gb == prev_ga):
+                eh_dup = True
+                break
+
+        if not eh_dup:
+            dedup.append(p)
+
+    # Restaura ordenação decrescente (mais recente primeiro)
+    dedup.sort(key=lambda r: ((r['data'] or '')[:10], r['id_partida']), reverse=True)
+    return dedup
+
+
 def _categorizar_competicao(nome_comp):
     c = (nome_comp or '').lower()
     if 'brasileir' in c or 'série a' in c or 'serie a' in c or 'taça brasil' in c or 'robertão' in c or 'robertao' in c:
@@ -236,7 +296,8 @@ def obter_confronto_h2h():
            OR (mandante = ? AND visitante = ?)
         ORDER BY data DESC, id_partida DESC
     """
-    partidas_todas = cursor.execute(query, (nome_a, nome_b, nome_b, nome_a)).fetchall()
+    partidas_raw = cursor.execute(query, (nome_a, nome_b, nome_b, nome_a)).fetchall()
+    partidas_todas = _deduplicar_partidas_h2h(partidas_raw, nome_a)
 
     # Cruzamento histórico completo (por competição e por década)
     comp_buckets = {}

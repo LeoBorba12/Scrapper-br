@@ -100,22 +100,40 @@
     ]
   },
   {
-    "id_jogador": 93,
-    "nome_exibicao": "Giorgian de Arrascaeta",
+    "id_jogador": 8,
+    "nome_exibicao": "Arrascaeta",
     "nome_completo": "Giorgian Daniel De Arrascaeta Benedetti",
     "ogol_id": 270657,
     "posicao": "Meio-campo",
-    "gols_carreira_oficiais": 153,
-    "jogos_carreira_oficiais": 545,
-    "assistencias_carreira_oficiais": 168,
-    "gols_selecao": 10,
-    "jogos_selecao": 50,
-    "pontaria_chutes_pct": 62.0,
+    "gols_carreira_oficiais": 175,
+    "jogos_carreira_oficiais": 642,
+    "assistencias_carreira_oficiais": 175,
+    "gols_selecao": 14,
+    "jogos_selecao": 55,
+    "pontaria_chutes_pct": 63.0,
     "clubes_resumo": [
-      {"clube": "Flamengo", "periodo": "2019-2026", "jogos": 300, "gols": 73, "assistencias": 90},
-      {"clube": "Cruzeiro", "periodo": "2015-2018", "jogos": 188, "gols": 50, "assistencias": 40},
+      {"clube": "Flamengo", "periodo": "2019-2026", "jogos": 391, "gols": 108, "assistencias": 96},
+      {"clube": "Cruzeiro", "periodo": "2015-2018", "jogos": 186, "gols": 49, "assistencias": 40},
       {"clube": "Defensor Sporting", "periodo": "2012-2014", "jogos": 65, "gols": 18, "assistencias": 17},
-      {"clube": "Seleção Uruguaia", "periodo": "2014-2026", "jogos": 50, "gols": 10, "assistencias": 8}
+      {"clube": "Seleção Uruguaia", "periodo": "2014-2026", "jogos": 55, "gols": 14, "assistencias": 9}
+    ]
+  },
+  {
+    "id_jogador": 12,
+    "nome_exibicao": "Raphael Veiga",
+    "nome_completo": "Raphael Cavalcante Veiga",
+    "ogol_id": 139591,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 120,
+    "jogos_carreira_oficiais": 425,
+    "assistencias_carreira_oficiais": 64,
+    "gols_selecao": 0,
+    "jogos_selecao": 6,
+    "pontaria_chutes_pct": 66.0,
+    "clubes_resumo": [
+      {"clube": "Palmeiras", "periodo": "2017, 2019-2026", "jogos": 335, "gols": 109, "assistencias": 54},
+      {"clube": "Athletico-PR", "periodo": "2018", "jogos": 48, "gols": 9, "assistencias": 8},
+      {"clube": "Coritiba", "periodo": "2016", "jogos": 24, "gols": 2, "assistencias": 2}
     ]
   },
   {
