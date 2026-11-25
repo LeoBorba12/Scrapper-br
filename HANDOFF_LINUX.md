@@ -457,6 +457,3 @@ O Pull Request deve ser aberto, auditado e aprovado antes do merge. O deploy de 
    - Teclado inline expandido com botões táteis dedicados (`🎯 Scanner +EV` e `📑 Fichas (+EV)`).
 3. **Suíte TDD de Validação (`tests/test_alertas_valor_esperado.py`):**
    - 5/5 testes aprovados cobrindo integridade de schema, ordenação decrescente por +EV, filtro de corte e conformidade com os guardrails textuais.
-
-
-

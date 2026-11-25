@@ -1,0 +1,589 @@
+diff --git a/backend/rotas_clubes_canonica.py b/backend/rotas_clubes_canonica.py
+index c5b2cae..8b26ce6 100644
+--- a/backend/rotas_clubes_canonica.py
++++ b/backend/rotas_clubes_canonica.py
+@@ -246,6 +246,38 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
+ 
+ 
+ 
++def _nomes_estritamente_compativeis(nome_consulta, nome_registro):
++    """
++    Valida compatibilidade estrita de nomes para evitar contaminações:
++    - Rejeita quando um é nome curto isolado (ex: 'Kaique', 'Fabiano') e o outro possui sobrenome adicional (ex: 'Kaique Kenji', 'Fabiano Souza').
++    - Aceita igualdade exata insensível a maiúsculas e espaços.
++    - Aceita nomes compostos longos contendo elipses da súmula (ex: 'Emerson Fabiano' vs 'Emerson Ju ... Emerson Fabiano Kerb ...').
++    """
++    if not nome_consulta or not nome_registro:
++        return False
++    n1 = nome_consulta.strip().lower()
++    n2 = nome_registro.strip().lower()
++    if n1 == n2:
++        return True
++
++    tokens1 = set(n1.split())
++    tokens2 = set(n2.split())
++
++    # Se um for nome simples único e o outro for composto com sobrenome diferente, não assume identidade
++    if len(tokens1) == 1 and len(tokens2) > 1:
++        return False
++    if len(tokens2) == 1 and len(tokens1) > 1:
++        return False
++
++    # Suporte a abreviações com reticências da súmula
++    clean1 = {t for t in tokens1 if t not in ('.', '...')}
++    clean2 = {t for t in tokens2 if t not in ('.', '...')}
++    if clean1 and clean2 and (clean1.issubset(clean2) or clean2.issubset(clean1)):
++        return True
++
++    return False
++
++
+ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_busca, ano_int=None):
+     """
+     Regra pericial revisada de prioridade tática (auditoria de 5 métodos):
+@@ -265,27 +297,39 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
+     # 1. Evidência direta na súmula do recorte
+     where_rec = [f"LOWER(e.clube) IN ({','.join('?' for _ in strings_busca)})"]
+     params_rec = list(strings_busca)
+-    where_rec.append("e.atleta = ?")
+-    params_rec.append(atleta_nome)
++    if id_jogador and id_jogador > 0:
++        where_rec.append("(e.id_jogador = ? OR LOWER(TRIM(e.atleta)) = LOWER(TRIM(?)))")
++        params_rec.extend([id_jogador, atleta_nome])
++    else:
++        where_rec.append("LOWER(TRIM(e.atleta)) = LOWER(TRIM(?))")
++        params_rec.append(atleta_nome)
+     if ano_int:
+         where_rec.append("p.ano = ?")
+         params_rec.append(ano_int)
+ 
+     q1 = f"""
+-        SELECT e.posicao, e.is_goleiro, e.titular
++        SELECT e.posicao, e.is_goleiro, e.titular, e.atleta, e.id_jogador
+         FROM escalacoes e
+         JOIN partidas p ON e.id_partida = p.id_partida
+         WHERE {" AND ".join(where_rec)}
+     """
+     rows1 = c.execute(q1, params_rec).fetchall()
+ 
+-    if any(r['is_goleiro'] == 1 for r in rows1) or any(
++    rows1_validas = []
++    for r in rows1:
++        if id_jogador and r['id_jogador'] and r['id_jogador'] != id_jogador:
++            continue
++        if not _nomes_estritamente_compativeis(atleta_nome, r['atleta']):
++            continue
++        rows1_validas.append(r)
++
++    if any(r['is_goleiro'] == 1 for r in rows1_validas) or any(
+         r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])
+-        for r in rows1
++        for r in rows1_validas
+     ):
+         return 'goleiros', 'Goleiro', 'posicao_do_recorte'
+ 
+-    pos_tit = [r['posicao'] for r in rows1 if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
++    pos_tit = [r['posicao'] for r in rows1_validas if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
+     if pos_tit:
+         cand = max(set(pos_tit), key=pos_tit.count)
+         p_low = cand.lower()
+@@ -300,23 +344,44 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
+             return 'atacantes', label, 'posicao_do_recorte'
+ 
+     # 2. Posição predominante em escalações confiáveis na carreira (acervo 2023-2026)
+-    q2 = """
+-        SELECT e.posicao, e.is_goleiro, e.titular 
++    # Regras de auditoria:
++    # - Jamais busca parcial LIKE.
++    # - Rejeita homônimos exatos com IDs distintos (r['id_jogador'] != id_jogador).
++    # - Rejeita ID compartilhado com nome conflitante (ex: Kaique vs Kaique Kenji).
++    # - Exige volume mínimo de 3 titularidades auditáveis para inferência confiável na carreira.
++    where_q2 = ["p.ano BETWEEN 2023 AND 2026"]
++    params_q2 = []
++    if id_jogador and id_jogador > 0:
++        where_q2.append("(e.id_jogador = ? OR LOWER(TRIM(e.atleta)) = LOWER(TRIM(?)))")
++        params_q2.extend([id_jogador, atleta_nome])
++    else:
++        where_q2.append("LOWER(TRIM(e.atleta)) = LOWER(TRIM(?))")
++        params_q2.append(atleta_nome)
++
++    q2 = f"""
++        SELECT e.posicao, e.is_goleiro, e.titular, e.atleta, e.id_jogador, e.clube 
+         FROM escalacoes e 
+         JOIN partidas p ON e.id_partida = p.id_partida
+-        WHERE (e.atleta = ? OR (LOWER(e.atleta) LIKE ? AND e.is_goleiro = 1))
+-          AND p.ano BETWEEN 2023 AND 2026
++        WHERE {" AND ".join(where_q2)}
+     """
+-    rows2 = c.execute(q2, (atleta_nome, f"%{atleta_nome.lower()}%")).fetchall()
++    rows2 = c.execute(q2, params_q2).fetchall()
+ 
+-    if any(r['is_goleiro'] == 1 for r in rows2) or any(
++    rows2_validas = []
++    for r in rows2:
++        if id_jogador and r['id_jogador'] and r['id_jogador'] != id_jogador:
++            continue
++        if not _nomes_estritamente_compativeis(atleta_nome, r['atleta']):
++            continue
++        rows2_validas.append(r)
++
++    if any(r['is_goleiro'] == 1 for r in rows2_validas) or any(
+         r['posicao'] and any(k in r['posicao'].lower() for k in ['goalkeeper', 'goleir'])
+-        for r in rows2
++        for r in rows2_validas
+     ):
+         return 'goleiros', 'Goleiro', 'predominante_em_escalacoes'
+ 
+-    pos_hist_tit = [r['posicao'] for r in rows2 if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
+-    if pos_hist_tit:
++    pos_hist_tit = [r['posicao'] for r in rows2_validas if r['titular'] == 1 and r['posicao'] and r['posicao'] not in ('Substitute', 'Titular', 'Reserva', 'Jogador')]
++    if len(pos_hist_tit) >= 3:
+         cand = max(set(pos_hist_tit), key=pos_hist_tit.count)
+         p_low = cand.lower()
+         if any(k in p_low for k in ['zagueir', 'lateral', 'defender', 'defensor', 'back', 'sweeper']):
+@@ -330,12 +395,18 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
+             return 'atacantes', label, 'predominante_em_escalacoes'
+ 
+     # 3. Cadastro validado específico em jogadores (sanitizado: rejeita Atacante genérico)
+-    row_cad = c.execute("""
++    where_cad = ["(nome_exibicao = ? OR apelido = ? OR nome_completo = ?)"]
++    params_cad = [atleta_nome, atleta_nome, atleta_nome]
++    if id_jogador and id_jogador > 0:
++        where_cad = ["(id_jogador = ? OR nome_exibicao = ? OR apelido = ?)"]
++        params_cad = [id_jogador, atleta_nome, atleta_nome]
++
++    row_cad = c.execute(f"""
+         SELECT posicao 
+         FROM jogadores 
+-        WHERE nome_exibicao = ? OR apelido = ? OR nome_completo = ?
++        WHERE {" AND ".join(where_cad)}
+         LIMIT 1
+-    """, (atleta_nome, atleta_nome, atleta_nome)).fetchone()
++    """, params_cad).fetchone()
+ 
+     if row_cad and row_cad['posicao']:
+         p_cad = row_cad['posicao'].strip()
+@@ -355,7 +426,7 @@ def _resolver_posicao_atleta_hierarquica(conn, atleta_nome, id_jogador, strings_
+         SELECT e.posicao 
+         FROM escalacoes e 
+         JOIN partidas p ON e.id_partida = p.id_partida 
+-        WHERE e.atleta = ? AND LOWER(e.clube) IN ({seq})
++        WHERE LOWER(TRIM(e.atleta)) = LOWER(TRIM(?)) AND LOWER(e.clube) IN ({seq})
+           AND e.posicao IS NOT NULL AND e.posicao NOT IN ('Substitute', 'Titular', 'Reserva', 'Jogador')
+         LIMIT 1
+     """
+@@ -705,6 +776,7 @@ def get_clube_detalhe(clube_id):
+         JOIN partidas p ON g.id_partida = p.id_partida
+         WHERE LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})
+           AND p.ano = ?
++          AND (g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')
+         GROUP BY g.atleta
+         ORDER BY total_gols DESC
+         LIMIT 5
+@@ -896,8 +968,11 @@ def get_clube_elenco(clube_id):
+     """
+     rows_esc = c.execute(query_esc, params).fetchall()
+ 
+-    # 1. Gols marcados no recorte pelo clube (agrupados por atleta pelo nome, evitando ID cruzado)
+-    where_gols = [f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})"]
++    # 1. Gols marcados no recorte pelo clube (agrupados por atleta pelo nome, separando gols contra)
++    where_gols = [
++        f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})",
++        "(g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')"
++    ]
+     params_gols = list(strings_busca)
+     if ano_param.isdigit():
+         where_gols.append("p.ano = ?")
+@@ -916,6 +991,28 @@ def get_clube_elenco(clube_id):
+     rows_gols = c.execute(query_gols, params_gols).fetchall()
+     gols_map = {r['atleta'].strip().lower(): r['total_gols'] for r in rows_gols}
+ 
++    # 1.1 Gols contra recebidos a favor do clube no recorte (separados dos gols individuais de atletas)
++    where_gc = [
++        f"LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})",
++        "LOWER(g.tipo_de_gol) = 'contra'"
++    ]
++    params_gc = list(strings_busca)
++    if ano_param.isdigit():
++        where_gc.append("p.ano = ?")
++        params_gc.append(int(ano_param))
++    if campeonato:
++        where_gc.append("p.campeonato = ?")
++        params_gc.append(campeonato)
++
++    query_gc = f"""
++        SELECT COUNT(*) as total_gc
++        FROM gols g
++        JOIN partidas p ON g.id_partida = p.id_partida
++        WHERE {" AND ".join(where_gc)}
++    """
++    row_gc = c.execute(query_gc, params_gc).fetchone()
++    gols_contra_a_favor = row_gc['total_gc'] if row_gc else 0
++
+     # 2. Assistências brutas
+     where_ast = [f"LOWER(a.clube) IN ({','.join('?' for _ in strings_busca)})"]
+     params_ast = list(strings_busca)
+@@ -1130,11 +1227,12 @@ def get_clube_elenco(clube_id):
+             'criterio': 'Gols não confirmam posição; prevalência estrita de súmula e função tática'
+         },
+         'cobertura': {
++            'gols_contra_a_favor': gols_contra_a_favor,
+             'assistencias_disponiveis': tem_cobertura_bed or len(ast_map) > 0,
+             'cartoes_disponiveis': tem_cobertura_bed or len(amarelos_map) > 0,
+             'minutos_disponiveis': tem_cobertura_bed,
+             'fonte_metricas': 'BED 2026 (Série A) + Súmulas Canônicas' if tem_cobertura_bed else 'Súmulas Canônicas',
+-            'nota_recorte': 'Titularidades e jogos disputados cobrem todas as partidas do recorte selecionado. Métricas de assistências e cartões detalhados são originárias do tracking da Série A.'
++            'nota_recorte': 'Titularidades e jogos disputados cobrem todas as partidas do recorte selecionado. Gols contra recebidos são contabilizados para o clube e expostos separadamente dos gols individuais.'
+         }
+     })
+ 
+@@ -1184,8 +1282,8 @@ def get_clube_estatisticas(clube_id):
+     gols_pro = sum(j['gols_pro'] or 0 for j in jogos_validos)
+     gols_contra = sum(j['gols_contra'] or 0 for j in jogos_validos)
+ 
+-    jogos_casa = [j for j in jogos_validos if j['mando'] == 'mandante']
+-    jogos_fora = [j for j in jogos_validos if j['mando'] == 'visitante']
++    jogos_casa = [j for j in jogos_validos if j['mando'] == 'casa']
++    jogos_fora = [j for j in jogos_validos if j['mando'] == 'fora']
+ 
+     gp_casa = sum(j['gols_pro'] or 0 for j in jogos_casa)
+     gc_casa = sum(j['gols_contra'] or 0 for j in jogos_casa)
+@@ -1371,6 +1469,7 @@ def get_clube_historico(clube_id):
+         FROM gols g
+         JOIN partidas p ON g.id_partida = p.id_partida
+         WHERE LOWER(g.clube) IN ({','.join('?' for _ in strings_busca)})
++          AND (g.tipo_de_gol IS NULL OR LOWER(g.tipo_de_gol) != 'contra')
+         GROUP BY g.atleta
+         ORDER BY total_gols DESC
+         LIMIT 10
+diff --git a/frontend/src/components/ClubDetailView.jsx b/frontend/src/components/ClubDetailView.jsx
+index 6de4e9a..f6aa26d 100644
+--- a/frontend/src/components/ClubDetailView.jsx
++++ b/frontend/src/components/ClubDetailView.jsx
+@@ -313,7 +313,16 @@ export default function ClubDetailView({
+     );
+   }
+ 
+-  const { identificacao, cobertura, opcoes_filtros, resumo_recorte, ultimos_resultados, artilheiros_recorte, metricas_avancadas_preview } = detalhe;
++  const {
++    identificacao,
++    cobertura,
++    opcoes_filtros,
++    resumo_recorte,
++    ultimos_resultados,
++    artilheiros_recorte,
++    atletas_mais_utilizados_recorte,
++    metricas_avancadas_preview
++  } = detalhe;
+ 
+   return (
+     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
+@@ -813,13 +822,13 @@ export default function ClubDetailView({
+                 </button>
+               </div>
+ 
+-              {!clubeData?.atletas_mais_utilizados_recorte || clubeData.atletas_mais_utilizados_recorte.length === 0 ? (
++              {!Array.isArray(atletas_mais_utilizados_recorte) || atletas_mais_utilizados_recorte.length === 0 ? (
+                 <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                   Nenhum registro de titularidade no recorte.
+                 </div>
+               ) : (
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+-                  {clubeData.atletas_mais_utilizados_recorte.map((at, idx) => (
++                  {atletas_mais_utilizados_recorte.map((at, idx) => (
+                     <div
+                       key={at.atleta}
+                       style={{
+@@ -1595,6 +1604,35 @@ export default function ClubDetailView({
+                     );
+                   })}
+                 </div>
++
++                <div
++                  style={{
++                    marginTop: '14px',
++                    padding: '10px 14px',
++                    borderRadius: 'var(--radius-card)',
++                    backgroundColor: 'var(--surface-card)',
++                    border: '1px solid var(--border-subtle)',
++                    fontSize: '0.74rem',
++                    color: 'var(--text-secondary)',
++                    lineHeight: 1.45
++                  }}
++                >
++                  {(() => {
++                    const faixasValidas = ['0_15', '16_30', '31_45', '46_60', '61_75', '76_90', 'acrescimos_1t', 'acrescimos_2t', 'prorrogacao'];
++                    const gpDist = estatisticasData.estatisticas_basicas?.distribuicao_gols_temporais?.gols_marcados || {};
++                    const gcDist = estatisticasData.estatisticas_basicas?.distribuicao_gols_temporais?.gols_sofridos || {};
++                    const gpComMinuto = faixasValidas.reduce((acc, k) => acc + (gpDist[k] || 0), 0);
++                    const gcComMinuto = faixasValidas.reduce((acc, k) => acc + (gcDist[k] || 0), 0);
++                    const gpTotal = estatisticasData.estatisticas_basicas?.gols_pro ?? 0;
++                    const gcTotal = estatisticasData.estatisticas_basicas?.gols_contra ?? 0;
++
++                    return (
++                      <>
++                        <strong style={{ color: 'var(--text-primary)' }}>ℹ️ Cobertura de Minutos no Recorte:</strong> A distribuição temporal contabiliza os gols de partidas com lance a lance digitalizado ({gpComMinuto} de {gpTotal} gols pró e {gcComMinuto} de {gcTotal} contra). Partidas sem minuto individual catalogado permanecem sem distribuição arbitrária.
++                      </>
++                    );
++                  })()}
++                </div>
+               </div>
+ 
+               {/* BLOCO 3: BED 2026 */}
+diff --git a/tests/test_clubes_canonica_api.py b/tests/test_clubes_canonica_api.py
+index 112cbd1..1d4f924 100644
+--- a/tests/test_clubes_canonica_api.py
++++ b/tests/test_clubes_canonica_api.py
+@@ -283,9 +283,9 @@ def test_auditoria_5_metodos_posicoes(client):
+     assert 'auditoria_posicoes' in data
+     metodos = data['auditoria_posicoes']['metodos_classificacao']
+     assert metodos['posicao_do_recorte'] == 25
+-    assert metodos['predominante_em_escalacoes'] == 6
++    assert metodos['predominante_em_escalacoes'] == 3
+     assert metodos['cadastro_validado'] == 1
+-    assert metodos['posicao_a_confirmar'] == 11
++    assert metodos['posicao_a_confirmar'] == 14
+ 
+ 
+ def test_clube_historico_escopos_gols_verificaveis(client):
+@@ -350,3 +350,240 @@ def test_elenco_temporada_pre_2023_sem_escalacao_ficticia(client):
+     assert 'não estão digitalizadas' in data['cobertura']['nota_recorte']
+     for setor, lista in data['setores'].items():
+         assert len(lista) == 0
++
++
++def test_regressao_estatisticas_fechamento_mando_totais(client):
++    """
++    Valida que o endpoint de estatísticas cumpre estritamente o fechamento:
++    casa + fora = total para jogos, gols pró e gols contra.
++    Testado com Palmeiras #2459 (caso conhecido com 37 casa e 37 fora em 2026).
++    """
++    resp = client.get('/api/clubes/detalhe/2459/estatisticas?ano=2026')
++    assert resp.status_code == 200
++    eb = resp.get_json()['estatisticas_basicas']
++
++    mc = eb['desempenho_mando']['casa']
++    mf = eb['desempenho_mando']['fora']
++
++    assert mc['jogos'] == 37
++    assert mf['jogos'] == 37
++    assert mc['jogos'] + mf['jogos'] == eb['jogos'] == 74
++
++    assert mc['gols_pro'] == 72
++    assert mf['gols_pro'] == 52
++    assert mc['gols_pro'] + mf['gols_pro'] == eb['gols_pro'] == 124
++
++    assert mc['gols_contra'] == 21
++    assert mf['gols_contra'] == 33
++    assert mc['gols_contra'] + mf['gols_contra'] == eb['gols_contra'] == 54
++
++
++def test_regressao_gol_contra_separado_de_artilharia_individual(client):
++    """
++    Valida que:
++    1. O gol contra de Fabiano (Vitória 0x4 Palmeiras) não é computado na
++       artilharia individual do atleta Fabiano no Palmeiras (gols == 0).
++    2. O evento original permanece íntegro e compõe os gols_pro do Palmeiras.
++    3. Gols contra recebidos são expostos separadamente em cobertura.gols_contra_a_favor.
++    """
++    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
++    assert resp.status_code == 200
++    data = resp.get_json()
++
++    # Gols contra recebidos a favor
++    assert data['cobertura']['gols_contra_a_favor'] == 3
++
++    # Localizar Fabiano no elenco do Palmeiras
++    todos_atletas = []
++    for setor, lista in data['setores'].items():
++        todos_atletas.extend(lista)
++
++    fabianos = [a for a in todos_atletas if a['atleta'].strip().lower() == 'fabiano']
++    assert len(fabianos) == 1
++    fab = fabianos[0]
++
++    # Artilharia individual deve ser zero (gol contra não pertence à artilharia do atleta)
++    assert fab['gols'] == 0
++    assert fab['jogos'] == 0
++    assert fab['titularidades'] == 0
++    assert fab['reservas'] == 2
++    assert fab['nota_participacao'] == '2 partidas relacionado no banco sem entrar'
++
++
++def test_regressao_posicao_identidade_estrita_fabiano_vs_emerson_fabiano(client):
++    """
++    Valida que:
++    1. LIKE '%fabiano%' não transfere a posição de Emerson Fabiano para Fabiano.
++    2. Fabiano não está no setor de goleiros.
++    3. Emerson Fabiano resolve para goleiro por mérito próprio de súmula.
++    4. Atleta sem evidência tática suficiente cai em 'Posição a Confirmar'.
++    """
++    resp = client.get('/api/clubes/detalhe/2459/elenco?ano=2026')
++    assert resp.status_code == 200
++    data = resp.get_json()
++
++    # Fabiano NÃO deve estar em goleiros
++    goleiros = data['setores']['goleiros']
++    assert all('fabiano' not in g['atleta'].lower() for g in goleiros)
++
++    # Teste unitário da função pericial hierárquica
++    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
++    from backend.app import get_db
++
++    conn = get_db()
++    try:
++        # Emerson Fabiano (goleiro id 18925)
++        setor_ef, pos_ef, met_ef = _resolver_posicao_atleta_hierarquica(
++            conn, "Emerson Fabiano", 18925, {"internacional"}, 2026
++        )
++        assert setor_ef == 'goleiros'
++        assert pos_ef == 'Goleiro'
++
++        # Fabiano (id 1561) - sem evidência suficiente, não pode ser Goleiro nem Lateral
++        setor_f, pos_f, met_f = _resolver_posicao_atleta_hierarquica(
++            conn, "Fabiano", 1561, {"palmeiras"}, 2026
++        )
++        assert setor_f == 'outros'
++        assert pos_f == 'Posição a Confirmar'
++        assert met_f == 'posicao_a_confirmar'
++    finally:
++        conn.close()
++
++
++def test_regressao_homonimo_exato_com_ids_distintos():
++    """
++    Regressão 1: Homônimo exato com IDs distintos.
++    Garante que quando dois atletas possuem exatamente o mesmo nome,
++    mas IDs cadastrais distintos, as escalações de um NÃO são atribuídas ao outro.
++    """
++    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
++    from backend.app import get_db
++
++    conn = get_db()
++    try:
++        # ID inexistente com mesmo nome não herda escalações do atleta canônico
++        setor, pos, met = _resolver_posicao_atleta_hierarquica(
++            conn, "Eduardo", 9999999, {"palmeiras"}, 2026
++        )
++        assert setor == 'outros'
++        assert pos == 'Posição a Confirmar'
++        assert met == 'posicao_a_confirmar'
++    finally:
++        conn.close()
++
++
++def test_regressao_id_compartilhado_por_identidades_conflitantes():
++    """
++    Regressão 2: ID compartilhado por identidades conflitantes.
++    Kaique (#1423 no Palmeiras) e Kaique Kenji (#1423 no Cruzeiro) compartilham o mesmo ID 1423.
++    A função deve rejeitar o vínculo entre identidades de nomes conflitantes e
++    NÃO atribuir a posição de meia/atacante do Cruzeiro ao Kaique do Palmeiras.
++    """
++    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
++    from backend.app import get_db
++
++    conn = get_db()
++    try:
++        setor, pos, met = _resolver_posicao_atleta_hierarquica(
++            conn, "Kaique", 1423, {"palmeiras"}, 2026
++        )
++        # Não pode herdar Meio-campo ou Atacante de Kaique Kenji
++        assert setor == 'outros'
++        assert pos == 'Posição a Confirmar'
++        assert met == 'posicao_a_confirmar'
++    finally:
++        conn.close()
++
++
++def test_regressao_nome_curto_versus_nome_composto():
++    """
++    Regressão 3: Nome curto versus nome composto.
++    Garante que nomes curtos isolados ('Fabiano', 'Kaique') não sofram
++    correspondência com nomes compostos distintos ('Emerson Fabiano', 'Kaique Kenji').
++    """
++    from backend.rotas_clubes_canonica import _nomes_estritamente_compativeis
++
++    # Casos proibidos de contaminação por substring
++    assert _nomes_estritamente_compativeis("Fabiano", "Emerson Fabiano") is False
++    assert _nomes_estritamente_compativeis("Emerson Fabiano", "Fabiano") is False
++    assert _nomes_estritamente_compativeis("Kaique", "Kaique Kenji") is False
++    assert _nomes_estritamente_compativeis("Eduardo", "Carlos Eduardo") is False
++
++    # Casos legítimos aceitos (igualdade exata ou elipses de súmula oficial)
++    assert _nomes_estritamente_compativeis("Eduardo", "eduardo ") is True
++    assert _nomes_estritamente_compativeis("Emerson Fabiano", "Emerson Ju ... Emerson Fabiano Kerb ...") is True
++
++
++def test_regressao_evidencia_insuficiente_retorna_posicao_a_confirmar():
++    """
++    Regressão 4: Evidência insuficiente.
++    Atletas sem amostragem tática suficiente (< 3 titularidades comprovadas na carreira,
++    contradições cadastrais ou apenas banco de reservas sem entrar) devem retornar
++    'Posição a Confirmar' e NÃO uma posição inventada ou extrapolada.
++    """
++    from backend.rotas_clubes_canonica import _resolver_posicao_atleta_hierarquica
++    from backend.app import get_db
++
++    conn = get_db()
++    try:
++        # Fabiano (camisa 37 do Palmeiras, 2 bancos, contradição com cadastro Atacante)
++        setor_f, pos_f, met_f = _resolver_posicao_atleta_hierarquica(
++            conn, "Fabiano", 1561, {"palmeiras"}, 2026
++        )
++        assert setor_f == 'outros'
++        assert pos_f == 'Posição a Confirmar'
++        assert met_f == 'posicao_a_confirmar'
++
++        # Aranha (camisa 24 do Palmeiras, 5 jogos como reserva, 0 titularidades)
++        setor_a, pos_a, met_a = _resolver_posicao_atleta_hierarquica(
++            conn, "Aranha", 3435, {"palmeiras"}, 2026
++        )
++        assert setor_a == 'outros'
++        assert pos_a == 'Posição a Confirmar'
++        assert met_a == 'posicao_a_confirmar'
++
++        # Atleta totalmente fictício sem registros
++        setor_x, pos_x, met_x = _resolver_posicao_atleta_hierarquica(
++            conn, "Atleta Sem Registros 123", None, {"palmeiras"}, 2026
++        )
++        assert setor_x == 'outros'
++        assert pos_x == 'Posição a Confirmar'
++        assert met_x == 'posicao_a_confirmar'
++    finally:
++        conn.close()
++
++
++def test_regressao_minuto_desconhecido_fora_do_numerador_temporal(client):
++    """
++    Regressão 5: minuto_desconhecido fora do numerador temporal.
++    Valida que o payload de estatísticas separa a chave minuto_desconhecido,
++    e que a fórmula de consolidação de cobertura exclui essa chave do somatório
++    de gols com minutagem catalogada.
++    """
++    resp = client.get('/api/clubes/detalhe/2459/estatisticas?ano=2026')
++    assert resp.status_code == 200
++    eb = resp.get_json()['estatisticas_basicas']
++
++    dist_marcados = eb['distribuicao_gols_temporais']['gols_marcados']
++    dist_sofridos = eb['distribuicao_gols_temporais']['gols_sofridos']
++
++    # A chave minuto_desconhecido existe explicitamente no payload para auditoria
++    assert 'minuto_desconhecido' in dist_marcados
++    assert 'minuto_desconhecido' in dist_sofridos
++
++    # Faixas válidas digitalizadas consumidas pelo JSX
++    faixas_validas = [
++        '0_15', '16_30', '31_45', '46_60', '61_75', '76_90',
++        'acrescimos_1t', 'acrescimos_2t', 'prorrogacao'
++    ]
++
++    total_com_minuto_marcados = sum(dist_marcados.get(k, 0) for k in faixas_validas)
++    total_com_minuto_sofridos = sum(dist_sofridos.get(k, 0) for k in faixas_validas)
++
++    # O numerador NÃO pode somar minuto_desconhecido
++    assert total_com_minuto_marcados == sum(v for k, v in dist_marcados.items() if k != 'minuto_desconhecido')
++    assert total_com_minuto_sofridos == sum(v for k, v in dist_sofridos.items() if k != 'minuto_desconhecido')
++
++    # Garantir que se houver minuto desconhecido, o total de lances catalogados não é inflacionado
++    total_com_desconhecido = sum(dist_marcados.values())
++    assert total_com_minuto_marcados <= total_com_desconhecido

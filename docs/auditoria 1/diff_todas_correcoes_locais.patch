@@ -1,0 +1,53 @@
+diff --git a/backend/rotas_clubes_canonica.py b/backend/rotas_clubes_canonica.py
+index c5b2cae..f334e3c 100644
+--- a/backend/rotas_clubes_canonica.py
++++ b/backend/rotas_clubes_canonica.py
+@@ -1184,8 +1184,8 @@ def get_clube_estatisticas(clube_id):
+     gols_pro = sum(j['gols_pro'] or 0 for j in jogos_validos)
+     gols_contra = sum(j['gols_contra'] or 0 for j in jogos_validos)
+ 
+-    jogos_casa = [j for j in jogos_validos if j['mando'] == 'mandante']
+-    jogos_fora = [j for j in jogos_validos if j['mando'] == 'visitante']
++    jogos_casa = [j for j in jogos_validos if j['mando'] == 'casa']
++    jogos_fora = [j for j in jogos_validos if j['mando'] == 'fora']
+ 
+     gp_casa = sum(j['gols_pro'] or 0 for j in jogos_casa)
+     gc_casa = sum(j['gols_contra'] or 0 for j in jogos_casa)
+diff --git a/frontend/src/components/ClubDetailView.jsx b/frontend/src/components/ClubDetailView.jsx
+index 6de4e9a..ca65cea 100644
+--- a/frontend/src/components/ClubDetailView.jsx
++++ b/frontend/src/components/ClubDetailView.jsx
+@@ -313,7 +313,16 @@ export default function ClubDetailView({
+     );
+   }
+ 
+-  const { identificacao, cobertura, opcoes_filtros, resumo_recorte, ultimos_resultados, artilheiros_recorte, metricas_avancadas_preview } = detalhe;
++  const {
++    identificacao,
++    cobertura,
++    opcoes_filtros,
++    resumo_recorte,
++    ultimos_resultados,
++    artilheiros_recorte,
++    atletas_mais_utilizados_recorte,
++    metricas_avancadas_preview
++  } = detalhe;
+ 
+   return (
+     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', maxWidth: '1280px', margin: '0 auto' }}>
+@@ -813,13 +822,13 @@ export default function ClubDetailView({
+                 </button>
+               </div>
+ 
+-              {!clubeData?.atletas_mais_utilizados_recorte || clubeData.atletas_mais_utilizados_recorte.length === 0 ? (
++              {!Array.isArray(atletas_mais_utilizados_recorte) || atletas_mais_utilizados_recorte.length === 0 ? (
+                 <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                   Nenhum registro de titularidade no recorte.
+                 </div>
+               ) : (
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+-                  {clubeData.atletas_mais_utilizados_recorte.map((at, idx) => (
++                  {atletas_mais_utilizados_recorte.map((at, idx) => (
+                     <div
+                       key={at.atleta}
+                       style={{

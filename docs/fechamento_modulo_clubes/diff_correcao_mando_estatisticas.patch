@@ -1,0 +1,15 @@
+diff --git a/backend/rotas_clubes_canonica.py b/backend/rotas_clubes_canonica.py
+index c5b2cae..f334e3c 100644
+--- a/backend/rotas_clubes_canonica.py
++++ b/backend/rotas_clubes_canonica.py
+@@ -1184,8 +1184,8 @@ def get_clube_estatisticas(clube_id):
+     gols_pro = sum(j['gols_pro'] or 0 for j in jogos_validos)
+     gols_contra = sum(j['gols_contra'] or 0 for j in jogos_validos)
+ 
+-    jogos_casa = [j for j in jogos_validos if j['mando'] == 'mandante']
+-    jogos_fora = [j for j in jogos_validos if j['mando'] == 'visitante']
++    jogos_casa = [j for j in jogos_validos if j['mando'] == 'casa']
++    jogos_fora = [j for j in jogos_validos if j['mando'] == 'fora']
+ 
+     gp_casa = sum(j['gols_pro'] or 0 for j in jogos_casa)
+     gc_casa = sum(j['gols_contra'] or 0 for j in jogos_casa)
