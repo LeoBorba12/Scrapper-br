@@ -1322,17 +1322,37 @@ export default function App() {
 
       {/* ABA 1: RAIO-X H2H / CONFRONTOS DIRETOS CANÔNICOS (EDITORIAL 2026) */}
       {activeTab === 'h2h' && (
-        <div className="space-y-6">
-          <div className="flex gap-2 p-1 bg-[#EAE0D2] rounded-lg w-fit">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+          <div style={{ display: 'flex', gap: '8px', padding: '4px', backgroundColor: 'var(--surface-raised)', borderRadius: 'var(--radius-control)', width: 'fit-content', flexWrap: 'wrap' }}>
             <button
               onClick={() => setH2hSubView('canonica')}
-              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${h2hSubView === 'canonica' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+              className="touch-tactile"
+              style={{
+                padding: '8px 18px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.84rem',
+                fontWeight: h2hSubView === 'canonica' ? 800 : 600,
+                backgroundColor: h2hSubView === 'canonica' ? 'var(--surface-card)' : 'transparent',
+                color: h2hSubView === 'canonica' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                border: h2hSubView === 'canonica' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+                cursor: 'pointer'
+              }}
             >
               ⚔️ Confrontos Diretos Históricos
             </button>
             <button
               onClick={() => setH2hSubView('comparador')}
-              className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${h2hSubView === 'comparador' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+              className="touch-tactile"
+              style={{
+                padding: '8px 18px',
+                borderRadius: 'var(--radius-control)',
+                fontSize: '0.84rem',
+                fontWeight: h2hSubView === 'comparador' ? 800 : 600,
+                backgroundColor: h2hSubView === 'comparador' ? 'var(--surface-card)' : 'transparent',
+                color: h2hSubView === 'comparador' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                border: h2hSubView === 'comparador' ? '1px solid var(--border-subtle)' : '1px solid transparent',
+                cursor: 'pointer'
+              }}
             >
               📊 Comparador Multidimensional
             </button>

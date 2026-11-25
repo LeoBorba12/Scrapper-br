@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeftRight, Trophy, Shield, Calendar, MapPin, TrendingUp, AlertCircle, History, Sparkles, Scale, Percent, Filter, Users, Flame } from 'lucide-react';
+import {
+  ArrowLeftRight, Trophy, Shield, Calendar, TrendingUp,
+  AlertCircle, History, Sparkles, Filter, Users, Flame
+} from 'lucide-react';
 
 const CLASSICOS_PRESETS = [
   { label: 'Derby Paulista', a: 'Palmeiras', b: 'Corinthians' },
@@ -12,6 +15,33 @@ const CLASSICOS_PRESETS = [
   { label: 'Clássico dos Milhões', a: 'Flamengo', b: 'Vasco' }
 ];
 
+const cardStyle = {
+  backgroundColor: 'var(--surface-card)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius-card)',
+  padding: '20px',
+  boxShadow: 'var(--shadow-sm)'
+};
+
+const subCardStyle = {
+  backgroundColor: 'var(--surface-raised)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius-control)',
+  padding: '14px'
+};
+
+const selectStyle = {
+  width: '100%',
+  backgroundColor: 'var(--surface-raised)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius-control)',
+  padding: '10px 12px',
+  color: 'var(--text-primary)',
+  fontSize: '0.92rem',
+  fontWeight: 600,
+  outline: 'none'
+};
+
 export default function HeadToHeadView() {
   const [clubesLista, setClubesLista] = useState([]);
   const [clubeAId, setClubeAId] = useState(2459); // Palmeiras
@@ -23,7 +53,6 @@ export default function HeadToHeadView() {
   const [dadosH2H, setDadosH2H] = useState(null);
   const [erro, setErro] = useState(null);
 
-  // Carrega catálogo de clubes
   useEffect(() => {
     fetch('/api/clubes/lista-geral')
       .then(res => res.json())
@@ -36,19 +65,13 @@ export default function HeadToHeadView() {
         setClubesLista([
           { clube_id: 2459, nome: 'Palmeiras' },
           { clube_id: 2902, nome: 'Santos' },
-          { clube_id: 2450, nome: 'Corinthians' },
-          { clube_id: 2460, nome: 'São Paulo' },
-          { clube_id: 2452, nome: 'Flamengo' },
-          { clube_id: 2454, nome: 'Fluminense' },
-          { clube_id: 2457, nome: 'Grêmio' },
-          { clube_id: 2458, nome: 'Internacional' },
-          { clube_id: 2451, nome: 'Cruzeiro' },
-          { clube_id: 2449, nome: 'Atlético-MG' }
+          { clube_id: 981, nome: 'Corinthians' },
+          { clube_id: 3077, nome: 'São Paulo' },
+          { clube_id: 1389, nome: 'Flamengo' }
         ]);
       });
   }, []);
 
-  // Busca confrontos diretos com filtros táticos
   useEffect(() => {
     if (!clubeAId || !clubeBId || clubeAId === clubeBId) return;
 
@@ -78,6 +101,12 @@ export default function HeadToHeadView() {
       });
   }, [clubeAId, clubeBId, campeonato, decada, mandoFiltro]);
 
+  const handleInverterPerspectiva = () => {
+    const temp = clubeAId;
+    setClubeAId(clubeBId);
+    setClubeBId(temp);
+  };
+
   const selecionarClassico = (nomeA, nomeB) => {
     const findId = (n) => clubesLista.find(c => c.nome.toLowerCase() === n.toLowerCase())?.clube_id;
     const idA = findId(nomeA);
@@ -88,12 +117,6 @@ export default function HeadToHeadView() {
     }
   };
 
-  const handleInverterPerspectiva = () => {
-    const temp = clubeAId;
-    setClubeAId(clubeBId);
-    setClubeBId(temp);
-  };
-
   const infoA = dadosH2H?.clubes?.clube_a;
   const infoB = dadosH2H?.clubes?.clube_b;
   const retro = dadosH2H?.retrospecto_geral;
@@ -101,18 +124,18 @@ export default function HeadToHeadView() {
   const dc = dadosH2H?.projecao_dixon_coles;
 
   return (
-    <div className="space-y-6 text-[#1B1A17] font-sans">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', color: 'var(--text-primary)' }}>
       {/* Topo Editorial e Seletores */}
-      <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex-1 w-full">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#85573B] mb-2">
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '14px' }}>
+          <div style={{ flex: '1 1 220px' }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#85573B', marginBottom: '6px' }}>
               Clube Principal (A)
             </label>
             <select
               value={clubeAId}
               onChange={(e) => setClubeAId(Number(e.target.value))}
-              className="w-full bg-white border border-[#D8C7B5] rounded-lg px-4 py-2.5 font-serif text-lg font-bold text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
+              style={{ ...selectStyle, fontFamily: 'var(--font-serif)', fontSize: '1.05rem' }}
             >
               {clubesLista.map(c => (
                 <option key={`a-${c.clube_id}`} value={c.clube_id} disabled={c.clube_id === clubeBId}>
@@ -123,21 +146,33 @@ export default function HeadToHeadView() {
           </div>
 
           <button
+            type="button"
             onClick={handleInverterPerspectiva}
-            className="p-3 bg-[#EAE0D2] hover:bg-[#D8C7B5] border border-[#CBB8A3] rounded-full transition-transform active:scale-95 touch-tactile mt-6 md:mt-6 shadow-inner"
+            className="touch-tactile"
             title="Inverter perspectiva dos clubes"
+            style={{
+              padding: '10px 12px',
+              borderRadius: '999px',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              color: '#85573B',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
-            <ArrowLeftRight className="w-5 h-5 text-[#85573B]" />
+            <ArrowLeftRight size={18} />
           </button>
 
-          <div className="flex-1 w-full">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#85573B] mb-2">
+          <div style={{ flex: '1 1 220px' }}>
+            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#85573B', marginBottom: '6px' }}>
               Clube Oponente (B)
             </label>
             <select
               value={clubeBId}
               onChange={(e) => setClubeBId(Number(e.target.value))}
-              className="w-full bg-white border border-[#D8C7B5] rounded-lg px-4 py-2.5 font-serif text-lg font-bold text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
+              style={{ ...selectStyle, fontFamily: 'var(--font-serif)', fontSize: '1.05rem' }}
             >
               {clubesLista.map(c => (
                 <option key={`b-${c.clube_id}`} value={c.clube_id} disabled={c.clube_id === clubeAId}>
@@ -149,33 +184,39 @@ export default function HeadToHeadView() {
         </div>
 
         {/* Clássicos Históricos & Filtros Táticos */}
-        <div className="mt-5 pt-4 border-t border-[#E5DBCF] space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#85573B] mr-1 flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5" /> Clássicos:
+        <div style={{ marginTop: '18px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#85573B', display: 'inline-flex', alignItems: 'center', gap: '4px', marginRight: '4px' }}>
+              <Flame size={14} /> Clássicos:
             </span>
             {CLASSICOS_PRESETS.map((cl) => (
               <button
                 key={cl.label}
                 type="button"
                 onClick={() => selecionarClassico(cl.a, cl.b)}
-                className="px-2.5 py-1 text-xs font-medium rounded-full bg-[#EAE0D2] hover:bg-[#D8C7B5] text-[#1B1A17] transition-colors touch-tactile"
+                className="touch-tactile"
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '999px',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  backgroundColor: 'var(--surface-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }}
               >
                 {cl.label}
               </button>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C564D] mb-1">
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Competição
               </label>
-              <select
-                value={campeonato}
-                onChange={(e) => setCampeonato(e.target.value)}
-                className="w-full bg-white border border-[#D8C7B5] rounded-lg px-3 py-2 text-sm text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
-              >
+              <select value={campeonato} onChange={(e) => setCampeonato(e.target.value)} style={selectStyle}>
                 <option value="todos">Todas as Competições</option>
                 <option value="brasileirao">Brasileirão</option>
                 <option value="libertadores">Libertadores</option>
@@ -184,14 +225,10 @@ export default function HeadToHeadView() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C564D] mb-1">
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Década
               </label>
-              <select
-                value={decada}
-                onChange={(e) => setDecada(e.target.value)}
-                className="w-full bg-white border border-[#D8C7B5] rounded-lg px-3 py-2 text-sm text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
-              >
+              <select value={decada} onChange={(e) => setDecada(e.target.value)} style={selectStyle}>
                 <option value="todas">Todo o Acervo</option>
                 <option value="2020s">2020s</option>
                 <option value="2010s">2010s</option>
@@ -202,14 +239,10 @@ export default function HeadToHeadView() {
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C564D] mb-1">
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Mando de Campo
               </label>
-              <select
-                value={mandoFiltro}
-                onChange={(e) => setMandoFiltro(e.target.value)}
-                className="w-full bg-white border border-[#D8C7B5] rounded-lg px-3 py-2 text-sm text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
-              >
+              <select value={mandoFiltro} onChange={(e) => setMandoFiltro(e.target.value)} style={selectStyle}>
                 <option value="todos">Todos os Mandos</option>
                 <option value="a_mandante">{infoA?.nome || 'Clube A'} Mandante</option>
                 <option value="b_mandante">{infoB?.nome || 'Clube B'} Mandante</option>
@@ -220,127 +253,116 @@ export default function HeadToHeadView() {
       </div>
 
       {erro && (
-        <div className="bg-[#FDF2F0] border border-[#EAC4BE] rounded-lg p-4 text-[#85573B] flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <div style={{ ...cardStyle, backgroundColor: '#FDF2F0', borderColor: '#EAC4BE', color: '#85573B', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AlertCircle size={18} />
           <span>{erro}</span>
         </div>
       )}
 
       {loading && (
-        <div className="p-12 text-center text-[#5A673E] space-y-3">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#5A673E] border-t-transparent" />
-          <p className="font-serif italic">Consultando histórico de 115.755 partidas catalogadas...</p>
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '40px 20px', color: '#5A673E' }}>
+          <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', margin: 0 }}>
+            Consultando histórico de confrontos no acervo canônico...
+          </p>
         </div>
       )}
 
-      {!loading && dadosH2H && (
+      {!loading && dadosH2H && infoA && infoB && retro && (
         <>
-          {/* Card Projeção Preditiva Dixon-Coles */}
+          {/* Projeção Preditiva Dixon-Coles */}
           {dc && (
-            <div className="bg-[#1B1A17] text-[#F1E8DE] border border-[#3E3830] rounded-xl p-6 shadow-md">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 pb-3 border-b border-[#3E3830]">
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                 <div>
-                  <h2 className="font-serif text-xl font-bold flex items-center gap-2 text-[#D4AF37]">
-                    <Sparkles className="w-5 h-5 text-[#D4AF37]" />
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.15rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={18} color="#5A673E" />
                     Projeção Preditiva (Modelo Dixon-Coles Bivariado)
-                  </h2>
-                  <p className="text-xs text-[#A89F91] mt-0.5">
-                    Probabilidades científicas e Fair Odds calibradas descorrompidas de margem de apostas
+                  </h3>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                    Probabilidades científicas e Fair Odds calibradas no recorte selecionado
                   </p>
                 </div>
-                <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-[#2D2821] text-[#D4AF37] border border-[#4D4436]">
+                <span style={{ ...subCardStyle, padding: '6px 14px', fontFamily: 'var(--font-mono)', fontSize: '0.88rem', fontWeight: 800 }}>
                   Placar Provável: {dc.placar_mais_provavel}
                 </span>
               </div>
 
-              {/* Grid 1X2 Probabilidades & Fair Odds */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-4">
-                <div className="bg-[#26231E] border border-[#3E3830] rounded-lg p-3 text-center">
-                  <p className="text-xs uppercase font-semibold text-[#8FAF6A] mb-1">Vitória {infoA.nome}</p>
-                  <p className="font-mono text-3xl font-black text-white">{dc.probabilidades_1x2.vitoria_clube_a_pct}%</p>
-                  <div className="mt-2 inline-block px-2 py-0.5 rounded bg-[#1B1A17] text-[#D4AF37] font-mono text-xs border border-[#3E3830]">
-                    Odd Justa: {dc.fair_odds.odd_clube_a.toFixed(2)}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                <div style={{ ...subCardStyle, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#5A673E' }}>Vitória {infoA.nome}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.8rem', fontWeight: 900, color: '#5A673E', margin: '4px 0' }}>
+                    {dc.probabilidades_1x2.vitoria_clube_a_pct}%
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    Odd Justa: {dc.fair_odds.odd_clube_a} · xG: {dc.expectativa_gols.clube_a_xg}
                   </div>
                 </div>
 
-                <div className="bg-[#26231E] border border-[#3E3830] rounded-lg p-3 text-center">
-                  <p className="text-xs uppercase font-semibold text-[#C9BAA9] mb-1">Empate</p>
-                  <p className="font-mono text-3xl font-black text-white">{dc.probabilidades_1x2.empate_pct}%</p>
-                  <div className="mt-2 inline-block px-2 py-0.5 rounded bg-[#1B1A17] text-[#D4AF37] font-mono text-xs border border-[#3E3830]">
-                    Odd Justa: {dc.fair_odds.odd_empate.toFixed(2)}
+                <div style={{ ...subCardStyle, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Empate</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-primary)', margin: '4px 0' }}>
+                    {dc.probabilidades_1x2.empate_pct}%
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    Odd Justa: {dc.fair_odds.odd_empate}
                   </div>
                 </div>
 
-                <div className="bg-[#26231E] border border-[#3E3830] rounded-lg p-3 text-center">
-                  <p className="text-xs uppercase font-semibold text-[#D48B6A] mb-1">Vitória {infoB.nome}</p>
-                  <p className="font-mono text-3xl font-black text-white">{dc.probabilidades_1x2.vitoria_clube_b_pct}%</p>
-                  <div className="mt-2 inline-block px-2 py-0.5 rounded bg-[#1B1A17] text-[#D4AF37] font-mono text-xs border border-[#3E3830]">
-                    Odd Justa: {dc.fair_odds.odd_clube_b.toFixed(2)}
+                <div style={{ ...subCardStyle, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#85573B' }}>Vitória {infoB.nome}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.8rem', fontWeight: 900, color: '#85573B', margin: '4px 0' }}>
+                    {dc.probabilidades_1x2.vitoria_clube_b_pct}%
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    Odd Justa: {dc.fair_odds.odd_clube_b} · xG: {dc.expectativa_gols.clube_b_xg}
                   </div>
                 </div>
-              </div>
-
-              <div className="flex justify-between items-center text-xs font-mono text-[#A89F91] pt-2">
-                <span>Expectativa Gols (xG): {infoA.nome} {dc.expectativa_gols.clube_a_xg} x {dc.expectativa_gols.clube_b_xg} {infoB.nome}</span>
-                <span className="capitalize text-[#8FAF6A]">Status: {dc.status_amostra.replace('_', ' ')}</span>
               </div>
             </div>
           )}
 
-          {/* Card de Retrospecto Geral */}
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="font-serif text-2xl font-bold flex items-center gap-2">
-                <Trophy className="w-6 h-6 text-[#5A673E]" />
+          {/* Retrospecto Geral no Recorte */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.15rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trophy size={18} color="#85573B" />
                 Retrospecto Geral no Acervo
-              </h2>
-              <span className="text-xs font-mono font-bold bg-[#EAE0D2] px-3 py-1 rounded-full text-[#85573B]">
+              </h3>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                 {retro.total_jogos} Confrontos Catalogados
               </span>
             </div>
 
-            {/* Placar Numérico de Vitórias */}
-            <div className="grid grid-cols-3 gap-4 my-6 text-center">
-              <div className="p-4 bg-white border border-[#E5DBCF] rounded-lg shadow-inner">
-                <p className="text-xs uppercase font-semibold text-[#5A673E] mb-1">Vitórias {infoA.nome}</p>
-                <p className="font-mono text-4xl font-black text-[#5A673E]">{retro.vitorias_clube_a}</p>
-                <p className="text-xs text-gray-500 font-mono mt-1">{retro.aproveitamento_clube_a_pct}% aproveitamento</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ ...subCardStyle, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#5A673E' }}>Vitórias {infoA.nome}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.1rem', fontWeight: 900, color: '#5A673E' }}>{retro.vitorias_clube_a}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{retro.aproveitamento_clube_a_pct}% aproveitamento</div>
               </div>
 
-              <div className="p-4 bg-white border border-[#E5DBCF] rounded-lg shadow-inner">
-                <p className="text-xs uppercase font-semibold text-gray-500 mb-1">Empates</p>
-                <p className="font-mono text-4xl font-black text-gray-700">{retro.empates}</p>
-                <p className="text-xs text-gray-500 font-mono mt-1">Saldo de Gols: {retro.saldo_gols_clube_a > 0 ? `+${retro.saldo_gols_clube_a}` : retro.saldo_gols_clube_a}</p>
+              <div style={{ ...subCardStyle, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Empates</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.1rem', fontWeight: 900, color: 'var(--text-primary)' }}>{retro.empates}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Saldo {infoA.sigla || infoA.nome}: {retro.saldo_gols_clube_a > 0 ? `+${retro.saldo_gols_clube_a}` : retro.saldo_gols_clube_a}
+                </div>
               </div>
 
-              <div className="p-4 bg-white border border-[#E5DBCF] rounded-lg shadow-inner">
-                <p className="text-xs uppercase font-semibold text-[#85573B] mb-1">Vitórias {infoB.nome}</p>
-                <p className="font-mono text-4xl font-black text-[#85573B]">{retro.vitorias_clube_b}</p>
-                <p className="text-xs text-gray-500 font-mono mt-1">{retro.aproveitamento_clube_b_pct}% aproveitamento</p>
+              <div style={{ ...subCardStyle, textAlign: 'center' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#85573B' }}>Vitórias {infoB.nome}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.1rem', fontWeight: 900, color: '#85573B' }}>{retro.vitorias_clube_b}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{retro.aproveitamento_clube_b_pct}% aproveitamento</div>
               </div>
             </div>
 
-            {/* Barra de Distribuição */}
             {retro.total_jogos > 0 && (
-              <div className="space-y-1">
-                <div className="h-4 rounded-full overflow-hidden flex bg-gray-200 shadow-inner">
-                  <div
-                    style={{ width: `${(retro.vitorias_clube_a / retro.total_jogos) * 100}%` }}
-                    className="bg-[#5A673E] h-full"
-                    title={`Vitórias ${infoA.nome}`}
-                  />
-                  <div
-                    style={{ width: `${(retro.empates / retro.total_jogos) * 100}%` }}
-                    className="bg-[#D8C7B5] h-full"
-                    title="Empates"
-                  />
-                  <div
-                    style={{ width: `${(retro.vitorias_clube_b / retro.total_jogos) * 100}%` }}
-                    className="bg-[#85573B] h-full"
-                    title={`Vitórias ${infoB.nome}`}
-                  />
+              <div>
+                <div style={{ height: '12px', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: 'var(--surface-raised)' }}>
+                  <div style={{ width: `${(retro.vitorias_clube_a / retro.total_jogos) * 100}%`, backgroundColor: '#5A673E' }} title={`Vitórias ${infoA.nome}`} />
+                  <div style={{ width: `${(retro.empates / retro.total_jogos) * 100}%`, backgroundColor: '#D8C7B5' }} title="Empates" />
+                  <div style={{ width: `${(retro.vitorias_clube_b / retro.total_jogos) * 100}%`, backgroundColor: '#85573B' }} title={`Vitórias ${infoB.nome}`} />
                 </div>
-                <div className="flex justify-between text-[11px] font-mono text-gray-500 px-1">
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
                   <span>{infoA.nome}: {retro.gols_clube_a} gols</span>
                   <span>{infoB.nome}: {retro.gols_clube_b} gols</span>
                 </div>
@@ -349,78 +371,61 @@ export default function HeadToHeadView() {
           </div>
 
           {/* Retrospecto por Mando */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
-              <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#5A673E] mb-3">
-                <Shield className="w-5 h-5" />
-                {infoA.nome} como Mandante
-              </h3>
-              <div className="grid grid-cols-3 gap-2 text-center font-mono">
-                <div className="p-2 bg-white rounded border border-[#E5DBCF]">
-                  <span className="block text-xs text-gray-500 font-sans">Vitórias</span>
-                  <span className="text-xl font-bold text-[#5A673E]">{mando.clube_a_mandante.vitorias}</span>
+          {mando && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              {[
+                { titulo: `${infoA.nome} como Mandante`, cor: '#5A673E', d: mando.clube_a_mandante },
+                { titulo: `${infoB.nome} como Mandante`, cor: '#85573B', d: mando.clube_b_mandante }
+              ].map((bloco, idx) => (
+                <div key={idx} style={cardStyle}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, color: bloco.cor, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Shield size={16} />
+                    {bloco.titulo}
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', textAlign: 'center' }}>
+                    <div style={subCardStyle}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vitórias</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800, color: '#5A673E' }}>{bloco.d.vitorias}</div>
+                    </div>
+                    <div style={subCardStyle}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Empates</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800 }}>{bloco.d.empates}</div>
+                    </div>
+                    <div style={subCardStyle}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Derrotas</div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800, color: '#85573B' }}>{bloco.d.derrotas}</div>
+                    </div>
+                  </div>
+                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', margin: '10px 0 0 0' }}>
+                    Gols: {bloco.d.gols_pro} pró, {bloco.d.gols_contra} contra
+                  </p>
                 </div>
-                <div className="p-2 bg-white rounded border border-[#E5DBCF]">
-                  <span className="block text-xs text-gray-500 font-sans">Empates</span>
-                  <span className="text-xl font-bold">{mando.clube_a_mandante.empates}</span>
-                </div>
-                <div className="p-2 bg-white rounded border border-[#E5DBCF]">
-                  <span className="block text-xs text-gray-500 font-sans">Derrotas</span>
-                  <span className="text-xl font-bold text-[#85573B]">{mando.clube_a_mandante.derrotas}</span>
-                </div>
-              </div>
-              <p className="text-xs font-mono text-gray-600 mt-2 text-center">
-                Gols: {mando.clube_a_mandante.gols_pro} pró, {mando.clube_a_mandante.gols_contra} contra
-              </p>
+              ))}
             </div>
-
-            <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
-              <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#85573B] mb-3">
-                <Shield className="w-5 h-5" />
-                {infoB.nome} como Mandante
-              </h3>
-              <div className="grid grid-cols-3 gap-2 text-center font-mono">
-                <div className="p-2 bg-white rounded border border-[#E5DBCF]">
-                  <span className="block text-xs text-gray-500 font-sans">Vitórias</span>
-                  <span className="text-xl font-bold text-[#85573B]">{mando.clube_b_mandante.vitorias}</span>
-                </div>
-                <div className="p-2 bg-white rounded border border-[#E5DBCF]">
-                  <span className="block text-xs text-gray-500 font-sans">Empates</span>
-                  <span className="text-xl font-bold">{mando.clube_b_mandante.empates}</span>
-                </div>
-                <div className="p-2 bg-white rounded border border-[#E5DBCF]">
-                  <span className="block text-xs text-gray-500 font-sans">Derrotas</span>
-                  <span className="text-xl font-bold text-[#5A673E]">{mando.clube_b_mandante.derrotas}</span>
-                </div>
-              </div>
-              <p className="text-xs font-mono text-gray-600 mt-2 text-center">
-                Gols: {mando.clube_b_mandante.gols_pro} pró, {mando.clube_b_mandante.gols_contra} contra
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* Cruzamento Histórico por Competição & Década */}
           {(dadosH2H.cruzamento_por_competicao?.length > 0 || dadosH2H.cruzamento_por_decada?.length > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
               {dadosH2H.cruzamento_por_competicao?.length > 0 && (
-                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
-                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
-                    <Filter className="w-4 h-4 text-[#5A673E]" />
+                <div style={cardStyle}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Filter size={16} color="#5A673E" />
                     Cruzamento por Competição (Acervo Completo)
                   </h3>
-                  <div className="space-y-2.5">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {dadosH2H.cruzamento_por_competicao.map((item) => (
-                      <div key={item.chave} className="bg-white border border-[#E5DBCF] rounded-lg p-3">
-                        <div className="flex justify-between items-center text-sm mb-1.5">
-                          <span className="font-semibold text-[#1B1A17]">{item.label}</span>
-                          <span className="font-mono text-xs text-gray-600">
-                            {item.total_jogos} jogos · <strong className="text-[#5A673E]">{item.vitorias_a}V</strong> / {item.empates}E / <strong className="text-[#85573B]">{item.vitorias_b}V</strong>
+                      <div key={item.chave} style={subCardStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', marginBottom: '6px' }}>
+                          <span style={{ fontWeight: 700 }}>{item.label}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            {item.total_jogos} jogos · <strong style={{ color: '#5A673E' }}>{item.vitorias_a}V</strong> / {item.empates}E / <strong style={{ color: '#85573B' }}>{item.vitorias_b}V</strong>
                           </span>
                         </div>
-                        <div className="h-2 rounded-full overflow-hidden flex bg-gray-200">
-                          <div style={{ width: `${(item.vitorias_a / item.total_jogos) * 100}%` }} className="bg-[#5A673E]" />
-                          <div style={{ width: `${(item.empates / item.total_jogos) * 100}%` }} className="bg-[#D8C7B5]" />
-                          <div style={{ width: `${(item.vitorias_b / item.total_jogos) * 100}%` }} className="bg-[#85573B]" />
+                        <div style={{ height: '8px', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: 'var(--surface-card)' }}>
+                          <div style={{ width: `${(item.vitorias_a / item.total_jogos) * 100}%`, backgroundColor: '#5A673E' }} />
+                          <div style={{ width: `${(item.empates / item.total_jogos) * 100}%`, backgroundColor: '#D8C7B5' }} />
+                          <div style={{ width: `${(item.vitorias_b / item.total_jogos) * 100}%`, backgroundColor: '#85573B' }} />
                         </div>
                       </div>
                     ))}
@@ -429,24 +434,24 @@ export default function HeadToHeadView() {
               )}
 
               {dadosH2H.cruzamento_por_decada?.length > 0 && (
-                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
-                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
-                    <Calendar className="w-4 h-4 text-[#85573B]" />
+                <div style={cardStyle}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Calendar size={16} color="#85573B" />
                     Hegemonia por Década
                   </h3>
-                  <div className="space-y-2.5">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {dadosH2H.cruzamento_por_decada.map((item) => (
-                      <div key={item.chave} className="bg-white border border-[#E5DBCF] rounded-lg p-3">
-                        <div className="flex justify-between items-center text-sm mb-1.5">
-                          <span className="font-mono font-bold text-[#1B1A17]">{item.label}</span>
-                          <span className="font-mono text-xs text-gray-600">
-                            {item.total_jogos} jogos · <strong className="text-[#5A673E]">{item.vitorias_a}</strong>–{item.empates}–<strong className="text-[#85573B]">{item.vitorias_b}</strong> ({item.gols_a}x{item.gols_b} gols)
+                      <div key={item.chave} style={subCardStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', marginBottom: '6px' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800 }}>{item.label}</span>
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                            {item.total_jogos} jogos · <strong style={{ color: '#5A673E' }}>{item.vitorias_a}</strong>–{item.empates}–<strong style={{ color: '#85573B' }}>{item.vitorias_b}</strong> ({item.gols_a}x{item.gols_b} gols)
                           </span>
                         </div>
-                        <div className="h-2 rounded-full overflow-hidden flex bg-gray-200">
-                          <div style={{ width: `${(item.vitorias_a / item.total_jogos) * 100}%` }} className="bg-[#5A673E]" />
-                          <div style={{ width: `${(item.empates / item.total_jogos) * 100}%` }} className="bg-[#D8C7B5]" />
-                          <div style={{ width: `${(item.vitorias_b / item.total_jogos) * 100}%` }} className="bg-[#85573B]" />
+                        <div style={{ height: '8px', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: 'var(--surface-card)' }}>
+                          <div style={{ width: `${(item.vitorias_a / item.total_jogos) * 100}%`, backgroundColor: '#5A673E' }} />
+                          <div style={{ width: `${(item.empates / item.total_jogos) * 100}%`, backgroundColor: '#D8C7B5' }} />
+                          <div style={{ width: `${(item.vitorias_b / item.total_jogos) * 100}%`, backgroundColor: '#85573B' }} />
                         </div>
                       </div>
                     ))}
@@ -458,21 +463,21 @@ export default function HeadToHeadView() {
 
           {/* Artilheiros do Clássico & Lei do Ex */}
           {(dadosH2H.artilheiros_confronto?.length > 0 || dadosH2H.lei_do_ex?.length > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
               {dadosH2H.artilheiros_confronto?.length > 0 && (
-                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
-                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
-                    <Trophy className="w-4 h-4 text-[#5A673E]" />
+                <div style={cardStyle}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Trophy size={16} color="#5A673E" />
                     Maiores Artilheiros no Recorte
                   </h3>
-                  <div className="divide-y divide-[#EDE5DB]">
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {dadosH2H.artilheiros_confronto.map((art, i) => (
-                      <div key={`art-${art.id_jogador}-${i}`} className="py-2 flex items-center justify-between text-sm">
+                      <div key={`art-${art.id_jogador}-${i}`} style={{ padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.86rem' }}>
                         <div>
-                          <span className="font-semibold text-[#1B1A17]">{art.nome}</span>
-                          <span className="ml-2 text-xs text-[#5C564D]">{art.clube}</span>
+                          <span style={{ fontWeight: 700 }}>{art.nome}</span>
+                          <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{art.clube}</span>
                         </div>
-                        <span className="font-mono font-bold text-[#5A673E]">{art.gols} gols</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#5A673E' }}>{art.gols} gols</span>
                       </div>
                     ))}
                   </div>
@@ -480,17 +485,17 @@ export default function HeadToHeadView() {
               )}
 
               {dadosH2H.lei_do_ex?.length > 0 && (
-                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
-                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
-                    <Users className="w-4 h-4 text-[#85573B]" />
+                <div style={cardStyle}>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={16} color="#85573B" />
                     Lei do Ex (Marcaram pelos Dois Lados)
                   </h3>
-                  <div className="divide-y divide-[#EDE5DB]">
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
                     {dadosH2H.lei_do_ex.map((ex) => (
-                      <div key={`ex-${ex.id_jogador}`} className="py-2 flex items-center justify-between text-sm">
-                        <span className="font-semibold text-[#1B1A17]">{ex.nome}</span>
-                        <span className="font-mono text-xs text-[#5C564D]">
-                          <strong className="text-[#5A673E]">{ex.gols_a}</strong> ({infoA?.sigla || 'A'}) · <strong className="text-[#85573B]">{ex.gols_b}</strong> ({infoB?.sigla || 'B'})
+                      <div key={`ex-${ex.id_jogador}`} style={{ padding: '8px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.86rem' }}>
+                        <span style={{ fontWeight: 700 }}>{ex.nome}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          <strong style={{ color: '#5A673E' }}>{ex.gols_a}</strong> ({infoA.sigla || 'A'}) · <strong style={{ color: '#85573B' }}>{ex.gols_b}</strong> ({infoB.sigla || 'B'})
                         </span>
                       </div>
                     ))}
@@ -502,22 +507,22 @@ export default function HeadToHeadView() {
 
           {/* Maiores Goleadas */}
           {dadosH2H.maiores_goleadas?.length > 0 && (
-            <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
-              <h3 className="font-serif text-xl font-bold mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-[#85573B]" />
+            <div style={cardStyle}>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingUp size={18} color="#85573B" />
                 Maiores Goleadas Históricas (Diferença ≥ 3 Gols)
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
                 {dadosH2H.maiores_goleadas.map((gol, idx) => (
-                  <div key={`goleada-${idx}`} className="bg-white border border-[#E5DBCF] p-4 rounded-lg shadow-sm">
-                    <div className="flex justify-between items-center text-xs font-mono text-gray-500 mb-1">
+                  <div key={`goleada-${idx}`} style={subCardStyle}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
                       <span>{gol.data}</span>
-                      <span className="bg-[#EAE0D2] px-2 py-0.5 rounded text-[#85573B]">{gol.competicao}</span>
+                      <span style={{ color: '#85573B', fontWeight: 700 }}>{gol.competicao}</span>
                     </div>
-                    <div className="font-mono text-2xl font-black text-center my-2 text-[#1B1A17]">
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.45rem', fontWeight: 900, textAlign: 'center', margin: '6px 0' }}>
                       {gol.placar}
                     </div>
-                    <p className="text-xs text-center text-gray-600">
+                    <p style={{ fontSize: '0.76rem', textAlign: 'center', color: 'var(--text-secondary)', margin: 0 }}>
                       {gol.mandante} x {gol.visitante}
                     </p>
                   </div>
@@ -527,38 +532,38 @@ export default function HeadToHeadView() {
           )}
 
           {/* Histórico Recente de Confrontos */}
-          <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-6 shadow-sm">
-            <h3 className="font-serif text-xl font-bold mb-4 flex items-center gap-2">
-              <History className="w-5 h-5 text-[#5A673E]" />
+          <div style={cardStyle}>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <History size={18} color="#5A673E" />
               Confrontos Recentes no Acervo
             </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
                 <thead>
-                  <tr className="border-b border-[#E5DBCF] text-xs font-semibold uppercase text-gray-500 font-sans">
-                    <th className="py-2.5 px-3">Data</th>
-                    <th className="py-2.5 px-3">Competição</th>
-                    <th className="py-2.5 px-3 text-right">Mandante</th>
-                    <th className="py-2.5 px-3 text-center">Placar</th>
-                    <th className="py-2.5 px-3">Visitante</th>
-                    <th className="py-2.5 px-3">Estádio</th>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', fontSize: '0.72rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '10px 8px' }}>Data</th>
+                    <th style={{ padding: '10px 8px' }}>Competição</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'right' }}>Mandante</th>
+                    <th style={{ padding: '10px 8px', textAlign: 'center' }}>Placar</th>
+                    <th style={{ padding: '10px 8px' }}>Visitante</th>
+                    <th style={{ padding: '10px 8px' }}>Estádio</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#EDE5DB] font-mono text-sm">
+                <tbody>
                   {dadosH2H.historico_recente?.map(partida => (
-                    <tr key={partida.id_partida} className="hover:bg-white/60 transition-colors">
-                      <td className="py-2.5 px-3 text-xs text-gray-600">{partida.data}</td>
-                      <td className="py-2.5 px-3 text-xs text-gray-700 font-sans">{partida.campeonato}</td>
-                      <td className={`py-2.5 px-3 text-right font-sans ${partida.mandante === infoA.nome ? 'font-bold text-[#5A673E]' : ''}`}>
+                    <tr key={partida.id_partida} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{partida.data}</td>
+                      <td style={{ padding: '10px 8px', fontSize: '0.78rem' }}>{partida.campeonato}</td>
+                      <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: partida.mandante === infoA.nome ? 700 : 400, color: partida.mandante === infoA.nome ? '#5A673E' : 'var(--text-primary)' }}>
                         {partida.mandante}
                       </td>
-                      <td className="py-2.5 px-3 text-center font-black bg-[#FAF6F0] rounded">
+                      <td style={{ padding: '10px 8px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontWeight: 900 }}>
                         {partida.placar || `${partida.gols_mandante} x ${partida.gols_visitante}`}
                       </td>
-                      <td className={`py-2.5 px-3 font-sans ${partida.visitante === infoA.nome ? 'font-bold text-[#5A673E]' : ''}`}>
+                      <td style={{ padding: '10px 8px', fontWeight: partida.visitante === infoA.nome ? 700 : 400, color: partida.visitante === infoA.nome ? '#5A673E' : 'var(--text-primary)' }}>
                         {partida.visitante}
                       </td>
-                      <td className="py-2.5 px-3 text-xs text-gray-500 font-sans">{partida.estadio || '-'}</td>
+                      <td style={{ padding: '10px 8px', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{partida.estadio || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
