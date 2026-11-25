@@ -138,10 +138,44 @@ def _calcular_dixon_coles_projecao(gols_pro_a, gols_contra_a, jogos_a, gols_pro_
         "status_amostra": "confiavel" if len(confrontos_diretos) >= 5 else "amostra_reduzida"
     }
 
+def _categorizar_competicao(nome_comp):
+    c = (nome_comp or '').lower()
+    if 'brasileir' in c or 'série a' in c or 'serie a' in c or 'taça brasil' in c or 'robertão' in c or 'robertao' in c:
+        return 'brasileirao', 'Brasileirão'
+    if 'libertadores' in c:
+        return 'libertadores', 'Libertadores'
+    if 'copa do brasil' in c:
+        return 'copa_do_brasil', 'Copa do Brasil'
+    if any(k in c for k in ('paulista', 'carioca', 'gaúcho', 'gaucho', 'mineiro', 'baiano', 'paranaense', 'cearense', 'pernambucano', 'estadual', 'torneio rio-sp', 'rio-são paulo')):
+        return 'estaduais', 'Estaduais / Regionais'
+    return 'outros', 'Outras Competições'
+
+
+def _categorizar_decada(ano):
+    try:
+        y = int(ano)
+    except (TypeError, ValueError):
+        return 'outros', 'Sem Ano'
+    if y >= 2020:
+        return '2020s', '2020s'
+    if y >= 2010:
+        return '2010s', '2010s'
+    if y >= 2000:
+        return '2000s', '2000s'
+    if y >= 1990:
+        return '1990s', '1990s'
+    if y >= 1980:
+        return '1980s', '1980s'
+    return 'pre1980', 'Pré-1980'
+
+
 @rotas_h2h_canonica_bp.route('/api/confrontos/h2h', methods=['GET'])
 def obter_confronto_h2h():
     clube_a_raw = request.args.get('clube_a')
     clube_b_raw = request.args.get('clube_b')
+    filtro_camp = (request.args.get('campeonato') or 'todos').strip().lower()
+    filtro_decada = (request.args.get('decada') or 'todas').strip().lower()
+    filtro_mando = (request.args.get('mando') or 'todos').strip().lower()
 
     if not clube_a_raw or not clube_b_raw:
         return jsonify({
@@ -202,8 +236,106 @@ def obter_confronto_h2h():
            OR (mandante = ? AND visitante = ?)
         ORDER BY data DESC, id_partida DESC
     """
-    partidas = cursor.execute(query, (nome_a, nome_b, nome_b, nome_a)).fetchall()
+    partidas_todas = cursor.execute(query, (nome_a, nome_b, nome_b, nome_a)).fetchall()
+
+    # Cruzamento histórico completo (por competição e por década)
+    comp_buckets = {}
+    dec_buckets = {}
+    partidas = []
+
+    for p in partidas_todas:
+        pm = dict(p)
+        gm = pm['gols_mandante'] if pm['gols_mandante'] is not None else 0
+        gv = pm['gols_visitante'] if pm['gols_visitante'] is not None else 0
+        is_a_mand = (pm['mandante'] == nome_a)
+        ga = gm if is_a_mand else gv
+        gb = gv if is_a_mand else gm
+
+        comp_key, comp_label = _categorizar_competicao(pm['campeonato'])
+        dec_key, dec_label = _categorizar_decada(pm['ano'])
+
+        for store, key, label in ((comp_buckets, comp_key, comp_label), (dec_buckets, dec_key, dec_label)):
+            if key not in store:
+                store[key] = {
+                    "chave": key, "label": label,
+                    "total_jogos": 0, "vitorias_a": 0, "empates": 0, "vitorias_b": 0,
+                    "gols_a": 0, "gols_b": 0
+                }
+            b = store[key]
+            b["total_jogos"] += 1
+            b["gols_a"] += ga
+            b["gols_b"] += gb
+            if ga > gb:
+                b["vitorias_a"] += 1
+            elif gb > ga:
+                b["vitorias_b"] += 1
+            else:
+                b["empates"] += 1
+
+        # Filtros táticos
+        if filtro_camp != 'todos' and comp_key != filtro_camp and (pm['campeonato'] or '').lower() != filtro_camp:
+            continue
+        if filtro_decada != 'todas' and dec_key != filtro_decada:
+            continue
+        if filtro_mando == 'a_mandante' and not is_a_mand:
+            continue
+        if filtro_mando == 'b_mandante' and is_a_mand:
+            continue
+        partidas.append(p)
+
+    # Artilheiros do confronto e Lei do Ex (apenas sobre os IDs das partidas filtradas)
+    artilheiros_confronto = []
+    lei_do_ex = []
+    partidas_ids_filtradas = [p['id_partida'] for p in partidas]
+    if partidas_ids_filtradas:
+        placeholders = ','.join('?' for _ in partidas_ids_filtradas)
+        art_rows = cursor.execute(
+            f"""
+            SELECT g.id_jogador,
+                   COALESCE(je.nome_exibicao, g.atleta) AS nome,
+                   g.clube,
+                   COUNT(*) AS gols
+            FROM gols g
+            LEFT JOIN jogadores_estatisticas je ON je.id_jogador = g.id_jogador
+            WHERE g.id_partida IN ({placeholders})
+              AND g.id_jogador IS NOT NULL AND g.id_jogador > 0
+              AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+            GROUP BY g.id_jogador, g.clube
+            ORDER BY gols DESC
+            LIMIT 8
+            """,
+            partidas_ids_filtradas
+        ).fetchall()
+        artilheiros_confronto = [dict(r) for r in art_rows]
+
+        lei_rows = cursor.execute(
+            """
+            SELECT g.id_jogador,
+                   COALESCE(je.nome_exibicao, g.atleta) AS nome,
+                   SUM(CASE WHEN g.clube = ? THEN 1 ELSE 0 END) AS gols_a,
+                   SUM(CASE WHEN g.clube = ? THEN 1 ELSE 0 END) AS gols_b
+            FROM gols g
+            JOIN partidas p ON p.id_partida = g.id_partida
+            LEFT JOIN jogadores_estatisticas je ON je.id_jogador = g.id_jogador
+            WHERE ((p.mandante = ? AND p.visitante = ?)
+                OR (p.mandante = ? AND p.visitante = ?))
+              AND g.id_jogador IS NOT NULL AND g.id_jogador > 0
+              AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+            GROUP BY g.id_jogador
+            HAVING gols_a > 0 AND gols_b > 0
+            ORDER BY (gols_a + gols_b) DESC
+            LIMIT 10
+            """,
+            (nome_a, nome_b, nome_a, nome_b, nome_b, nome_a)
+        ).fetchall()
+        lei_do_ex = [dict(r) for r in lei_rows]
+
     conn.close()
+
+    ordem_comp = ['brasileirao', 'libertadores', 'copa_do_brasil', 'estaduais', 'outros']
+    cruzamento_por_competicao = [comp_buckets[k] for k in ordem_comp if k in comp_buckets]
+    ordem_dec = ['2020s', '2010s', '2000s', '1990s', '1980s', 'pre1980', 'outros']
+    cruzamento_por_decada = [dec_buckets[k] for k in ordem_dec if k in dec_buckets]
 
     total_jogos = len(partidas)
     vitorias_a = 0
@@ -340,5 +472,14 @@ def obter_confronto_h2h():
         },
         "projecao_dixon_coles": projecao,
         "maiores_goleadas": goleadas[:5],
-        "historico_recente": historico[:20]
+        "historico_recente": historico[:20],
+        "filtros_aplicados": {
+            "campeonato": filtro_camp,
+            "decada": filtro_decada,
+            "mando": filtro_mando
+        },
+        "cruzamento_por_competicao": cruzamento_por_competicao,
+        "cruzamento_por_decada": cruzamento_por_decada,
+        "artilheiros_confronto": artilheiros_confronto,
+        "lei_do_ex": lei_do_ex
     }), 200

@@ -1,10 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeftRight, Trophy, Shield, Calendar, MapPin, TrendingUp, AlertCircle, History, Sparkles, Scale, Percent } from 'lucide-react';
+import { ArrowLeftRight, Trophy, Shield, Calendar, MapPin, TrendingUp, AlertCircle, History, Sparkles, Scale, Percent, Filter, Users, Flame } from 'lucide-react';
+
+const CLASSICOS_PRESETS = [
+  { label: 'Derby Paulista', a: 'Palmeiras', b: 'Corinthians' },
+  { label: 'Fla-Flu', a: 'Flamengo', b: 'Fluminense' },
+  { label: 'Gre-Nal', a: 'Grêmio', b: 'Internacional' },
+  { label: 'Majestoso', a: 'Corinthians', b: 'São Paulo' },
+  { label: 'Clássico Mineiro', a: 'Atlético-MG', b: 'Cruzeiro' },
+  { label: 'San-São', a: 'Santos', b: 'São Paulo' },
+  { label: 'Clássico da Saudade', a: 'Palmeiras', b: 'Santos' },
+  { label: 'Clássico dos Milhões', a: 'Flamengo', b: 'Vasco' }
+];
 
 export default function HeadToHeadView() {
   const [clubesLista, setClubesLista] = useState([]);
   const [clubeAId, setClubeAId] = useState(2459); // Palmeiras
   const [clubeBId, setClubeBId] = useState(2902); // Santos
+  const [campeonato, setCampeonato] = useState('todos');
+  const [decada, setDecada] = useState('todas');
+  const [mandoFiltro, setMandoFiltro] = useState('todos');
   const [loading, setLoading] = useState(false);
   const [dadosH2H, setDadosH2H] = useState(null);
   const [erro, setErro] = useState(null);
@@ -34,14 +48,22 @@ export default function HeadToHeadView() {
       });
   }, []);
 
-  // Busca confrontos diretos
+  // Busca confrontos diretos com filtros táticos
   useEffect(() => {
     if (!clubeAId || !clubeBId || clubeAId === clubeBId) return;
 
     setLoading(true);
     setErro(null);
 
-    fetch(`/api/confrontos/h2h?clube_a=${clubeAId}&clube_b=${clubeBId}`)
+    const params = new URLSearchParams({
+      clube_a: String(clubeAId),
+      clube_b: String(clubeBId),
+      campeonato,
+      decada,
+      mando: mandoFiltro
+    });
+
+    fetch(`/api/confrontos/h2h?${params.toString()}`)
       .then(res => {
         if (!res.ok) throw new Error('Falha ao carregar dados do confronto');
         return res.json();
@@ -54,7 +76,17 @@ export default function HeadToHeadView() {
         setErro(err.message);
         setLoading(false);
       });
-  }, [clubeAId, clubeBId]);
+  }, [clubeAId, clubeBId, campeonato, decada, mandoFiltro]);
+
+  const selecionarClassico = (nomeA, nomeB) => {
+    const findId = (n) => clubesLista.find(c => c.nome.toLowerCase() === n.toLowerCase())?.clube_id;
+    const idA = findId(nomeA);
+    const idB = findId(nomeB);
+    if (idA && idB) {
+      setClubeAId(idA);
+      setClubeBId(idB);
+    }
+  };
 
   const handleInverterPerspectiva = () => {
     const temp = clubeAId;
@@ -113,6 +145,76 @@ export default function HeadToHeadView() {
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Clássicos Históricos & Filtros Táticos */}
+        <div className="mt-5 pt-4 border-t border-[#E5DBCF] space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#85573B] mr-1 flex items-center gap-1">
+              <Flame className="w-3.5 h-3.5" /> Clássicos:
+            </span>
+            {CLASSICOS_PRESETS.map((cl) => (
+              <button
+                key={cl.label}
+                type="button"
+                onClick={() => selecionarClassico(cl.a, cl.b)}
+                className="px-2.5 py-1 text-xs font-medium rounded-full bg-[#EAE0D2] hover:bg-[#D8C7B5] text-[#1B1A17] transition-colors touch-tactile"
+              >
+                {cl.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C564D] mb-1">
+                Competição
+              </label>
+              <select
+                value={campeonato}
+                onChange={(e) => setCampeonato(e.target.value)}
+                className="w-full bg-white border border-[#D8C7B5] rounded-lg px-3 py-2 text-sm text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
+              >
+                <option value="todos">Todas as Competições</option>
+                <option value="brasileirao">Brasileirão</option>
+                <option value="libertadores">Libertadores</option>
+                <option value="copa_do_brasil">Copa do Brasil</option>
+                <option value="estaduais">Estaduais / Regionais</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C564D] mb-1">
+                Década
+              </label>
+              <select
+                value={decada}
+                onChange={(e) => setDecada(e.target.value)}
+                className="w-full bg-white border border-[#D8C7B5] rounded-lg px-3 py-2 text-sm text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
+              >
+                <option value="todas">Todo o Acervo</option>
+                <option value="2020s">2020s</option>
+                <option value="2010s">2010s</option>
+                <option value="2000s">2000s</option>
+                <option value="1990s">1990s</option>
+                <option value="1980s">1980s</option>
+                <option value="pre1980">Pré-1980</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#5C564D] mb-1">
+                Mando de Campo
+              </label>
+              <select
+                value={mandoFiltro}
+                onChange={(e) => setMandoFiltro(e.target.value)}
+                className="w-full bg-white border border-[#D8C7B5] rounded-lg px-3 py-2 text-sm text-[#1B1A17] focus:ring-2 focus:ring-[#5A673E] focus:outline-none"
+              >
+                <option value="todos">Todos os Mandos</option>
+                <option value="a_mandante">{infoA?.nome || 'Clube A'} Mandante</option>
+                <option value="b_mandante">{infoB?.nome || 'Clube B'} Mandante</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -296,6 +398,107 @@ export default function HeadToHeadView() {
               </p>
             </div>
           </div>
+
+          {/* Cruzamento Histórico por Competição & Década */}
+          {(dadosH2H.cruzamento_por_competicao?.length > 0 || dadosH2H.cruzamento_por_decada?.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {dadosH2H.cruzamento_por_competicao?.length > 0 && (
+                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
+                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
+                    <Filter className="w-4 h-4 text-[#5A673E]" />
+                    Cruzamento por Competição (Acervo Completo)
+                  </h3>
+                  <div className="space-y-2.5">
+                    {dadosH2H.cruzamento_por_competicao.map((item) => (
+                      <div key={item.chave} className="bg-white border border-[#E5DBCF] rounded-lg p-3">
+                        <div className="flex justify-between items-center text-sm mb-1.5">
+                          <span className="font-semibold text-[#1B1A17]">{item.label}</span>
+                          <span className="font-mono text-xs text-gray-600">
+                            {item.total_jogos} jogos · <strong className="text-[#5A673E]">{item.vitorias_a}V</strong> / {item.empates}E / <strong className="text-[#85573B]">{item.vitorias_b}V</strong>
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden flex bg-gray-200">
+                          <div style={{ width: `${(item.vitorias_a / item.total_jogos) * 100}%` }} className="bg-[#5A673E]" />
+                          <div style={{ width: `${(item.empates / item.total_jogos) * 100}%` }} className="bg-[#D8C7B5]" />
+                          <div style={{ width: `${(item.vitorias_b / item.total_jogos) * 100}%` }} className="bg-[#85573B]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {dadosH2H.cruzamento_por_decada?.length > 0 && (
+                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
+                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
+                    <Calendar className="w-4 h-4 text-[#85573B]" />
+                    Hegemonia por Década
+                  </h3>
+                  <div className="space-y-2.5">
+                    {dadosH2H.cruzamento_por_decada.map((item) => (
+                      <div key={item.chave} className="bg-white border border-[#E5DBCF] rounded-lg p-3">
+                        <div className="flex justify-between items-center text-sm mb-1.5">
+                          <span className="font-mono font-bold text-[#1B1A17]">{item.label}</span>
+                          <span className="font-mono text-xs text-gray-600">
+                            {item.total_jogos} jogos · <strong className="text-[#5A673E]">{item.vitorias_a}</strong>–{item.empates}–<strong className="text-[#85573B]">{item.vitorias_b}</strong> ({item.gols_a}x{item.gols_b} gols)
+                          </span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden flex bg-gray-200">
+                          <div style={{ width: `${(item.vitorias_a / item.total_jogos) * 100}%` }} className="bg-[#5A673E]" />
+                          <div style={{ width: `${(item.empates / item.total_jogos) * 100}%` }} className="bg-[#D8C7B5]" />
+                          <div style={{ width: `${(item.vitorias_b / item.total_jogos) * 100}%` }} className="bg-[#85573B]" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Artilheiros do Clássico & Lei do Ex */}
+          {(dadosH2H.artilheiros_confronto?.length > 0 || dadosH2H.lei_do_ex?.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {dadosH2H.artilheiros_confronto?.length > 0 && (
+                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
+                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
+                    <Trophy className="w-4 h-4 text-[#5A673E]" />
+                    Maiores Artilheiros no Recorte
+                  </h3>
+                  <div className="divide-y divide-[#EDE5DB]">
+                    {dadosH2H.artilheiros_confronto.map((art, i) => (
+                      <div key={`art-${art.id_jogador}-${i}`} className="py-2 flex items-center justify-between text-sm">
+                        <div>
+                          <span className="font-semibold text-[#1B1A17]">{art.nome}</span>
+                          <span className="ml-2 text-xs text-[#5C564D]">{art.clube}</span>
+                        </div>
+                        <span className="font-mono font-bold text-[#5A673E]">{art.gols} gols</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {dadosH2H.lei_do_ex?.length > 0 && (
+                <div className="bg-[#FAF6F0] border border-[#E5DBCF] rounded-xl p-5 shadow-sm">
+                  <h3 className="font-serif text-lg font-bold flex items-center gap-2 text-[#1B1A17] mb-3">
+                    <Users className="w-4 h-4 text-[#85573B]" />
+                    Lei do Ex (Marcaram pelos Dois Lados)
+                  </h3>
+                  <div className="divide-y divide-[#EDE5DB]">
+                    {dadosH2H.lei_do_ex.map((ex) => (
+                      <div key={`ex-${ex.id_jogador}`} className="py-2 flex items-center justify-between text-sm">
+                        <span className="font-semibold text-[#1B1A17]">{ex.nome}</span>
+                        <span className="font-mono text-xs text-[#5C564D]">
+                          <strong className="text-[#5A673E]">{ex.gols_a}</strong> ({infoA?.sigla || 'A'}) · <strong className="text-[#85573B]">{ex.gols_b}</strong> ({infoB?.sigla || 'B'})
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Maiores Goleadas */}
           {dadosH2H.maiores_goleadas?.length > 0 && (

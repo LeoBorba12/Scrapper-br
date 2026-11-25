@@ -65,3 +65,25 @@ def test_h2h_invariante_inversao_de_perspectiva(client):
     assert res_ab['retrospecto_geral']['vitorias_clube_b'] == res_ba['retrospecto_geral']['vitorias_clube_a']
     assert res_ab['retrospecto_geral']['gols_clube_a'] == res_ba['retrospecto_geral']['gols_clube_b']
     assert res_ab['retrospecto_geral']['gols_clube_b'] == res_ba['retrospecto_geral']['gols_clube_a']
+
+
+def test_h2h_filtros_e_cruzamento_historico(client):
+    # Palmeiras (2459) vs Corinthians (981)
+    full_res = client.get('/api/confrontos/h2h?clube_a=2459&clube_b=981')
+    assert full_res.status_code == 200
+    full = full_res.get_json()
+
+    assert len(full['cruzamento_por_competicao']) >= 1
+    assert len(full['cruzamento_por_decada']) >= 1
+    assert sum(c['total_jogos'] for c in full['cruzamento_por_competicao']) == full['retrospecto_geral']['total_jogos']
+    assert sum(d['total_jogos'] for d in full['cruzamento_por_decada']) == full['retrospecto_geral']['total_jogos']
+    assert isinstance(full['artilheiros_confronto'], list) and len(full['artilheiros_confronto']) > 0
+    assert isinstance(full['lei_do_ex'], list) and len(full['lei_do_ex']) > 0
+
+    # Filtro por década e mando
+    dec_res = client.get('/api/confrontos/h2h?clube_a=2459&clube_b=981&decada=2020s&mando=a_mandante')
+    assert dec_res.status_code == 200
+    dec_data = dec_res.get_json()
+    assert dec_data['filtros_aplicados'] == {'campeonato': 'todos', 'decada': '2020s', 'mando': 'a_mandante'}
+    assert 0 < dec_data['retrospecto_geral']['total_jogos'] < full['retrospecto_geral']['total_jogos']
+    assert dec_data['retrospecto_mando']['clube_b_mandante']['total_jogos'] == 0
