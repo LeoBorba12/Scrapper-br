@@ -1002,6 +1002,9 @@ def get_clube_jogos(clube_id):
     )
     conn.close()
 
+    # Exclui placeholders "vs" sem placar da listagem de últimos jogos disputados
+    jogos_resolvidos = [j for j in jogos_resolvidos if not j.get('is_agendado')]
+
     total_jogos = len(jogos_resolvidos)
     total_pages = max(1, (total_jogos + limit - 1) // limit)
     offset = (page - 1) * limit

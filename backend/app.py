@@ -2873,8 +2873,10 @@ def _calcular_scouts_profissionais(posicao_raw, resumo, carreira, stats_meta, an
         perfil_clinico = analytics_xg.get("perfil_clinico", "Neutro")
         status_xg = analytics_xg.get("status_xg", "neutro")
 
-    chutes_tot = stats_meta.get("finalizacoes_totais") or max(gols_oficiais * 4, jogos_oficiais * 2, 1)
-    xg_por_chute = round(xg_acumulado / max(chutes_tot, 1), 3)
+    chutes_tot = (analytics_xg.get("chutes_totais") if analytics_xg else est.get("chutes_totais")) or stats_meta.get("finalizacoes_totais") or max(gols_oficiais * 4, jogos_oficiais * 2, 1)
+    xg_por_chute = (analytics_xg.get("xg_por_chute") if analytics_xg else est.get("xg_por_chute"))
+    if xg_por_chute is None:
+        xg_por_chute = round(xg_acumulado / max(chutes_tot, 1), 3)
     if xg_por_chute >= 0.150:
         qualidade_finalizacao_desc = "Infiltração de Alta Periculosidade (Grande Área)"
     elif xg_por_chute >= 0.100:
@@ -4184,35 +4186,44 @@ def get_arbitros_destaques():
         SELECT 
             s.*,
             CASE 
-                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 THEN ca.jogos_com_cartoes
-                ELSE COALESCE(aed.jogos_temporada, COALESCE(ca.jogos_com_cartoes, 0))
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 10 THEN ca.jogos_com_cartoes
+                WHEN aed.jogos_temporada IS NOT NULL THEN aed.jogos_temporada
+                ELSE COALESCE(ca.jogos_com_cartoes, 0)
             END as jogos_cartoes,
             CASE 
-                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 THEN ca.amarelos
-                ELSE COALESCE(aed.amarelos_totais, COALESCE(ca.amarelos, 0))
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 10 THEN ca.amarelos
+                WHEN aed.amarelos_totais IS NOT NULL THEN aed.amarelos_totais
+                ELSE COALESCE(ca.amarelos, 0)
             END as total_amarelos,
             CASE 
-                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 THEN ca.vermelhos
-                ELSE COALESCE(aed.vermelhos_totais, COALESCE(ca.vermelhos, 0))
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 10 THEN ca.vermelhos
+                WHEN aed.vermelhos_totais IS NOT NULL THEN aed.vermelhos_totais
+                ELSE COALESCE(ca.vermelhos, 0)
             END as total_vermelhos,
             COALESCE(ca.cartoes_1t, 0) as cartoes_1t,
             COALESCE(ca.cartoes_2t, 0) as cartoes_2t,
             COALESCE(pa.total_penaltis, 0) as total_penaltis,
             ROUND(COALESCE(pa.total_penaltis, 0) * 1.0 / s.total_jogos, 2) as media_penaltis,
             CASE 
-                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 10 
                 THEN ROUND(ca.amarelos * 1.0 / ca.jogos_com_cartoes, 2) 
-                ELSE COALESCE(ROUND(aed.amarelos_por_jogo, 2), 0)
+                WHEN aed.amarelos_por_jogo IS NOT NULL THEN ROUND(aed.amarelos_por_jogo, 2)
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 1 THEN ROUND(ca.amarelos * 1.0 / ca.jogos_com_cartoes, 2)
+                ELSE 0
             END as media_amarelos,
             CASE 
-                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 10 
                 THEN ROUND(ca.vermelhos * 1.0 / ca.jogos_com_cartoes, 2) 
-                ELSE COALESCE(ROUND(aed.vermelhos_por_jogo, 2), 0)
+                WHEN aed.vermelhos_por_jogo IS NOT NULL THEN ROUND(aed.vermelhos_por_jogo, 2)
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 1 THEN ROUND(ca.vermelhos * 1.0 / ca.jogos_com_cartoes, 2)
+                ELSE 0
             END as media_vermelhos,
             CASE 
-                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 10 
                 THEN ROUND((ca.amarelos + ca.vermelhos) * 1.0 / ca.jogos_com_cartoes, 2) 
-                ELSE COALESCE(ROUND(aed.amarelos_por_jogo + aed.vermelhos_por_jogo, 2), 0)
+                WHEN aed.amarelos_por_jogo IS NOT NULL THEN ROUND(aed.amarelos_por_jogo + COALESCE(aed.vermelhos_por_jogo, 0), 2)
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 1 THEN ROUND((ca.amarelos + ca.vermelhos) * 1.0 / ca.jogos_com_cartoes, 2)
+                ELSE 0
             END as media_cartoes,
             CASE 
                 WHEN (COALESCE(ca.cartoes_1t, 0) + COALESCE(ca.cartoes_2t, 0)) > 0
@@ -4397,6 +4408,21 @@ def get_arbitro_perfil():
     media_cart = round(total_cart / max(jc, 1), 2) if jc > 0 else 0.0
     media_am = round(amarelos / max(jc, 1), 2) if jc > 0 else 0.0
     media_vm = round(vermelhos / max(jc, 1), 2) if jc > 0 else 0.0
+
+    # Alinhamento com arbitros_estatisticas_detalhadas quando amostra de cartoes < 10
+    if jc < 10 and not clube:
+        aed_row = c.execute(
+            "SELECT jogos_temporada, amarelos_totais, vermelhos_totais, amarelos_por_jogo, vermelhos_por_jogo FROM arbitros_estatisticas_detalhadas WHERE LOWER(nome) LIKE ? LIMIT 1",
+            (f"%{nome.lower()}%",)
+        ).fetchone()
+        if aed_row and (aed_row["jogos_temporada"] or 0) >= 10:
+            jc = aed_row["jogos_temporada"]
+            amarelos = aed_row["amarelos_totais"] or amarelos
+            vermelhos = aed_row["vermelhos_totais"] or vermelhos
+            total_cart = amarelos + vermelhos
+            media_am = round(aed_row["amarelos_por_jogo"] or 0.0, 2)
+            media_vm = round(aed_row["vermelhos_por_jogo"] or 0.0, 2)
+            media_cart = round(media_am + media_vm, 2)
 
     score_rigor = min(max(int(20 + (media_cart - 2.5) * 16), 15), 98) if media_cart > 0 else 50
     perfil = "Ultra Rigoroso" if media_cart >= 5.5 else ("Disciplinador Padrão" if media_cart >= 4.5 else "Deixa o Jogo Fluir")

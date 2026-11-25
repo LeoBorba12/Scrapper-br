@@ -100,7 +100,7 @@ export default function GoalMouthMap({ shotmap = [], posicao = 'Atacante' }) {
           </div>
 
           <span className="pill-neutral" style={{ fontSize: '0.7rem' }}>
-            {statsBaliza.gols} gols na trave
+            {statsBaliza.gols} gols catalogados
           </span>
         </div>
       </div>

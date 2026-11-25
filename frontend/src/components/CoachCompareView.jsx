@@ -10,7 +10,7 @@ const DUELOS_PREDEFINIDOS = [
   { label: 'Mestres dos Pontos Corridos', t1: 'muricy_ramalho', t2: 'vanderlei_luxemburgo', subtitulo: 'Tri do SPFC vs A Era de Ouro dos Anos 90/00' },
   { label: 'Arte vs Pragmatismo', t1: 'tele_santana', t2: 'felipao', subtitulo: 'O Jogo Bonito do Mestre vs O General Copeiro' },
   { label: 'Estrategistas da Amarelinha', t1: 'tite', t2: 'dorival_junior', subtitulo: 'Equilíbrio e Merecimento vs Ofensividade e Copas' },
-  { label: 'Posicional vs Espontâneo', t1: 'fernando_diniz', t2: 'renato_gaucho', subtitulo: 'Aposento Tático Relacional vs Convicção Carioca' },
+  { label: 'Aposicional vs Espontâneo', t1: 'fernando_diniz', t2: 'renato_gaucho', subtitulo: 'Futebol Aposicional Relacional vs Convicção Carioca' },
   { label: 'Mística Canarinho', t1: 'zagallo', t2: 'tele_santana', subtitulo: 'O Velho Lobo Tetracampeão vs A Poesia do Passe' }
 ];
 

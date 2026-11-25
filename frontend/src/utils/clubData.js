@@ -530,7 +530,11 @@ export function getClubInfo(nome) {
   }
 
   // 4. Fallback gerador de monograma neutro
-  const palavras = raw.split(/\s+/).filter(Boolean);
+  const palavras = raw
+    .replace(/\[.*?\]|\(.*?\)/g, ' ')
+    .replace(/[^a-zA-Z0-9À-ÿ\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
   let sigla = 'CLU';
   if (palavras.length === 1) {
     sigla = palavras[0].slice(0, 3).toUpperCase();

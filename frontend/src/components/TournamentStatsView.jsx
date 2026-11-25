@@ -52,8 +52,14 @@ export default function TournamentStatsView({ darkMode }) {
   }, [equipes, modoCalculo]);
 
   const rankingXG = useMemo(() => {
-    return [...equipes].sort((a, b) => (b.xg_pro - a.xg_pro)).slice(0, 10);
-  }, [equipes]);
+    return [...equipes]
+      .map(e => ({
+        ...e,
+        xg_pro_jogo: e.jogos > 0 ? Number((e.xg_pro / e.jogos).toFixed(2)) : 0
+      }))
+      .sort((a, b) => modoCalculo === 'total' ? (b.xg_pro - a.xg_pro) : (b.xg_pro_jogo - a.xg_pro_jogo))
+      .slice(0, 10);
+  }, [equipes, modoCalculo]);
 
   return (
     <div 
@@ -285,10 +291,10 @@ export default function TournamentStatsView({ darkMode }) {
                 />
                 <CardEquipeRanking
                   titulo="Gols Esperados (xG)"
-                  subtitulo="Qualidade das Chances Produzidas"
+                  subtitulo={modoCalculo === 'total' ? 'Qualidade das Chances Produzidas' : 'xG Produzido por Partida'}
                   dados={rankingXG}
-                  campoValor="xg_pro"
-                  unidade=" xG"
+                  campoValor={modoCalculo === 'total' ? 'xg_pro' : 'xg_pro_jogo'}
+                  unidade={modoCalculo === 'total' ? ' xG' : ' xG/j'}
                 />
               </div>
             </div>

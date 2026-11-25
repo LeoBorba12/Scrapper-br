@@ -697,6 +697,9 @@ export default function ProtagonistaAtleta({
                       <HolographicAthleteCard
                         atleta={{
                           ...atleta,
+                          total_gols: atleta.total_gols ?? carreira?.gols ?? resumo?.gols_totais ?? resumo?.total_gols,
+                          total_jogos: atleta.total_jogos ?? carreira?.jogos ?? resumo?.jogos_totais ?? resumo?.jogos_registrados,
+                          nacionalidade: atleta.nacionalidade,
                           notaScouting: notaScouting,
                           clubes: atleta.clubes || atleta.carreira_clubes
                         }}

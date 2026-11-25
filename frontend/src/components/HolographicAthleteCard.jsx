@@ -325,7 +325,20 @@ export default function HolographicAthleteCard({
                 >
                   {atleta?.posicao?.substring(0, 3)?.toUpperCase() || 'CRA'}
                 </span>
-                <span style={{ fontSize: '0.68rem', marginTop: '3px' }}>🇧🇷</span>
+                <span style={{ fontSize: '0.68rem', marginTop: '3px' }}>
+                  {(() => {
+                    const nac = (atleta?.nacionalidade || '').toLowerCase();
+                    if (nac.includes('col')) return '🇨🇴';
+                    if (nac.includes('arg')) return '🇦🇷';
+                    if (nac.includes('uru')) return '🇺🇾';
+                    if (nac.includes('par')) return '🇵🇾';
+                    if (nac.includes('chi')) return '🇨🇱';
+                    if (nac.includes('equ') || nac.includes('ecu')) return '🇪🇨';
+                    if (nac.includes('por')) return '🇵🇹';
+                    if (nac.includes('esp')) return '🇪🇸';
+                    return '🇧🇷';
+                  })()}
+                </span>
               </div>
 
               {/* Escudo do Clube */}

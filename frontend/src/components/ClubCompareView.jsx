@@ -902,7 +902,9 @@ export default function ClubCompareView({
                       <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary, #5A673E)' }}>{projDC.prob_clube1}%</span>
                       {projDC.conformal_clube1 && (
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          IC 95%: [{projDC.conformal_clube1.intervalo_95[0]}% - {projDC.conformal_clube1.intervalo_95[1]}%]
+                          {projDC.conformal_clube1.intervalo_95[0] === 0 && projDC.conformal_clube1.intervalo_95[1] === 100
+                            ? `Margem 95%: ±${projDC.conformal_clube1.margem_conformal_pct}%`
+                            : `IC 95%: [${projDC.conformal_clube1.intervalo_95[0]}% - ${projDC.conformal_clube1.intervalo_95[1]}%]`}
                         </div>
                       )}
                       <span className="font-mono" style={{ fontSize: '0.72rem', display: 'block', color: 'var(--text-secondary)', marginTop: '2px' }}>xG {projDC.xg_clube1}</span>
@@ -914,7 +916,9 @@ export default function ClubCompareView({
                       <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-secondary)' }}>{projDC.prob_empate}%</span>
                       {projDC.conformal_empate && (
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          IC 95%: [{projDC.conformal_empate.intervalo_95[0]}% - {projDC.conformal_empate.intervalo_95[1]}%]
+                          {projDC.conformal_empate.intervalo_95[0] === 0 && projDC.conformal_empate.intervalo_95[1] === 100
+                            ? `Margem 95%: ±${projDC.conformal_empate.margem_conformal_pct}%`
+                            : `IC 95%: [${projDC.conformal_empate.intervalo_95[0]}% - ${projDC.conformal_empate.intervalo_95[1]}%]`}
                         </div>
                       )}
                     </div>
@@ -925,7 +929,9 @@ export default function ClubCompareView({
                       <span className="tabular-nums" style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--secondary, #85573B)' }}>{projDC.prob_clube2}%</span>
                       {projDC.conformal_clube2 && (
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          IC 95%: [{projDC.conformal_clube2.intervalo_95[0]}% - {projDC.conformal_clube2.intervalo_95[1]}%]
+                          {projDC.conformal_clube2.intervalo_95[0] === 0 && projDC.conformal_clube2.intervalo_95[1] === 100
+                            ? `Margem 95%: ±${projDC.conformal_clube2.margem_conformal_pct}%`
+                            : `IC 95%: [${projDC.conformal_clube2.intervalo_95[0]}% - ${projDC.conformal_clube2.intervalo_95[1]}%]`}
                         </div>
                       )}
                       <span className="font-mono" style={{ fontSize: '0.72rem', display: 'block', color: 'var(--text-secondary)', marginTop: '2px' }}>xG {projDC.xg_clube2}</span>
