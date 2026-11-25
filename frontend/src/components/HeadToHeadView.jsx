@@ -49,6 +49,7 @@ export default function HeadToHeadView() {
   const [campeonato, setCampeonato] = useState('todos');
   const [decada, setDecada] = useState('todas');
   const [mandoFiltro, setMandoFiltro] = useState('todos');
+  const [tipoJogo, setTipoJogo] = useState('todos');
   const [loading, setLoading] = useState(false);
   const [dadosH2H, setDadosH2H] = useState(null);
   const [erro, setErro] = useState(null);
@@ -83,7 +84,8 @@ export default function HeadToHeadView() {
       clube_b: String(clubeBId),
       campeonato,
       decada,
-      mando: mandoFiltro
+      mando: mandoFiltro,
+      tipo_jogo: tipoJogo
     });
 
     fetch(`/api/confrontos/h2h?${params.toString()}`)
@@ -99,7 +101,7 @@ export default function HeadToHeadView() {
         setErro(err.message);
         setLoading(false);
       });
-  }, [clubeAId, clubeBId, campeonato, decada, mandoFiltro]);
+  }, [clubeAId, clubeBId, campeonato, decada, mandoFiltro, tipoJogo]);
 
   const handleInverterPerspectiva = () => {
     const temp = clubeAId;
@@ -246,6 +248,16 @@ export default function HeadToHeadView() {
                 <option value="todos">Todos os Mandos</option>
                 <option value="a_mandante">{infoA?.nome || 'Clube A'} Mandante</option>
                 <option value="b_mandante">{infoB?.nome || 'Clube B'} Mandante</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Tipo de Partida
+              </label>
+              <select value={tipoJogo} onChange={(e) => setTipoJogo(e.target.value)} style={selectStyle}>
+                <option value="todos">Todos (Incl. Amistosos)</option>
+                <option value="oficiais">Apenas Oficiais</option>
+                <option value="amistosos">Amistosos &amp; Torneios Extras</option>
               </select>
             </div>
           </div>

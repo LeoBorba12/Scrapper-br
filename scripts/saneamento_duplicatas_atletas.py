@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import unicodedata
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "data", "futebol.db")
@@ -125,11 +126,83 @@ def sanear_duplicatas_atletas(db_path: str = DB_PATH) -> dict[str, int]:
             removed_ghosts += 1
 
     conn.commit()
+
+    # 3. Perfis truncados de súmula CBF (id >= 17000, >= 30 chars, 0 gols) com match único sem conflito de sobrenome
+    def _toks(val: str | None) -> list[str]:
+        s = unicodedata.normalize("NFKD", (val or "").lower())
+        s = "".join(ch for ch in s if not unicodedata.combining(ch))
+        return [t for t in s.replace("-", " ").split() if len(t) >= 3]
+
+    truncados = c.execute(
+        """
+        SELECT id_jogador, nome_exibicao, clubes
+        FROM jogadores_estatisticas
+        WHERE id_jogador >= 17000
+          AND LENGTH(TRIM(nome_exibicao)) >= 30
+          AND COALESCE(total_gols, 0) = 0
+          AND COALESCE(gols_carreira_oficiais, 0) = 0
+        """
+    ).fetchall()
+
+    ativos = c.execute(
+        """
+        SELECT id_jogador, nome_exibicao, nome_completo, clubes
+        FROM jogadores_estatisticas
+        WHERE id_jogador < 17000
+          AND (COALESCE(total_gols, 0) > 0 OR COALESCE(gols_carreira_oficiais, 0) > 0)
+        """
+    ).fetchall()
+
+    ativos_prep = []
+    for aid, anome, acomp, aclubes in ativos:
+        if not aclubes:
+            continue
+        a_clubs = {cb.strip().lower() for cb in aclubes.split(",") if cb.strip()}
+        a_toks = set(_toks(anome)) | set(_toks(acomp))
+        ativos_prep.append((aid, a_clubs, a_toks, set(_toks(anome))))
+
+    merged_cbf = 0
+    for tid, tnome, tclubes in truncados:
+        if not tclubes:
+            continue
+        t_clubs = {cb.strip().lower() for cb in tclubes.split(",") if cb.strip()}
+        t_toks = set(_toks(tnome))
+        if len(t_toks) < 2:
+            continue
+
+        cands = []
+        for aid, a_clubs, a_toks, a_short in ativos_prep:
+            if not (t_clubs & a_clubs):
+                continue
+            if not a_short or not a_short.issubset(t_toks):
+                continue
+            # Todo token (>=3 chars) do nome truncado deve casar exato ou como prefixo (>=4 chars) de algum token completo
+            all_match = all(
+                (tt in a_toks) or (len(tt) >= 4 and any(at.startswith(tt) for at in a_toks))
+                for tt in t_toks
+            )
+            if all_match:
+                cands.append(aid)
+
+        if len(cands) == 1:
+            keep_id = cands[0]
+            for tbl in ("gols", "escalacoes", "cartoes"):
+                c.execute(f"UPDATE {tbl} SET id_jogador = ? WHERE id_jogador = ?", (keep_id, tid))
+            c.execute("DELETE FROM jogadores_estatisticas WHERE id_jogador = ?", (tid,))
+            c.execute("DELETE FROM jogadores WHERE id_jogador = ?", (tid,))
+            _recalcular_totais(c, keep_id)
+            merged_cbf += 1
+
+    conn.commit()
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.close()
-    return {"merged_ogol": merged_ogol, "removed_ghosts": removed_ghosts}
+    return {"merged_ogol": merged_ogol, "removed_ghosts": removed_ghosts, "merged_cbf": merged_cbf}
 
 
 if __name__ == "__main__":
     res = sanear_duplicatas_atletas()
-    print(f"Saneamento concluído: {res['merged_ogol']} duplicatas ogol_id fundidas, {res['removed_ghosts']} fantasmas zerados removidos.")
+    print(
+        f"Saneamento concluído: {res['merged_ogol']} duplicatas ogol_id fundidas, "
+        f"{res['removed_ghosts']} fantasmas zerados removidos, "
+        f"{res['merged_cbf']} perfis truncados CBF unificados."
+    )

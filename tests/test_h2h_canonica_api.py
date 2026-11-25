@@ -84,6 +84,12 @@ def test_h2h_filtros_e_cruzamento_historico(client):
     dec_res = client.get('/api/confrontos/h2h?clube_a=2459&clube_b=981&decada=2020s&mando=a_mandante')
     assert dec_res.status_code == 200
     dec_data = dec_res.get_json()
-    assert dec_data['filtros_aplicados'] == {'campeonato': 'todos', 'decada': '2020s', 'mando': 'a_mandante'}
+    assert dec_data['filtros_aplicados'] == {'campeonato': 'todos', 'decada': '2020s', 'mando': 'a_mandante', 'tipo_jogo': 'todos'}
     assert 0 < dec_data['retrospecto_geral']['total_jogos'] < full['retrospecto_geral']['total_jogos']
     assert dec_data['retrospecto_mando']['clube_b_mandante']['total_jogos'] == 0
+
+    # Filtro Apenas Oficiais vs Todos
+    ofc_res = client.get('/api/confrontos/h2h?clube_a=2459&clube_b=981&tipo_jogo=oficiais')
+    assert ofc_res.status_code == 200
+    ofc_data = ofc_res.get_json()
+    assert 0 < ofc_data['retrospecto_geral']['total_jogos'] < full['retrospecto_geral']['total_jogos']

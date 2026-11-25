@@ -198,6 +198,16 @@ def _deduplicar_partidas_h2h(rows, nome_a):
     return dedup
 
 
+def _eh_jogo_amistoso_ou_extra(nome_comp):
+    c = (nome_comp or '').lower()
+    termos = (
+        'amistoso', 'torneio extra', 'taça cidade', 'taça cid.', 'torneio cid.',
+        't. roberto ugolini', 't. embaixatriz', 'taça charles miller',
+        'torneio dos campeões', 'taça são paulo', 'copa prefeitura', 'troféu'
+    )
+    return any(t in c for t in termos)
+
+
 def _categorizar_competicao(nome_comp):
     c = (nome_comp or '').lower()
     if 'brasileir' in c or 'série a' in c or 'serie a' in c or 'taça brasil' in c or 'robertão' in c or 'robertao' in c:
@@ -236,6 +246,7 @@ def obter_confronto_h2h():
     filtro_camp = (request.args.get('campeonato') or 'todos').strip().lower()
     filtro_decada = (request.args.get('decada') or 'todas').strip().lower()
     filtro_mando = (request.args.get('mando') or 'todos').strip().lower()
+    filtro_tipo_jogo = (request.args.get('tipo_jogo') or 'todos').strip().lower()
 
     if not clube_a_raw or not clube_b_raw:
         return jsonify({
@@ -341,6 +352,11 @@ def obter_confronto_h2h():
         if filtro_mando == 'a_mandante' and not is_a_mand:
             continue
         if filtro_mando == 'b_mandante' and is_a_mand:
+            continue
+        is_amistoso = _eh_jogo_amistoso_ou_extra(pm['campeonato'])
+        if filtro_tipo_jogo == 'oficiais' and is_amistoso:
+            continue
+        if filtro_tipo_jogo == 'amistosos' and not is_amistoso:
             continue
         partidas.append(p)
 
@@ -537,7 +553,8 @@ def obter_confronto_h2h():
         "filtros_aplicados": {
             "campeonato": filtro_camp,
             "decada": filtro_decada,
-            "mando": filtro_mando
+            "mando": filtro_mando,
+            "tipo_jogo": filtro_tipo_jogo
         },
         "cruzamento_por_competicao": cruzamento_por_competicao,
         "cruzamento_por_decada": cruzamento_por_decada,
