@@ -65,14 +65,14 @@ def fetch_espn_day(slug: str, date_yyyymmdd: str) -> list[dict]:
         return []
 
 
-def fetch_espn_summary_goals(slug: str, event_id: str) -> list[dict]:
+def fetch_espn_summary(slug: str, event_id: str) -> tuple[list[dict], list[dict]]:
     url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/summary?event={event_id}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     try:
         with urllib.request.urlopen(req, timeout=12) as resp:
             sdata = json.loads(resp.read().decode("utf-8"))
     except Exception:
-        return []
+        return [], []
 
     goals: list[dict] = []
     for ke in sdata.get("keyEvents", []):
@@ -80,7 +80,6 @@ def fetch_espn_summary_goals(slug: str, event_id: str) -> list[dict]:
         is_goal = ke.get("scoringPlay") or ("goal" in ev_type.lower())
         if not is_goal:
             continue
-        # Ignora pênaltis de disputa pós-tempo regulamentar (Shootout)
         period_num = ((ke.get("period") or {}).get("number") or 1)
         if period_num and period_num > 4:
             continue
@@ -114,7 +113,30 @@ def fetch_espn_summary_goals(slug: str, event_id: str) -> list[dict]:
             "tempo": tempo,
             "tipo_de_gol": tipo_de_gol,
         })
-    return goals
+
+    rosters: list[dict] = []
+    for team_r in sdata.get("rosters", []):
+        team_name = norm_name(((team_r.get("team") or {}).get("displayName") or "").strip())
+        for p in team_r.get("roster", []):
+            atleta = ((p.get("athlete") or {}).get("displayName") or "").strip()
+            if not atleta:
+                continue
+            starter = bool(p.get("starter"))
+            subbed_in = bool(p.get("subbedIn"))
+            pos_raw = ((p.get("position") or {}).get("displayName") or "").strip()
+            posicao = pos_raw or ("Titular" if starter else "Substitute")
+            rosters.append({
+                "clube": team_name,
+                "atleta": atleta,
+                "num_camisa": str(p.get("jersey") or "") or None,
+                "posicao": posicao,
+                "titular": 1 if starter else 0,
+                "is_goleiro": 1 if pos_raw.lower() == "goalkeeper" else 0,
+                "is_capitao": 1 if p.get("captain") else 0,
+                "atuou": starter or subbed_in,
+            })
+
+    return goals, rosters
 
 
 def _resolve_jogador_id(c: sqlite3.Cursor, atleta: str, clube: str) -> int | None:
@@ -139,45 +161,75 @@ def _resolve_jogador_id(c: sqlite3.Cursor, atleta: str, clube: str) -> int | Non
     return rows[0][0]
 
 
-def _ingest_match_goals(
+def _ingest_match_details(
     c: sqlite3.Cursor,
     slug: str,
     event_id: str,
     id_partida: int,
     gm: int,
     gv: int,
-) -> int:
-    if gm + gv <= 0:
-        return 0
-    existing_goals = c.execute("SELECT COUNT(*) FROM gols WHERE id_partida = ?", (id_partida,)).fetchone()[0]
-    if existing_goals > 0:
-        return 0
+) -> tuple[int, int]:
+    need_goals = (gm + gv > 0) and (
+        c.execute("SELECT COUNT(*) FROM gols WHERE id_partida = ?", (id_partida,)).fetchone()[0] == 0
+    )
+    need_rosters = (
+        c.execute("SELECT COUNT(*) FROM escalacoes WHERE id_partida = ?", (id_partida,)).fetchone()[0] == 0
+    )
+    if not need_goals and not need_rosters:
+        return 0, 0
 
-    goals = fetch_espn_summary_goals(slug, event_id)
-    if not goals:
-        return 0
+    goals, rosters = fetch_espn_summary(slug, event_id)
+    goals_added = 0
+    rosters_added = 0
 
-    added = 0
-    for g in goals:
-        jid = _resolve_jogador_id(c, g["atleta"], g["clube"])
-        c.execute(
-            """
-            INSERT INTO gols (id_partida, rodada, clube, atleta, minuto, tempo, tipo_de_gol, id_jogador)
-            VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
-            """,
-            (id_partida, g["clube"], g["atleta"], g["minuto"], g["tempo"], g["tipo_de_gol"], jid),
-        )
-        added += 1
-        if jid and "contra" not in g["tipo_de_gol"].lower():
+    if need_goals and goals:
+        for g in goals:
+            jid = _resolve_jogador_id(c, g["atleta"], g["clube"])
             c.execute(
-                "UPDATE jogadores_estatisticas SET total_gols = COALESCE(total_gols, 0) + 1 WHERE id_jogador = ?",
-                (jid,),
+                """
+                INSERT INTO gols (id_partida, rodada, clube, atleta, minuto, tempo, tipo_de_gol, id_jogador)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+                """,
+                (id_partida, g["clube"], g["atleta"], g["minuto"], g["tempo"], g["tipo_de_gol"], jid),
             )
+            goals_added += 1
+            if jid and "contra" not in g["tipo_de_gol"].lower():
+                c.execute(
+                    "UPDATE jogadores_estatisticas SET total_gols = COALESCE(total_gols, 0) + 1 WHERE id_jogador = ?",
+                    (jid,),
+                )
+                c.execute(
+                    "UPDATE jogadores SET total_gols = COALESCE(total_gols, 0) + 1 WHERE id_jogador = ?",
+                    (jid,),
+                )
+
+    if need_rosters and rosters:
+        for r in rosters:
+            jid = _resolve_jogador_id(c, r["atleta"], r["clube"])
             c.execute(
-                "UPDATE jogadores SET total_gols = COALESCE(total_gols, 0) + 1 WHERE id_jogador = ?",
-                (jid,),
+                """
+                INSERT INTO escalacoes (
+                    id_partida, clube, atleta, num_camisa, posicao,
+                    titular, is_goleiro, is_capitao, cbf_id, id_jogador
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+                """,
+                (
+                    id_partida, r["clube"], r["atleta"], r["num_camisa"], r["posicao"],
+                    r["titular"], r["is_goleiro"], r["is_capitao"], jid,
+                ),
             )
-    return added
+            rosters_added += 1
+            if jid and r["atuou"]:
+                c.execute(
+                    "UPDATE jogadores_estatisticas SET total_jogos = COALESCE(total_jogos, 0) + 1 WHERE id_jogador = ?",
+                    (jid,),
+                )
+                c.execute(
+                    "UPDATE jogadores SET total_jogos = COALESCE(total_jogos, 0) + 1 WHERE id_jogador = ?",
+                    (jid,),
+                )
+
+    return goals_added, rosters_added
 
 
 def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int]:
@@ -194,6 +246,7 @@ def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int
     inserted = 0
     updated = 0
     goals_added = 0
+    rosters_added = 0
 
     for slug, camp_nome in COMPETICOES:
         for d_str in dates_to_check:
@@ -264,15 +317,15 @@ def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int
                     inserted += 1
                     print(f"[ADD] {data_iso} [{camp_nome}] {mandante} {placar} {visitante}")
 
-                if ev_id and pid and (gm + gv > 0):
-                    g_inc = _ingest_match_goals(c, slug, ev_id, pid, gm, gv)
-                    if g_inc > 0:
-                        goals_added += g_inc
+                if ev_id and pid:
+                    g_inc, r_inc = _ingest_match_details(c, slug, ev_id, pid, gm, gv)
+                    goals_added += g_inc
+                    rosters_added += r_inc
 
     conn.commit()
     conn.close()
-    if goals_added > 0:
-        print(f"[GOLS] +{goals_added} gols detalhados gravados na tabela gols.")
+    if goals_added > 0 or rosters_added > 0:
+        print(f"[DETALHES] +{goals_added} gols e +{rosters_added} escalações gravados.")
     return inserted, updated
 
 

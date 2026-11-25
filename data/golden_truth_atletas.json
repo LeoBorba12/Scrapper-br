@@ -214,5 +214,221 @@
       {"clube": "América-MG", "periodo": "2003-2004", "jogos": 53, "gols": 30, "assistencias": 0},
       {"clube": "Seleção Brasileira", "periodo": "2005-2014", "jogos": 39, "gols": 18, "assistencias": 3}
     ]
+  },
+  {
+    "id_jogador": 48,
+    "nome_exibicao": "Yuri Alberto",
+    "nome_completo": "Yuri Alberto Monteiro da Silva",
+    "ogol_id": 554446,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 125,
+    "jogos_carreira_oficiais": 365,
+    "assistencias_carreira_oficiais": 32,
+    "gols_selecao": 0,
+    "jogos_selecao": 1,
+    "pontaria_chutes_pct": 63.5,
+    "clubes_resumo": [
+      {"clube": "Corinthians", "periodo": "2022-2026", "jogos": 230, "gols": 85, "assistencias": 22},
+      {"clube": "Internacional", "periodo": "2020-2022", "jogos": 85, "gols": 31, "assistencias": 6},
+      {"clube": "Zenit", "periodo": "2022", "jogos": 15, "gols": 6, "assistencias": 2},
+      {"clube": "Santos", "periodo": "2017-2020", "jogos": 25, "gols": 3, "assistencias": 1}
+    ]
+  },
+  {
+    "id_jogador": 34,
+    "nome_exibicao": "Bruno Henrique",
+    "nome_completo": "Bruno Henrique Pinto",
+    "ogol_id": 250453,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 169,
+    "jogos_carreira_oficiais": 600,
+    "assistencias_carreira_oficiais": 88,
+    "gols_selecao": 0,
+    "jogos_selecao": 2,
+    "pontaria_chutes_pct": 64.0,
+    "clubes_resumo": [
+      {"clube": "Flamengo", "periodo": "2019-2026", "jogos": 396, "gols": 121, "assistencias": 62},
+      {"clube": "Santos", "periodo": "2017-2018", "jogos": 86, "gols": 20, "assistencias": 15},
+      {"clube": "Goiás", "periodo": "2015", "jogos": 57, "gols": 12, "assistencias": 6},
+      {"clube": "Wolfsburg", "periodo": "2016", "jogos": 17, "gols": 0, "assistencias": 2}
+    ]
+  },
+  {
+    "id_jogador": 500,
+    "nome_exibicao": "Lucas Moura",
+    "nome_completo": "Lucas Rodrigues Moura da Silva",
+    "ogol_id": 132213,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 148,
+    "jogos_carreira_oficiais": 732,
+    "assistencias_carreira_oficiais": 112,
+    "gols_selecao": 4,
+    "jogos_selecao": 37,
+    "pontaria_chutes_pct": 64.0,
+    "clubes_resumo": [
+      {"clube": "São Paulo", "periodo": "2010-2012, 2023-2026", "jogos": 245, "gols": 59, "assistencias": 36},
+      {"clube": "Paris Saint-Germain", "periodo": "2013-2018", "jogos": 229, "gols": 46, "assistencias": 48},
+      {"clube": "Tottenham", "periodo": "2018-2023", "jogos": 221, "gols": 39, "assistencias": 27}
+    ]
+  },
+  {
+    "id_jogador": 59,
+    "nome_exibicao": "Alan Patrick",
+    "nome_completo": "Alan Patrick Lourenço",
+    "ogol_id": 97918,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 116,
+    "jogos_carreira_oficiais": 572,
+    "assistencias_carreira_oficiais": 124,
+    "gols_selecao": 0,
+    "jogos_selecao": 0,
+    "pontaria_chutes_pct": 65.0,
+    "clubes_resumo": [
+      {"clube": "Internacional", "periodo": "2013-2014, 2022-2026", "jogos": 222, "gols": 63, "assistencias": 52},
+      {"clube": "Shakhtar Donetsk", "periodo": "2011-2021", "jogos": 178, "gols": 26, "assistencias": 35},
+      {"clube": "Flamengo", "periodo": "2015-2016", "jogos": 72, "gols": 15, "assistencias": 16},
+      {"clube": "Santos", "periodo": "2009-2011", "jogos": 36, "gols": 6, "assistencias": 5}
+    ]
+  },
+  {
+    "id_jogador": 8798,
+    "nome_exibicao": "Luciano da Rocha Neves",
+    "nome_completo": "Luciano da Rocha Neves",
+    "ogol_id": 254820,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 154,
+    "jogos_carreira_oficiais": 485,
+    "assistencias_carreira_oficiais": 48,
+    "gols_selecao": 0,
+    "jogos_selecao": 0,
+    "pontaria_chutes_pct": 63.0,
+    "clubes_resumo": [
+      {"clube": "São Paulo", "periodo": "2020-2026", "jogos": 275, "gols": 95, "assistencias": 28},
+      {"clube": "Fluminense", "periodo": "2018-2019", "jogos": 31, "gols": 15, "assistencias": 3},
+      {"clube": "Corinthians", "periodo": "2014-2016", "jogos": 93, "gols": 24, "assistencias": 8}
+    ]
+  },
+  {
+    "id_jogador": 13,
+    "nome_exibicao": "Dudu",
+    "nome_completo": "Eduardo Pereira Rodrigues",
+    "ogol_id": 95611,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 124,
+    "jogos_carreira_oficiais": 620,
+    "assistencias_carreira_oficiais": 138,
+    "gols_selecao": 1,
+    "jogos_selecao": 3,
+    "pontaria_chutes_pct": 62.0,
+    "clubes_resumo": [
+      {"clube": "Palmeiras", "periodo": "2015-2020, 2021-2024", "jogos": 462, "gols": 88, "assistencias": 102},
+      {"clube": "Grêmio", "periodo": "2014", "jogos": 53, "gols": 8, "assistencias": 7},
+      {"clube": "Dínamo Kiev", "periodo": "2011-2014", "jogos": 32, "gols": 4, "assistencias": 5}
+    ]
+  },
+  {
+    "id_jogador": 14,
+    "nome_exibicao": "Everton Ribeiro",
+    "nome_completo": "Everton Augusto de Barros Ribeiro",
+    "ogol_id": 32367,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 108,
+    "jogos_carreira_oficiais": 780,
+    "assistencias_carreira_oficiais": 145,
+    "gols_selecao": 3,
+    "jogos_selecao": 22,
+    "pontaria_chutes_pct": 61.0,
+    "clubes_resumo": [
+      {"clube": "Flamengo", "periodo": "2017-2023", "jogos": 394, "gols": 46, "assistencias": 61},
+      {"clube": "Bahia", "periodo": "2024-2026", "jogos": 125, "gols": 12, "assistencias": 18},
+      {"clube": "Cruzeiro", "periodo": "2013-2014", "jogos": 108, "gols": 24, "assistencias": 36}
+    ]
+  },
+  {
+    "id_jogador": 16,
+    "nome_exibicao": "Paulo Henrique Ganso",
+    "nome_completo": "Paulo Henrique Chagas de Lima",
+    "ogol_id": 61771,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 86,
+    "jogos_carreira_oficiais": 640,
+    "assistencias_carreira_oficiais": 142,
+    "gols_selecao": 0,
+    "jogos_selecao": 8,
+    "pontaria_chutes_pct": 60.0,
+    "clubes_resumo": [
+      {"clube": "Fluminense", "periodo": "2019-2026", "jogos": 295, "gols": 30, "assistencias": 42},
+      {"clube": "São Paulo", "periodo": "2012-2016", "jogos": 221, "gols": 24, "assistencias": 49},
+      {"clube": "Santos", "periodo": "2008-2012", "jogos": 162, "gols": 36, "assistencias": 51}
+    ]
+  },
+  {
+    "id_jogador": 49,
+    "nome_exibicao": "Memphis Depay",
+    "nome_completo": "Memphis Depay",
+    "ogol_id": 179819,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 195,
+    "jogos_carreira_oficiais": 520,
+    "assistencias_carreira_oficiais": 115,
+    "gols_selecao": 47,
+    "jogos_selecao": 98,
+    "pontaria_chutes_pct": 66.0,
+    "clubes_resumo": [
+      {"clube": "Corinthians", "periodo": "2024-2026", "jogos": 72, "gols": 28, "assistencias": 19},
+      {"clube": "Lyon", "periodo": "2017-2021", "jogos": 178, "gols": 76, "assistencias": 55},
+      {"clube": "PSV", "periodo": "2011-2015", "jogos": 124, "gols": 50, "assistencias": 29}
+    ]
+  },
+  {
+    "id_jogador": 197,
+    "nome_exibicao": "Vitor Roque",
+    "nome_completo": "Vitor Hugo Roque Ferreira",
+    "ogol_id": 836402,
+    "posicao": "Atacante",
+    "gols_carreira_oficiais": 72,
+    "jogos_carreira_oficiais": 215,
+    "assistencias_carreira_oficiais": 18,
+    "gols_selecao": 0,
+    "jogos_selecao": 1,
+    "pontaria_chutes_pct": 64.0,
+    "clubes_resumo": [
+      {"clube": "Palmeiras", "periodo": "2025-2026", "jogos": 85, "gols": 34, "assistencias": 9},
+      {"clube": "Athletico-PR", "periodo": "2022-2023", "jogos": 81, "gols": 28, "assistencias": 11}
+    ]
+  },
+  {
+    "id_jogador": 1454,
+    "nome_exibicao": "Rodrigo Garro",
+    "nome_completo": "Rodrigo Garro",
+    "ogol_id": 657408,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 48,
+    "jogos_carreira_oficiais": 245,
+    "assistencias_carreira_oficiais": 52,
+    "gols_selecao": 0,
+    "jogos_selecao": 0,
+    "pontaria_chutes_pct": 63.0,
+    "clubes_resumo": [
+      {"clube": "Corinthians", "periodo": "2024-2026", "jogos": 125, "gols": 26, "assistencias": 29},
+      {"clube": "Talleres", "periodo": "2022-2023", "jogos": 81, "gols": 12, "assistencias": 17}
+    ]
+  },
+  {
+    "id_jogador": 218,
+    "nome_exibicao": "Matheus Pereira",
+    "nome_completo": "Matheus Fellipe Costa Pereira",
+    "ogol_id": 115183,
+    "posicao": "Meio-campo",
+    "gols_carreira_oficiais": 82,
+    "jogos_carreira_oficiais": 365,
+    "assistencias_carreira_oficiais": 78,
+    "gols_selecao": 0,
+    "jogos_selecao": 1,
+    "pontaria_chutes_pct": 62.0,
+    "clubes_resumo": [
+      {"clube": "Cruzeiro", "periodo": "2023-2026", "jogos": 145, "gols": 32, "assistencias": 34},
+      {"clube": "West Bromwich", "periodo": "2019-2021", "jogos": 77, "gols": 20, "assistencias": 26}
+    ]
   }
 ]
