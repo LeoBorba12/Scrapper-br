@@ -174,9 +174,8 @@ export default function RadarDualPES({
       {/* SVG Pentagonal Dual */}
       <svg
         width="100%"
-        height="auto"
         viewBox={`0 0 ${vbWidth} ${vbHeight}`}
-        style={{ width: '100%', maxWidth: `${vbWidth}px`, display: 'block', margin: '0 auto', overflow: 'hidden' }}
+        style={{ width: '100%', maxWidth: `${vbWidth}px`, height: 'auto', display: 'block', margin: '0 auto', overflow: 'hidden' }}
       >
         <defs>
           <filter id="dualGlowOliva" x="-20%" y="-20%" width="140%" height="140%">

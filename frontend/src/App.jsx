@@ -1291,17 +1291,50 @@ export default function App() {
 
         {/* ABA: PROBABILIDADES MATEMÁTICAS & LEITURA ANALÍTICA */}
         {(activeTab === 'probabilidades' || activeTab === 'apostas') && (
-          <div className="space-y-6">
-            <div className="flex gap-2 p-1 bg-[#EAE0D2] rounded-lg w-fit">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%' }}>
+            <div style={{
+              display: 'inline-flex',
+              flexWrap: 'wrap',
+              gap: '6px',
+              padding: '4px',
+              backgroundColor: 'var(--surface-raised)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '10px',
+              width: 'fit-content'
+            }}>
               <button
                 onClick={() => setProbabilidadesSubView('hub')}
-                className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${probabilidadesSubView === 'hub' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+                className="touch-tactile"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  borderRadius: '7px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: probabilidadesSubView === 'hub' ? 'var(--surface-card)' : 'transparent',
+                  color: probabilidadesSubView === 'hub' ? 'var(--text-primary)' : 'var(--accent)',
+                  boxShadow: probabilidadesSubView === 'hub' ? '0 1px 3px rgba(27,26,23,0.08)' : 'none'
+                }}
               >
                 📊 Hub de Probabilidades
               </button>
               <button
                 onClick={() => setProbabilidadesSubView('valor_esperado')}
-                className={`px-4 py-2 text-sm font-semibold rounded-md transition-all touch-tactile ${probabilidadesSubView === 'valor_esperado' ? 'bg-white shadow text-[#1B1A17]' : 'text-[#85573B] hover:text-[#1B1A17]'}`}
+                className="touch-tactile"
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  borderRadius: '7px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  backgroundColor: probabilidadesSubView === 'valor_esperado' ? 'var(--surface-card)' : 'transparent',
+                  color: probabilidadesSubView === 'valor_esperado' ? 'var(--text-primary)' : 'var(--accent)',
+                  boxShadow: probabilidadesSubView === 'valor_esperado' ? '0 1px 3px rgba(27,26,23,0.08)' : 'none'
+                }}
               >
                 🎯 Radar de Valor Esperado (+EV)
               </button>
