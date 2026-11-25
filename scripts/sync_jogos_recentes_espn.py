@@ -190,7 +190,7 @@ def git_auto_push_if_changed(size_mb: float) -> bool:
     cmds = [
         ["git", "add", "data/futebol.db"],
         ["git", "commit", "-m", f"chore(vm): sync automatico jogos recentes ({ts})"],
-        ["git", "pull", "--rebase", "origin", "main"],
+        ["git", "pull", "--rebase", "--autostash", "origin", "main"],
         ["git", "push", "origin", "main"],
     ]
     for cmd in cmds:
