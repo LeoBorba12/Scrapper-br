@@ -65,6 +65,121 @@ def fetch_espn_day(slug: str, date_yyyymmdd: str) -> list[dict]:
         return []
 
 
+def fetch_espn_summary_goals(slug: str, event_id: str) -> list[dict]:
+    url = f"https://site.api.espn.com/apis/site/v2/sports/soccer/{slug}/summary?event={event_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            sdata = json.loads(resp.read().decode("utf-8"))
+    except Exception:
+        return []
+
+    goals: list[dict] = []
+    for ke in sdata.get("keyEvents", []):
+        ev_type = ((ke.get("type") or {}).get("text") or "").strip()
+        is_goal = ke.get("scoringPlay") or ("goal" in ev_type.lower())
+        if not is_goal:
+            continue
+        # Ignora pênaltis de disputa pós-tempo regulamentar (Shootout)
+        period_num = ((ke.get("period") or {}).get("number") or 1)
+        if period_num and period_num > 4:
+            continue
+
+        participants = ke.get("participants") or []
+        scorer = ((participants[0].get("athlete") or {}).get("displayName") or "").strip() if participants else ""
+        if not scorer:
+            continue
+
+        team_name = norm_name(((ke.get("team") or {}).get("displayName") or "").strip())
+        clock_raw = ((ke.get("clock") or {}).get("displayValue") or "0").replace("'", "").strip()
+        base_min_str = clock_raw.split("+", 1)[0].strip()
+        digits = "".join(ch for ch in base_min_str if ch.isdigit())
+        minuto = int(digits) if digits else 0
+        tempo = "1T" if minuto <= 45 else "2T"
+
+        t_lower = ev_type.lower()
+        if "own goal" in t_lower:
+            tipo_de_gol = "Contra"
+        elif "penalty" in t_lower:
+            tipo_de_gol = "Pênalti"
+        elif "header" in t_lower:
+            tipo_de_gol = "Cabeça"
+        else:
+            tipo_de_gol = "Normal"
+
+        goals.append({
+            "clube": team_name,
+            "atleta": scorer,
+            "minuto": clock_raw or str(minuto),
+            "tempo": tempo,
+            "tipo_de_gol": tipo_de_gol,
+        })
+    return goals
+
+
+def _resolve_jogador_id(c: sqlite3.Cursor, atleta: str, clube: str) -> int | None:
+    rows = c.execute(
+        """
+        SELECT id_jogador, clubes, total_gols
+        FROM jogadores_estatisticas
+        WHERE LOWER(TRIM(nome_exibicao)) = LOWER(TRIM(?))
+           OR LOWER(TRIM(nome_completo)) = LOWER(TRIM(?))
+        ORDER BY total_gols DESC, total_jogos DESC
+        """,
+        (atleta, atleta),
+    ).fetchall()
+    if not rows:
+        return None
+    clube_l = clube.lower()
+    for r in rows:
+        if r[1] and clube_l in r[1].lower():
+            return r[0]
+    if len(rows) == 1:
+        return rows[0][0]
+    return rows[0][0]
+
+
+def _ingest_match_goals(
+    c: sqlite3.Cursor,
+    slug: str,
+    event_id: str,
+    id_partida: int,
+    gm: int,
+    gv: int,
+) -> int:
+    if gm + gv <= 0:
+        return 0
+    existing_goals = c.execute("SELECT COUNT(*) FROM gols WHERE id_partida = ?", (id_partida,)).fetchone()[0]
+    if existing_goals > 0:
+        return 0
+
+    goals = fetch_espn_summary_goals(slug, event_id)
+    if not goals:
+        return 0
+
+    added = 0
+    for g in goals:
+        jid = _resolve_jogador_id(c, g["atleta"], g["clube"])
+        c.execute(
+            """
+            INSERT INTO gols (id_partida, rodada, clube, atleta, minuto, tempo, tipo_de_gol, id_jogador)
+            VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+            """,
+            (id_partida, g["clube"], g["atleta"], g["minuto"], g["tempo"], g["tipo_de_gol"], jid),
+        )
+        added += 1
+        if jid and "contra" not in g["tipo_de_gol"].lower():
+            c.execute(
+                "UPDATE jogadores_estatisticas SET total_gols = COALESCE(total_gols, 0) + 1 WHERE id_jogador = ?",
+                (jid,),
+            )
+            c.execute(
+                "UPDATE jogadores SET total_gols = COALESCE(total_gols, 0) + 1 WHERE id_jogador = ?",
+                (jid,),
+            )
+    return added
+
+
 def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int]:
     now_brt = datetime.now(BRT)
     dates_to_check = [
@@ -78,11 +193,13 @@ def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int
 
     inserted = 0
     updated = 0
+    goals_added = 0
 
     for slug, camp_nome in COMPETICOES:
         for d_str in dates_to_check:
             events = fetch_espn_day(slug, d_str)
             for ev in events:
+                ev_id = str(ev.get("id", ""))
                 comps = ev.get("competitions") or []
                 if not comps:
                     continue
@@ -120,6 +237,7 @@ def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int
                 ).fetchone()
 
                 if existing:
+                    pid = existing[0]
                     if existing[1] != placar or existing[2] != gm or existing[3] != gv:
                         c.execute(
                             """
@@ -128,12 +246,12 @@ def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int
                                 estadio = COALESCE(NULLIF(estadio, ''), ?)
                             WHERE id_partida = ?
                             """,
-                            (gm, gv, placar, vencedor, estadio, existing[0]),
+                            (gm, gv, placar, vencedor, estadio, pid),
                         )
                         updated += 1
                         print(f"[UPD] {data_iso} [{camp_nome}] {mandante} {placar} {visitante}")
                 else:
-                    c.execute(
+                    cur = c.execute(
                         """
                         INSERT INTO partidas (
                             ano, data, horario, estadio, mandante, visitante,
@@ -142,11 +260,19 @@ def sync_recent_matches(days: int = 3, db_path: str = DB_PATH) -> tuple[int, int
                         """,
                         (ano, data_iso, horario, estadio, mandante, visitante, gm, gv, placar, vencedor, camp_nome),
                     )
+                    pid = cur.lastrowid
                     inserted += 1
                     print(f"[ADD] {data_iso} [{camp_nome}] {mandante} {placar} {visitante}")
 
+                if ev_id and pid and (gm + gv > 0):
+                    g_inc = _ingest_match_goals(c, slug, ev_id, pid, gm, gv)
+                    if g_inc > 0:
+                        goals_added += g_inc
+
     conn.commit()
     conn.close()
+    if goals_added > 0:
+        print(f"[GOLS] +{goals_added} gols detalhados gravados na tabela gols.")
     return inserted, updated
 
 
