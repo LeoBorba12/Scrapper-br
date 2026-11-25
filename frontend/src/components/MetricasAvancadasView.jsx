@@ -405,10 +405,10 @@ export default function MetricasAvancadasView({ darkMode }) {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value={90}>$\ge$ 90 min (1 jogo)</option>
-                  <option value={450}>$\ge$ 450 min (5 jogos)</option>
-                  <option value={900}>$\ge$ 900 min (10 jogos)</option>
-                  <option value={1500}>$\ge$ 1500 min (Regular)</option>
+                  <option value={90}>≥ 90 min (1 jogo)</option>
+                  <option value={450}>≥ 450 min (5 jogos)</option>
+                  <option value={900}>≥ 900 min (10 jogos)</option>
+                  <option value={1500}>≥ 1500 min (Regular)</option>
                 </select>
               </div>
 
@@ -934,7 +934,7 @@ export default function MetricasAvancadasView({ darkMode }) {
               <div style={{ fontWeight: 700, color: '#5A673E', marginBottom: '8px' }}>3. Teto Vercel e Capacidade</div>
               <div style={{ fontSize: '12px', color: '#78716C', lineHeight: 1.5 }}>
                 • Banco de dados otimizado via VACUUM: <strong>82,65 MB</strong>.<br/>
-                • Folga para o Soft Limit (84,00 MB): <strong>1,35 MB</strong> ($\ge 1,0$ MB exigido).<br/>
+                • Folga para o Soft Limit (84,00 MB): <strong>1,35 MB</strong> (≥ 1,0 MB exigido).<br/>
                 • Folga para o Teto da Vercel (94,00 MB): <strong>11,35 MB</strong>.<br/>
                 • Modo journal preservado em <code>delete</code>.
               </div>

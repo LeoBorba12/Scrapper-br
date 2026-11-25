@@ -197,7 +197,7 @@ export default function TournamentStatsView({ darkMode }) {
                       margin: 0
                     }}
                   >
-                    ESTATÍSTICAS DE EQUIPAS
+                    ESTATÍSTICAS DE EQUIPES
                   </h2>
                   <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                     Scouts agregados dos 20 clubes participantes na Série A.

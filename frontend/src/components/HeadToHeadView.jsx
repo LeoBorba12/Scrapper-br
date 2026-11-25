@@ -431,7 +431,7 @@ export default function HeadToHeadView() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', marginBottom: '6px' }}>
                           <span style={{ fontWeight: 700 }}>{item.label}</span>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                            {item.total_jogos} jogos · <strong style={{ color: '#5A673E' }}>{item.vitorias_a}V</strong> / {item.empates}E / <strong style={{ color: '#85573B' }}>{item.vitorias_b}V</strong>
+                            {item.total_jogos} jogos · <strong style={{ color: '#5A673E' }}>{item.vitorias_a} ({dadosH2H.clube_a?.sigla || dadosH2H.clube_a?.nome?.slice(0, 3).toUpperCase() || 'A'})</strong> / {item.empates}E / <strong style={{ color: '#85573B' }}>{item.vitorias_b} ({dadosH2H.clube_b?.sigla || dadosH2H.clube_b?.nome?.slice(0, 3).toUpperCase() || 'B'})</strong>
                           </span>
                         </div>
                         <div style={{ height: '8px', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: 'var(--surface-card)' }}>

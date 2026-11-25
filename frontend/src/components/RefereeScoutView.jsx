@@ -86,7 +86,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
   // Métricas de topo para KPIs
   const kpisGerais = useMemo(() => {
     if (!arbitrosList.length) return null;
-    const comScout = arbitrosList.filter(a => a.jogos_cartoes >= 10);
+    const comScout = arbitrosList.filter(a => a.media_cartoes > 0);
     const maisRigoroso = [...comScout].sort((a, b) => b.media_cartoes - a.media_cartoes)[0];
     const maisPenaltis = [...arbitrosList].sort((a, b) => b.media_penaltis - a.media_penaltis)[0];
     const maiorMandante = [...arbitrosList].sort((a, b) => b.pct_vit_mandante - a.pct_vit_mandante)[0];
@@ -244,7 +244,7 @@ export default function RefereeScoutView({ apiFetch, onSelectMatch }) {
                   {res.media_vermelhos || 0} <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ jogo</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Total: {res.vermelhos || 0} expulsões
+                  Total: {res.vermelhos || 0} {(res.vermelhos || 0) === 1 ? 'expulsão' : 'expulsões'}
                 </div>
               </div>
 

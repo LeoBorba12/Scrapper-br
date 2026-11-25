@@ -382,7 +382,7 @@ export default function AppShell({
             <strong className="font-editorial" style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>FutStats</strong> • Arquitetura Editorial & Protagonista 2026
           </div>
           <div className="tabular-nums">
-            Base oficial com 90.819 partidas catalogadas • Cobertura 1902–2026
+            Base histórica oficial • Cobertura 1902–2026
           </div>
         </div>
       </footer>

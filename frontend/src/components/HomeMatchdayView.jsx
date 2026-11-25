@@ -1252,7 +1252,7 @@ export default function HomeMatchdayView({
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 12px 0' }}>
               {rankingMode === 'ponderado' 
-                ? 'Hegeomania histórica ponderada por títulos e campanhas (Mundial 280, Liberta 250, Brasileirão 170).' 
+                ? 'Hegemonia histórica ponderada por títulos e campanhas (Mundial 280, Liberta 250, Brasileirão 170).' 
                 : 'Acumulado geral de pontos e aproveitamento em jogos oficiais desde 1902.'}
             </p>
 

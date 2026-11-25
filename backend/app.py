@@ -4183,9 +4183,18 @@ def get_arbitros_destaques():
         )
         SELECT 
             s.*,
-            COALESCE(ca.jogos_com_cartoes, 0) as jogos_cartoes,
-            COALESCE(ca.amarelos, 0) as total_amarelos,
-            COALESCE(ca.vermelhos, 0) as total_vermelhos,
+            CASE 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 THEN ca.jogos_com_cartoes
+                ELSE COALESCE(aed.jogos_temporada, COALESCE(ca.jogos_com_cartoes, 0))
+            END as jogos_cartoes,
+            CASE 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 THEN ca.amarelos
+                ELSE COALESCE(aed.amarelos_totais, COALESCE(ca.amarelos, 0))
+            END as total_amarelos,
+            CASE 
+                WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 THEN ca.vermelhos
+                ELSE COALESCE(aed.vermelhos_totais, COALESCE(ca.vermelhos, 0))
+            END as total_vermelhos,
             COALESCE(ca.cartoes_1t, 0) as cartoes_1t,
             COALESCE(ca.cartoes_2t, 0) as cartoes_2t,
             COALESCE(pa.total_penaltis, 0) as total_penaltis,
@@ -4193,17 +4202,17 @@ def get_arbitros_destaques():
             CASE 
                 WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
                 THEN ROUND(ca.amarelos * 1.0 / ca.jogos_com_cartoes, 2) 
-                ELSE 0 
+                ELSE COALESCE(ROUND(aed.amarelos_por_jogo, 2), 0)
             END as media_amarelos,
             CASE 
                 WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
                 THEN ROUND(ca.vermelhos * 1.0 / ca.jogos_com_cartoes, 2) 
-                ELSE 0 
+                ELSE COALESCE(ROUND(aed.vermelhos_por_jogo, 2), 0)
             END as media_vermelhos,
             CASE 
                 WHEN COALESCE(ca.jogos_com_cartoes, 0) >= 5 
                 THEN ROUND((ca.amarelos + ca.vermelhos) * 1.0 / ca.jogos_com_cartoes, 2) 
-                ELSE 0 
+                ELSE COALESCE(ROUND(aed.amarelos_por_jogo + aed.vermelhos_por_jogo, 2), 0)
             END as media_cartoes,
             CASE 
                 WHEN (COALESCE(ca.cartoes_1t, 0) + COALESCE(ca.cartoes_2t, 0)) > 0
@@ -4213,6 +4222,7 @@ def get_arbitros_destaques():
         FROM stats_arbitro s
         LEFT JOIN cartoes_por_arbitro ca ON s.arbitro = ca.arbitro
         LEFT JOIN penaltis_por_arbitro pa ON s.arbitro = pa.arbitro
+        LEFT JOIN arbitros_estatisticas_detalhadas aed ON LOWER(TRIM(aed.nome)) = LOWER(s.arbitro)
         ORDER BY s.total_jogos DESC
         LIMIT 40;
     """)
@@ -5285,7 +5295,11 @@ def get_apostas_backtesting():
 
     where_clauses = [
         "p.gols_mandante IS NOT NULL",
-        "o.odd_mandante IS NOT NULL"
+        "o.odd_mandante IS NOT NULL",
+        "o.odd_mandante > 1.0",
+        "o.odd_empate > 1.0",
+        "o.odd_visitante > 1.0",
+        "((1.0/o.odd_mandante) + (1.0/o.odd_empate) + (1.0/o.odd_visitante) - 1.0) BETWEEN 0.0 AND 0.15"
     ]
     params = []
 

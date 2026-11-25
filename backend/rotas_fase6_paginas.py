@@ -557,10 +557,27 @@ def get_competicao_detalhe_edicao():
         # 2. Partidas da edição (com resolução canônica de clubes e deduplicação entre fontes)
         id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
 
+        _ALIAS_NOME_CANONICO = {
+            'red bull bragantino': 'Bragantino',
+            'américa mineiro': 'América-MG',
+            'athletic': 'Athletic-MG',
+            'athletic club': 'Athletic-MG',
+            'atlético goianiense': 'Atlético-GO',
+            'botafogo sp': 'Botafogo-SP',
+            'crb': 'CRB',
+            'grêmio novorizontino': 'Novorizontino',
+            'operário': 'Operário-PR',
+            'operário pr': 'Operário-PR',
+            'operário ferroviário': 'Operário-PR',
+        }
+
         def _nome_clube_canonico(raw):
+            chave_raw = (raw or '').strip().lower()
+            if chave_raw in _ALIAS_NOME_CANONICO:
+                return _ALIAS_NOME_CANONICO[chave_raw]
             info = _resolver_clube(raw, id_to_club, name_to_canon)
             n = info['nome'] if info else raw
-            return 'Bragantino' if n == 'Red Bull Bragantino' else n
+            return _ALIAS_NOME_CANONICO.get((n or '').strip().lower(), n)
 
         c.execute(f"""
             SELECT id_partida, data, rodada, fase, mandante, visitante,

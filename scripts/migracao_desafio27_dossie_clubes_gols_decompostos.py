@@ -228,24 +228,20 @@ def executar_migracao():
         atleta_id, clube_id, comp_id, periodo, jogos, titularidades, minutos, gols, dep_ofensiva = r
         ano = int(periodo) if periodo.isdigit() else 2026
 
-        # 1. Decomposição de gols (pênalti vs bola rolando)
-        # Buscar em jogadores_estatisticas se houver
+        # 1. Decomposição de gols (pênalti vs bola rolando) na temporada/ano do registro
         row_pen = cursor.execute("""
-            SELECT gols_penalti, gols_bola_rolando FROM jogadores_estatisticas WHERE id_jogador = ?
-        """, (atleta_id,)).fetchone()
+            SELECT COUNT(DISTINCT p.data || '|' || COALESCE(g.minuto, '') || '|' || g.id_jogador)
+            FROM gols g
+            JOIN partidas p ON g.id_partida = p.id_partida
+            WHERE g.id_jogador = ?
+              AND p.ano = ?
+              AND (LOWER(COALESCE(g.tipo_de_gol, '')) LIKE '%pênalti%'
+                   OR LOWER(COALESCE(g.tipo_de_gol, '')) LIKE '%penalti%')
+        """, (atleta_id, ano)).fetchone()
 
-        if row_pen and (row_pen[0] is not None or row_pen[1] is not None):
-            pen_tot = row_pen[0] or 0
-            gols_penalti = min(gols, pen_tot)
-            gols_abertos = max(0, gols - gols_penalti)
-        else:
-            # Estimação estatística padrão do futebol brasileiro (~15% dos gols de atacantes são pênaltis)
-            if gols >= 5 and titularidades >= 10:
-                gols_penalti = round(gols * 0.18)
-                gols_abertos = gols - gols_penalti
-            else:
-                gols_penalti = 0
-                gols_abertos = gols
+        pen_temporada = (row_pen[0] or 0) if row_pen else 0
+        gols_penalti = min(gols, pen_temporada)
+        gols_abertos = max(0, gols - gols_penalti)
 
         # 2. Decomposição de minutagem (titular vs reserva)
         if titularidades >= jogos:

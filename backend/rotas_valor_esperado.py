@@ -107,25 +107,43 @@ def listar_oportunidades_ev():
 
     for r in rows:
         item = dict(r)
-        
+
+        # Gate de integridade de mercado: exige tripla de odds válida (overround entre 0% e 15%)
+        om = item['odd_pinnacle_mandante'] or item['odd_b365_mandante']
+        oe = item['odd_pinnacle_empate'] or item['odd_b365_empate']
+        ov = item['odd_pinnacle_visitante'] or item['odd_b365_visitante']
+        if not (om and oe and ov and om > 1.0 and oe > 1.0 and ov > 1.0):
+            continue
+        overround = (1.0 / om) + (1.0 / oe) + (1.0 / ov) - 1.0
+        if not (0.0 <= overround <= 0.15):
+            continue
+
+        # Normaliza probabilidades do modelo para somarem 1.0 (remove eventual overround residual)
+        probs_raw = [item['prob_mandante'] or 0.0, item['prob_empate'] or 0.0, item['prob_visitante'] or 0.0]
+        probs_dec = [p / 100.0 if p > 1.0 else p for p in probs_raw]
+        soma_probs = sum(probs_dec)
+        if not (0.90 <= soma_probs <= 1.15):
+            continue
+        p_m_norm, p_e_norm, p_v_norm = [p / soma_probs for p in probs_dec]
+
         # Analisa os 3 desfechos (Casa, Empate, Fora)
         desfechos = [
             {
                 "mercado": "Vitória Mandante (1)",
-                "odd_mercado": item['odd_pinnacle_mandante'] or item['odd_b365_mandante'],
-                "prob_modelo": item['prob_mandante'],
+                "odd_mercado": om,
+                "prob_modelo": p_m_norm,
                 "vencedor_real": item['vencedor'] == item['mandante'] if item['vencedor'] else None
             },
             {
                 "mercado": "Empate (X)",
-                "odd_mercado": item['odd_pinnacle_empate'] or item['odd_b365_empate'],
-                "prob_modelo": item['prob_empate'],
+                "odd_mercado": oe,
+                "prob_modelo": p_e_norm,
                 "vencedor_real": item['vencedor'] == 'Empate' if item['vencedor'] else None
             },
             {
                 "mercado": "Vitória Visitante (2)",
-                "odd_mercado": item['odd_pinnacle_visitante'] or item['odd_b365_visitante'],
-                "prob_modelo": item['prob_visitante'],
+                "odd_mercado": ov,
+                "prob_modelo": p_v_norm,
                 "vencedor_real": item['vencedor'] == item['visitante'] if item['vencedor'] else None
             }
         ]
@@ -139,7 +157,7 @@ def listar_oportunidades_ev():
                 ev = (p_dec * odd) - 1.0
                 ev_pct = round(ev * 100, 2)
 
-                if ev_pct >= min_ev:
+                if min_ev <= ev_pct <= 40.0:
                     odd_justa = round(1.0 / p_dec, 2) if p_dec > 0 else 99.0
                     oportunidades.append({
                         "id_partida": item['id_partida'],
