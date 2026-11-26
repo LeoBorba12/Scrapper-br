@@ -73,9 +73,9 @@ def validar_coerencia_editorial(
         }
 
     # 1. Detecção de Spread Incompleto / Odds Padrão Sintéticas
-    # (empate cravado em 3.25 com favorito ~1.25-1.32, ou template padrão 2.10 / 3.40-3.50)
+    # (empate cravado em 3.25 com favorito ~1.25-1.32, ou template padrão 2.10 / 3.20 / 3.50)
     if (round(empate, 2) == 3.25 and casa <= 1.32 and fora >= 5.5) or (
-        round(casa, 2) == 2.10 and 3.35 <= round(empate, 2) <= 3.55 and 3.35 <= round(fora, 2) <= 3.55
+        round(casa, 2) == 2.10 and round(empate, 2) == 3.20 and round(fora, 2) == 3.50
     ):
         return {
             "publicavel": False,
