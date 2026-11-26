@@ -52,7 +52,7 @@ def fetch_url(url, retries=3, delay=1.5):
             time.sleep(delay)
     return None
 
-def limpar_numero(val_str):
+def limpar_numero(val_str, eh_float=False):
     if not val_str:
         return 0.0
     val_str = str(val_str).strip()
@@ -61,7 +61,7 @@ def limpar_numero(val_str):
             val_str = val_str.replace('.', '').replace(',', '.')
         elif ',' in val_str:
             val_str = val_str.replace(',', '.')
-        elif '.' in val_str:
+        elif '.' in val_str and not eh_float:
             parts = val_str.split('.')
             if len(parts) == 2 and len(parts[1]) == 3 and int(parts[0]) > 0:
                 val_str = val_str.replace('.', '')
@@ -111,12 +111,12 @@ def raspar_estatisticas_equipes(conn):
             
             # Normalizar clube
             val_total_raw = tds[1].get_text(strip=True)
-            val_total = limpar_numero(val_total_raw)
+            val_total = limpar_numero(val_total_raw, eh_float=(col_total == 'xg_pro'))
             
             val_jogo = 0.0
             jogos = 0
             if len(tds) >= 3:
-                val_jogo = limpar_numero(tds[2].get_text(strip=True))
+                val_jogo = limpar_numero(tds[2].get_text(strip=True), eh_float=True)
             if len(tds) >= 6:
                 try:
                     jogos = int(tds[5].get_text(strip=True))
@@ -163,14 +163,14 @@ def raspar_estatisticas_equipes(conn):
                 atualizado_em
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(edicao_id, clube) DO UPDATE SET
-                jogos = excluded.jogos,
-                chutes_total = excluded.chutes_total,
-                chutes_jogo = excluded.chutes_jogo,
-                defesas_total = excluded.defesas_total,
-                defesas_jogo = excluded.defesas_jogo,
-                cruzamentos_certos_total = excluded.cruzamentos_certos_total,
-                cruzamentos_certos_jogo = excluded.cruzamentos_certos_jogo,
-                xg_pro = excluded.xg_pro,
+                jogos = MAX(campeonatos_estatisticas_equipes.jogos, excluded.jogos),
+                chutes_total = CASE WHEN excluded.chutes_total > 0 THEN excluded.chutes_total ELSE campeonatos_estatisticas_equipes.chutes_total END,
+                chutes_jogo = CASE WHEN excluded.chutes_jogo > 0 THEN excluded.chutes_jogo ELSE campeonatos_estatisticas_equipes.chutes_jogo END,
+                defesas_total = CASE WHEN excluded.defesas_total > 0 THEN excluded.defesas_total ELSE campeonatos_estatisticas_equipes.defesas_total END,
+                defesas_jogo = CASE WHEN excluded.defesas_jogo > 0 THEN excluded.defesas_jogo ELSE campeonatos_estatisticas_equipes.defesas_jogo END,
+                cruzamentos_certos_total = CASE WHEN excluded.cruzamentos_certos_total > 0 THEN excluded.cruzamentos_certos_total ELSE campeonatos_estatisticas_equipes.cruzamentos_certos_total END,
+                cruzamentos_certos_jogo = CASE WHEN excluded.cruzamentos_certos_jogo > 0 THEN excluded.cruzamentos_certos_jogo ELSE campeonatos_estatisticas_equipes.cruzamentos_certos_jogo END,
+                xg_pro = CASE WHEN excluded.xg_pro > 0 THEN excluded.xg_pro ELSE campeonatos_estatisticas_equipes.xg_pro END,
                 atualizado_em = CURRENT_TIMESTAMP
         """, (
             EDICAO_ID, ANO, CAMPEONATO, clube, d['jogos'],
@@ -295,7 +295,7 @@ def raspar_estatisticas_atletas(conn):
             posicao = re.sub(r'[^a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ ]', '', posicao).strip()
 
             val_raw = tds[1].get_text(strip=True)
-            val = limpar_numero(val_raw)
+            val = limpar_numero(val_raw, eh_float=(tipo_dado is float))
             if tipo_dado == int:
                 val = int(val)
             

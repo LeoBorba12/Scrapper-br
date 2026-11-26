@@ -779,8 +779,12 @@ export default function ProtagonistaAtleta({
                             objectFit: 'contain', 
                             filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.45))' 
                           }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            if (e.currentTarget.nextElementSibling) e.currentTarget.nextElementSibling.style.display = 'block';
+                          }}
                         />
-                      ) : atleta.foto_url ? (
+                      ) : (atleta.foto_url && !atleta.foto_url.includes('No_Photo')) ? (
                         <img 
                           src={atleta.foto_url} 
                           alt={atleta.nome || selectedPlayer} 
@@ -794,11 +798,14 @@ export default function ProtagonistaAtleta({
                             boxShadow: '0 6px 16px rgba(27,26,23,0.12)',
                             display: 'block'
                           }}
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            if (e.currentTarget.nextElementSibling) e.currentTarget.nextElementSibling.style.display = 'block';
+                          }}
                         />
                       ) : null}
 
-                      <div style={{ textAlign: 'center', display: (renderInfo.cardUrl || atleta.foto_url) ? 'none' : 'block' }}>
+                      <div style={{ textAlign: 'center', display: (renderInfo.cardUrl || (atleta.foto_url && !atleta.foto_url.includes('No_Photo'))) ? 'none' : 'block' }}>
                         <div 
                           className="font-editorial" 
                           style={{ 
