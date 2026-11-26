@@ -270,7 +270,7 @@ export default function EditorialClubes({
                     fontSize: '0.84rem'
                   }}
                 >
-                  <option value="">Histórico Completo</option>
+                  <option value="todos">Histórico Completo</option>
                   {(listaData?.anos_disponiveis || [2026, 2025, 2024, 2023, 2022, 2021, 2020]).map(a => (
                     <option key={a} value={a}>{a}</option>
                   ))}
@@ -378,7 +378,7 @@ export default function EditorialClubes({
               <button
                 onClick={() => {
                   setBusca('');
-                  setAno('');
+                  setAno('todos');
                   setCampeonato('');
                   setPage(1);
                 }}
@@ -702,8 +702,8 @@ export default function EditorialClubes({
                       <th style={{ padding: '10px 10px', textAlign: 'center' }}>Jogos</th>
                       <th style={{ padding: '10px 10px', textAlign: 'center' }}>V-E-D</th>
                       <th style={{ padding: '10px 10px', textAlign: 'center' }}>Gols Pró/Contra</th>
-                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>Clean Sheets</th>
-                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>BTTS %</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>Jogos s/ Gol</th>
+                      <th style={{ padding: '10px 10px', textAlign: 'center' }}>Ambas Marcam %</th>
                       <th style={{ padding: '10px 14px', textAlign: 'right' }}>Aproveitamento</th>
                     </tr>
                   </thead>

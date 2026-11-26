@@ -109,12 +109,30 @@ def _obter_resolvedor_aliases(conn):
         name_to_canon[a_nome] = a['entidade_id']
 
     # Mapeamentos canônicos explícitos confirmados na auditoria de identidade
+    # Nota: Não mapear 'atlético' isolado para MG em histórico global porque Atlético-GO e Atlético-BA também usam 'Atlético'.
     name_to_canon['athletico'] = 324
     name_to_canon['athletico-pr'] = 324
     name_to_canon['athletico paranaense'] = 324
-    name_to_canon['atlético'] = 414
     name_to_canon['atlético-mg'] = 414
     name_to_canon['atlético mineiro'] = 414
+    name_to_canon['bragantino'] = 2702
+    name_to_canon['red bull bragantino'] = 2702
+    name_to_canon['atlético-go'] = 410
+    name_to_canon['atlético goianiense'] = 410
+    name_to_canon['américa-mg'] = 209
+    name_to_canon['américa mineiro'] = 209
+    name_to_canon['ldu quito'] = 1956
+    name_to_canon['liga de quito'] = 1956
+    name_to_canon['estudiantes de la plata'] = 1291
+    name_to_canon['montevideo city torque'] = 2233
+    name_to_canon['cienciano del cusco'] = 899
+    name_to_canon['junior'] = 1915
+    name_to_canon['atlético junior'] = 1915
+    name_to_canon['athletic'] = 322
+    name_to_canon['botafogo sp'] = 628
+    name_to_canon['botafogo pb'] = 626
+    name_to_canon['botafogo ba'] = 3844
+    name_to_canon['botafogo df'] = 623
 
     # Carrega alcunhas populares registradas em clubes_perfil
     try:
@@ -138,13 +156,30 @@ def _obter_resolvedor_aliases(conn):
     return _ALIAS_CACHE
 
 
+_CLUBE_ID_REDIR = {
+    323: 324,   # Athletico -> Athletico-PR
+    351: 414,   # Atlético -> Atlético-MG
+    634: 2702,  # Bragantino -> Red Bull Bragantino
+    370: 410,   # Atlético Goianiense -> Atlético-GO
+    197: 209,   # América Mineiro -> América-MG
+    2008: 1956, # Liga De Quito -> LDU Quito
+    1300: 1291, # Estudiantes De La Plata -> Estudiantes
+    2234: 2233, # Montevideo City Torque -> Montevideo City
+    903: 899,   # Cienciano Del Cusco -> Cienciano
+    1906: 1915, # Junior -> Junior Barranquilla
+    379: 1915,  # Atlético Junior -> Junior Barranquilla
+    318: 322,   # Athletic -> Athletic-MG
+    625: 628,   # Botafogo Sp -> Botafogo-SP
+    624: 626,   # Botafogo Pb -> Botafogo-PB
+    622: 3844,  # Botafogo Ba -> Botafogo-BA
+}
+
+
 def _resolver_clube(nome_ou_id, id_to_club, name_to_canon):
     """Retorna o dict canônico do clube ou None se não encontrado."""
     if isinstance(nome_ou_id, int) or (isinstance(nome_ou_id, str) and nome_ou_id.isdigit()):
         cid = int(nome_ou_id)
-        # Casos onde o ID precisa ser canônico
-        if cid == 323: cid = 324 # Athletico -> Athletico-PR
-        if cid == 351: cid = 414 # Atlético -> Atlético-MG
+        cid = _CLUBE_ID_REDIR.get(cid, cid)
         return id_to_club.get(cid)
 
     if not nome_ou_id:
@@ -153,24 +188,67 @@ def _resolver_clube(nome_ou_id, id_to_club, name_to_canon):
     cleaned = str(nome_ou_id).lower().strip()
     cid = name_to_canon.get(cleaned)
     if cid:
+        cid = _CLUBE_ID_REDIR.get(cid, cid)
         return id_to_club.get(cid)
     return None
+
+
+def _categoria_comp_canonica(nome_comp):
+    """Agrupa variantes de nome de torneio em categorias canônicas comparáveis."""
+    c = (nome_comp or '').lower().strip()
+    if not c:
+        return 'outros'
+    if 'femin' in c or 'sub-20' in c or 'sub 20' in c or 'sub-17' in c:
+        return c
+    if ('série b' in c or 'serie b' in c):
+        return 'brasileirao_serie_b'
+    if ('série c' in c or 'serie c' in c):
+        return 'brasileirao_serie_c'
+    if ('série d' in c or 'serie d' in c):
+        return 'brasileirao_serie_d'
+    if 'brasileir' in c or 'série a' in c or 'serie a' in c:
+        return 'brasileirao_serie_a'
+    if 'libertadores' in c:
+        return 'libertadores'
+    if 'sul-americana' in c or 'sul americana' in c:
+        return 'sul_americana'
+    if 'copa do brasil' in c:
+        return 'copa_do_brasil'
+    if 'recopa' in c:
+        return 'recopa'
+    return c
+
+
+def _corresponde_campeonato_filtro(comp_row, filtro):
+    """Compara nome do torneio da partida com o filtro selecionado (suportando variantes de Brasileirão/copas)."""
+    if not filtro:
+        return True
+    f_low = filtro.lower().strip()
+    c_low = (comp_row or '').lower().strip()
+    if f_low in c_low:
+        return True
+    cat_f = _categoria_comp_canonica(f_low)
+    cat_c = _categoria_comp_canonica(c_low)
+    if cat_f in ('brasileirao_serie_a', 'brasileirao_serie_b', 'brasileirao_serie_c', 'brasileirao_serie_d', 'libertadores', 'sul_americana', 'copa_do_brasil'):
+        return cat_f == cat_c
+    return False
 
 
 def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, mando='todos'):
     """
     Recupera todas as partidas de um clube aplicando deduplicação determinística.
-    Preserva os IDs associados em caso de duplicatas homônimas (ex: jogo do Palmeiras de 17/10/2026).
+    Preserva os IDs associados em caso de duplicatas homônimas ou variantes de grafia.
     """
     id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
     clube_info = _resolver_clube(clube_id, id_to_club, name_to_canon)
     if not clube_info:
         return [], 0, []
 
-    # Identificar todas as strings associadas a esse clube_id
+    # Identificar todas as strings associadas a esse clube_id (incluindo IDs redirecionados)
+    target_cid = clube_info['clube_id']
     strings_busca = {clube_info['nome'].lower()}
     for alias, cid in name_to_canon.items():
-        if cid == clube_info['clube_id']:
+        if _CLUBE_ID_REDIR.get(cid, cid) == target_cid:
             strings_busca.add(alias)
 
     c = conn.cursor()
@@ -183,10 +261,6 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
         where_clauses.append("p.ano = ?")
         params.append(int(ano))
 
-    if campeonato:
-        where_clauses.append("p.campeonato LIKE ?")
-        params.append(f"%{campeonato}%")
-
     sql = f"""
         SELECT 
             p.id_partida, p.campeonato, p.ano, p.data, p.horario, p.rodada, p.fase,
@@ -197,9 +271,12 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
         ORDER BY p.data DESC, p.id_partida DESC
     """
     rows = [dict(r) for r in c.execute(sql, params).fetchall()]
+    if campeonato:
+        rows = [r for r in rows if _corresponde_campeonato_filtro(r.get('campeonato'), campeonato)]
 
-    # Deduplicação Determinística
+    # Deduplicação Determinística (por confronto canônico + fallback data/mando/placar/torneio)
     dedup_map = {}
+    fallback_keys = {}
     conflitos = []
 
     for r in rows:
@@ -211,7 +288,7 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
         key = (r['data'], m_nome_canon, v_nome_canon)
 
         # Mando do clube avaliado
-        sou_mandante = (m_canon and m_canon['clube_id'] == clube_info['clube_id'])
+        sou_mandante = (m_canon and m_canon['clube_id'] == target_cid) or ((r['mandante'] or '').lower().strip() in strings_busca)
 
         # Classificação do resultado
         gm = r['gols_mandante']
@@ -259,23 +336,31 @@ def _obter_jogos_deduplicados_clube(conn, clube_id, ano=None, campeonato=None, m
         if mando == 'fora' and sou_mandante:
             continue
 
-        if key in dedup_map:
-            existente = dedup_map[key]
+        comp_cat = _categoria_comp_canonica(r.get('campeonato'))
+        fb_key = (r['data'], item['mando'], gm, gv, comp_cat)
+        matched_key = key if key in dedup_map else fallback_keys.get(fb_key)
+
+        if matched_key and matched_key in dedup_map:
+            existente = dedup_map[matched_key]
             # Verificar se placar é idêntico
             if existente['placar'] != item['placar'] and not is_agendado:
                 conflito_msg = f"Divergência de placar: ID {existente['id_partida']} ({existente['placar']}) vs ID {item['id_partida']} ({item['placar']})"
                 existente['status_conflito'] = conflito_msg
                 conflitos.append(conflito_msg)
 
-            # Critério determinístico de seleção do representante:
-            # Preferir nome oficial padrão ("Brasileirão Série A") sobre formatos genéricos
-            if 'Série A' in item['campeonato'] and 'Série A' not in existente['campeonato']:
+            # Critério determinístico de seleção do representante: preferir forma oficial limpa
+            item_eh_melhor = (
+                ('Série A' in (item['campeonato'] or '') and 'Série A' not in (existente['campeonato'] or ''))
+                or (item['estadio'] and not existente['estadio'])
+            )
+            if item_eh_melhor:
                 item['duplicatas_associadas'] = existente['duplicatas_associadas'] + [existente['id_partida']]
-                dedup_map[key] = item
+                dedup_map[matched_key] = item
             else:
                 existente['duplicatas_associadas'].append(item['id_partida'])
         else:
             dedup_map[key] = item
+            fallback_keys[fb_key] = key
 
     jogos_resolvidos = list(dedup_map.values())
     jogos_resolvidos.sort(key=lambda x: (x['data'] or '', x['id_partida']), reverse=True)
@@ -604,7 +689,22 @@ def get_clubes_lista_geral():
 
     # 1. Opções de Filtros Disponíveis no Banco
     anos_disp = [r[0] for r in c.execute("SELECT DISTINCT ano FROM partidas WHERE ano IS NOT NULL ORDER BY ano DESC LIMIT 30").fetchall()]
-    comps_disp = [r[0] for r in c.execute("SELECT DISTINCT campeonato FROM partidas WHERE ano = ? AND campeonato IS NOT NULL ORDER BY campeonato", (int(ano) if ano.isdigit() else 2026,)).fetchall()]
+    if ano.isdigit():
+        raw_comps = [r[0] for r in c.execute("SELECT DISTINCT campeonato FROM partidas WHERE ano = ? AND campeonato IS NOT NULL ORDER BY campeonato", (int(ano),)).fetchall()]
+    else:
+        raw_comps = [r[0] for r in c.execute("SELECT DISTINCT campeonato FROM partidas WHERE ano >= 2023 AND campeonato IS NOT NULL ORDER BY campeonato LIMIT 60").fetchall()]
+
+    # Priorizar nomes canônicos de competições para evitar fragmentação no filtro
+    canon_principais = ['Brasileirão Série A', 'Copa do Brasil', 'Copa Libertadores', 'Copa Sul-Americana', 'Brasileirão Série B']
+    cats_vistas = {_categoria_comp_canonica(x) for x in raw_comps}
+    comps_disp = []
+    for cp in canon_principais:
+        if _categoria_comp_canonica(cp) in cats_vistas or any(_corresponde_campeonato_filtro(rc, cp) for rc in raw_comps):
+            comps_disp.append(cp)
+    for rc in raw_comps:
+        if _categoria_comp_canonica(rc) not in {'brasileirao_serie_a', 'brasileirao_serie_b', 'libertadores', 'sul_americana', 'copa_do_brasil'}:
+            if rc not in comps_disp:
+                comps_disp.append(rc)
 
     # 2. Clubes com métricas BED 2026
     bed_clubes_ids = set(r[0] for r in c.execute("SELECT clube_id_canonico FROM metrica_clube_avancada_2026").fetchall())
@@ -615,31 +715,35 @@ def get_clubes_lista_geral():
     if ano and ano.isdigit():
         where_p.append("p.ano = ?")
         params_p.append(int(ano))
-    elif ano != 'todos':
+    elif ano not in ('todos', ''):
         where_p.append("p.ano = 2026")
 
-    if campeonato:
-        where_p.append("p.campeonato LIKE ?")
-        params_p.append(f"%{campeonato}%")
-
     sql_partidas = f"""
-        SELECT p.id_partida, p.data, p.mandante, p.visitante, p.gols_mandante, p.gols_visitante, p.placar
+        SELECT p.id_partida, p.data, p.campeonato, p.mandante, p.visitante, p.gols_mandante, p.gols_visitante, p.placar
         FROM partidas p
         {"WHERE " + " AND ".join(where_p) if where_p else ""}
-        ORDER BY p.data DESC
+        ORDER BY p.data DESC, p.id_partida DESC
     """
     rows_p = c.execute(sql_partidas, params_p).fetchall()
 
-    # Deduplicar partidas do recorte de forma consistente
+    # Deduplicar partidas do recorte de forma consistente (inclusive variantes de aliases em torneios)
     seen_matches = {}
+    seen_fallback = set()
     for r in rows_p:
+        if campeonato and not _corresponde_campeonato_filtro(r['campeonato'], campeonato):
+            continue
         m_canon = _resolver_clube(r['mandante'], id_to_club, name_to_canon)
         v_canon = _resolver_clube(r['visitante'], id_to_club, name_to_canon)
         if not m_canon or not v_canon:
             continue
+        comp_cat = _categoria_comp_canonica(r['campeonato'])
         k = (r['data'], m_canon['clube_id'], v_canon['clube_id'])
-        if k not in seen_matches:
+        fb1 = (r['data'], m_canon['clube_id'], r['gols_mandante'], r['gols_visitante'], comp_cat)
+        fb2 = (r['data'], v_canon['clube_id'], r['gols_visitante'], r['gols_mandante'], comp_cat)
+        if k not in seen_matches and fb1 not in seen_fallback and fb2 not in seen_fallback:
             seen_matches[k] = (r, m_canon, v_canon)
+            seen_fallback.add(fb1)
+            seen_fallback.add(fb2)
 
     # Agregar estatísticas por clube canônico
     clubes_stats = {}
@@ -789,8 +893,9 @@ def get_clube_detalhe(clube_id):
                valor_elenco_milhoes_eur, cores_principais
         FROM clubes_perfil
         WHERE id_clube = ? OR nome = ? OR nome_oficial = ?
+        ORDER BY (id_clube = ?) DESC, (LOWER(nome) = LOWER(?)) DESC
         LIMIT 1
-    """, (clube_id, clube_info['nome'], clube_info['nome_oficial']))
+    """, (clube_id, clube_info['nome'], clube_info['nome_oficial'], clube_id, clube_info['nome']))
     row_perfil = c.fetchone()
 
     # Montar identificação sem campos fictícios (se ausente, manter None honesto)
@@ -826,21 +931,29 @@ def get_clube_detalhe(clube_id):
     tem_bed = c.fetchone() is not None
 
     # 3. Anos e Competições Disponíveis para Filtro do Clube
-    c.execute("""
+    seq_sb = ','.join('?' for _ in strings_busca)
+    c.execute(f"""
         SELECT DISTINCT ano 
         FROM partidas 
-        WHERE (mandante = ? OR visitante = ?) AND ano IS NOT NULL 
+        WHERE (LOWER(mandante) IN ({seq_sb}) OR LOWER(visitante) IN ({seq_sb})) AND ano IS NOT NULL 
         ORDER BY ano DESC
-    """, (clube_info['nome'], clube_info['nome']))
+    """, list(strings_busca) * 2)
     anos_clube = [r[0] for r in c.fetchall()]
 
-    c.execute("""
+    c.execute(f"""
         SELECT DISTINCT campeonato 
         FROM partidas 
-        WHERE (mandante = ? OR visitante = ?) AND ano = ? AND campeonato IS NOT NULL 
+        WHERE (LOWER(mandante) IN ({seq_sb}) OR LOWER(visitante) IN ({seq_sb})) AND ano = ? AND campeonato IS NOT NULL 
         ORDER BY campeonato
-    """, (clube_info['nome'], clube_info['nome'], int(ano_param) if ano_param.isdigit() else 2026))
-    comps_clube = [r[0] for r in c.fetchall()]
+    """, list(strings_busca) * 2 + [int(ano_param) if ano_param.isdigit() else 2026])
+    raw_comps_clube = [r[0] for r in c.fetchall()]
+    canon_c = ['Brasileirão Série A', 'Copa do Brasil', 'Copa Libertadores', 'Copa Sul-Americana', 'Brasileirão Série B']
+    cats_c = {_categoria_comp_canonica(x) for x in raw_comps_clube}
+    comps_clube = [cp for cp in canon_c if _categoria_comp_canonica(cp) in cats_c or any(_corresponde_campeonato_filtro(rc, cp) for rc in raw_comps_clube)]
+    for rc in raw_comps_clube:
+        if _categoria_comp_canonica(rc) not in {'brasileirao_serie_a', 'brasileirao_serie_b', 'libertadores', 'sul_americana', 'copa_do_brasil'}:
+            if rc not in comps_clube:
+                comps_clube.append(rc)
 
     # 4. Jogos e Desempenho no Recorte (Deduplicados)
     jogos_resolvidos, num_conflitos, conflitos = _obter_jogos_deduplicados_clube(
@@ -1625,8 +1738,9 @@ def get_clube_historico(clube_id):
         SELECT idolos_historicos_json, fundacao, presidente, treinador_atual, atualizado_em
         FROM clubes_perfil
         WHERE id_clube = ? OR nome = ? OR nome_oficial = ?
+        ORDER BY (id_clube = ?) DESC, (LOWER(nome) = LOWER(?)) DESC
         LIMIT 1
-    """, (clube_id, clube_info['nome'], clube_info['nome_oficial']))
+    """, (clube_id, clube_info['nome'], clube_info['nome_oficial'], clube_id, clube_info['nome']))
     row_perfil = c.fetchone()
     idolos = []
     atualizado_em_perfil = row_perfil['atualizado_em'] if row_perfil and 'atualizado_em' in row_perfil.keys() else '2026-11-05 21:12:45'
@@ -1643,53 +1757,42 @@ def get_clube_historico(clube_id):
         if idolo.get('posicao') == 'Goleiro' and ('gols' not in idolo or idolo['gols'] is None):
             idolo['gols'] = 0
 
-    # 4. Campanhas Históricas no Acervo (Ano a Ano)
-    seq = ','.join('?' for _ in strings_busca)
-    query_campanhas = f"""
-        WITH partidas_clube AS (
-            SELECT 
-                p.ano,
-                p.gols_mandante,
-                p.gols_visitante,
-                CASE WHEN LOWER(p.mandante) IN ({seq}) THEN 1 ELSE 0 END as sou_mandante
-            FROM partidas p
-            WHERE (LOWER(p.mandante) IN ({seq}) OR LOWER(p.visitante) IN ({seq}))
-              AND p.ano IS NOT NULL
-        )
-        SELECT 
-            ano,
-            COUNT(*) as jogos,
-            SUM(CASE 
-                WHEN (sou_mandante = 1 AND gols_mandante > gols_visitante) OR (sou_mandante = 0 AND gols_visitante > gols_mandante) THEN 1
-                ELSE 0 
-            END) as vitorias,
-            SUM(CASE WHEN gols_mandante = gols_visitante THEN 1 ELSE 0 END) as empates,
-            SUM(CASE 
-                WHEN (sou_mandante = 1 AND gols_mandante < gols_visitante) OR (sou_mandante = 0 AND gols_visitante < gols_mandante) THEN 1
-                ELSE 0 
-            END) as derrotas,
-            SUM(CASE WHEN sou_mandante = 1 THEN gols_mandante ELSE gols_visitante END) as gols_pro,
-            SUM(CASE WHEN sou_mandante = 1 THEN gols_visitante ELSE gols_mandante END) as gols_contra
-        FROM partidas_clube
-        GROUP BY ano
-        ORDER BY ano DESC
-    """
-    params_camp = list(strings_busca) * 3
-    rows_camp = c.execute(query_campanhas, params_camp).fetchall()
+    # 4. Campanhas Históricas no Acervo (Ano a Ano, usando exatamente a mesma deduplicação determinística)
+    jogos_hist, _, _ = _obter_jogos_deduplicados_clube(conn, clube_info['clube_id'])
+    buckets_ano = {}
+    for jh in jogos_hist:
+        y = jh.get('ano')
+        if not y or jh.get('is_agendado') or jh.get('gols_pro') is None or jh.get('gols_contra') is None:
+            continue
+        b = buckets_ano.setdefault(y, {
+            'ano': y, 'jogos': 0, 'vitorias': 0, 'empates': 0, 'derrotas': 0,
+            'gols_pro': 0, 'gols_contra': 0
+        })
+        b['jogos'] += 1
+        b['gols_pro'] += jh['gols_pro']
+        b['gols_contra'] += jh['gols_contra']
+        if jh['resultado'] == 'V':
+            b['vitorias'] += 1
+        elif jh['resultado'] == 'E':
+            b['empates'] += 1
+        elif jh['resultado'] == 'D':
+            b['derrotas'] += 1
+
     campanhas = []
-    for rc in rows_camp:
-        pts = (rc['vitorias'] * 3) + rc['empates']
-        pts_tot = rc['jogos'] * 3
+    for y in sorted(buckets_ano.keys(), reverse=True):
+        b = buckets_ano[y]
+        pts = (b['vitorias'] * 3) + b['empates']
+        pts_tot = b['jogos'] * 3
         aprov = round((pts / pts_tot) * 100, 1) if pts_tot > 0 else 0.0
         campanhas.append({
-            'ano': rc['ano'],
-            'jogos': rc['jogos'],
-            'vitorias': rc['vitorias'],
-            'empates': rc['empates'],
-            'derrotas': rc['derrotas'],
-            'gols_pro': rc['gols_pro'] or 0,
-            'gols_contra': rc['gols_contra'] or 0,
-            'saldo_gols': (rc['gols_pro'] or 0) - (rc['gols_contra'] or 0),
+            'ano': b['ano'],
+            'jogos': b['jogos'],
+            'vitorias': b['vitorias'],
+            'empates': b['empates'],
+            'derrotas': b['derrotas'],
+            'gols_pro': b['gols_pro'],
+            'gols_contra': b['gols_contra'],
+            'saldo_gols': b['gols_pro'] - b['gols_contra'],
             'pontos': pts,
             'aproveitamento_pct': aprov
         })
@@ -1752,31 +1855,18 @@ def get_clube_dossie_institucional(clube_id):
                valor_elenco_milhoes_eur, cores_principais
         FROM clubes_perfil
         WHERE id_clube = ? OR nome = ? OR nome_oficial = ?
+        ORDER BY (id_clube = ?) DESC, (LOWER(nome) = LOWER(?)) DESC
         LIMIT 1
-    """, (clube_id, clube_info['nome'], clube_info['nome_oficial']))
+    """, (clube_id, clube_info['nome'], clube_info['nome_oficial'], clube_id, clube_info['nome']))
     row_perfil = c.fetchone()
 
-    # 2. Acervo Histórico de Partidas
-    c.execute("""
-        SELECT 
-            MIN(ano) as primeiro_ano,
-            MAX(ano) as ultimo_ano,
-            COUNT(*) as total_partidas
-        FROM partidas
-        WHERE mandante = ? OR visitante = ?
-    """, (clube_info['nome'], clube_info['nome']))
-    row_acervo = c.fetchone()
-    primeiro_ano = row_acervo['primeiro_ano'] if (row_acervo and row_acervo['primeiro_ano']) else "Não catalogado"
-    ultimo_ano = row_acervo['ultimo_ano'] if (row_acervo and row_acervo['ultimo_ano']) else "Não catalogado"
-    total_partidas = row_acervo['total_partidas'] if (row_acervo and row_acervo['total_partidas']) else 0
-
-    c.execute("""
-        SELECT DISTINCT campeonato
-        FROM partidas
-        WHERE (mandante = ? OR visitante = ?) AND campeonato IS NOT NULL
-        ORDER BY campeonato
-    """, (clube_info['nome'], clube_info['nome']))
-    competicoes_cobertas = [r['campeonato'] for r in c.fetchall() if r['campeonato']]
+    # 2. Acervo Histórico de Partidas (deduplicado e canônico)
+    jogos_dossie, _, _ = _obter_jogos_deduplicados_clube(conn, clube_info['clube_id'])
+    anos_dossie = [j['ano'] for j in jogos_dossie if j.get('ano')]
+    primeiro_ano = min(anos_dossie) if anos_dossie else "Não catalogado"
+    ultimo_ano = max(anos_dossie) if anos_dossie else "Não catalogado"
+    total_partidas = len([j for j in jogos_dossie if not j.get('is_agendado')])
+    competicoes_cobertas = sorted({j['campeonato'] for j in jogos_dossie if j.get('campeonato')})
 
     # 3. Títulos / Troféus Catalogados
     titulos_catalogados = []
@@ -1999,6 +2089,9 @@ def get_clube_tendencia_tatica(clube_id):
 
     conn.close()
 
+    gols_pro_faixas = sum(v["pro"] for v in faixas_tempo.values())
+    gols_contra_faixas = sum(v["contra"] for v in faixas_tempo.values())
+
     resposta = {
         "amostra_analisada": total_analisado,
         "aviso_amostra": aviso_amostra,
@@ -2022,7 +2115,11 @@ def get_clube_tendencia_tatica(clube_id):
         },
         "distribuicao_temporal_gols": {
             "faixas": faixas_tempo,
-            "nota": "Minutos de gols catalogados conforme eventos oficiais disponíveis no acervo."
+            "gols_pro_com_minuto": gols_pro_faixas,
+            "gols_pro_total": gols_pro_total,
+            "gols_contra_com_minuto": gols_contra_faixas,
+            "gols_contra_total": gols_contra_total,
+            "nota": f"Súmulas com minuto digitalizado cobrem {gols_pro_faixas}/{gols_pro_total} gols pró e {gols_contra_faixas}/{gols_contra_total} contra no recorte."
         },
         "evolucao_por_jogo": evolucao_por_jogo,
         "mensagem_metodologica": "Tendência descritiva baseada nos últimos jogos realizados; não constitui previsão de resultados futuros nem recomendação de aposta."

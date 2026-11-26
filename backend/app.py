@@ -1020,78 +1020,83 @@ def get_times_analise_recente():
     """
     recorte = request.args.get('recorte', '10')
     campeonato = request.args.get('campeonato', '').strip()
-    ano = request.args.get('ano', '').strip()
+    ano = request.args.get('ano', '2026').strip()
     
     try:
         n_jogos = max(3, min(30, int(recorte)))
     except ValueError:
         n_jogos = 10
         
-    cache_key = f"analise_recente_{n_jogos}_{campeonato}_{ano}"
+    cache_key = f"analise_recente_v2_{n_jogos}_{campeonato}_{ano}"
     cached = api_cache.get(cache_key)
     if cached:
         return jsonify(cached)
         
     conn = get_db()
     c = conn.cursor()
-    
-    filtro_clube_sql = "WHERE 1=1"
+
+    try:
+        from backend.rotas_clubes_canonica import (
+            _obter_resolvedor_aliases,
+            _resolver_clube,
+            _obter_jogos_deduplicados_clube,
+            _corresponde_campeonato_filtro,
+        )
+    except ImportError:
+        from rotas_clubes_canonica import (
+            _obter_resolvedor_aliases,
+            _resolver_clube,
+            _obter_jogos_deduplicados_clube,
+            _corresponde_campeonato_filtro,
+        )
+
+    id_to_club, name_to_canon = _obter_resolvedor_aliases(conn)
+
+    filtro_clube_sql = "WHERE gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL"
     params_clubes = []
-    if ano:
+    if ano and ano.isdigit():
         filtro_clube_sql += " AND p.ano = ?"
         params_clubes.append(int(ano))
-    else:
-        filtro_clube_sql += " AND p.ano >= 2024"
-        
-    if campeonato:
-        filtro_clube_sql += " AND p.campeonato LIKE ?"
-        params_clubes.append(f"%{campeonato}%")
-        
-    c.execute(f"""
-        SELECT clube, COUNT(*) as total_jogos_periodo FROM (
-            SELECT mandante as clube FROM partidas p {filtro_clube_sql}
-            UNION ALL
-            SELECT visitante as clube FROM partidas p {filtro_clube_sql}
-        )
-        WHERE LENGTH(clube) > 2
-        GROUP BY clube
-        HAVING total_jogos_periodo >= 5
-        ORDER BY total_jogos_periodo DESC
-        LIMIT 40
-    """, params_clubes + params_clubes)
-    
-    clubes_ativos = [r['clube'] for r in c.fetchall()]
-    
-    if not clubes_ativos:
-        c.execute("""
-            SELECT DISTINCT mandante as clube FROM partidas WHERE ano >= 2024 AND campeonato LIKE '%Série A%'
-            LIMIT 20
-        """)
-        clubes_ativos = [r['clube'] for r in c.fetchall()]
+    elif ano != 'todos':
+        filtro_clube_sql += " AND p.ano = 2026"
+
+    rows_periodo = c.execute(f"""
+        SELECT p.mandante, p.visitante, p.campeonato
+        FROM partidas p {filtro_clube_sql}
+    """, params_clubes).fetchall()
+
+    contagem_canon = {}
+    for rp in rows_periodo:
+        if campeonato and not _corresponde_campeonato_filtro(rp['campeonato'], campeonato):
+            continue
+        for raw_c in (rp['mandante'], rp['visitante']):
+            cl_info = _resolver_clube(raw_c, id_to_club, name_to_canon)
+            if cl_info and len(cl_info['nome']) > 2:
+                cid = cl_info['clube_id']
+                contagem_canon[cid] = contagem_canon.get(cid, 0) + 1
+
+    clubes_ativos_ids = [
+        cid for cid, cnt in sorted(contagem_canon.items(), key=lambda x: x[1], reverse=True)
+        if cnt >= 5
+    ][:40]
 
     resultados_times = []
     
-    for clube in clubes_ativos:
-        sql_jogos = """
-            SELECT id_partida, ano, data, mandante, visitante, gols_mandante, gols_visitante, placar, vencedor, campeonato
-            FROM partidas
-            WHERE (mandante = ? OR visitante = ?)
-              AND gols_mandante IS NOT NULL 
-              AND gols_visitante IS NOT NULL
-        """
-        params_j = [clube, clube]
-        if campeonato:
-            sql_jogos += " AND campeonato LIKE ?"
-            params_j.append(f"%{campeonato}%")
-        if ano:
-            sql_jogos += " AND ano = ?"
-            params_j.append(int(ano))
-            
-        sql_jogos += " ORDER BY data DESC, id_partida DESC LIMIT ?"
-        params_j.append(n_jogos)
-        
-        c.execute(sql_jogos, params_j)
-        jogos_raw = [dict(r) for r in c.fetchall()]
+    for cid in clubes_ativos_ids:
+        cl_info = id_to_club.get(cid)
+        if not cl_info:
+            continue
+        clube = cl_info['nome']
+        jogos_dedup, _, _ = _obter_jogos_deduplicados_clube(
+            conn, cid,
+            ano=int(ano) if (ano and ano.isdigit()) else None,
+            campeonato=campeonato or None,
+        )
+        jogos_raw = [
+            j for j in jogos_dedup
+            if not j.get('is_agendado') and j.get('gols_pro') is not None and j.get('gols_contra') is not None
+            and (ano.isdigit() or (j.get('ano') or 0) >= 2024)
+        ][:n_jogos]
         
         if not jogos_raw:
             continue
@@ -1114,10 +1119,10 @@ def get_times_analise_recente():
         historico_recente = []
         
         for j in jogos_raw:
-            is_home = (j['mandante'] == clube)
-            gp = j['gols_mandante'] if is_home else j['gols_visitante']
-            gc = j['gols_visitante'] if is_home else j['gols_mandante']
-            adv = j['visitante'] if is_home else j['mandante']
+            is_home = (j['mando'] == 'casa')
+            gp = j['gols_pro']
+            gc = j['gols_contra']
+            adv = j['adversario_nome']
             
             gols_pro += gp
             gols_contra += gc
@@ -1162,6 +1167,7 @@ def get_times_analise_recente():
         saldo = gols_pro - gols_contra
         
         resultados_times.append({
+            "clube_id": cid,
             "clube": clube,
             "nome": clube,
             "jogos": total_j,

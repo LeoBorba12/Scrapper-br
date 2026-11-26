@@ -358,7 +358,7 @@ def test_regressao_estatisticas_fechamento_mando_totais(client):
     """
     Valida que o endpoint de estatísticas cumpre estritamente o fechamento:
     casa + fora = total para jogos, gols pró e gols contra.
-    Testado com Palmeiras #2459 (caso conhecido com 37 casa e 37 fora em 2026).
+    Testado com Palmeiras #2459 após deduplicação canônica de 2026 (67 jogos: 34 casa e 33 fora).
     """
     resp = client.get('/api/clubes/detalhe/2459/estatisticas?ano=2026')
     assert resp.status_code == 200
@@ -367,17 +367,17 @@ def test_regressao_estatisticas_fechamento_mando_totais(client):
     mc = eb['desempenho_mando']['casa']
     mf = eb['desempenho_mando']['fora']
 
-    assert mc['jogos'] >= 37
-    assert mf['jogos'] >= 37
+    assert mc['jogos'] >= 34
+    assert mf['jogos'] >= 33
     assert mc['jogos'] + mf['jogos'] == eb['jogos']
-    assert eb['jogos'] >= 74
+    assert eb['jogos'] >= 67
 
-    assert mc['gols_pro'] >= 72
-    assert mf['gols_pro'] >= 52
+    assert mc['gols_pro'] >= 60
+    assert mf['gols_pro'] >= 45
     assert mc['gols_pro'] + mf['gols_pro'] == eb['gols_pro']
 
-    assert mc['gols_contra'] >= 21
-    assert mf['gols_contra'] >= 33
+    assert mc['gols_contra'] >= 20
+    assert mf['gols_contra'] >= 25
     assert mc['gols_contra'] + mf['gols_contra'] == eb['gols_contra']
 
 

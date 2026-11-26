@@ -539,7 +539,7 @@ export default function ClubDetailView({
         </div>
 
         {/* ================= BARRA DE ABAS DO CLUBE ================= */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
           {[
             { id: 'visao-geral', label: 'Visão Geral', icon: Activity },
             { id: 'jogos', label: 'Jogos', icon: Calendar },
@@ -699,7 +699,7 @@ export default function ClubDetailView({
             </div>
 
             <div className="soft-card" style={{ padding: '14px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>Clean Sheets</div>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>Jogos s/ Sofrer Gol</div>
               <div className="font-mono tabular-nums" style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0284C7', marginTop: '2px' }}>
                 {resumo_recorte.clean_sheets}
               </div>
@@ -883,7 +883,7 @@ export default function ClubDetailView({
                           {j.mando === 'casa' ? `vs ${j.adversario_nome}` : `@ ${j.adversario_nome}`}
                         </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {j.data} • {j.campeonato} {j.rodada ? `(Rodada ${j.rodada})` : ''}
+                          {j.data} • {j.campeonato} {j.rodada ? (String(j.rodada).toLowerCase().startsWith('rodada') ? `(${j.rodada})` : `(Rodada ${j.rodada})`) : ''}
                         </div>
                       </div>
                     </div>
@@ -932,14 +932,15 @@ export default function ClubDetailView({
       {subTab === 'elenco' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div className="editorial-panel" style={{ padding: '12px 18px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginRight: '4px' }}>Setores:</span>
               {[
                 { id: 'todos', label: 'Todos', count: elencoData?.total_atletas },
                 { id: 'goleiros', label: 'Goleiros', count: elencoData?.setores?.goleiros?.length },
                 { id: 'defensores', label: 'Defensores', count: elencoData?.setores?.defensores?.length },
                 { id: 'meio_campistas', label: 'Meio-Campistas', count: elencoData?.setores?.meio_campistas?.length },
-                { id: 'atacantes', label: 'Atacantes', count: elencoData?.setores?.atacantes?.length }
+                { id: 'atacantes', label: 'Atacantes', count: elencoData?.setores?.atacantes?.length },
+                ...(elencoData?.setores?.outros?.length > 0 ? [{ id: 'outros', label: 'Posição a Confirmar', count: elencoData.setores.outros.length }] : [])
               ].map((s) => (
                 <button
                   key={s.id}
@@ -959,27 +960,444 @@ export default function ClubDetailView({
                 </button>
               ))}
             </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+              Súmulas em {ano} • {elencoData?.cobertura?.fonte_metricas || 'Súmulas Canônicas'}
+            </div>
           </div>
+
+          {elencoLoading && (
+            <div style={{ padding: '48px 24px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <RefreshCw size={28} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Consultando súmulas oficiais e agregando atletas...</div>
+            </div>
+          )}
+
+          {!elencoLoading && elencoData && (elencoData.cobertura?.escalacoes_digitalizadas === false || parseInt(ano, 10) < 2023 || elencoData.total_atletas === 0) && (
+            <div style={{ padding: '32px 24px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: 'var(--text-primary)' }}>
+                Escalações detalhadas não digitalizadas para {ano}
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                {elencoData.cobertura?.nota_recorte || 'O acervo detalhado de súmulas por jogador cobre principalmente o intervalo 2023–2026.'}
+              </p>
+            </div>
+          )}
+
+          {!elencoLoading && elencoData && elencoData.total_atletas > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {['goleiros', 'defensores', 'meio_campistas', 'atacantes', 'outros']
+                .filter(s => setorFiltro === 'todos' || setorFiltro === s)
+                .map((setorKey) => {
+                  const listaAtletas = elencoData.setores?.[setorKey] || [];
+                  if (listaAtletas.length === 0) return null;
+                  const titulosSetores = {
+                    goleiros: 'Goleiros',
+                    defensores: 'Defensores (Zagueiros e Laterais)',
+                    meio_campistas: 'Meio-Campistas (Volantes e Meias)',
+                    atacantes: 'Atacantes e Pontas',
+                    outros: 'Atletas com Posição a Confirmar'
+                  };
+                  return (
+                    <div key={setorKey} style={{ backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                      <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>{titulosSetores[setorKey]}</h4>
+                        <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          {listaAtletas.length} {listaAtletas.length === 1 ? 'atleta' : 'atletas'}
+                        </span>
+                      </div>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                              <th style={{ padding: '8px 12px', width: '44px', textAlign: 'center' }}>Nº</th>
+                              <th style={{ padding: '8px 14px' }}>Atleta</th>
+                              <th style={{ padding: '8px 12px' }}>Posição</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Jogos</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Titular</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center', color: 'var(--text-muted)' }}>Banco</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center', color: '#15803D' }}>Gols</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center', color: 'var(--accent)' }}>Ast</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>Cartões</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {listaAtletas.map((a, idx) => (
+                              <tr key={`${setorKey}-${a.id_jogador || a.atleta}-${idx}`} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                                <td className="font-mono" style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                  {a.num_camisa ? `#${a.num_camisa}` : '—'}
+                                </td>
+                                <td style={{ padding: '10px 14px' }}>
+                                  <div
+                                    onClick={() => { if (a.id_jogador && onSelectJogador) onSelectJogador(a.atleta, a.id_jogador); }}
+                                    style={{ cursor: a.id_jogador ? 'pointer' : 'default', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                                  >
+                                    <strong style={{ color: a.id_jogador ? 'var(--accent)' : 'var(--text-primary)' }}>{a.atleta}</strong>
+                                    {a.id_jogador && <ExternalLink size={11} color="var(--accent)" />}
+                                  </div>
+                                  {a.nota_participacao && (
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>{a.nota_participacao}</div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '10px 12px', color: 'var(--text-primary)' }}>{a.posicao}</td>
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600 }}>
+                                  {a.jogos_disputados != null ? a.jogos_disputados : a.jogos}
+                                </td>
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', color: 'var(--text-secondary)' }}>{a.titularidades}</td>
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', color: 'var(--text-muted)' }}>{a.reservas}</td>
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 700, color: a.gols > 0 ? '#15803D' : 'var(--text-muted)' }}>{a.gols}</td>
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontWeight: 600, color: a.assistencias > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                                  {a.assistencias != null ? a.assistencias : '—'}
+                                </td>
+                                <td className="font-mono" style={{ padding: '10px 10px', textAlign: 'center', fontSize: '0.76rem' }}>
+                                  {a.cartoes_amarelos != null || a.cartoes_vermelhos != null ? (
+                                    <span>
+                                      {a.cartoes_amarelos > 0 && <span style={{ color: '#CA8A04', marginRight: '6px' }}>🟨 {a.cartoes_amarelos}</span>}
+                                      {a.cartoes_vermelhos > 0 && <span style={{ color: '#DC2626' }}>🟥 {a.cartoes_vermelhos}</span>}
+                                      {!a.cartoes_amarelos && !a.cartoes_vermelhos && <span style={{ color: 'var(--text-muted)' }}>0</span>}
+                                    </span>
+                                  ) : '—'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
 
       {/* ================= ABA 4: ESTATÍSTICAS ================= */}
       {subTab === 'estatisticas' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>Estatísticas Agregadas</h3>
-          </div>
+          {estatisticasLoading && (
+            <div style={{ padding: '48px 24px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <RefreshCw size={28} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Calculando distribuição temporal e scouts...</div>
+            </div>
+          )}
+
+          {!estatisticasLoading && estatisticasData && (
+            <>
+              <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BarChart3 size={17} color="var(--accent)" /> Desempenho e Força de Mando
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                  {[
+                    { titulo: 'EM CASA (MANDANTE)', cor: '#15803D', dados: estatisticasData.estatisticas_basicas.desempenho_mando.casa },
+                    { titulo: 'FORA DE CASA (VISITANTE)', cor: 'var(--accent)', dados: estatisticasData.estatisticas_basicas.desempenho_mando.fora }
+                  ].map((bloco) => (
+                    <div key={bloco.titulo} style={{ padding: '16px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: bloco.cor }}>{bloco.titulo}</span>
+                        <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{bloco.dados.jogos} jogos</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Gols Marcados</div>
+                          <div className="font-mono tabular-nums" style={{ fontSize: '1.4rem', fontWeight: 700, color: '#15803D' }}>{bloco.dados.gols_pro}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Méd: {bloco.dados.media_gols_pro}/jogo</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Gols Sofridos</div>
+                          <div className="font-mono tabular-nums" style={{ fontSize: '1.4rem', fontWeight: 700, color: '#DC2626' }}>{bloco.dados.gols_contra}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Méd: {bloco.dados.media_gols_contra}/jogo</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
+                <h3 style={{ margin: '0 0 14px 0', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={17} color="var(--accent)" /> Distribuição Temporal dos Gols no Recorte
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '10px' }}>
+                  {[
+                    { key: '0_15', label: "0'–15'" },
+                    { key: '16_30', label: "16'–30'" },
+                    { key: '31_45', label: "31'–45'" },
+                    { key: '46_60', label: "46'–60'" },
+                    { key: '61_75', label: "61'–75'" },
+                    { key: '76_90', label: "76'–90'" },
+                    { key: 'acrescimos', label: 'Acrésc.' }
+                  ].map((f) => {
+                    const gm = estatisticasData.estatisticas_basicas.distribuicao_gols_temporais.gols_marcados || {};
+                    const gs = estatisticasData.estatisticas_basicas.distribuicao_gols_temporais.gols_sofridos || {};
+                    const gp = f.key === 'acrescimos' ? ((gm.acrescimos_1t || 0) + (gm.acrescimos_2t || 0) + (gm.prorrogacao || 0)) : (gm[f.key] || 0);
+                    const gc = f.key === 'acrescimos' ? ((gs.acrescimos_1t || 0) + (gs.acrescimos_2t || 0) + (gs.prorrogacao || 0)) : (gs[f.key] || 0);
+                    return (
+                      <div key={f.key} style={{ padding: '12px 8px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>{f.label}</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}>
+                          <span className="font-mono tabular-nums" style={{ fontSize: '1rem', fontWeight: 700, color: '#15803D' }}>{gp}</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>:</span>
+                          <span className="font-mono tabular-nums" style={{ fontSize: '1rem', fontWeight: 700, color: '#DC2626' }}>{gc}</span>
+                        </div>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', marginTop: '4px' }}>Pró : Contra</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {(() => {
+                  const faixasValidas = ['0_15', '16_30', '31_45', '46_60', '61_75', '76_90', 'acrescimos_1t', 'acrescimos_2t', 'prorrogacao'];
+                  const gpDist = estatisticasData.estatisticas_basicas?.distribuicao_gols_temporais?.gols_marcados || {};
+                  const gcDist = estatisticasData.estatisticas_basicas?.distribuicao_gols_temporais?.gols_sofridos || {};
+                  const gpMin = faixasValidas.reduce((acc, k) => acc + (gpDist[k] || 0), 0);
+                  const gcMin = faixasValidas.reduce((acc, k) => acc + (gcDist[k] || 0), 0);
+                  return (
+                    <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: 'var(--radius-card)', backgroundColor: 'var(--surface-card)', border: '1px solid var(--border-subtle)', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>Cobertura de Minutos no Recorte:</strong> Súmulas com minuto digitalizado cobrem {gpMin} de {estatisticasData.estatisticas_basicas?.gols_pro ?? 0} gols pró e {gcMin} de {estatisticasData.estatisticas_basicas?.gols_contra ?? 0} sofridos.
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {estatisticasData.metricas_avancadas_bed && (
+                <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--accent)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Sparkles size={18} color="var(--accent)" />
+                      <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Indicadores Avançados • Brasileirão em Dados 2026
+                      </h3>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Fonte: {estatisticasData.metricas_avancadas_bed.fonte}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                    <div style={{ padding: '14px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>xG por Partida</div>
+                      <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 700, color: '#15803D' }}>
+                        {(estatisticasData.metricas_avancadas_bed.xg / (estatisticasData.metricas_avancadas_bed.jogos || 1)).toFixed(2)}
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>xGA por Partida</div>
+                      <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 700, color: '#DC2626' }}>
+                        {(estatisticasData.metricas_avancadas_bed.xg_contra / (estatisticasData.metricas_avancadas_bed.jogos || 1)).toFixed(2)}
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Posse Média</div>
+                      <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {estatisticasData.metricas_avancadas_bed.posse_pct}%
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Intensidade PPDA</div>
+                      <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--accent)' }}>
+                        {estatisticasData.metricas_avancadas_bed.ppda?.toFixed(1) || '—'}
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Linha Defensiva</div>
+                      <div className="font-mono tabular-nums" style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {estatisticasData.metricas_avancadas_bed.altura_defensiva ? `${estatisticasData.metricas_avancadas_bed.altura_defensiva}m` : '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
       {/* ================= ABA 5: HISTÓRICO & TÍTULOS ================= */}
       {subTab === 'historico' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Vitrine de Títulos e Acervo Histórico
-            </h3>
-          </div>
+          {historicoLoading && (
+            <div style={{ padding: '48px 24px', textAlign: 'center', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)' }}>
+              <RefreshCw size={28} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>Consultando acervo histórico e galeria de títulos...</div>
+            </div>
+          )}
+
+          {!historicoLoading && historicoData && (
+            <>
+              <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Trophy size={18} color="var(--accent)" />
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Vitrine de Títulos Oficiais ({historicoData.trofeus?.reduce((acc, t) => acc + (t.quantidade || 0), 0) || 0} conquistas)
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setModoVitrine3D(!modoVitrine3D)}
+                    className="touch-tactile"
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 'var(--radius-control)',
+                      border: '1px solid var(--accent)',
+                      backgroundColor: modoVitrine3D ? 'var(--accent)' : 'var(--surface-raised)',
+                      color: modoVitrine3D ? '#FFFFFF' : 'var(--text-primary)',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Box size={14} />
+                    <span>{modoVitrine3D ? 'Ver Lista de Títulos' : 'Visualizador 3D (WebGL)'}</span>
+                  </button>
+                </div>
+
+                {modoVitrine3D ? (
+                  <React.Suspense fallback={<div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Carregando visualizador 3D...</div>}>
+                    <TrophyGallery3D clube={identificacao.nome} />
+                  </React.Suspense>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                    {historicoData.trofeus?.length === 0 ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem', gridColumn: '1 / -1' }}>
+                        Nenhum título documentado na vitrine oficial para esta agremiação.
+                      </div>
+                    ) : (
+                      historicoData.trofeus.map((t, idx) => (
+                        <div key={idx} style={{ padding: '14px', backgroundColor: 'var(--surface-card)', borderRadius: 'var(--radius-card)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'rgba(234, 179, 8, 0.12)', border: '1px solid #CA8A04', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Trophy size={20} color="#CA8A04" />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
+                              <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{t.torneio}</strong>
+                              <span className="font-mono tabular-nums" style={{ fontSize: '0.95rem', fontWeight: 700, color: '#CA8A04' }}>{t.quantidade}x</span>
+                            </div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
+                              {t.anos_conquistados || 'Anos a confirmar'}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Flame size={17} color="var(--accent)" /> Maiores Artilheiros no Acervo
+                    </h3>
+                    <span style={{ fontSize: '0.68rem', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(21, 128, 61, 0.12)', color: '#15803D', fontWeight: 600 }}>
+                      {historicoData?.metadados_artilheiros_acervo?.cobertura_temporal || 'Súmulas Digitais'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {historicoData.maiores_artilheiros?.map((art, idx) => (
+                      <div key={idx} style={{ padding: '10px 14px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-card)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span className="font-mono" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', width: '20px' }}>#{idx + 1}</span>
+                          <div>
+                            <div
+                              onClick={() => { if (art.id_jogador && onSelectJogador) onSelectJogador(art.atleta, art.id_jogador); }}
+                              style={{ cursor: art.id_jogador ? 'pointer' : 'default', fontSize: '0.86rem', fontWeight: 600, color: art.id_jogador ? 'var(--accent)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <span>{art.atleta}</span>
+                              {art.id_jogador && <ExternalLink size={11} />}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              {art.ano_inicio && art.ano_fim ? `De ${art.ano_inicio} a ${art.ano_fim}` : 'Período catalogado'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="font-mono tabular-nums" style={{ fontSize: '1rem', fontWeight: 700, color: '#15803D' }}>
+                          {art.total_gols} {art.total_gols === 1 ? 'gol' : 'gols'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Award size={17} color="var(--accent)" /> Ídolos e Lendas Catalogados
+                    </h3>
+                  </div>
+                  {historicoData.idolos_historicos?.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.84rem' }}>
+                      Nenhum perfil de ídolo catalogado individualmente no momento.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {historicoData.idolos_historicos.map((idolo, idx) => (
+                        <div key={idx} style={{ padding: '10px 14px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-card)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>{idolo.nome}</strong>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>{idolo.posicao} • {idolo.periodo}</div>
+                          </div>
+                          <span className="font-mono" style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {idolo.jogos ? `${idolo.jogos}j` : ''} {idolo.posicao === 'Goleiro' ? '• 0g' : (idolo.gols != null ? `• ${idolo.gols}g` : '')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="editorial-panel" style={{ padding: '20px', backgroundColor: 'var(--surface-panel)', borderRadius: 'var(--radius-panel)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Calendar size={17} color="var(--accent)" /> Campanhas Ano a Ano no Acervo ({historicoData.campanhas_historicas?.length || 0} temporadas)
+                  </h3>
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                        <th style={{ padding: '8px 12px' }}>Temporada</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>J</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>V</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>E</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>D</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>GP</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>GC</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>SG</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center' }}>Pts</th>
+                        <th style={{ padding: '8px 14px', textAlign: 'right' }}>Aprov.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historicoData.campanhas_historicas?.slice((campanhasPage - 1) * 15, campanhasPage * 15).map((c) => (
+                        <tr key={c.ano} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                          <td className="font-mono" style={{ padding: '8px 12px', fontWeight: 700, color: 'var(--text-primary)' }}>{c.ano}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{c.jogos}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center', color: '#15803D' }}>{c.vitorias}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{c.empates}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center', color: '#DC2626' }}>{c.derrotas}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{c.gols_pro}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center' }}>{c.gols_contra}</td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center', color: c.saldo_gols > 0 ? '#15803D' : (c.saldo_gols < 0 ? '#DC2626' : 'inherit') }}>
+                            {c.saldo_gols > 0 ? `+${c.saldo_gols}` : c.saldo_gols}
+                          </td>
+                          <td className="font-mono" style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--accent)' }}>{c.pontos}</td>
+                          <td className="font-mono" style={{ padding: '8px 14px', textAlign: 'right', fontWeight: 700 }}>{c.aproveitamento_pct.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {historicoData.campanhas_historicas?.length > 15 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-subtle)' }}>
+                    <button disabled={campanhasPage <= 1} onClick={() => setCampanhasPage(p => Math.max(1, p - 1))} className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.78rem' }}>Anterior</button>
+                    <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Página {campanhasPage} de {Math.ceil(historicoData.campanhas_historicas.length / 15)}</span>
+                    <button disabled={campanhasPage >= Math.ceil(historicoData.campanhas_historicas.length / 15)} onClick={() => setCampanhasPage(p => Math.min(Math.ceil(historicoData.campanhas_historicas.length / 15), p + 1))} className="btn-secondary" style={{ padding: '4px 10px', fontSize: '0.78rem' }}>Próxima</button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -1347,6 +1765,11 @@ export default function ClubDetailView({
                       );
                     })}
                   </div>
+                  {tendenciaData?.distribuicao_temporal_gols?.nota && (
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}>
+                      ℹ️ {tendenciaData.distribuicao_temporal_gols.nota}
+                    </div>
+                  )}
                 </div>
               )}
 
