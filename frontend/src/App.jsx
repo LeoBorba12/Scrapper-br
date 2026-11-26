@@ -615,7 +615,7 @@ export default function App() {
   const carregarRanking = (tipo = 'carreira') => {
     setActiveRankingTab(tipo);
     setRankingLoading(true);
-    apiFetch(`/api/jogadores/ranking?tipo=${tipo}&limit=15`)
+    apiFetch(`/api/jogadores/ranking?tipo=${tipo}&limit=20`)
       .then(r => r.json())
       .then(d => {
         setRankingData(Array.isArray(d) ? d : []);
@@ -1482,7 +1482,7 @@ export default function App() {
                   <span className="badge badge-blue">Code Interpreter Real</span>
                 </div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '6px', maxWidth: '780px' }}>
-                  Pergunte qualquer curiosidade inusitada, mito ou correlação histórica. O modelo gera e executa queries SQL no banco de <strong>115.753 partidas</strong> e <strong>117.523 gols</strong> para trazer a verdade estatística.
+                  Pergunte qualquer curiosidade inusitada, mito ou correlação histórica. O modelo gera e executa queries SQL no banco de <strong>{overview?.total_partidas?.toLocaleString('pt-BR') || '115.257'} partidas</strong> e <strong>{overview?.total_gols?.toLocaleString('pt-BR') || '117.529'} gols</strong> para trazer a verdade estatística.
                 </p>
               </div>
 
@@ -1570,7 +1570,7 @@ export default function App() {
               <RefreshCw size={36} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 16px' }} />
               <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>O Oráculo está pesquisando no banco...</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
-                Traduzindo sua pergunta para SQL, consultando 115.753 partidas e gerando o insight.
+                Traduzindo sua pergunta para SQL, consultando {overview?.total_partidas?.toLocaleString('pt-BR') || '115.257'} partidas e gerando o insight.
               </p>
             </div>
           )}
@@ -1617,7 +1617,7 @@ export default function App() {
                 )}
 
                 {/* CARD DE TWEET PRONTO PARA POSTAR */}
-                {oraculoResult.tweet && (
+                {oraculoResult.tweet && (oraculoResult.total_registros || 0) > 0 && (
                   <div style={{ padding: '16px', backgroundColor: 'var(--surface-hover)', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ flex: 1, minWidth: '280px' }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2098,7 +2098,7 @@ export default function App() {
                    `🎯 Entrada: Over 1.5 Gols @ 1.42\n\n` +
                    `📊 Probabilidade FutStats: 78.5%\n` +
                    `📈 Valor Esperado: +11.4% de margem positiva\n` +
-                   `💰 Stake Recomendada (1/4 Kelly): 4.5% da banca`}
+                   `💰 Stake Recomendada (1/4 Kelly): 6.8% da banca`}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
@@ -2110,7 +2110,7 @@ export default function App() {
                     `⚽ Flamengo x Palmeiras\n` +
                     `🎯 Entrada: Over 1.5 Gols @ 1.42\n` +
                     `📊 Probabilidade FutStats: 78.5% | Valor: +11.4%\n` +
-                    `💰 Stake Sugerida: 4.5% (1/4 Kelly)\n\n#ApostasEsportivas #FutStats #Quant`,
+                    `💰 Stake Sugerida: 6.8% (1/4 Kelly)\n\n#ApostasEsportivas #FutStats #Quant`,
                     'tweet-ev'
                   )}
                 >
@@ -2125,7 +2125,7 @@ export default function App() {
                     odd: 1.42,
                     probFutstats: '78.5%',
                     ev: '+11.4%',
-                    stakeKelly: '4.5%',
+                    stakeKelly: '6.8%',
                     torneio: 'Brasileirão Série A'
                   })}
                   className="btn-secondary touch-tactile"
@@ -2381,7 +2381,7 @@ export default function App() {
           FutStats & Clima • Feito com <strong style={{ color: 'var(--text-primary)' }}>Arquitetura Editorial 2026</strong>
         </div>
         <div className="font-mono">
-          {overview?.total_partidas?.toLocaleString('pt-BR') || '115.753'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '117.523'} gols catalogados • 12 capitais climáticas
+          {overview?.total_partidas?.toLocaleString('pt-BR') || '115.257'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '117.529'} gols catalogados • 12 capitais climáticas
         </div>
       </footer>
 

@@ -219,7 +219,7 @@ def executar_query_segura(sql):
     if statements:
         cleaned_sql = statements[0]
 
-    upper_sql = cleaned_sql.upper().strip()
+    upper_sql = cleaned_sql.lstrip(" \t\r\n(").upper()
     if not (upper_sql.startswith("SELECT") or upper_sql.startswith("WITH")):
         raise ValueError("Apenas consultas do tipo SELECT ou WITH (somente-leitura) são permitidas.")
 
@@ -1036,8 +1036,18 @@ LIMIT 15;
                 "tweet": tweet,
                 "conclusao": f"Flamengo tem {pct}% de vitórias em temporais."
             }
-        except Exception:
-            pass
+        except Exception as clima_err:
+            return {
+                "pergunta": pergunta,
+                "modelo_usado": "Diagnóstico (Meteorologia INMET)",
+                "sql_executado": sql.strip(),
+                "colunas": ["Aviso"],
+                "dados": [{"Aviso": "Base meteorológica INMET (clima_diario) indisponível neste ambiente."}],
+                "total_registros": 0,
+                "insight": "A base meteorológica histórica (clima_diario) não está anexada neste ambiente de execução.",
+                "tweet": "",
+                "conclusao": "Consulta meteorológica indisponível sem clima_diario."
+            }
 
     # 3. Série B maiores artilheiros
     if "série b" in p or "serie b" in p:

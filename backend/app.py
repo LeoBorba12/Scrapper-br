@@ -1798,7 +1798,21 @@ TREINADORES_CATALOGO = {
         "palmares": {"mundial": 0, "libertadores": 2, "brasileirao": 2, "copa_do_brasil": 1, "estaduais": 3, "outros": 2},
         "titulos_destaque": ["Bicampeão da Libertadores (2020, 2021)", "Bicampeão Brasileiro (2022, 2023)", "Copa do Brasil (2020)", "Tricampeão Paulista (2022, 2023, 2024)"],
         "radar": {"ofensividade": 84, "solidez_defensiva": 92, "gestao_vestiario": 96, "decisividade_copas": 95, "longevidade": 88},
-        "busca_aliases": ["abel ferreira", "a. ferreira", "abel"]
+        "busca_aliases": ["abel ferreira", "a. moreira ferreira"]
+    },
+    "filipe_luis": {
+        "slug": "filipe_luis",
+        "nome": "Filipe Luís",
+        "apelido": "O Estrategista",
+        "clubes_principais": ["Flamengo"],
+        "nacionalidade": "Brasil",
+        "jogos_carreira": 45,
+        "aproveitamento": 70.3,
+        "estilo_tatico": "Construção Apoiada, Pressão Pós-Perda e Controle Territorial",
+        "palmares": {"mundial": 0, "libertadores": 0, "brasileirao": 0, "copa_do_brasil": 1, "estaduais": 1, "outros": 1},
+        "titulos_destaque": ["Copa do Brasil (2024)", "Supercopa do Brasil (2025)", "Campeonato Carioca (2025)"],
+        "radar": {"ofensividade": 88, "solidez_defensiva": 86, "gestao_vestiario": 92, "decisividade_copas": 89, "longevidade": 60},
+        "busca_aliases": ["filipe luis", "filipe luís"]
     },
     "jorge_jesus": {
         "slug": "jorge_jesus",
@@ -2137,62 +2151,71 @@ def get_partidas():
 def get_clima_futebol():
     conn = get_db()
     c = conn.cursor()
-    
-    # Cruzamento de partidas 2015-2024 com dados meteorológicos do clima_diario
-    # Fix: Join estrito por cidade para evitar produto cartesiano e contaminação do interior
-    c.execute("""
-        SELECT 
-            CASE WHEN c.precipitacao_mm > 5 THEN 'Com Chuva' ELSE 'Tempo Seco' END as cond_chuva,
-            COUNT(*) as total_jogos,
-            ROUND(AVG(p.gols_mandante + p.gols_visitante), 2) as media_gols,
-            ROUND(AVG(p.gols_mandante), 2) as media_mandante,
-            ROUND(AVG(p.gols_visitante), 2) as media_visitante,
-            ROUND(SUM(CASE WHEN p.vencedor = p.mandante THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as pct_vit_mandante
-        FROM partidas p
-        JOIN clima.clima_diario c 
-          ON p.data = c.data 
-         AND LOWER(p.cidade) = LOWER(c.cidade)
-        WHERE p.ano >= 2015
-        GROUP BY cond_chuva;
-    """)
-    res_chuva = [dict(row) for row in c.fetchall()]
-    
-    # Distribuição por temperatura
-    c.execute("""
-        SELECT 
-            CASE 
-                WHEN c.temperatura_media < 19 THEN 'Frio (< 19°C)'
-                WHEN c.temperatura_media BETWEEN 19 AND 27 THEN 'Ameno (19°C - 27°C)'
-                ELSE 'Calor Intenso (> 27°C)'
-            END as faixa_temp,
-            COUNT(*) as total_jogos,
-            ROUND(AVG(p.gols_mandante + p.gols_visitante), 2) as media_gols
-        FROM partidas p
-        JOIN clima.clima_diario c 
-          ON p.data = c.data 
-         AND LOWER(p.cidade) = LOWER(c.cidade)
-        WHERE p.ano >= 2015 AND c.temperatura_media IS NOT NULL
-        GROUP BY faixa_temp
-        ORDER BY media_gols DESC;
-    """)
-    res_temp = [dict(row) for row in c.fetchall()]
 
-    # Top 5 jogos com chuva torrencial
-    c.execute("""
-        SELECT p.data, p.mandante, p.visitante, p.placar, p.cidade, p.campeonato, 
-               c.precipitacao_mm, c.temperatura_media
-        FROM partidas p
-        JOIN clima.clima_diario c 
-          ON p.data = c.data 
-         AND LOWER(p.cidade) = LOWER(c.cidade)
-        WHERE p.ano >= 2015 AND c.precipitacao_mm > 30
-        ORDER BY c.precipitacao_mm DESC
-        LIMIT 5;
-    """)
-    top_chuva = [dict(row) for row in c.fetchall()]
-    
+    try:
+        # Cruzamento de partidas 2015-2024 com dados meteorológicos do clima_diario
+        # Fix: Join estrito por cidade para evitar produto cartesiano e contaminação do interior
+        c.execute("""
+            SELECT 
+                CASE WHEN c.precipitacao_mm > 5 THEN 'Com Chuva' ELSE 'Tempo Seco' END as cond_chuva,
+                COUNT(*) as total_jogos,
+                ROUND(AVG(p.gols_mandante + p.gols_visitante), 2) as media_gols,
+                ROUND(AVG(p.gols_mandante), 2) as media_mandante,
+                ROUND(AVG(p.gols_visitante), 2) as media_visitante,
+                ROUND(SUM(CASE WHEN p.vencedor = p.mandante THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as pct_vit_mandante
+            FROM partidas p
+            JOIN clima.clima_diario c 
+              ON p.data = c.data 
+             AND LOWER(p.cidade) = LOWER(c.cidade)
+            WHERE p.ano >= 2015
+            GROUP BY cond_chuva;
+        """)
+        res_chuva = [dict(row) for row in c.fetchall()]
+
+        # Distribuição por temperatura
+        c.execute("""
+            SELECT 
+                CASE 
+                    WHEN c.temperatura_media < 19 THEN 'Frio (< 19°C)'
+                    WHEN c.temperatura_media BETWEEN 19 AND 27 THEN 'Ameno (19°C - 27°C)'
+                    ELSE 'Calor Intenso (> 27°C)'
+                END as faixa_temp,
+                COUNT(*) as total_jogos,
+                ROUND(AVG(p.gols_mandante + p.gols_visitante), 2) as media_gols
+            FROM partidas p
+            JOIN clima.clima_diario c 
+              ON p.data = c.data 
+             AND LOWER(p.cidade) = LOWER(c.cidade)
+            WHERE p.ano >= 2015 AND c.temperatura_media IS NOT NULL
+            GROUP BY faixa_temp
+            ORDER BY media_gols DESC;
+        """)
+        res_temp = [dict(row) for row in c.fetchall()]
+
+        # Top 5 jogos com chuva torrencial
+        c.execute("""
+            SELECT p.data, p.mandante, p.visitante, p.placar, p.cidade, p.campeonato, 
+                   c.precipitacao_mm, c.temperatura_media
+            FROM partidas p
+            JOIN clima.clima_diario c 
+              ON p.data = c.data 
+             AND LOWER(p.cidade) = LOWER(c.cidade)
+            WHERE p.ano >= 2015 AND c.precipitacao_mm > 30
+            ORDER BY c.precipitacao_mm DESC
+            LIMIT 5;
+        """)
+        top_chuva = [dict(row) for row in c.fetchall()]
+    except sqlite3.OperationalError:
+        conn.close()
+        return jsonify({
+            "impacto_chuva": [],
+            "impacto_temperatura": [],
+            "jogos_chuva_extrema": [],
+            "aviso": "Base meteorológica INMET (clima_diario) indisponível neste ambiente."
+        }), 200
+
     conn.close()
-    
+
     return jsonify({
         "impacto_chuva": res_chuva,
         "impacto_temperatura": res_temp,
@@ -3495,9 +3518,9 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
         "amarelos": amarelos,
         "vermelhos": vermelhos,
         "jogos_registrados": total_jogos,
-        "aproveitamento_pontos": aproveitamento_calc if is_filtro_camp else stats_meta.get('aproveitamento_pontos', 0.0),
-        "jogos_titular": len([p for p in partidas_ordenadas if p.get('escalacao') and p['escalacao'].get('titular')]) if is_filtro_camp else stats_meta.get('jogos_titular', 0),
-        "jogos_reserva": len([p for p in partidas_ordenadas if p.get('escalacao') and not p['escalacao'].get('titular')]) if is_filtro_camp else stats_meta.get('jogos_reserva', 0),
+        "aproveitamento_pontos": aproveitamento_calc if (is_filtro_camp or not stats_meta.get('aproveitamento_pontos')) else stats_meta.get('aproveitamento_pontos', 0.0),
+        "jogos_titular": len([p for p in partidas_ordenadas if p.get('escalacao') and p['escalacao'].get('titular')]) if (is_filtro_camp or not stats_meta.get('jogos_titular')) else stats_meta.get('jogos_titular', 0),
+        "jogos_reserva": len([p for p in partidas_ordenadas if p.get('escalacao') and not p['escalacao'].get('titular')]) if (is_filtro_camp or not stats_meta.get('jogos_reserva')) else stats_meta.get('jogos_reserva', 0),
         "jogos_capitao": stats_meta.get('jogos_capitao', 0),
         "chutes_ao_gol": stats_meta.get('chutes_ao_gol', 0),
         "finalizacoes_totais": stats_meta.get('finalizacoes_totais', 0),
@@ -3625,7 +3648,15 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     chutes_tot = stats_meta.get('finalizacoes_totais') or 0
     chutes_alvo = stats_meta.get('chutes_ao_gol') or 0
 
-    if s_row and s_row["perfil_clinico"] and not is_filtro_camp and not clube_filtro:
+    # Usar s_row (Sofascore temporada) apenas se compatível com a escala de gols_calc;
+    # caso contrário, calcular xG proporcional à carreira para evitar distorção xG/chute.
+    if (
+        s_row
+        and s_row["perfil_clinico"]
+        and not is_filtro_camp
+        and not clube_filtro
+        and gols_calc <= max(float(s_row["xg_acumulado"] or 0.0) * 2.5, 40.0)
+    ):
         xg_acumulado = round(float(s_row["xg_acumulado"] or 0.0), 1)
         npxg_acumulado = round(float(s_row["npxg_acumulado"] or 0.0), 1)
         delta_xg = round(float(s_row["delta_xg"] or 0.0), 1)
@@ -5977,7 +6008,7 @@ def get_apostas_jogadores():
         gols = r['total_gols'] or 0
 
         # Calibração Bayesiana de taxa de gols por partida (prior 0.22, peso 10)
-        taxa_gols_calibrada = min(0.72, max(0.06, (gols + 2.2) / (jogos + 10)))
+        taxa_gols_calibrada = min(0.92, max(0.06, (gols + 2.2) / (jogos + 10)))
         p_gol = round((1.0 - math.exp(-taxa_gols_calibrada)) * 100, 1)
         fair_odd_gol = round(100.0 / p_gol, 2) if p_gol > 0 else 99.0
         odd_casa_estimada = round(fair_odd_gol * 0.90, 2)
@@ -6010,7 +6041,7 @@ def get_apostas_jogadores():
             'id_jogador': r['id_jogador'],
             'nome': r['nome_exibicao'] or r['apelido'],
             'posicao': r['posicao'] or 'Jogador',
-            'clube_atual': (r['clubes'] or '').split(',')[-1].strip(),
+            'clube_atual': (r['clubes'] or '').split(',')[0].strip(),
             'total_jogos': jogos,
             'total_gols': gols,
             'media_gols_por_jogo': round(gols / jogos, 2),

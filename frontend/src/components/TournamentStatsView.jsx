@@ -393,14 +393,16 @@ export default function TournamentStatsView({ darkMode }) {
                       campoSecundario="gols"
                       rotuloSecundario="Gols"
                     />
-                    <CardAtletaRanking
-                      titulo="Chutes Totais"
-                      atletas={lideres.chutes || []}
-                      campoPrincipal="chutes_totais"
-                      rotuloPrincipal="Chutes"
-                      campoSecundario="chutes_gol"
-                      rotuloSecundario="No Gol"
-                    />
+                    {(lideres.chutes || []).some(a => (a.chutes_totais || 0) > 0) && (
+                      <CardAtletaRanking
+                        titulo="Chutes Totais"
+                        atletas={lideres.chutes || []}
+                        campoPrincipal="chutes_totais"
+                        rotuloPrincipal="Chutes"
+                        campoSecundario="chutes_gol"
+                        rotuloSecundario="No Gol"
+                      />
+                    )}
                   </>
                 )}
 
@@ -434,24 +436,30 @@ export default function TournamentStatsView({ darkMode }) {
                 )}
 
                 {subAbaJogadores === 'defesa' && (
-                  <>
-                    <CardAtletaRanking
-                      titulo="Desarmes Ganhos"
-                      atletas={lideres.desarmes || []}
-                      campoPrincipal="desarmes_ganhos"
-                      rotuloPrincipal="Desarmes"
-                      campoSecundario="interceptacoes"
-                      rotuloSecundario="Intercep."
-                    />
-                    <CardAtletaRanking
-                      titulo="Interceptações"
-                      atletas={(lideres.desarmes || []).map(a => ({ ...a, val: a.interceptacoes }))}
-                      campoPrincipal="interceptacoes"
-                      rotuloPrincipal="Intercep."
-                      campoSecundario="desarmes_ganhos"
-                      rotuloSecundario="Desarmes"
-                    />
-                  </>
+                  (lideres.desarmes || []).some(a => (a.desarmes_ganhos || 0) > 0 || (a.interceptacoes || 0) > 0) ? (
+                    <>
+                      <CardAtletaRanking
+                        titulo="Desarmes Ganhos"
+                        atletas={lideres.desarmes || []}
+                        campoPrincipal="desarmes_ganhos"
+                        rotuloPrincipal="Desarmes"
+                        campoSecundario="interceptacoes"
+                        rotuloSecundario="Intercep."
+                      />
+                      <CardAtletaRanking
+                        titulo="Interceptações"
+                        atletas={(lideres.desarmes || []).map(a => ({ ...a, val: a.interceptacoes }))}
+                        campoPrincipal="interceptacoes"
+                        rotuloPrincipal="Intercep."
+                        campoSecundario="desarmes_ganhos"
+                        rotuloSecundario="Desarmes"
+                      />
+                    </>
+                  ) : (
+                    <div className="editorial-panel" style={{ gridColumn: '1 / -1', padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Telemetria defensiva detalhada (desarmes e interceptações individuais) indisponível para esta edição no acervo atual.
+                    </div>
+                  )
                 )}
 
                 {subAbaJogadores === 'goleiros' && (

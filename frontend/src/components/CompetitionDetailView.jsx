@@ -112,7 +112,7 @@ export default function CompetitionDetailView({ darkMode }) {
               Página de Competições & Edições Históricas
             </h1>
             <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', maxWidth: '780px', lineHeight: 1.55, margin: 0 }}>
-              Classificação oficial calculada diretamente das 115.753 partidas, artilharia por edição, estatísticas coletivas de mando e maiores jogos da história do futebol brasileiro.
+              Classificação oficial calculada diretamente das 115.257 partidas, artilharia por edição, estatísticas coletivas de mando e maiores jogos da história do futebol brasileiro.
             </p>
           </div>
         </div>

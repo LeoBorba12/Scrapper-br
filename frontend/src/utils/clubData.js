@@ -521,10 +521,17 @@ export function getClubInfo(nome) {
     }
   }
 
-  // 3. Busca por substring (ex: 'Flamengo (RJ)' -> 'Flamengo')
-  for (const [canonical, data] of Object.entries(CLUB_REGISTRY)) {
-    const cNorm = normalizeClubName(canonical);
-    if (norm.includes(cNorm) || cNorm.includes(norm)) {
+  // 3. Busca por token/fronteira de palavra (ordem decrescente de especificidade)
+  // Evita colisão de prefixo curto (ex: 'parana' dentro de 'athletico paranaense')
+  const entriesByLength = Object.entries(CLUB_REGISTRY)
+    .map(([canonical, data]) => [canonical, normalizeClubName(canonical), data])
+    .sort((a, b) => b[1].length - a[1].length);
+
+  for (const [, cNorm, data] of entriesByLength) {
+    if (!cNorm) continue;
+    const escaped = cNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const boundaryRe = new RegExp(`(?:^|\\s|-)${escaped}(?:$|\\s|-)`);
+    if (boundaryRe.test(norm)) {
       return data;
     }
   }

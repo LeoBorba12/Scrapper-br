@@ -43,7 +43,8 @@ def get_readonly_db():
 
 # Mapeamento de aliases para técnicos comuns em súmulas
 ALIASES_TECNICOS = {
-    "abel ferreira": ["abel ferreira", "a. ferreira", "a. moreira ferreira"],
+    "abel ferreira": ["abel ferreira", "a. moreira ferreira"],
+    "filipe luis": ["filipe luis", "filipe luís"],
     "jorge jesus": ["jorge jesus", "j. jesus", "j. fernando pinheiro de jesus"],
     "dorival junior": ["dorival junior", "dorival júnior", "d. silvestre júnior", "d. silvestre junior"],
     "tite": ["tite", "a. bacchi", "adenor leonardo bacchi"],
@@ -196,10 +197,23 @@ def get_tecnico_detalhe_completo():
         """, params_busca)
         partidas_tecnico = c.fetchall()
 
-        # Agregar histórico por competição e ano em memória (alta performance e precisão)
+        # Agregar histórico por competição e ano em memória (deduplicando entre fontes)
         hist_map = {}
         confrontos = []
+        vistos_jogos = set()
+        _canon_clube_coach = {
+            "red bull bragantino": "bragantino",
+            "athletico": "athletico-pr",
+            "atlético goianiense": "atlético-go",
+            "américa mineiro": "américa-mg",
+        }
         for pt in partidas_tecnico:
+            m_k = _canon_clube_coach.get((pt['mandante'] or '').strip().lower(), (pt['mandante'] or '').strip().lower())
+            v_k = _canon_clube_coach.get((pt['visitante'] or '').strip().lower(), (pt['visitante'] or '').strip().lower())
+            chave_jogo = (pt['data'], m_k, v_k)
+            if chave_jogo in vistos_jogos:
+                continue
+            vistos_jogos.add(chave_jogo)
             camp = pt['campeonato'] or "Competição não especificada"
             ano = pt['ano'] or 0
             key = (camp, ano)
@@ -569,6 +583,20 @@ def get_competicao_detalhe_edicao():
             'operário': 'Operário-PR',
             'operário pr': 'Operário-PR',
             'operário ferroviário': 'Operário-PR',
+            'maguary pe': 'Maguary-PE',
+            'maguary-pe': 'Maguary-PE',
+            'primavera sp': 'Primavera-SP',
+            'primavera-sp': 'Primavera-SP',
+            'manauara ec': 'Manauara',
+            'sampaio correa rj': 'Sampaio Corrêa-RJ',
+            'porto ba': 'Porto-BA',
+            'rosario central (arg)': 'Rosario Central',
+            'independiente medellín': 'Independiente Medellín',
+            'independiente medellin': 'Independiente Medellín',
+            'nacional potosí': 'Nacional Potosí',
+            'nacional potosi': 'Nacional Potosí',
+            'sporting cristal': 'Sporting Cristal',
+            'juventud': 'Juventud-URU',
         }
 
         def _nome_clube_canonico(raw):
@@ -727,6 +755,12 @@ def get_competicao_detalhe_edicao():
         """, params_comp)
         jogos_mais_gols = [dict(r) for r in c.fetchall()]
 
+        partidas_edicao_ordenadas = sorted(
+            partidas_edicao,
+            key=lambda p: (p.get('data') or '', p.get('id_partida') or 0),
+            reverse=True
+        )
+
         return jsonify({
             "sucesso": True,
             "competicao": nome,
@@ -745,7 +779,7 @@ def get_competicao_detalhe_edicao():
             "edicoes_disponiveis": anos_disponiveis,
             "classificacao": classificacao_ordenada,
             "artilharia": artilharia,
-            "calendario_partidas": partidas_edicao[:50],  # Primeiras 50 partidas da edição
+            "calendario_partidas": partidas_edicao_ordenadas[:50],  # Últimas 50 partidas da edição
             "momentos_historicos": {
                 "maiores_goleadas": maiores_goleadas,
                 "jogos_mais_gols": jogos_mais_gols

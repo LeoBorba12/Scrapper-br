@@ -366,7 +366,7 @@ export default function AthleteCompareView({
           <div style={tileStyleSecondary}>
             <div style={labelStyleSecondary}>Assistências</div>
             <div className="font-mono tabular-nums" style={valueStyle}>
-              {resumo.assistencias || 0}
+              {atleta.assistencias ?? resumo.total_assistencias ?? resumo.assistencias ?? 0}
             </div>
           </div>
         </div>
@@ -379,7 +379,7 @@ export default function AthleteCompareView({
           <div style={tileStylePrimary}>
             <div style={labelStylePrimary}>Assistências</div>
             <div className="font-mono tabular-nums" style={valueStyle}>
-              {resumo.assistencias || 0}
+              {atleta.assistencias ?? resumo.total_assistencias ?? resumo.assistencias ?? 0}
             </div>
           </div>
           <div style={tileStyleSecondary}>
@@ -395,7 +395,7 @@ export default function AthleteCompareView({
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.76rem' }}>
         <div style={tileStylePrimary}>
-          <div style={labelStylePrimary}>Gols Oficiais</div>
+          <div style={labelStylePrimary}>Gols no Catálogo</div>
           <div className="font-mono tabular-nums" style={valueStyle}>
             {atleta.gols || resumo.total_gols || 0}
           </div>
