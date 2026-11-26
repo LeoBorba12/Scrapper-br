@@ -598,6 +598,15 @@ def get_competicao_detalhe_edicao():
             'sporting cristal': 'Sporting Cristal',
             'juventud': 'Juventud-URU',
         }
+        if 'libertadores' in nome.lower():
+            _ALIAS_NOME_CANONICO.update({
+                'juventude': 'Juventud-URU',
+                'sport': 'Sporting Cristal',
+                'católica (equ)': 'Universidad Católica (Quito)',
+                'guaraní (par)': 'Guaraní',
+                'independiente': 'Independiente Medellín',
+                'junior': 'Atlético Junior',
+            })
 
         def _nome_clube_canonico(raw):
             chave_raw = (raw or '').strip().lower()
