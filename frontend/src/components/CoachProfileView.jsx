@@ -162,7 +162,7 @@ export default function CoachProfileView({ darkMode }) {
             <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder={`Buscar entre os ${tecnicosList.length || 162} técnicos catalogados...`}
+              placeholder={`Buscar entre os ${listaTecnicos.length || 162} técnicos catalogados...`}
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               style={{

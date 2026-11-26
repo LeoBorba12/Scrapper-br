@@ -88,11 +88,11 @@ export function obterRenderAtleta(nome, fotoUrlPadrao = null) {
   const nomeLimpo = normalizarNome(nome);
   let slug = PLAYER_RENDER_MAP[nomeLimpo];
 
-  // Tentativa por substring caso não encontre correspondência exata
+  // Tentativa por substring segura (evita que 'pedro' case com 'pedro rocha')
   if (!slug) {
     const keys = Object.keys(PLAYER_RENDER_MAP);
     for (const k of keys) {
-      if (nomeLimpo.includes(k) || k.includes(nomeLimpo)) {
+      if ((k.includes(' ') && nomeLimpo.includes(k)) || (nomeLimpo.includes(' ') && k.includes(nomeLimpo))) {
         slug = PLAYER_RENDER_MAP[k];
         break;
       }

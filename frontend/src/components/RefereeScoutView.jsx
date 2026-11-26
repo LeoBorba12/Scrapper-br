@@ -9,7 +9,7 @@ import MobileBottomSheet from './MobileBottomSheet';
 const ARBITROS_DESTAQUE_CHIPS = [
   "Anderson Daronco",
   "Raphael Claus",
-  "Wilton Sampaio",
+  "Wilton Pereira Sampaio",
   "Leandro Pedro Vuaden",
   "Marcelo de Lima Henrique",
   "Ricardo Marques Ribeiro",
