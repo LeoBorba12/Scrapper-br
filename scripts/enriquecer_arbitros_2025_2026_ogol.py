@@ -153,7 +153,7 @@ def extrair_ficha_jogo(ano: int, rel_url: str) -> dict:
 
 def main():
     t0 = time.time()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
@@ -163,20 +163,38 @@ def main():
         FROM partidas
         WHERE ano IN (2025, 2026)
           AND (campeonato LIKE '%Série A%' OR campeonato IN ('Brasileirão 2025', 'Brasileirão 2026'))
+          AND (
+              arbitro IS NULL OR TRIM(arbitro) = ''
+              OR tecnico_mandante IS NULL OR TRIM(tecnico_mandante) = ''
+              OR tecnico_visitante IS NULL OR TRIM(tecnico_visitante) = ''
+          )
     """).fetchall()
 
     mapa_partidas = {}
+    pendentes_clubes = set()
     for r in rows:
-        key = (r["ano"], norm_club(r["mandante"]), norm_club(r["visitante"]))
+        mn, vn = norm_club(r["mandante"]), norm_club(r["visitante"])
+        key = (r["ano"], mn, vn)
         mapa_partidas.setdefault(key, []).append(dict(r))
+        pendentes_clubes.add((r["ano"], mn[:6]))
+        pendentes_clubes.add((r["ano"], vn[:6]))
 
-    print(f"[*] Partidas Série A 2025-2026 mapeadas no banco: {len(rows)} linhas ({len(mapa_partidas)} confrontos).")
+    print(f"[*] Partidas Série A 2025-2026 pendentes no banco: {len(rows)} linhas ({len(mapa_partidas)} confrontos).")
+    if not rows:
+        conn.close()
+        return
 
     tarefas = []
     for ano, base_url in EDICOES:
+        if not any(a == ano for a, _ in pendentes_clubes):
+            continue
         links = extrair_links_edicao(base_url, max_pages=8)
-        print(f"[*] {ano}: {len(links)} links de jogos encontrados no OGol.")
-        for l in links:
+        filtrados = [
+            l for l in links
+            if any(club_pref in l.replace("-", "") for a, club_pref in pendentes_clubes if a == ano)
+        ]
+        print(f"[*] {ano}: {len(filtrados)} links pendentes selecionados (de {len(links)} no OGol).")
+        for l in filtrados:
             tarefas.append((ano, l))
 
     atualizados_arb = 0

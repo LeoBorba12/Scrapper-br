@@ -228,6 +228,7 @@ def executar_raspagem_diaria_01am(size_mb: float):
 
     safe_print("\n🕒 >>> [ROTINA DIÁRIA 01:00 AM] Raspagem de Scouts de Atletas, Equipes e Árbitros (OGol) <<<")
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "scraper_ogol_estatisticas_completas.py")])
+    executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "enriquecer_arbitros_2025_2026_ogol.py")])
     executar_comando([PY_BIN, os.path.join(BASE_DIR, "scripts", "enriquecer_arbitros_e_tecnicos.py")])
     
     DATA_ULTIMA_RASPAGEM_DIARIA_01AM = hoje_str

@@ -215,11 +215,12 @@ def processar_sumula_e_gols(cursor, event_id: str, id_partida: int, slug: str, m
             """, (id_partida, atleta_nome, clube_esc))
             if not cursor.fetchone():
                 cursor.execute("""
-                    INSERT INTO escalacoes (
+                    INSERT OR IGNORE INTO escalacoes (
                         id_partida, clube, atleta, num_camisa, posicao, titular, is_goleiro, id_jogador
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
                 """, (id_partida, clube_esc, atleta_nome, jersey, pos_nome, titular, is_gol, id_jog))
-                escalacoes_inseridas += 1
+                if cursor.rowcount > 0:
+                    escalacoes_inseridas += 1
 
     gols_inseridos = 0
     key_events = sdata.get("keyEvents", [])
@@ -272,11 +273,12 @@ def processar_sumula_e_gols(cursor, event_id: str, id_partida: int, slug: str, m
         """, (id_partida, atleta_nome, min_str))
         if not cursor.fetchone():
             cursor.execute("""
-                INSERT INTO gols (
+                INSERT OR IGNORE INTO gols (
                     id_partida, clube, atleta, minuto, tempo, tipo_de_gol, id_jogador
                 ) VALUES (?, ?, ?, ?, ?, ?, ?);
             """, (id_partida, clube_gol, atleta_nome, min_str, tempo_str, tipo_gol, id_jogador))
-            gols_inseridos += 1
+            if cursor.rowcount > 0:
+                gols_inseridos += 1
 
     # Estatísticas Coletivas da Partida
     b_teams = sdata.get("boxscore", {}).get("teams", [])
