@@ -148,27 +148,35 @@ def requisitar_json(url: str, timeout: int = 12):
         return None
 
 def obter_ou_criar_jogador(cursor, nome_atleta: str, clube: str) -> int:
-    """Busca jogador por nome aproximado na tabela jogadores ou insere novo."""
+    """Busca jogador de forma estrita (priorizando mesmo clube) ou insere novo."""
     if not nome_atleta or len(nome_atleta.strip()) < 2:
         return 0
     nome_clean = nome_atleta.strip()
-    
-    cursor.execute("""
-        SELECT id_jogador FROM jogadores 
-        WHERE nome_exibicao = ? OR nome_completo = ? OR apelido = ?
-        LIMIT 1;
-    """, (nome_clean, nome_clean, nome_clean))
-    row = cursor.fetchone()
-    if row:
-        return row[0]
-    
-    # Busca LIKE
-    cursor.execute("SELECT id_jogador FROM jogadores WHERE nome_exibicao LIKE ? LIMIT 1;", (f"%{nome_clean}%",))
-    row_like = cursor.fetchone()
-    if row_like:
-        return row_like[0]
-    
-    # Criar novo jogador
+
+    # 1. Match exato priorizando jogadores que já tenham o mesmo clube
+    if clube:
+        cursor.execute("""
+            SELECT id_jogador FROM jogadores
+            WHERE (LOWER(nome_exibicao) = LOWER(?) OR LOWER(nome_completo) = LOWER(?) OR LOWER(apelido) = LOWER(?))
+              AND LOWER(COALESCE(clubes, '')) LIKE ?
+            LIMIT 1;
+        """, (nome_clean, nome_clean, nome_clean, f"%{clube.lower()}%"))
+        row_club = cursor.fetchone()
+        if row_club:
+            return row_club[0]
+
+    # 2. Match exato global apenas se for nome composto (evita colisao em 'Gabriel', 'Pedro', 'Kaio')
+    if len(nome_clean.split()) >= 2:
+        cursor.execute("""
+            SELECT id_jogador FROM jogadores 
+            WHERE LOWER(nome_exibicao) = LOWER(?) OR LOWER(nome_completo) = LOWER(?) OR LOWER(apelido) = LOWER(?)
+            LIMIT 1;
+        """, (nome_clean, nome_clean, nome_clean))
+        row = cursor.fetchone()
+        if row:
+            return row[0]
+
+    # 3. Criar novo jogador específico para o clube evitando poluir homônimos
     ano_atual = datetime.date.today().year
     cursor.execute("""
         INSERT INTO jogadores (
