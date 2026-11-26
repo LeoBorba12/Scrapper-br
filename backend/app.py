@@ -1846,7 +1846,7 @@ TREINADORES_CATALOGO = {
         "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 0, "copa_do_brasil": 2, "estaduais": 7, "outros": 1},
         "titulos_destaque": ["Copa Libertadores (2017 Grêmio)", "Bicampeão da Copa do Brasil (2007 Fluminense, 2016 Grêmio)", "Recopa Sul-Americana (2018 Grêmio)", "Heptacampeão Gaúcho"],
         "radar": {"ofensividade": 92, "solidez_defensiva": 83, "gestao_vestiario": 98, "decisividade_copas": 95, "longevidade": 90},
-        "busca_aliases": ["renato gaucho", "renato gaúcho", "renato portaluppi", "r. portaluppi", "renato"]
+        "busca_aliases": ["renato gaucho", "renato gaúcho", "renato portaluppi", "r. portaluppi"]
     },
     "fernando_diniz": {
         "slug": "fernando_diniz",
