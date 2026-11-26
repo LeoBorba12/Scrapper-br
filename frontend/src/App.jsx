@@ -1422,7 +1422,7 @@ export default function App() {
                 cursor: 'pointer'
               }}
             >
-              👤 Dossiê do Treinador (135 catalogados)
+              👤 Dossiê do Treinador (Catálogo Oficial)
             </button>
             <button
               onClick={() => setCoachSubView('comparar')}

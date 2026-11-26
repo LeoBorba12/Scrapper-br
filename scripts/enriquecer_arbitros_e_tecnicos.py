@@ -346,6 +346,7 @@ def processar_tecnicos(conn):
                    gols_visitante as gc
             FROM partidas
             WHERE tecnico_mandante IS NOT NULL AND tecnico_mandante != ''
+              AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
             
             UNION ALL
             
@@ -357,6 +358,7 @@ def processar_tecnicos(conn):
                    gols_mandante as gc
             FROM partidas
             WHERE tecnico_visitante IS NOT NULL AND tecnico_visitante != ''
+              AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
         )
         GROUP BY tecnico
         HAVING COUNT(*) >= 10
@@ -379,6 +381,7 @@ def processar_tecnicos(conn):
         "F. Diniz Silva": "Fernando Diniz",
         "Fernando Diniz": "Fernando Diniz",
         "Adenor Leonardo Bacchi": "Tite",
+        "A. Bacchi": "Tite",
         "Tite": "Tite",
         "L. Venker de Menezes": "Mano Menezes",
         "Mano Menezes": "Mano Menezes",

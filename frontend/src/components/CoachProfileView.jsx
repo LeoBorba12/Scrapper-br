@@ -156,13 +156,13 @@ export default function CoachProfileView({ darkMode }) {
           })}
         </div>
 
-        {/* Campo de Busca e Dropdown de Todos os 135 Técnicos */}
+        {/* Campo de Busca e Dropdown de Técnicos */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: '1 1 280px', minWidth: '240px' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
               type="text"
-              placeholder="Buscar entre os 135 técnicos catalogados..."
+              placeholder={`Buscar entre os ${tecnicosList.length || 162} técnicos catalogados...`}
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               style={{

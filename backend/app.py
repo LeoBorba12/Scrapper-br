@@ -1818,7 +1818,7 @@ TREINADORES_CATALOGO = {
         "palmares": {"mundial": 1, "libertadores": 1, "brasileirao": 2, "copa_do_brasil": 1, "estaduais": 4, "outros": 3},
         "titulos_destaque": ["Campeão Mundial de Clubes FIFA (2012 Corinthians)", "Copa Libertadores Invicto (2012 Corinthians)", "Bicampeão Brasileiro (2011, 2015 Corinthians)", "Copa América (2019 Brasil)"],
         "radar": {"ofensividade": 86, "solidez_defensiva": 96, "gestao_vestiario": 97, "decisividade_copas": 93, "longevidade": 94},
-        "busca_aliases": ["tite", "adenor bachi", "a. bachi"]
+        "busca_aliases": ["tite", "adenor bachi", "a. bachi", "a. bacchi", "adenor leonardo bacchi"]
     },
     "dorival_junior": {
         "slug": "dorival_junior",
@@ -1832,7 +1832,7 @@ TREINADORES_CATALOGO = {
         "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 0, "copa_do_brasil": 3, "estaduais": 5, "outros": 1},
         "titulos_destaque": ["Copa Libertadores (2022 Flamengo)", "Tricampeão da Copa do Brasil (2010 Santos, 2022 Flamengo, 2023 São Paulo)", "Paulistão dos Meninos da Vila (2010)"],
         "radar": {"ofensividade": 91, "solidez_defensiva": 84, "gestao_vestiario": 95, "decisividade_copas": 96, "longevidade": 91},
-        "busca_aliases": ["dorival junior", "dorival", "d. junior", "dorival jr"]
+        "busca_aliases": ["dorival junior", "dorival júnior", "dorival", "d. junior", "d. silvestre júnior", "dorival jr"]
     },
     "renato_gaucho": {
         "slug": "renato_gaucho",
@@ -1846,7 +1846,7 @@ TREINADORES_CATALOGO = {
         "palmares": {"mundial": 0, "libertadores": 1, "brasileirao": 0, "copa_do_brasil": 2, "estaduais": 7, "outros": 1},
         "titulos_destaque": ["Copa Libertadores (2017 Grêmio)", "Bicampeão da Copa do Brasil (2007 Fluminense, 2016 Grêmio)", "Recopa Sul-Americana (2018 Grêmio)", "Heptacampeão Gaúcho"],
         "radar": {"ofensividade": 92, "solidez_defensiva": 83, "gestao_vestiario": 98, "decisividade_copas": 95, "longevidade": 90},
-        "busca_aliases": ["renato gaucho", "renato portaluppi", "r. portaluppi", "renato"]
+        "busca_aliases": ["renato gaucho", "renato gaúcho", "renato portaluppi", "r. portaluppi", "renato"]
     },
     "fernando_diniz": {
         "slug": "fernando_diniz",

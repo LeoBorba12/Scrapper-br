@@ -463,7 +463,9 @@ export default function MetricasAvancadasView({ darkMode }) {
                     {metricasLabels[metricaSelecionada]?.label || 'Valor'}
                   </th>
                   <th style={{ padding: '12px 16px', textAlign: 'right' }}>Por 90 min</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>xG</th>
+                  {metricaSelecionada !== 'xg' && (
+                    <th style={{ padding: '12px 16px', textAlign: 'right' }}>xG</th>
+                  )}
                   <th style={{ padding: '12px 16px', textAlign: 'right' }}>xA</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right' }}>Passes Prog.</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right' }}>SCA</th>
@@ -530,9 +532,11 @@ export default function MetricasAvancadasView({ darkMode }) {
                       <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)', color: '#78716C' }}>
                         {item.valor_por_90 !== undefined ? item.valor_por_90.toFixed(2) : '—'}
                       </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}>
-                        {item.xg !== undefined ? item.xg.toFixed(2) : '—'}
-                      </td>
+                      {metricaSelecionada !== 'xg' && (
+                        <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}>
+                          {item.xg !== undefined ? item.xg.toFixed(2) : '—'}
+                        </td>
+                      )}
                       <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono, monospace)' }}>
                         {item.xa !== undefined ? item.xa.toFixed(2) : '—'}
                       </td>
