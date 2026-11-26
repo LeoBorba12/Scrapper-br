@@ -5245,8 +5245,27 @@ def get_apostas_hub():
         LIMIT ? OFFSET ?;
     """
     query_params = list(params) + [limit, offset]
-    rows = [dict(r) for r in c.execute(sql, query_params).fetchall()]
+    rows_raw = [dict(r) for r in c.execute(sql, query_params).fetchall()]
     conn.close()
+
+    _canon_prob = {
+        'atlético goianiense': 'atlético-go',
+        'red bull bragantino': 'bragantino',
+        'américa mineiro': 'américa-mg',
+        'athletico': 'athletico-pr',
+        'athletico paranaense': 'athletico-pr',
+        'botafogo sp': 'botafogo-sp',
+    }
+    rows = []
+    _vistos_hub = set()
+    for r in rows_raw:
+        mk = _canon_prob.get((r.get('mandante') or '').strip().lower(), (r.get('mandante') or '').strip().lower())
+        vk = _canon_prob.get((r.get('visitante') or '').strip().lower(), (r.get('visitante') or '').strip().lower())
+        chave_hub = (r.get('data'), mk, vk)
+        if chave_hub in _vistos_hub:
+            continue
+        _vistos_hub.add(chave_hub)
+        rows.append(r)
 
     partidas_processadas = []
     destaques_ev = []
@@ -5278,18 +5297,23 @@ def get_apostas_hub():
         candidatos_validos = [c for c in candidatos_ev if c['ev'] is not None and c['odd'] and c['odd'] > 1.05]
         leitura_analitica = max(candidatos_validos, key=lambda x: x['ev']) if candidatos_validos else None
 
-        # Desafio 13: Gate de Confiança Editorial e Selos
+        # Desafio 13: Gate de Confiança Editorial e Selos (usa validar_coerencia_editorial)
         m_odd = r['odd_mandante']
         e_odd = r['odd_empate']
         v_odd = r['odd_visitante']
         odds_aprovadas = False
         margem_mercado = None
         if m_odd and e_odd and v_odd and m_odd > 1.0 and e_odd > 1.0 and v_odd > 1.0:
-            margem_mercado = round((1.0 / m_odd) + (1.0 / e_odd) + (1.0 / v_odd) - 1.0, 4)
-            if 0.0 <= margem_mercado <= 0.15:
-                odds_aprovadas = True
-
-        selo_confianca = "CONSENSO_APROVADO" if odds_aprovadas else "QUARENTENA_NAO_PUBLICAVEL"
+            try:
+                from backend.odds_quality_gate import validar_coerencia_editorial
+            except ImportError:
+                from odds_quality_gate import validar_coerencia_editorial
+            gate_res = validar_coerencia_editorial(m_odd, e_odd, v_odd)
+            margem_mercado = gate_res.get("margem")
+            odds_aprovadas = bool(gate_res.get("publicavel")) and gate_res.get("selo_confianca") == "CONSENSO_APROVADO"
+            selo_confianca = gate_res.get("selo_confianca") or "QUARENTENA_NAO_PUBLICAVEL"
+        else:
+            selo_confianca = "QUARENTENA_NAO_PUBLICAVEL"
 
         tendencias_jogo = []
         if m_casa['gp'] >= 1.70:
@@ -5883,11 +5907,18 @@ def get_apostas_analise_jogo():
                 'prob_over_4_5_cartoes': p_over_45
             }
 
+    # Médias canônicas idênticas às do Hub de Probabilidades (coerência Hub <-> Raio-X)
+    team_stats_raiox = _obter_medias_times_db(conn)
     conn.close()
 
-    # Cálculo Matemático Poisson com médias refinadas
-    lh = max(0.40, forma_mandante['media_gp'])
-    la = max(0.35, forma_visitante['media_gp'])
+    if (time_m, 'casa') in team_stats_raiox or (time_v, 'fora') in team_stats_raiox:
+        m_casa = team_stats_raiox.get((time_m, 'casa'), {'gp': forma_mandante['media_gp'], 'gc': forma_mandante['media_gc']})
+        m_fora = team_stats_raiox.get((time_v, 'fora'), {'gp': forma_visitante['media_gp'], 'gc': forma_visitante['media_gc']})
+        lh = max(0.40, (m_casa['gp'] + m_fora['gc']) / 2.0)
+        la = max(0.35, (m_fora['gp'] + m_casa['gc']) / 2.0)
+    else:
+        lh = max(0.40, (forma_mandante['media_gp'] + forma_visitante['media_gc']) / 2.0)
+        la = max(0.35, (forma_visitante['media_gp'] + forma_mandante['media_gc']) / 2.0)
     calc = _calc_poisson_bivariate(lh, la)
 
     # Montagem de Insights Analíticos do Apostador

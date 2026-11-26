@@ -72,8 +72,11 @@ def validar_coerencia_editorial(
             "selo_confianca": "QUARENTENA_NAO_PUBLICAVEL"
         }
 
-    # 1. Detecção de Spread Incompleto (empate artificialmente cravado em 3.25 ou repetido)
-    if round(empate, 2) == 3.25 and abs(casa - 1.25) < 0.05 and fora > 6.0:
+    # 1. Detecção de Spread Incompleto / Odds Padrão Sintéticas
+    # (empate cravado em 3.25 com favorito ~1.25-1.32, ou template padrão 2.10 / 3.40-3.50)
+    if (round(empate, 2) == 3.25 and casa <= 1.32 and fora >= 5.5) or (
+        round(casa, 2) == 2.10 and 3.35 <= round(empate, 2) <= 3.55 and 3.35 <= round(fora, 2) <= 3.55
+    ):
         return {
             "publicavel": False,
             "status": "quarentena",
