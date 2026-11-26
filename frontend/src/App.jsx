@@ -49,8 +49,10 @@ export default function App() {
       if (typeof window !== 'undefined' && window.location.pathname.startsWith('/confrontos/')) {
         return 'h2h';
       }
-      const tab = new URLSearchParams(window.location.search).get('tab');
+      const sp = new URLSearchParams(window.location.search);
+      const tab = sp.get('tab');
       if (tab) return tab;
+      if (sp.get('c1') && sp.get('c2')) return 'h2h';
     } catch {}
     return 'overview';
   });
@@ -204,9 +206,9 @@ export default function App() {
       } else {
         url.searchParams.set('tab', activeTab);
       }
-      if (clube1 && clube1 !== 'Flamengo') url.searchParams.set('c1', clube1);
+      if (clube1 && activeTab === 'h2h') url.searchParams.set('c1', clube1);
       else url.searchParams.delete('c1');
-      if (clube2 && clube2 !== 'Vasco') url.searchParams.set('c2', clube2);
+      if (clube2 && activeTab === 'h2h') url.searchParams.set('c2', clube2);
       else url.searchParams.delete('c2');
       if (selectedPlayer) url.searchParams.set('atleta', selectedPlayer);
       else url.searchParams.delete('atleta');
@@ -1392,13 +1394,24 @@ export default function App() {
           </div>
 
           {h2hSubView === 'canonica' ? (
-            <HeadToHeadView />
+            <HeadToHeadView
+              clubeInicial1={clube1 || 'Palmeiras'}
+              clubeInicial2={clube2 || 'Corinthians'}
+              onClubesChange={(a, b) => {
+                setClube1(a);
+                setClube2(b);
+              }}
+            />
           ) : (
             <ClubCompareView
               darkMode={darkMode}
               clubesList={clubesList}
-              clubeInicial1={clube1 || 'Flamengo'}
-              clubeInicial2={clube2 || 'Vasco'}
+              clubeInicial1={clube1 || 'Palmeiras'}
+              clubeInicial2={clube2 || 'Corinthians'}
+              onClubesChange={(a, b) => {
+                setClube1(a);
+                setClube2(b);
+              }}
             />
           )}
         </div>

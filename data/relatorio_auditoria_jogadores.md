@@ -1,12 +1,12 @@
 # Relatório de Auditoria Universal de Atletas e Cruzamento de Fontes Oficiais
 
-*Gerado automaticamente em: 2026-11-25 12:10:11*
+*Gerado automaticamente em: 2026-11-26 13:06:44*
 
 ## Resumo Executivo da Auditoria
 
 - **Total de Atletas Analisados**: 30
-- 🟢 **Atletas Íntegros e Consistentes**: 28
-- 🛠️ **Casos Auto-Reparados (Auto-healing)**: 2
+- 🟢 **Atletas Íntegros e Consistentes**: 29
+- 🛠️ **Casos Auto-Reparados (Auto-healing)**: 1
 - ⚠️ **Casos com Discrepância Pendente (Requer Moderação)**: 0
 
 ## Metodologia de Verificação & Regra do ID
@@ -17,7 +17,6 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | ID | Atleta | OGol ID | Gols Acervo | Gols Carreira | Detalhe da Auto-Arrumação |
 | :---: | :--- | :---: | :---: | :---: | :--- |
 | `7` | **Gabriel Barbosa** | `75171` | **252** | 285 | Carreira oficial enriquecida via OGol (285 gols em 627 jogos). Acervo consistente. |
-| `12212` | **Romário** | `N/D` | **351** | 699 | Carreira oficial enriquecida via OGol (699 gols em 901 jogos). Acervo consistente. |
 
 
 ## 🟢 Amostra de Atletas Auditados e Verificados (Top Craques)
@@ -27,6 +26,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `11220` | **Pelé** | `1047` | 513 | 757 | `Santos,Botafogo` | 🟢 OK |
 | `11967` | **Roberto Dinamite** | `27464` | 463 | 512 | `Vasco,Portuguesa` | 🟢 OK |
 | `13953` | **Zico** | `1058` | 374 | 530 | `Flamengo` | 🟢 OK |
+| `12212` | **Romário** | `5270` | 351 | 744 | `Vasco,Flamengo,Fluminense,River-PI` | 🟢 OK |
 | `6051` | **Fred** | `9839` | 273 | 413 | `Cruzeiro,Fluminense,Atlético-MG,Internac` | 🟢 OK |
 | `5168` | **Edmundo** | `5267` | 216 | 348 | `Vasco,Palmeiras,Cruzeiro,Corinthians,Grê` | 🟢 OK |
 | `5174` | **Heitor** | `270515` | 214 | 214 | `Palestra Itália` | 🟢 OK |
@@ -36,7 +36,7 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `4105` | **Cláudio Adão** | `144860` | 190 | 190 | `Santos,Flamengo,Botafogo,Fluminense,Vasc` | 🟢 OK |
 | `17483` | **Serginho Chulapa** | `20479` | 189 | 365 | `São Paulo,Santos,Corinthians` | 🟢 OK |
 | `9033` | **Luís Fabiano** | `5685` | 187 | 403 | `São Paulo,Vasco,Ponte Preta` | 🟢 OK |
-| `10` | **Pedro** | `481359` | 178 | 239 | `Flamengo,Fluminense` | 🟢 OK |
+| `10` | **Pedro** | `481359` | 180 | 239 | `Flamengo,Fluminense` | 🟢 OK |
 | `2373` | **Alex** | `9673` | 177 | 391 | `Internacional,Goiás,Remo,Guarani,União S` | 🟢 OK |
 | `3636` | **Careca** | `5744` | 176 | 365 | `Botafogo,América-RN,Palmeiras,Athletico-` | 🟢 OK |
 | `13491` | **Viola** | `27469` | 174 | 174 | `Corinthians,São José,Santos,Vasco,Bahia,` | 🟢 OK |
@@ -50,5 +50,5 @@ Cada registro atômico na tabela `gols` e `escalacoes` é cruzado com a chave `i
 | `12161` | **Roger** | `5713` | 143 | 143 | `Grêmio,Atlético-GO,Brasiliense,Ponte Pre` | 🟢 OK |
 | `8980` | **Luizão** | `4663` | 142 | 242 | `Guarani,Corinthians,Flamengo,Vasco,São P` | 🟢 OK |
 | `17777` | **Washington** | `5679` | 142 | 144 | `Paraná,Ponte Preta,Ceará,Fluminense,São ` | 🟢 OK |
+| `8` | **Arrascaeta** | `270657` | 141 | 175 | `Cruzeiro,Flamengo,Defensor Sporting,The ` | 🟢 OK |
 | `13219` | **Túlio Maravilha** | `42587` | 141 | 599 | `Goiás,Botafogo,Santa Cruz,Vitória,Juvent` | 🟢 OK |
-| `11` | **Germán Cano** | `36577` | 140 | 322 | `Peñarol,Sol de América,Nacional,Independ` | 🟢 OK |

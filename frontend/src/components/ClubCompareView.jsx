@@ -27,7 +27,8 @@ export default function ClubCompareView({
   darkMode,
   clubesList = [],
   clubeInicial1 = 'Palmeiras',
-  clubeInicial2 = 'Corinthians'
+  clubeInicial2 = 'Corinthians',
+  onClubesChange
 }) {
   const [clube1, setClube1] = useState(clubeInicial1);
   const [clube2, setClube2] = useState(clubeInicial2);
@@ -96,8 +97,10 @@ export default function ClubCompareView({
   };
 
   useEffect(() => {
+    setClube1(clubeInicial1);
+    setClube2(clubeInicial2);
     carregarConfronto(clubeInicial1, clubeInicial2, 'todas', 'todos', 'todos');
-  }, []);
+  }, [clubeInicial1, clubeInicial2]);
 
   const selecionarClassico = (c1, c2) => {
     setClube1(c1);
@@ -105,6 +108,7 @@ export default function ClubCompareView({
     setDecada('todas');
     setCampeonato('todos');
     setMando('todos');
+    if (onClubesChange) onClubesChange(c1, c2);
     registrarConsultaInterna('filtro_classico_rapido', { c1, c2 });
     carregarConfronto(c1, c2, 'todas', 'todos', 'todos');
   };
@@ -576,7 +580,7 @@ export default function ClubCompareView({
             {/* Confronto Lado a Lado */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '20px', alignItems: 'center', textAlign: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <ClubBadge clube={c1Nome} size={60} />
+                <ClubBadge nome={c1Nome} size={60} />
                 <h3 className="font-editorial" style={{ fontSize: '1.3rem', fontWeight: 700, margin: '10px 0 2px 0' }}>{c1Nome}</h3>
                 <div className="tabular-nums" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--primary, #5A673E)', lineHeight: 1 }}>{vit1}</div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>vitórias ({pctVit1}%)</span>
@@ -606,7 +610,7 @@ export default function ClubCompareView({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <ClubBadge clube={c2Nome} size={60} />
+                <ClubBadge nome={c2Nome} size={60} />
                 <h3 className="font-editorial" style={{ fontSize: '1.3rem', fontWeight: 700, margin: '10px 0 2px 0' }}>{c2Nome}</h3>
                 <div className="tabular-nums" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--secondary, #85573B)', lineHeight: 1 }}>{vit2}</div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>vitórias ({pctVit2}%)</span>
@@ -892,7 +896,7 @@ export default function ClubCompareView({
               {projDC ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                    Probabilidade justa baseada em Poisson bivariado com intervalos conformais empíricos individuais ($q_{0.95}|y - p|$).
+                    Probabilidade justa baseada em Poisson bivariado com intervalos conformais empíricos individuais (nível de confiança 95%).
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', textAlign: 'center' }}>
@@ -978,7 +982,7 @@ export default function ClubCompareView({
                 {/* Palmarés Clube 1 */}
                 <div className="editorial-raised" style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <ClubBadge clube={c1Nome} size={28} />
+                    <ClubBadge nome={c1Nome} size={28} />
                     <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c1Nome}</span>
                   </div>
                   {palmares1 ? (
@@ -1016,7 +1020,7 @@ export default function ClubCompareView({
                 {/* Palmarés Clube 2 */}
                 <div className="editorial-raised" style={{ padding: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <ClubBadge clube={c2Nome} size={28} />
+                    <ClubBadge nome={c2Nome} size={28} />
                     <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c2Nome}</span>
                   </div>
                   {palmares2 ? (

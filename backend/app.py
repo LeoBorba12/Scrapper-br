@@ -5,6 +5,7 @@ import random
 import sqlite3
 import sys
 import hmac
+import unicodedata
 import hashlib
 import base64
 import json
@@ -742,15 +743,27 @@ def get_home_cockpit():
     ]
 
     tabus_destaques = []
+    try:
+        from backend.rotas_h2h_canonica import _deduplicar_partidas_h2h, _resolver_nomes_clube_h2h
+    except ImportError:
+        from rotas_h2h_canonica import _deduplicar_partidas_h2h, _resolver_nomes_clube_h2h
+
     for c1, c2, apelido, regiao in classicos_definidos:
-        c.execute("""
-            SELECT data, mandante, visitante, gols_mandante, gols_visitante, campeonato
+        _, names_c1 = _resolver_nomes_clube_h2h(c, c1)
+        _, names_c2 = _resolver_nomes_clube_h2h(c, c2)
+        lista_c1 = sorted(names_c1 or {c1.lower()})
+        lista_c2 = sorted(names_c2 or {c2.lower()})
+        ph1 = ','.join('?' for _ in lista_c1)
+        ph2 = ','.join('?' for _ in lista_c2)
+        c.execute(f"""
+            SELECT id_partida, data, mandante, visitante, gols_mandante, gols_visitante, placar, campeonato
             FROM partidas
-            WHERE ((mandante = ? AND visitante = ?) OR (mandante = ? AND visitante = ?))
+            WHERE ((lower(trim(mandante)) IN ({ph1}) AND lower(trim(visitante)) IN ({ph2}))
+                OR (lower(trim(mandante)) IN ({ph2}) AND lower(trim(visitante)) IN ({ph1})))
               AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
             ORDER BY data DESC, id_partida DESC
-        """, (c1, c2, c2, c1))
-        p_rows = c.fetchall()
+        """, lista_c1 + lista_c2 + lista_c2 + lista_c1)
+        p_rows = _deduplicar_partidas_h2h([dict(r) for r in c.fetchall()], names_c1)
         if not p_rows:
             continue
         total = len(p_rows)
@@ -767,9 +780,10 @@ def get_home_cockpit():
         for idx, r in enumerate(p_rows):
             gm = r['gols_mandante']
             gv = r['gols_visitante']
-            m = r['mandante']
-            g1 = gm if m == c1 else gv
-            g2 = gv if m == c1 else gm
+            m_low = (r['mandante'] or '').lower().strip()
+            is_c1 = m_low in names_c1
+            g1 = gm if is_c1 else gv
+            g2 = gv if is_c1 else gm
 
             gols1 += g1
             gols2 += g2
@@ -1350,17 +1364,17 @@ def get_campeonatos():
     return jsonify(camps)
 
 NOTAS_HISTORICAS_CLASSICOS = {
-    ("flamengo", "vasco"): "O acervo do FutStats agora conta com 179 partidas catalogadas (Campeonato Brasileiro desde 1971, Copa do Brasil, Torneio Rio-SP e Campeonato Carioca desde 1971). No retrospecto centenário completo (incluindo todas as edições anteriores a 1971 e torneios municipais), o Clássico dos Milhões soma mais de 420 partidas oficiais.",
-    ("flamengo", "fluminense"): "O acervo do FutStats agora conta com 196 partidas catalogadas (Campeonato Brasileiro, Copa do Brasil, Rio-SP e Campeonato Carioca desde 1971). O retrospecto geral centenário do Fla-Flu (disputado desde 1912) soma mais de 445 partidas.",
-    ("botafogo", "flamengo"): "O acervo do FutStats agora conta com 185 partidas catalogadas (Brasileirão, Copa do Brasil, Rio-SP e Carioca desde 1971). O histórico geral centenário do Clássico da Rivalidade ultrapassa 380 confrontos.",
-    ("botafogo", "vasco"): "O acervo do FutStats conta com mais de 155 partidas catalogadas desde 1971 (Brasileirão, Copa do Brasil, Rio-SP e Carioca). O histórico geral centenário do Clássico da Amizade ultrapassa 360 confrontos.",
-    ("fluminense", "vasco"): "O acervo do FutStats conta com mais de 160 partidas catalogadas desde 1971 (Brasileirão, Copa do Brasil, Rio-SP e Carioca). O histórico geral centenário do Clássico dos Gigantes ultrapassa 385 confrontos.",
-    ("atlético", "cruzeiro"): "Cobertura no FutStats: partidas pelo Campeonato Brasileiro, Copa do Brasil e Mineiro pós-2002. O histórico geral do Clássico Mineiro (disputado desde 1921) ultrapassa 500 partidas.",
-    ("bahia", "vitória"): "Cobertura no FutStats: jogos registrados pelo Campeonato Brasileiro e Copa do Brasil. O histórico geral do Ba-Vi (incluindo o Campeonato Baiano desde 1932) ultrapassa 490 confrontos.",
-    ("athletico", "coritiba"): "Cobertura no FutStats: partidas pelo Brasileirão, Copa do Brasil e Paranaense pós-2003. O histórico geral do Atle-Tiba (disputado desde 1924) ultrapassa 390 confrontos.",
-    ("corinthians", "palmeiras"): "Cobertura ampla no FutStats: mais de 400 jogos catalogados pelo Campeonato Paulista (desde 1917), Campeonato Brasileiro, Rio-SP e Copa do Brasil.",
-    ("palmeiras", "santos"): "Cobertura ampla no FutStats: mais de 360 jogos catalogados pelo Campeonato Paulista (desde 1915), Brasileirão e competições nacionais.",
-    ("grêmio", "internacional"): "Cobertura ampla no FutStats: mais de 200 jogos catalogados pelo Campeonato Gaúcho (desde 1915), Brasileirão, Copa do Brasil e Libertadores."
+    ("flamengo", "vasco"): "O acervo do FutStats conta com {total} partidas catalogadas entre Brasileirão, Copa do Brasil, Rio-SP e Carioca. No retrospecto centenário completo (incluindo torneios municipais e edições pré-1971), o Clássico dos Milhões soma mais de 420 partidas oficiais.",
+    ("flamengo", "fluminense"): "O acervo do FutStats conta com {total} partidas catalogadas entre Brasileirão, Copa do Brasil, Rio-SP e Campeonato Carioca. No retrospecto centenário completo do Fla-Flu (disputado desde 1912), os arquivos históricos somam mais de 445 partidas.",
+    ("botafogo", "flamengo"): "O acervo do FutStats conta com {total} partidas catalogadas entre Brasileirão, Copa do Brasil, Rio-SP e Carioca. O histórico geral centenário do Clássico da Rivalidade ultrapassa 380 confrontos.",
+    ("botafogo", "vasco"): "O acervo do FutStats conta com {total} partidas catalogadas entre Brasileirão, Copa do Brasil, Rio-SP e Carioca. O histórico geral centenário do Clássico da Amizade ultrapassa 360 confrontos.",
+    ("fluminense", "vasco"): "O acervo do FutStats conta com {total} partidas catalogadas entre Brasileirão, Copa do Brasil, Rio-SP e Carioca. O histórico geral centenário do Clássico dos Gigantes ultrapassa 385 confrontos.",
+    ("atletico", "cruzeiro"): "Cobertura atual no FutStats: {total} partidas catalogadas (Brasileirão, Copa do Brasil e Campeonato Mineiro). O histórico geral centenário do Clássico Mineiro (disputado desde 1921) ultrapassa 500 confrontos.",
+    ("bahia", "vitoria"): "Cobertura no FutStats: {total} partidas catalogadas pelo Campeonato Brasileiro, Copa do Brasil e torneios regionais. O histórico geral do Ba-Vi ultrapassa 490 confrontos.",
+    ("athletico", "coritiba"): "Cobertura no FutStats: {total} partidas catalogadas pelo Brasileirão, Copa do Brasil e Paranaense. O histórico geral do Atle-Tiba (disputado desde 1924) ultrapassa 390 confrontos.",
+    ("corinthians", "palmeiras"): "Cobertura no FutStats: {total} jogos catalogados entre Campeonato Paulista (desde 1917), Campeonato Brasileiro, Rio-SP e Copa do Brasil.",
+    ("palmeiras", "santos"): "Cobertura no FutStats: {total} jogos catalogados pelo Campeonato Paulista (desde 1915), Brasileirão e competições nacionais.",
+    ("gremio", "internacional"): "Cobertura atual no FutStats: {total} jogos catalogados entre Brasileirão, Campeonato Gaúcho, Copa do Brasil e Libertadores (acervo histórico gaúcho em expansão contínua pré-1970)."
 }
 
 # Palmarés Canônico dos Principais Clubes Brasileiros (Títulos Oficiais Homologados)
@@ -1385,12 +1399,23 @@ PALMARES_OFICIAL_CLUBES = {
     "coritiba": {"mundial": 0, "libertadores": 0, "brasileirao": 1, "copa_do_brasil": 0, "estaduais": 39, "internacionais": 0}
 }
 
+def _normalizar_chave_clube(nome):
+    if not nome:
+        return ""
+    sem_acento = unicodedata.normalize("NFKD", str(nome)).encode("ascii", "ignore").decode("ascii")
+    return " ".join(sem_acento.lower().replace("-", " ").split())
+
+
 def obter_palmares_clube(nome):
     if not nome:
         return None
-    nm = nome.lower().replace("-", " ").strip()
+    nm = _normalizar_chave_clube(nome)
     for k, v in PALMARES_OFICIAL_CLUBES.items():
-        if k in nm or nm in k:
+        if _normalizar_chave_clube(k) == nm:
+            return v
+    for k, v in PALMARES_OFICIAL_CLUBES.items():
+        kn = _normalizar_chave_clube(k)
+        if kn in nm or nm in kn:
             return v
     return None
 
@@ -1418,9 +1443,31 @@ def get_h2h():
         
     conn = get_db()
     c = conn.cursor()
-    
-    # Busca todas as partidas seculares entre os dois
-    query = """
+
+    try:
+        from backend.rotas_h2h_canonica import (
+            _deduplicar_partidas_h2h,
+            _resolver_nomes_clube_h2h,
+            _categorizar_competicao,
+        )
+    except ImportError:
+        from rotas_h2h_canonica import (
+            _deduplicar_partidas_h2h,
+            _resolver_nomes_clube_h2h,
+            _categorizar_competicao,
+        )
+
+    info_c1, names_c1 = _resolver_nomes_clube_h2h(c, c1)
+    info_c2, names_c2 = _resolver_nomes_clube_h2h(c, c2)
+    c1_canon = info_c1['nome'] if info_c1 else c1
+    c2_canon = info_c2['nome'] if info_c2 else c2
+    lista_c1 = sorted(names_c1 or {c1.lower().strip()})
+    lista_c2 = sorted(names_c2 or {c2.lower().strip()})
+    ph1 = ','.join('?' for _ in lista_c1)
+    ph2 = ','.join('?' for _ in lista_c2)
+
+    # Busca todas as partidas seculares entre os dois clubes via resolução canônica (sem LIKE parcial)
+    query = f"""
         SELECT 
             p.id_partida, p.ano, p.data, p.mandante, p.visitante, 
             p.gols_mandante, p.gols_visitante, p.placar, p.vencedor, 
@@ -1430,20 +1477,20 @@ def get_h2h():
             o.status_zebra
         FROM partidas p
         LEFT JOIN odds_partidas o ON p.id_partida = o.id_partida
-        WHERE (p.mandante LIKE ? AND p.visitante LIKE ?) OR (p.mandante LIKE ? AND p.visitante LIKE ?)
+        WHERE (lower(trim(p.mandante)) IN ({ph1}) AND lower(trim(p.visitante)) IN ({ph2}))
+           OR (lower(trim(p.mandante)) IN ({ph2}) AND lower(trim(p.visitante)) IN ({ph1}))
         ORDER BY p.data DESC, p.id_partida DESC;
     """
-    c.execute(query, (f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%"))
+    c.execute(query, lista_c1 + lista_c2 + lista_c2 + lista_c1)
     raw_rows = [dict(r) for r in c.fetchall()]
-    from backend.rotas_h2h_canonica import _deduplicar_partidas_h2h
-    all_rows = _deduplicar_partidas_h2h(raw_rows, c1)
+    all_rows = _deduplicar_partidas_h2h(raw_rows, names_c1)
     
     if not all_rows:
         conn.close()
         return jsonify({
             "error": "Nenhum confronto localizado no acervo entre estes dois clubes.",
-            "clube1": c1,
-            "clube2": c2
+            "clube1": c1_canon,
+            "clube2": c2_canon
         }), 404
 
     # Metadados e catálogo do acervo secular
@@ -1475,7 +1522,7 @@ def get_h2h():
         jogos_d = [r for r in all_rows if r.get('ano') and d_int <= r['ano'] < d_int + 10]
         v1_d = 0; v2_d = 0; emp_d = 0; g1_d = 0; g2_d = 0
         for r in jogos_d:
-            is_c1_m = c1.lower() in (r.get('mandante') or '').lower()
+            is_c1_m = (r.get('mandante') or '').lower().strip() in names_c1
             gm = r.get('gols_mandante') or 0
             gv = r.get('gols_visitante') or 0
             gc1 = gm if is_c1_m else gv
@@ -1508,6 +1555,8 @@ def get_h2h():
     ]
 
     # Aplicação de Filtros Multidimensionais
+    camp_low = campeonato.lower()
+    camp_cat_key = _categorizar_competicao(campeonato)[0] if campeonato != 'todos' else None
     partidas_filtradas = []
     for r in all_rows:
         if decada != 'todas':
@@ -1518,9 +1567,11 @@ def get_h2h():
             except ValueError:
                 pass
         if campeonato != 'todos':
-            if campeonato.lower() not in (r.get('campeonato') or '').lower():
+            comp_r = (r.get('campeonato') or '').lower()
+            comp_r_cat = _categorizar_competicao(r.get('campeonato'))[0]
+            if camp_low not in comp_r and not (camp_cat_key and camp_cat_key != 'outros' and comp_r_cat == camp_cat_key and 'série b' not in comp_r and 'serie b' not in comp_r):
                 continue
-        is_c1_m = c1.lower() in (r.get('mandante') or '').lower()
+        is_c1_m = (r.get('mandante') or '').lower().strip() in names_c1
         if mando == 'c1' and not is_c1_m:
             continue
         elif mando == 'c2' and is_c1_m:
@@ -1534,11 +1585,10 @@ def get_h2h():
 
     for p in partidas_filtradas:
         m = p['mandante']
-        v = p['visitante']
         gm = p['gols_mandante'] or 0
         gv = p['gols_visitante'] or 0
         
-        is_c1_mandante = c1.lower() in m.lower()
+        is_c1_mandante = (m or '').lower().strip() in names_c1
         gc1 = gm if is_c1_mandante else gv
         gc2 = gv if is_c1_mandante else gm
         
@@ -1563,7 +1613,7 @@ def get_h2h():
     tabu_clube = None
     tabu_jogos = 0
     for p in partidas_filtradas:
-        is_c1_m = c1.lower() in p['mandante'].lower()
+        is_c1_m = (p['mandante'] or '').lower().strip() in names_c1
         gc1 = (p['gols_mandante'] or 0) if is_c1_m else (p['gols_visitante'] or 0)
         gc2 = (p['gols_visitante'] or 0) if is_c1_m else (p['gols_mandante'] or 0)
         
@@ -1576,43 +1626,50 @@ def get_h2h():
             
         if tabu_clube is None:
             if resultado == 'c1':
-                tabu_clube = c1
+                tabu_clube = c1_canon
                 tabu_jogos = 1
             elif resultado == 'c2':
-                tabu_clube = c2
+                tabu_clube = c2_canon
                 tabu_jogos = 1
         else:
             if resultado == 'empate':
                 tabu_jogos += 1
-            elif (tabu_clube == c1 and resultado == 'c1') or (tabu_clube == c2 and resultado == 'c2'):
+            elif (tabu_clube == c1_canon and resultado == 'c1') or (tabu_clube == c2_canon and resultado == 'c2'):
                 tabu_jogos += 1
             else:
                 break
 
-    # Artilheiros históricos do confronto direto
-    query_artilheiros = """
-        SELECT g.atleta, g.clube, COUNT(*) as gols
-        FROM gols g
-        JOIN partidas p ON g.id_partida = p.id_partida
-        WHERE (p.mandante LIKE ? AND p.visitante LIKE ?) OR (p.mandante LIKE ? AND p.visitante LIKE ?)
-        GROUP BY g.atleta, g.clube
-        ORDER BY gols DESC
-        LIMIT 10;
-    """
-    c.execute(query_artilheiros, (f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%"))
-    artilheiros = [
-        {"atleta": row[0], "clube": row[1], "gols": row[2]}
-        for row in c.fetchall()
-    ]
+    # Artilheiros históricos do confronto direto (alinhado ao módulo canônico sobre IDs deduplicados)
+    artilheiros = []
+    ids_art = [p['id_partida'] for p in partidas_filtradas]
+    if ids_art:
+        ph_ids = ','.join('?' for _ in ids_art)
+        c.execute(f"""
+            SELECT COALESCE(je.nome_exibicao, g.atleta) AS nome,
+                   g.clube,
+                   COUNT(*) AS gols
+            FROM gols g
+            LEFT JOIN jogadores_estatisticas je ON je.id_jogador = g.id_jogador
+            WHERE g.id_partida IN ({ph_ids})
+              AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
+            GROUP BY COALESCE(NULLIF(g.id_jogador, 0), g.atleta), g.clube
+            ORDER BY gols DESC
+            LIMIT 10;
+        """, ids_art)
+        artilheiros = [
+            {"atleta": row[0], "clube": row[1], "gols": row[2]}
+            for row in c.fetchall()
+        ]
 
-    # Efemérides do confronto na tabela efemerides_partidas
-    c.execute("""
+    # Efemérides do confronto na tabela efemerides_partidas (exato via aliases)
+    c.execute(f"""
         SELECT partida_id as id_partida, dia_mes, ano, data, mandante, visitante, gols_mandante, gols_visitante, placar, campeonato, estadio, fase, relevancia_score
         FROM efemerides_partidas
-        WHERE ((mandante LIKE ? AND visitante LIKE ?) OR (mandante LIKE ? AND visitante LIKE ?))
+        WHERE (lower(trim(mandante)) IN ({ph1}) AND lower(trim(visitante)) IN ({ph2}))
+           OR (lower(trim(mandante)) IN ({ph2}) AND lower(trim(visitante)) IN ({ph1}))
         ORDER BY (dia_mes = ?) DESC, relevancia_score DESC
         LIMIT 6;
-    """, (f"%{c1}%", f"%{c2}%", f"%{c2}%", f"%{c1}%", target_date))
+    """, lista_c1 + lista_c2 + lista_c2 + lista_c1 + [target_date])
     efem_rows = [dict(r) for r in c.fetchall()]
     for e in efem_rows:
         e['no_dia_de_hoje'] = (e.get('dia_mes') == target_date)
@@ -1639,12 +1696,13 @@ def get_h2h():
                 
     conn.close()
 
-    # Busca nota histórica contextual se for clássico conhecido
-    c1_low, c2_low = c1.lower(), c2.lower()
+    # Busca nota histórica contextual se for clássico conhecido (sem acentos, contagem dinâmica)
+    c1_low = _normalizar_chave_clube(c1_canon)
+    c2_low = _normalizar_chave_clube(c2_canon)
     nota_historica = None
-    for (t1, t2), nota in NOTAS_HISTORICAS_CLASSICOS.items():
+    for (t1, t2), nota_tpl in NOTAS_HISTORICAS_CLASSICOS.items():
         if (t1 in c1_low and t2 in c2_low) or (t2 in c1_low and t1 in c2_low):
-            nota_historica = nota
+            nota_historica = nota_tpl.format(total=total_geral)
             break
 
     # Projeção preditiva Dixon-Coles
@@ -1657,8 +1715,8 @@ def get_h2h():
     p2_raw = (proj_dc.get("prob_visitante") or 35.0) / 100.0
 
     res = {
-        "clube1": c1,
-        "clube2": c2,
+        "clube1": c1_canon,
+        "clube2": c2_canon,
         "total_jogos": total,
         "total_jogos_geral": total_geral,
         "vitorias_clube1": vit1,
@@ -1671,8 +1729,8 @@ def get_h2h():
         "maior_goleada_clube1": maior_goleada1,
         "maior_goleada_clube2": maior_goleada2,
         "artilheiros_confronto": artilheiros,
-        "palmares_clube1": obter_palmares_clube(c1),
-        "palmares_clube2": obter_palmares_clube(c2),
+        "palmares_clube1": obter_palmares_clube(c1_canon),
+        "palmares_clube2": obter_palmares_clube(c2_canon),
         "tabu_invicto": {
             "clube": tabu_clube,
             "jogos": tabu_jogos

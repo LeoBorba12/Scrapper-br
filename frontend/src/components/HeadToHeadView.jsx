@@ -42,10 +42,14 @@ const selectStyle = {
   outline: 'none'
 };
 
-export default function HeadToHeadView() {
+export default function HeadToHeadView({
+  clubeInicial1 = 'Palmeiras',
+  clubeInicial2 = 'Corinthians',
+  onClubesChange
+} = {}) {
   const [clubesLista, setClubesLista] = useState([]);
   const [clubeAId, setClubeAId] = useState(2459); // Palmeiras
-  const [clubeBId, setClubeBId] = useState(2902); // Santos
+  const [clubeBId, setClubeBId] = useState(981); // Corinthians
   const [campeonato, setCampeonato] = useState('todos');
   const [decada, setDecada] = useState('todas');
   const [mandoFiltro, setMandoFiltro] = useState('todos');
@@ -55,23 +59,62 @@ export default function HeadToHeadView() {
   const [erro, setErro] = useState(null);
 
   useEffect(() => {
-    fetch('/api/clubes/lista-geral')
-      .then(res => res.json())
+    fetch('/api/confrontos/clubes')
+      .then(res => {
+        if (!res.ok) throw new Error('fallback');
+        return res.json();
+      })
       .then(data => {
-        if (data && data.clubes) {
+        if (data && Array.isArray(data.clubes) && data.clubes.length > 0) {
           setClubesLista(data.clubes);
+          return;
         }
+        throw new Error('empty');
       })
       .catch(() => {
-        setClubesLista([
-          { clube_id: 2459, nome: 'Palmeiras' },
-          { clube_id: 2902, nome: 'Santos' },
-          { clube_id: 981, nome: 'Corinthians' },
-          { clube_id: 3077, nome: 'São Paulo' },
-          { clube_id: 1389, nome: 'Flamengo' }
-        ]);
+        fetch('/api/clubes/lista-geral?limit=100&ano=todos')
+          .then(r => r.json())
+          .then(d => {
+            if (d && Array.isArray(d.clubes) && d.clubes.length > 0) {
+              setClubesLista(d.clubes);
+            }
+          })
+          .catch(() => {
+            setClubesLista([
+              { clube_id: 2459, nome: 'Palmeiras' },
+              { clube_id: 981, nome: 'Corinthians' },
+              { clube_id: 2902, nome: 'Santos' },
+              { clube_id: 3077, nome: 'São Paulo' },
+              { clube_id: 1389, nome: 'Flamengo' },
+              { clube_id: 1412, nome: 'Fluminense' },
+              { clube_id: 1540, nome: 'Grêmio' },
+              { clube_id: 1735, nome: 'Internacional' },
+              { clube_id: 414, nome: 'Atlético-MG' },
+              { clube_id: 1044, nome: 'Cruzeiro' },
+              { clube_id: 3371, nome: 'Vasco' },
+              { clube_id: 613, nome: 'Botafogo' }
+            ]);
+          });
       });
   }, []);
+
+  useEffect(() => {
+    if (!clubesLista.length) return;
+    const resolverId = (nome) => {
+      if (!nome) return null;
+      const nLow = nome.toLowerCase().trim();
+      const exato = clubesLista.find(c => (c.nome || '').toLowerCase().trim() === nLow);
+      if (exato) return exato.clube_id;
+      const parcial = clubesLista.find(c => (c.nome || '').toLowerCase().includes(nLow));
+      return parcial ? parcial.clube_id : null;
+    };
+    const id1 = resolverId(clubeInicial1);
+    const id2 = resolverId(clubeInicial2);
+    if (id1 && id2 && id1 !== id2) {
+      setClubeAId(id1);
+      setClubeBId(id2);
+    }
+  }, [clubesLista, clubeInicial1, clubeInicial2]);
 
   useEffect(() => {
     if (!clubeAId || !clubeBId || clubeAId === clubeBId) return;
@@ -103,10 +146,18 @@ export default function HeadToHeadView() {
       });
   }, [clubeAId, clubeBId, campeonato, decada, mandoFiltro, tipoJogo]);
 
+  const notificarClubes = (idA, idB) => {
+    if (!onClubesChange || !clubesLista.length) return;
+    const nomeA = clubesLista.find(c => c.clube_id === idA)?.nome;
+    const nomeB = clubesLista.find(c => c.clube_id === idB)?.nome;
+    if (nomeA && nomeB) onClubesChange(nomeA, nomeB);
+  };
+
   const handleInverterPerspectiva = () => {
     const temp = clubeAId;
     setClubeAId(clubeBId);
     setClubeBId(temp);
+    notificarClubes(clubeBId, temp);
   };
 
   const selecionarClassico = (nomeA, nomeB) => {
@@ -116,6 +167,7 @@ export default function HeadToHeadView() {
     if (idA && idB) {
       setClubeAId(idA);
       setClubeBId(idB);
+      if (onClubesChange) onClubesChange(nomeA, nomeB);
     }
   };
 
@@ -136,7 +188,11 @@ export default function HeadToHeadView() {
             </label>
             <select
               value={clubeAId}
-              onChange={(e) => setClubeAId(Number(e.target.value))}
+              onChange={(e) => {
+                const nid = Number(e.target.value);
+                setClubeAId(nid);
+                notificarClubes(nid, clubeBId);
+              }}
               style={{ ...selectStyle, fontFamily: 'var(--font-serif)', fontSize: '1.05rem' }}
             >
               {clubesLista.map(c => (
@@ -173,7 +229,11 @@ export default function HeadToHeadView() {
             </label>
             <select
               value={clubeBId}
-              onChange={(e) => setClubeBId(Number(e.target.value))}
+              onChange={(e) => {
+                const nid = Number(e.target.value);
+                setClubeBId(nid);
+                notificarClubes(clubeAId, nid);
+              }}
               style={{ ...selectStyle, fontFamily: 'var(--font-serif)', fontSize: '1.05rem' }}
             >
               {clubesLista.map(c => (
@@ -384,35 +444,42 @@ export default function HeadToHeadView() {
 
           {/* Retrospecto por Mando */}
           {mando && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              {[
-                { titulo: `${infoA.nome} como Mandante`, cor: '#5A673E', d: mando.clube_a_mandante },
-                { titulo: `${infoB.nome} como Mandante`, cor: '#85573B', d: mando.clube_b_mandante }
-              ].map((bloco, idx) => (
-                <div key={idx} style={cardStyle}>
-                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, color: bloco.cor, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Shield size={16} />
-                    {bloco.titulo}
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', textAlign: 'center' }}>
-                    <div style={subCardStyle}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vitórias</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800, color: '#5A673E' }}>{bloco.d.vitorias}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {[
+                  { titulo: `${infoA.nome} como Mandante`, cor: '#5A673E', d: mando.clube_a_mandante },
+                  { titulo: `${infoB.nome} como Mandante`, cor: '#85573B', d: mando.clube_b_mandante }
+                ].map((bloco, idx) => (
+                  <div key={idx} style={cardStyle}>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.05rem', fontWeight: 800, color: bloco.cor, margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Shield size={16} />
+                      {bloco.titulo}
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', textAlign: 'center' }}>
+                      <div style={subCardStyle}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vitórias</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800, color: '#5A673E' }}>{bloco.d.vitorias}</div>
+                      </div>
+                      <div style={subCardStyle}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Empates</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800 }}>{bloco.d.empates}</div>
+                      </div>
+                      <div style={subCardStyle}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Derrotas</div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800, color: '#85573B' }}>{bloco.d.derrotas}</div>
+                      </div>
                     </div>
-                    <div style={subCardStyle}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Empates</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800 }}>{bloco.d.empates}</div>
-                    </div>
-                    <div style={subCardStyle}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Derrotas</div>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 800, color: '#85573B' }}>{bloco.d.derrotas}</div>
-                    </div>
+                    <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', margin: '10px 0 0 0' }}>
+                      Gols: {bloco.d.gols_pro} pró, {bloco.d.gols_contra} contra
+                    </p>
                   </div>
-                  <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', margin: '10px 0 0 0' }}>
-                    Gols: {bloco.d.gols_pro} pró, {bloco.d.gols_contra} contra
-                  </p>
+                ))}
+              </div>
+              {mando.observacao && (
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}>
+                  ℹ️ {mando.observacao}
                 </div>
-              ))}
+              )}
             </div>
           )}
 
@@ -431,7 +498,7 @@ export default function HeadToHeadView() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.84rem', marginBottom: '6px' }}>
                           <span style={{ fontWeight: 700 }}>{item.label}</span>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                            {item.total_jogos} jogos · <strong style={{ color: '#5A673E' }}>{item.vitorias_a} ({dadosH2H.clube_a?.sigla || dadosH2H.clube_a?.nome?.slice(0, 3).toUpperCase() || 'A'})</strong> / {item.empates}E / <strong style={{ color: '#85573B' }}>{item.vitorias_b} ({dadosH2H.clube_b?.sigla || dadosH2H.clube_b?.nome?.slice(0, 3).toUpperCase() || 'B'})</strong>
+                            {item.total_jogos} jogos · <strong style={{ color: '#5A673E' }}>{item.vitorias_a} ({dadosH2H.clubes?.clube_a?.sigla || dadosH2H.clubes?.clube_a?.nome?.slice(0, 3).toUpperCase() || 'A'})</strong> / {item.empates}E / <strong style={{ color: '#85573B' }}>{item.vitorias_b} ({dadosH2H.clubes?.clube_b?.sigla || dadosH2H.clubes?.clube_b?.nome?.slice(0, 3).toUpperCase() || 'B'})</strong>
                           </span>
                         </div>
                         <div style={{ height: '8px', borderRadius: '999px', overflow: 'hidden', display: 'flex', backgroundColor: 'var(--surface-card)' }}>

@@ -139,6 +139,57 @@ def _calcular_dixon_coles_projecao(gols_pro_a, gols_contra_a, jogos_a, gols_pro_
         "status_amostra": "confiavel" if len(confrontos_diretos) >= 5 else "amostra_reduzida"
     }
 
+def _resolver_nomes_clube_h2h(cursor, clube_ref):
+    """
+    Resolve um clube (por clube_id int ou nome/alias str) para (dict_clube, set_aliases_lower).
+    Nunca utiliza buscas parciais LIKE; garante resolução canônica segura.
+    """
+    info = None
+    if isinstance(clube_ref, int) or (isinstance(clube_ref, str) and clube_ref.strip().isdigit()):
+        cid = int(clube_ref)
+        row = cursor.execute(
+            "SELECT clube_id, nome, sigla, estado, pais FROM dim_clube WHERE clube_id = ?",
+            (cid,)
+        ).fetchone()
+        if row:
+            info = dict(row)
+    else:
+        termo = (clube_ref or '').strip().lower()
+        row = cursor.execute(
+            "SELECT clube_id, nome, sigla, estado, pais FROM dim_clube WHERE lower(trim(nome)) = ?",
+            (termo,)
+        ).fetchone()
+        if not row:
+            row = cursor.execute(
+                """
+                SELECT d.clube_id, d.nome, d.sigla, d.estado, d.pais
+                FROM dim_entidades_aliases a
+                JOIN dim_clube d ON d.clube_id = a.entidade_id
+                WHERE a.tipo_entidade = 'clube' AND lower(trim(a.alias_nome)) = ?
+                LIMIT 1
+                """,
+                (termo,)
+            ).fetchone()
+        if row:
+            info = dict(row)
+
+    aliases = set()
+    if info:
+        aliases.add((info['nome'] or '').lower().strip())
+        alias_rows = cursor.execute(
+            "SELECT alias_nome FROM dim_entidades_aliases WHERE tipo_entidade = 'clube' AND entidade_id = ?",
+            (info['clube_id'],)
+        ).fetchall()
+        for ar in alias_rows:
+            if ar['alias_nome']:
+                aliases.add(ar['alias_nome'].lower().strip())
+    elif isinstance(clube_ref, str) and clube_ref.strip():
+        aliases.add(clube_ref.lower().strip())
+
+    aliases.discard('')
+    return info, aliases
+
+
 def _deduplicar_partidas_h2h(rows, nome_a):
     """
     Remove duplicatas históricas de confrontos entre os mesmos clubes:
@@ -146,6 +197,11 @@ def _deduplicar_partidas_h2h(rows, nome_a):
     - Deduplica partidas na mesma data (mesmo com mando invertido entre scrapers)
       ou com diferença de até 2 dias e placar idêntico sob a perspectiva do Clube A.
     """
+    if isinstance(nome_a, (set, list, tuple)):
+        nomes_a_set = {str(n).lower().strip() for n in nome_a if n}
+    else:
+        nomes_a_set = {str(nome_a or '').lower().strip()} if nome_a else set()
+
     validas = []
     for p in rows:
         if p['gols_mandante'] is None or p['gols_visitante'] is None:
@@ -166,7 +222,7 @@ def _deduplicar_partidas_h2h(rows, nome_a):
             dedup.append(p)
             continue
 
-        is_a_mand = (nome_a.lower() in (p['mandante'] or '').lower())
+        is_a_mand = ((p['mandante'] or '').lower().strip() in nomes_a_set)
         ga = p['gols_mandante'] if is_a_mand else p['gols_visitante']
         gb = p['gols_visitante'] if is_a_mand else p['gols_mandante']
 
@@ -181,7 +237,7 @@ def _deduplicar_partidas_h2h(rows, nome_a):
             if delta_dias > 2:
                 break
 
-            prev_a_mand = (nome_a.lower() in (prev['mandante'] or '').lower())
+            prev_a_mand = ((prev['mandante'] or '').lower().strip() in nomes_a_set)
             prev_ga = prev['gols_mandante'] if prev_a_mand else prev['gols_visitante']
             prev_gb = prev['gols_visitante'] if prev_a_mand else prev['gols_mandante']
 
@@ -239,6 +295,25 @@ def _categorizar_decada(ano):
     return 'pre1980', 'Pré-1980'
 
 
+@rotas_h2h_canonica_bp.route('/api/confrontos/clubes', methods=['GET'])
+def listar_clubes_confrontos():
+    """Retorna o catálogo canônico de clubes brasileiros para os seletores do módulo H2H."""
+    conn = get_db()
+    cursor = conn.cursor()
+    # Prioriza os 20 principais clubes nacionais + demais clubes brasileiros com presença na base
+    rows = cursor.execute(
+        """
+        SELECT d.clube_id, d.nome, d.sigla, d.estado
+        FROM dim_clube d
+        WHERE d.pais = 'Brasil' OR d.pais IS NULL OR d.pais = ''
+        ORDER BY d.nome ASC
+        """
+    ).fetchall()
+    conn.close()
+    clubes = [dict(r) for r in rows if r['nome']]
+    return jsonify({"total": len(clubes), "clubes": clubes}), 200
+
+
 @rotas_h2h_canonica_bp.route('/api/confrontos/h2h', methods=['GET'])
 def obter_confronto_h2h():
     clube_a_raw = request.args.get('clube_a')
@@ -269,25 +344,23 @@ def obter_confronto_h2h():
     conn = get_db()
     cursor = conn.cursor()
 
-    clubes = cursor.execute(
-        "SELECT clube_id, nome, sigla, estado, pais FROM dim_clube WHERE clube_id IN (?, ?)",
-        (clube_a_id, clube_b_id)
-    ).fetchall()
+    info_a, names_a = _resolver_nomes_clube_h2h(cursor, clube_a_id)
+    info_b, names_b = _resolver_nomes_clube_h2h(cursor, clube_b_id)
 
-    if len(clubes) < 2:
+    if not info_a or not info_b:
         conn.close()
         return jsonify({
             "error": "Um ou ambos os clubes informados não foram encontrados no acervo."
         }), 404
 
-    clube_map = {c['clube_id']: dict(c) for c in clubes}
-    info_a = clube_map[clube_a_id]
-    info_b = clube_map[clube_b_id]
-
     nome_a = info_a['nome']
     nome_b = info_b['nome']
+    lista_a = sorted(names_a)
+    lista_b = sorted(names_b)
+    ph_a = ','.join('?' for _ in lista_a)
+    ph_b = ','.join('?' for _ in lista_b)
 
-    query = """
+    query = f"""
         SELECT 
             id_partida,
             data,
@@ -303,12 +376,12 @@ def obter_confronto_h2h():
             placar,
             vencedor
         FROM partidas
-        WHERE (mandante = ? AND visitante = ?)
-           OR (mandante = ? AND visitante = ?)
+        WHERE (lower(trim(mandante)) IN ({ph_a}) AND lower(trim(visitante)) IN ({ph_b}))
+           OR (lower(trim(mandante)) IN ({ph_b}) AND lower(trim(visitante)) IN ({ph_a}))
         ORDER BY data DESC, id_partida DESC
     """
-    partidas_raw = cursor.execute(query, (nome_a, nome_b, nome_b, nome_a)).fetchall()
-    partidas_todas = _deduplicar_partidas_h2h(partidas_raw, nome_a)
+    partidas_raw = cursor.execute(query, lista_a + lista_b + lista_b + lista_a).fetchall()
+    partidas_todas = _deduplicar_partidas_h2h(partidas_raw, names_a)
 
     # Cruzamento histórico completo (por competição e por década)
     comp_buckets = {}
@@ -319,7 +392,7 @@ def obter_confronto_h2h():
         pm = dict(p)
         gm = pm['gols_mandante'] if pm['gols_mandante'] is not None else 0
         gv = pm['gols_visitante'] if pm['gols_visitante'] is not None else 0
-        is_a_mand = (pm['mandante'] == nome_a)
+        is_a_mand = ((pm['mandante'] or '').lower().strip() in names_a)
         ga = gm if is_a_mand else gv
         gb = gv if is_a_mand else gm
 
@@ -386,16 +459,14 @@ def obter_confronto_h2h():
         artilheiros_confronto = [dict(r) for r in art_rows]
 
         lei_rows = cursor.execute(
-            """
+            f"""
             SELECT g.id_jogador,
                    COALESCE(je.nome_exibicao, g.atleta) AS nome,
-                   SUM(CASE WHEN g.clube = ? THEN 1 ELSE 0 END) AS gols_a,
-                   SUM(CASE WHEN g.clube = ? THEN 1 ELSE 0 END) AS gols_b
+                   SUM(CASE WHEN lower(trim(g.clube)) IN ({ph_a}) THEN 1 ELSE 0 END) AS gols_a,
+                   SUM(CASE WHEN lower(trim(g.clube)) IN ({ph_b}) THEN 1 ELSE 0 END) AS gols_b
             FROM gols g
-            JOIN partidas p ON p.id_partida = g.id_partida
             LEFT JOIN jogadores_estatisticas je ON je.id_jogador = g.id_jogador
-            WHERE ((p.mandante = ? AND p.visitante = ?)
-                OR (p.mandante = ? AND p.visitante = ?))
+            WHERE g.id_partida IN ({placeholders})
               AND g.id_jogador IS NOT NULL AND g.id_jogador > 0
               AND (g.tipo_de_gol IS NULL OR lower(g.tipo_de_gol) NOT LIKE '%contra%')
             GROUP BY g.id_jogador
@@ -403,7 +474,7 @@ def obter_confronto_h2h():
             ORDER BY (gols_a + gols_b) DESC
             LIMIT 10
             """,
-            (nome_a, nome_b, nome_a, nome_b, nome_b, nome_a)
+            lista_a + lista_b + partidas_ids_filtradas
         ).fetchall()
         lei_do_ex = [dict(r) for r in lei_rows]
 
@@ -443,7 +514,7 @@ def obter_confronto_h2h():
         gm = pm['gols_mandante'] if pm['gols_mandante'] is not None else 0
         gv = pm['gols_visitante'] if pm['gols_visitante'] is not None else 0
 
-        is_a_mandante = (pm['mandante'] == nome_a)
+        is_a_mandante = ((pm['mandante'] or '').lower().strip() in names_a)
         gols_partida_a = gm if is_a_mandante else gv
         gols_partida_b = gv if is_a_mandante else gm
 
@@ -545,7 +616,11 @@ def obter_confronto_h2h():
                 "derrotas": mando_b_derrotas,
                 "gols_pro": mando_b_gols_pro,
                 "gols_contra": mando_b_gols_contra
-            }
+            },
+            "observacao": (
+                f"Acervo histórico com predomínio de mando registrado para um dos clubes ({max(mando_a_total, mando_b_total)}/{total_jogos}); "
+                "registros centenários em estádios compartilhados podem agrupar mando no Clube A."
+            ) if (total_jogos >= 50 and max(mando_a_total, mando_b_total) > 0.70 * total_jogos) else None
         },
         "projecao_dixon_coles": projecao,
         "maiores_goleadas": goleadas[:5],
