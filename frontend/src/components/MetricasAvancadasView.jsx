@@ -3,6 +3,7 @@ import {
   Award, TrendingUp, BarChart3, ShieldCheck, Search, Users,
   Check, Info, ChevronRight, Filter, Database, Sparkles, Activity
 } from 'lucide-react';
+import { MetricTooltip, ScoreBar, RapmDivergingBar, ClubXptsScatterChart } from './EconometriaVisuals';
 
 export default function MetricasAvancadasView({ darkMode }) {
   const [activeSubTab, setActiveSubTab] = useState('rankings'); // 'rankings' | 'clubes' | 'atleta' | 'governanca'
@@ -1063,11 +1064,21 @@ export default function MetricasAvancadasView({ darkMode }) {
                       <th>Atleta</th>
                       <th>Clube</th>
                       <th>Posição</th>
-                      <th style={{ textAlign: 'right' }}>Score (0–100)</th>
-                      <th style={{ textAlign: 'right' }}>npxG/90 EB</th>
-                      <th style={{ textAlign: 'right' }}>xA/90 EB</th>
-                      <th style={{ textAlign: 'right' }}>SCA/90 EB</th>
-                      <th style={{ textAlign: 'right' }}>Passes Prog./90</th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="Score (0–100)" what="Nota composta por função tática via Z-Score." how="Compara o atleta apenas contra jogadores da mesma macro-posição." refText=">= 80 = Elite da Série A" />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="npxG/90 EB" what="Gols esperados sem pênaltis por 90 min (Empirical Bayes)." how="Encolhido para a média da posição contra viés de poucos minutos." refText="> 0.35 = Alta ameaça de gol" />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="xA/90 EB" what="Assistências esperadas por 90 min (Empirical Bayes)." how="Mede a qualidade das chances criadas para companheiros." refText="> 0.20 = Criador de elite" />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="SCA/90 EB" what="Ações que geram finalizações (Shot-Creating Actions) por 90 min." how="Inclui passes decisivos, dribles e faltas sofridas que originam chutes." refText="> 3.5 = Alto volume criativo" />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="Passes Prog./90" what="Passes progressivos por 90 min ajustados por Empirical Bayes." how="Passes que avançam a bola significativamente em direção ao gol." refText="> 4.5 = Forte progressão" />
+                      </th>
                       <th style={{ textAlign: 'right' }}>Min</th>
                       <th style={{ textAlign: 'center' }}>Confiança</th>
                     </tr>
@@ -1079,7 +1090,7 @@ export default function MetricasAvancadasView({ darkMode }) {
                         <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{a.nome}</td>
                         <td style={{ color: 'var(--text-secondary)' }}>{a.clube_nome}</td>
                         <td><span className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{a.macro_posicao}</span></td>
-                        <td className="font-mono" style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>{a.score_econometrico}</td>
+                        <td style={{ textAlign: 'right' }}><ScoreBar value={a.score_econometrico} /></td>
                         <td className="font-mono" style={{ textAlign: 'right' }}>{a.npxg_p90_eb.toFixed(2)}</td>
                         <td className="font-mono" style={{ textAlign: 'right' }}>{a.xa_p90_eb.toFixed(2)}</td>
                         <td className="font-mono" style={{ textAlign: 'right' }}>{a.sca_p90_eb.toFixed(2)}</td>
@@ -1115,19 +1126,32 @@ export default function MetricasAvancadasView({ darkMode }) {
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 14px 0' }}>
               Compara pontuação real vs. esperada (Delta xPTS) para separar desempenho sustentável de variância de curto prazo.
             </p>
+            <ClubXptsScatterChart clubes={econClubes} />
             <div style={{ overflowX: 'auto' }}>
               <table className="editorial-table" style={{ width: '100%', fontSize: '0.82rem' }}>
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>Clube</th>
-                    <th style={{ textAlign: 'right' }}>Power Score</th>
+                    <th style={{ textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="Power Score" what="Índice composto de força coletiva (0–100)." how="Combina xPTS (45%), Saldo xG (30%), Field Tilt (15%) e PPDA (10%)." />
+                    </th>
                     <th style={{ textAlign: 'right' }}>Pts</th>
-                    <th style={{ textAlign: 'right' }}>xPTS</th>
-                    <th style={{ textAlign: 'right' }}>Delta xPTS</th>
-                    <th style={{ textAlign: 'right' }}>Saldo xG</th>
-                    <th style={{ textAlign: 'right' }}>Field Tilt</th>
-                    <th style={{ textAlign: 'right' }}>PPDA</th>
+                    <th style={{ textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="xPTS" what="Pontos esperados (Expected Points)." how="Estima quantos pontos o time merecia pela qualidade das chances criadas e cedidas." />
+                    </th>
+                    <th style={{ textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="Delta xPTS" what="Diferença entre Pontos Reais e xPTS." how="Positivo = eficiência ou sorte acima do esperado; Negativo = time subvalorizado." />
+                    </th>
+                    <th style={{ textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="Saldo xG" what="xG a favor menos xG sofrido." how="Mede superioridade real de chances criadas sobre o adversário." />
+                    </th>
+                    <th style={{ textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="Field Tilt" what="Participação nos passes no terço final do campo." how="Acima de 55% indica forte domínio territorial ofensivo." />
+                    </th>
+                    <th style={{ textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="PPDA" what="Passes permitidos ao adversário por ação defensiva." how="Quanto MENOR o valor, mais alta e intensa é a pressão." refText="< 10.0 = Pressão de elite" />
+                    </th>
                     <th>Leitura</th>
                   </tr>
                 </thead>
@@ -1168,7 +1192,9 @@ export default function MetricasAvancadasView({ darkMode }) {
                       <th>#</th>
                       <th>Atleta</th>
                       <th>Clube Recente</th>
-                      <th style={{ textAlign: 'right' }}>RAPM (Gols/Jogo)</th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="RAPM (Gols/Jogo)" what="Impacto líquido marginal no saldo de gols por jogo (Regressão Ridge L2)." how="Isola o efeito do atleta controlando por companheiros, adversários e mando." refText="> +0.20 = Impacto de elite" />
+                      </th>
                       <th style={{ textAlign: 'right' }}>Score RAPM (0–100)</th>
                       <th style={{ textAlign: 'right' }}>Jogos Titular</th>
                       <th style={{ textAlign: 'center' }}>Janela</th>
@@ -1180,9 +1206,7 @@ export default function MetricasAvancadasView({ darkMode }) {
                         <td className="font-mono" style={{ fontWeight: 700 }}>{r.rank_rapm}</td>
                         <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.nome}</td>
                         <td style={{ color: 'var(--text-secondary)' }}>{r.clube_recente || '—'}</td>
-                        <td className="font-mono" style={{ textAlign: 'right', fontWeight: 800, color: r.rapm_saldo_gols >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
-                          {r.rapm_saldo_gols >= 0 ? `+${r.rapm_saldo_gols.toFixed(3)}` : r.rapm_saldo_gols.toFixed(3)}
-                        </td>
+                        <td style={{ textAlign: 'right' }}><RapmDivergingBar value={r.rapm_saldo_gols} /></td>
                         <td className="font-mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>{r.rapm_score_0_100}</td>
                         <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{r.jogos_titular}</td>
                         <td className="font-mono" style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.temporadas}</td>
