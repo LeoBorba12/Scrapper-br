@@ -384,7 +384,7 @@ def test_adv_07_governance_and_regression_baselines(db_conn):
 
     cursor.execute("SELECT DISTINCT tipo_de_gol FROM gols WHERE tipo_de_gol IS NOT NULL AND tipo_de_gol != ''")
     types = {r[0] for r in cursor.fetchall()}
-    canonical = {"Normal", "Pênalti", "Falta", "Contra", "Cabeça"}
+    canonical = {"Normal", "Pênalti", "Falta", "Contra", "Cabeça", "Barriga"}
     assert not (types - canonical), f"Tipos não canônicos encontrados: {types - canonical}"
 
     # Database file size
