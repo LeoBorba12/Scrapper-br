@@ -93,6 +93,36 @@ img, svg, canvas {
   border-color: var(--border-strong);
 }
 
+/* Tema 2: Terminal Quant Dark — Layout Sidebar Desktop + Mobile Fallback */
+.quant-layout-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.quant-sidebar-desktop {
+  position: sticky;
+  top: 76px;
+  background-color: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  padding: 12px 8px;
+}
+.quant-mobile-nav {
+  display: none;
+}
+@media (max-width: 1023px) {
+  .quant-layout-shell {
+    grid-template-columns: 1fr;
+  }
+  .quant-sidebar-desktop {
+    display: none;
+  }
+  .quant-mobile-nav {
+    display: block;
+  }
+}
+
 /* Botões do Sistema */
 .btn-primary {
   background-color: var(--accent);

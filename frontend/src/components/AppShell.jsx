@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Trophy, CloudRain, Swords, BarChart3, Bot, Search,
   Calendar, Award, Key, LogOut, UserPlus, Check, Sun, Moon,
-  ShieldCheck, ArrowRight, TrendingUp, Users, Sparkles
+  ShieldCheck, ArrowRight, TrendingUp, Users, Sparkles, Camera, X
 } from 'lucide-react';
 
 export default function AppShell({
@@ -17,22 +17,62 @@ export default function AppShell({
   conviteCopiado,
   children
 }) {
-  const navItems = [
-    { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
-    { id: 'campeonato', label: 'Campeonato', icon: Award, badge: 'Scouts 2026' },
-    { id: 'metricas-avancadas', label: 'Métricas Avançadas', icon: Sparkles, badge: 'BED 2026' },
-    { id: 'probabilidades', label: 'Probabilidades', icon: TrendingUp, badge: 'Fair Odds & Mercado' },
-    { id: 'times', label: 'Clubes', icon: BarChart3, badge: 'Editorial' },
-    { id: 'jogadores', label: 'Atletas', icon: Award, badge: 'Protagonista' },
-    { id: 'h2h', label: 'Confrontos', icon: Swords },
-    { id: 'tecnicos', label: 'Técnicos', icon: Users, badge: 'Mestres' },
-    { id: 'playground', label: 'Partidas', icon: Calendar },
-    { id: 'clima', label: 'Clima', icon: CloudRain },
-    { id: 'arbitros', label: 'Arbitragem', icon: ShieldCheck },
-    { id: 'oraculo', label: 'Oráculo IA', icon: Bot },
-    { id: 'tweets', label: 'Publicar', icon: ArrowRight },
-    { id: 'aovivo', label: 'Ao Vivo', icon: Trophy }
+  const [printMode, setPrintMode] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState('');
+
+  const navGroups = [
+    {
+      titulo: 'Núcleo Analítico',
+      items: [
+        { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
+        { id: 'probabilidades', label: 'Probabilidades', icon: TrendingUp, badge: '+EV' },
+        { id: 'metricas-avancadas', label: 'Métricas Avançadas', icon: Sparkles, badge: 'BED' },
+        { id: 'campeonato', label: 'Campeonato', icon: Award, badge: 'Scouts' }
+      ]
+    },
+    {
+      titulo: 'Acervo Canônico',
+      items: [
+        { id: 'times', label: 'Clubes', icon: BarChart3 },
+        { id: 'jogadores', label: 'Atletas', icon: Award },
+        { id: 'h2h', label: 'Confrontos', icon: Swords },
+        { id: 'tecnicos', label: 'Técnicos', icon: Users },
+        { id: 'playground', label: 'Partidas', icon: Calendar },
+        { id: 'arbitros', label: 'Arbitragem', icon: ShieldCheck }
+      ]
+    },
+    {
+      titulo: 'Publicação & IA',
+      items: [
+        { id: 'tweets', label: 'Publicar', icon: ArrowRight },
+        { id: 'oraculo', label: 'Oráculo IA', icon: Bot },
+        { id: 'clima', label: 'Clima', icon: CloudRain },
+        { id: 'aovivo', label: 'Ao Vivo', icon: Trophy }
+      ]
+    }
   ];
+
+  const navItems = navGroups.flatMap((g) => g.items);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+        setCmdQuery('');
+      } else if (e.key === 'Escape') {
+        setCmdOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const filteredCmdItems = navItems.filter((item) =>
+    item.label.toLowerCase().includes(cmdQuery.trim().toLowerCase()) ||
+    item.id.toLowerCase().includes(cmdQuery.trim().toLowerCase())
+  );
 
   return (
     <div 
@@ -120,6 +160,54 @@ export default function AppShell({
 
           {/* Controles de Conta e Tema (Alvos de Toque Confortáveis - UX-001) */}
           <div className="app-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Atalho Ctrl+K */}
+            <button
+              onClick={() => { setCmdOpen(true); setCmdQuery(''); }}
+              className="app-header-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 12px',
+                minHeight: '38px',
+                borderRadius: 'var(--radius-control)',
+                backgroundColor: 'var(--surface-raised)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-secondary)',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Ir rápido para qualquer aba (Ctrl+K)"
+            >
+              <Search size={14} color="var(--accent)" />
+              <span className="app-header-btn-text font-mono">Ctrl+K</span>
+            </button>
+
+            {/* Modo Print X/Twitter */}
+            <button
+              onClick={() => setPrintMode((v) => !v)}
+              className="app-header-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 12px',
+                minHeight: '38px',
+                borderRadius: 'var(--radius-control)',
+                backgroundColor: printMode ? 'var(--accent)' : 'var(--surface-raised)',
+                border: `1px solid ${printMode ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                color: printMode ? 'var(--accent-foreground)' : 'var(--text-primary)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+              title="Enquadrar tela limpa para captura no X/Twitter"
+            >
+              <Camera size={14} />
+              <span className="app-header-btn-text">{printMode ? 'Sair Print' : 'Modo Print'}</span>
+            </button>
+
             {/* Seletor de Tema Areia / Carvão */}
             <button
               onClick={onToggleTheme}
@@ -138,11 +226,11 @@ export default function AppShell({
                 fontWeight: 600,
                 cursor: 'pointer'
               }}
-              aria-label={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Carvão'}
-              title={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Carvão'}
+              aria-label={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Quant Dark'}
+              title={darkMode ? 'Mudar para Tema Areia' : 'Mudar para Tema Quant Dark'}
             >
               {darkMode ? <Sun size={15} color="var(--accent)" /> : <Moon size={15} color="var(--accent)" />}
-              <span className="app-header-btn-text">{darkMode ? 'Carvão' : 'Areia'}</span>
+              <span className="app-header-btn-text">{darkMode ? 'Quant Dark' : 'Areia'}</span>
             </button>
 
             {/* Botão de Convite (Apenas Admin) */}
@@ -276,76 +364,78 @@ export default function AppShell({
           </div>
         </div>
 
-        {/* ================= NAVEGAÇÃO PRINCIPAL UNIFICADA (UMA IDENTIDADE) ================= */}
-        <nav
-          className="nav-scroll-touch"
-          style={{
-            borderTop: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--surface-panel)',
-            overflowX: 'auto'
-          }}
-          aria-label="Navegação Principal do FutStats"
-        >
-          <div
-            className="app-nav-container"
+        {/* ================= NAVEGAÇÃO MOBILE / MODO CLARO ================= */}
+        {!printMode && (
+          <nav
+            className={`nav-scroll-touch ${darkMode ? 'quant-mobile-nav' : ''}`}
             style={{
-              maxWidth: 'var(--content-max)',
-              margin: '0 auto',
-              padding: '0 24px',
-              display: 'flex',
-              gap: '4px'
+              borderTop: '1px solid var(--border-subtle)',
+              backgroundColor: 'var(--surface-panel)',
+              overflowX: 'auto'
             }}
+            aria-label="Navegação Principal do FutStats"
           >
-            {navItems.map((item) => {
-              const active = activeTab === item.id || 
-                (item.id === 'probabilidades' && activeTab === 'apostas') ||
-                (item.id === 'times' && activeTab === 'clube');
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigateTab(item.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '7px',
-                    padding: '12px 14px',
-                    minHeight: '44px',
-                    border: 'none',
-                    borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
-                    backgroundColor: 'transparent',
-                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: active ? 700 : 500,
-                    fontSize: '0.84rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'color 150ms ease, border-color 150ms ease'
-                  }}
-                  aria-current={active ? 'page' : undefined}
-                >
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span 
-                      style={{ 
-                        fontSize: '0.64rem', 
-                        padding: '2px 6px', 
-                        borderRadius: '3px',
-                        backgroundColor: active ? 'var(--accent-soft)' : 'var(--surface-raised)',
-                        color: active ? 'var(--accent)' : 'var(--text-muted)',
-                        fontWeight: 700
-                      }}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+            <div
+              className="app-nav-container"
+              style={{
+                maxWidth: 'var(--content-max)',
+                margin: '0 auto',
+                padding: '0 24px',
+                display: 'flex',
+                gap: '4px'
+              }}
+            >
+              {navItems.map((item) => {
+                const active = activeTab === item.id || 
+                  (item.id === 'probabilidades' && activeTab === 'apostas') ||
+                  (item.id === 'times' && activeTab === 'clube');
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigateTab(item.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '12px 14px',
+                      minHeight: '44px',
+                      border: 'none',
+                      borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+                      backgroundColor: 'transparent',
+                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontWeight: active ? 700 : 500,
+                      fontSize: '0.84rem',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'color 150ms ease, border-color 150ms ease'
+                    }}
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span 
+                        style={{ 
+                          fontSize: '0.64rem', 
+                          padding: '2px 6px', 
+                          borderRadius: '3px',
+                          backgroundColor: active ? 'var(--accent-soft)' : 'var(--surface-raised)',
+                          color: active ? 'var(--accent)' : 'var(--text-muted)',
+                          fontWeight: 700
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        )}
       </header>
 
       {/* ================= TICKER QUANT (TEMA 2: TERMINAL QUANT DARK) ================= */}
-      {darkMode && (
+      {darkMode && !printMode && (
         <div
           className="font-mono"
           style={{
@@ -376,17 +466,213 @@ export default function AppShell({
         </div>
       )}
 
-      {/* ================= CONTEÚDO DA PÁGINA ================= */}
-      <main
-        className="app-main-content"
+      {/* ================= CONTEÚDO DA PÁGINA (COM SIDEBAR QUANT NO DESKTOP) ================= */}
+      <div
+        className={darkMode && !printMode ? 'quant-layout-shell' : ''}
         style={{
           maxWidth: 'var(--content-max)',
           margin: '0 auto',
-          padding: '28px 24px 64px 24px'
+          padding: printMode ? '24px' : '20px 24px 64px 24px'
         }}
       >
-        {children}
-      </main>
+        {darkMode && !printMode && (
+          <aside className="quant-sidebar-desktop" aria-label="Menu Lateral Terminal Quant">
+            {navGroups.map((group) => (
+              <div key={group.titulo} style={{ marginBottom: '14px' }}>
+                <div
+                  className="font-mono"
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: 'var(--text-muted)',
+                    padding: '4px 10px 6px 10px'
+                  }}
+                >
+                  {group.titulo}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = activeTab === item.id ||
+                      (item.id === 'probabilidades' && activeTab === 'apostas') ||
+                      (item.id === 'times' && activeTab === 'clube');
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => onNavigateTab(item.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: 'var(--radius-control)',
+                          border: active ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid transparent',
+                          backgroundColor: active ? 'var(--accent-soft)' : 'transparent',
+                          color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                          fontSize: '0.82rem',
+                          fontWeight: active ? 700 : 500,
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          <Icon size={15} />
+                          <span>{item.label}</span>
+                        </span>
+                        {item.badge && (
+                          <span
+                            className="font-mono"
+                            style={{
+                              fontSize: '0.62rem',
+                              padding: '1px 5px',
+                              borderRadius: '3px',
+                              backgroundColor: active ? 'rgba(34, 197, 94, 0.2)' : 'var(--surface-raised)',
+                              color: active ? 'var(--accent)' : 'var(--text-muted)',
+                              fontWeight: 700
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </aside>
+        )}
+
+        <main
+          className="app-main-content"
+          style={{
+            minWidth: 0,
+            width: '100%',
+            ...(printMode ? {
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--radius-panel)',
+              padding: '24px',
+              backgroundColor: 'var(--surface-panel)'
+            } : {})
+          }}
+        >
+          {children}
+          {printMode && (
+            <div
+              className="font-mono"
+              style={{
+                marginTop: '20px',
+                paddingTop: '12px',
+                borderTop: '1px dashed var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                fontSize: '0.74rem',
+                color: 'var(--text-muted)',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}
+            >
+              <span>Fonte: FutStats • Acervo Canônico Brasileiro (115.257 partidas auditadas)</span>
+              <span style={{ color: 'var(--accent)', fontWeight: 700 }}>scrapper-br.vercel.app • #FutStats</span>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* ================= MODAL BUSCA RÁPIDA (CTRL+K) ================= */}
+      {cmdOpen && (
+        <div
+          onClick={() => setCmdOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            backgroundColor: 'rgba(0, 0, 0, 0.65)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: '12vh'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              backgroundColor: 'var(--surface-panel)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--radius-panel)',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
+              <Search size={16} color="var(--accent)" />
+              <input
+                autoFocus
+                value={cmdQuery}
+                onChange={(e) => setCmdQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && filteredCmdItems.length > 0) {
+                    onNavigateTab(filteredCmdItems[0].id);
+                    setCmdOpen(false);
+                  }
+                }}
+                placeholder="Ir para aba (ex: Probabilidades, Clubes, Atletas, H2H)..."
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem'
+                }}
+              />
+              <button onClick={() => setCmdOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={16} />
+              </button>
+            </div>
+            <div style={{ maxHeight: '320px', overflowY: 'auto', padding: '6px' }}>
+              {filteredCmdItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      onNavigateTab(item.id);
+                      setCmdOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                      fontSize: '0.84rem',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <Icon size={15} color="var(--accent)" />
+                      <span>{item.label}</span>
+                    </span>
+                    <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>↵ abrir</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= FOOTER EDITORIAL ================= */}
       <footer
