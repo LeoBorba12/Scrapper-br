@@ -9,8 +9,8 @@ Métodos:
 3. Power Ranking & Eficiência de Clubes (xPTS, Delta Sorte/Eficiência, Saldo xG, Field Tilt, PPDA).
 """
 import math
+import statistics
 from typing import Any, Dict, List
-import numpy as np
 
 
 PESOS_POSICAO = {
@@ -148,9 +148,9 @@ def calcular_indice_atletas(
         pesos = PESOS_POSICAO.get(macro, PESOS_POSICAO["Atacante"])
         stats_z = {}
         for _, key_p90 in metricas_keys:
-            vals = np.array([g[f"{key_p90}_eb"] for g in grupo], dtype=float)
-            media = float(np.mean(vals)) if len(vals) else 0.0
-            dp = float(np.std(vals)) if len(vals) else 1.0
+            vals = [float(g[f"{key_p90}_eb"]) for g in grupo]
+            media = statistics.mean(vals) if vals else 0.0
+            dp = statistics.pstdev(vals) if len(vals) > 1 else 1.0
             stats_z[key_p90] = (media, dp if dp > 1e-9 else 1.0)
 
         z_compostos = []
@@ -163,11 +163,10 @@ def calcular_indice_atletas(
             g["z_composto"] = round(z_total, 3)
             z_compostos.append(z_total)
 
-        arr_z = np.array(z_compostos, dtype=float)
         for g in grupo:
             # Percentil empírico suave + escala 0-100 baseada em função logística do Z-Score
             score_log = 100.0 / (1.0 + math.exp(-1.15 * g["z_composto"]))
-            percentil = float(np.mean(arr_z <= g["z_composto"]) * 100.0) if len(arr_z) else 50.0
+            percentil = (sum(1 for z in z_compostos if z <= g["z_composto"]) / len(z_compostos) * 100.0) if z_compostos else 50.0
             margem_incerteza = round(min(14.0, 120.0 / math.sqrt(max(float(g["minutos"]), 90.0))), 1)
             resultados.append({
                 "atleta_id_canonico": g["atleta_id_canonico"],
@@ -224,14 +223,14 @@ def calcular_ranking_clubes_econometrico(clubes_rows: List[Dict[str, Any]]) -> L
     if not clubes_rows:
         return []
 
-    xpts_arr = np.array([float(c.get("xpts") or 0.0) for c in clubes_rows], dtype=float)
-    sxg_arr = np.array([float(c.get("xg") or 0.0) - float(c.get("xg_contra") or 0.0) for c in clubes_rows], dtype=float)
-    ft_arr = np.array([float(c.get("field_tilt_pct") or 50.0) for c in clubes_rows], dtype=float)
-    ppda_arr = np.array([float(c.get("ppda") or 12.0) for c in clubes_rows], dtype=float)
+    xpts_arr = [float(c.get("xpts") or 0.0) for c in clubes_rows]
+    sxg_arr = [float(c.get("xg") or 0.0) - float(c.get("xg_contra") or 0.0) for c in clubes_rows]
+    ft_arr = [float(c.get("field_tilt_pct") or 50.0) for c in clubes_rows]
+    ppda_arr = [float(c.get("ppda") or 12.0) for c in clubes_rows]
 
-    def _z(arr: np.ndarray, val: float) -> float:
-        dp = float(np.std(arr))
-        return (val - float(np.mean(arr))) / (dp if dp > 1e-9 else 1.0)
+    def _z(arr: List[float], val: float) -> float:
+        dp = statistics.pstdev(arr) if len(arr) > 1 else 1.0
+        return (val - statistics.mean(arr)) / (dp if dp > 1e-9 else 1.0)
 
     saida = []
     for c in clubes_rows:
