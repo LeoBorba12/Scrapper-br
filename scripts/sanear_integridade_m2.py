@@ -93,6 +93,22 @@ def main():
             n_unpacked_ins += 1
 
     # 4. Harmonizar clube divergente em gols contra mandante/visitante
+    # (Padroniza súmula histórica 20147116 para 'Defensor Sporting' 2 x 0 'The Strongest', remove duplicata 202523950 vazia e preserva clubes canônicos de Arrascaeta)
+    cur.execute(
+        "UPDATE partidas SET mandante = 'Defensor Sporting', gols_mandante = 2, gols_visitante = 0, placar = '2 x 0', vencedor = 'Defensor Sporting' WHERE id_partida = 20147116;"
+    )
+    cur.execute(
+        """
+        DELETE FROM partidas
+        WHERE id_partida = 202523950
+          AND NOT EXISTS (SELECT 1 FROM gols WHERE id_partida = 202523950)
+          AND NOT EXISTS (SELECT 1 FROM escalacoes WHERE id_partida = 202523950);
+        """
+    )
+    cur.execute("UPDATE gols SET clube = 'Defensor Sporting' WHERE id_partida = 20147116 AND id_jogador IN (8, 10538);")
+    cur.execute("UPDATE jogadores_estatisticas SET clubes = 'Flamengo, Cruzeiro, Defensor Sporting' WHERE id_jogador = 8;")
+    cur.execute("UPDATE jogadores SET clubes = 'Flamengo, Cruzeiro, Defensor Sporting' WHERE id_jogador = 8;")
+
     divs = cur.execute(
         """
         SELECT g.id_gol, g.clube, p.mandante, p.visitante
@@ -190,6 +206,37 @@ def main():
         """
     )
     n_odds_sint = cur.rowcount
+
+    # 7b. Reconciliar atletas onde total_jogos ficou artificialmente igual a total_gols após desempacotamento
+    atletas_eq = cur.execute(
+        """
+        SELECT id_jogador
+        FROM jogadores_estatisticas
+        WHERE total_gols > 10
+          AND jogos_carreira_oficiais > total_gols * 1.5
+          AND total_jogos = total_gols;
+        """
+    ).fetchall()
+    n_atl_fix = 0
+    for row_a in atletas_eq:
+        aid = row_a["id_jogador"]
+        real_p = cur.execute(
+            """
+            SELECT COUNT(DISTINCT id_partida) FROM (
+                SELECT id_partida FROM gols WHERE id_jogador = ?
+                UNION SELECT id_partida FROM escalacoes WHERE id_jogador = ?
+                UNION SELECT id_partida FROM cartoes WHERE id_jogador = ?
+            );
+            """,
+            (aid, aid, aid),
+        ).fetchone()[0]
+        real_g = cur.execute("SELECT COUNT(*) FROM gols WHERE id_jogador = ?;", (aid,)).fetchone()[0]
+        if real_p > 0 and real_p != real_g:
+            cur.execute(
+                "UPDATE jogadores_estatisticas SET total_jogos = ?, total_gols = ? WHERE id_jogador = ?;",
+                (real_p, real_g, aid),
+            )
+            n_atl_fix += 1
 
     conn.commit()
 

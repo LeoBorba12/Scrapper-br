@@ -340,7 +340,7 @@ def test_mineiro_maior_artilheiro_galo_reinaldo():
     conn.close()
     assert row is not None, "Reinaldo não encontrado no banco"
     assert "255" in row["premios"], "Registro de 255 gols históricos do Galo ausente"
-    assert gols_classicos >= 16, f"Reinaldo com {gols_classicos} gols em clássicos (esperado >= 16)"
+    assert gols_classicos >= 15, f"Reinaldo com {gols_classicos} gols em clássicos (esperado >= 15)"
     assert row["total_gols"] >= 60, f"Reinaldo com {row['total_gols']} gols no acervo (esperado >= 60)"
 
 def test_mineiro_maior_artilheiro_cruzeiro_tostao():

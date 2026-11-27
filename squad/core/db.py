@@ -22,7 +22,9 @@ def get_connection(db_path: str = DEFAULT_DB_PATH, readonly: bool = False) -> sq
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout=10000;")
     if not readonly:
-        conn.execute("PRAGMA journal_mode=WAL;")
+        # Preserva journal_mode=DELETE no banco canônico de produção (Vercel)
+        if os.path.basename(os.path.abspath(db_path)) != "futebol.db":
+            conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA synchronous=NORMAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
     return conn
@@ -64,8 +66,9 @@ def write_transaction(
 
 @contextmanager
 def read_connection(db_path: str = DEFAULT_DB_PATH) -> Generator[sqlite3.Connection, None, None]:
-    """Conexão de leitura concorrente sem bloquear escritores em WAL."""
-    conn = get_connection(db_path, readonly=False)
+    """Conexão somente-leitura para não alterar PRAGMA journal_mode nem bloquear escritores."""
+    use_ro = os.path.exists(db_path)
+    conn = get_connection(db_path, readonly=use_ro)
     try:
         yield conn
     finally:

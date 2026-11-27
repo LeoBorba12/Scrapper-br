@@ -401,6 +401,19 @@ def add_cors_headers(response):
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
     response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+
+    if (
+        request.method == 'GET'
+        and response.status_code == 200
+        and request.path.startswith('/api/')
+        and not request.path.startswith(('/api/auth', '/api/health', '/api/admin'))
+        and 'Cache-Control' not in response.headers
+    ):
+        response.headers['Cache-Control'] = 'public, s-maxage=300, stale-while-revalidate=600'
+
     return proxy_client.after_request_hook(response)
 
 @app.route('/api/health', methods=['GET'])
@@ -3504,7 +3517,8 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     is_acervo_parcial = bool(
         not is_filtro_camp and (
             (raw_jogos_carreira > total_jogos and raw_jogos_carreira > 0) or
-            (total_jogos <= total_gols_final and total_gols_final > 0)
+            (total_jogos <= total_gols_final and total_gols_final > 0) or
+            (len(escalacoes) == 0 and total_gols_final > 0)
         )
     )
 

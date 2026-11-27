@@ -1,0 +1,50 @@
+name: FutStats CI Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-and-db-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependências Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Governança do SQLite (< 88 MiB e journal_mode=delete)
+        run: |
+          python -c "
+          import os, sqlite3
+          db = 'data/futebol.db'
+          mb = os.path.getsize(db) / (1024 * 1024)
+          jm = sqlite3.connect(db).execute('PRAGMA journal_mode').fetchone()[0]
+          print(f'SQLite size={mb:.2f} MiB, journal_mode={jm}')
+          assert mb < 88.0, f'Banco acima do soft-gate de 88 MiB: {mb:.2f} MiB'
+          assert jm.lower() == 'delete', f'journal_mode deve ser delete, encontrado {jm}'
+          "
+      - name: Executar suíte de regressão core
+        run: |
+          pytest tests/test_model_evals.py tests/test_oraculo_preditivo.py tests/test_motor_econometrico.py tests/test_golden_metrics.py tests/test_challenger_m2_r2_adversarial.py -q
+
+  frontend-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
