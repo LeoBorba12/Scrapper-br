@@ -48,3 +48,10 @@ def test_endpoints_econometria_http_200():
     assert d_r["sucesso"] is True
     assert len(d_r["ranking"]) > 0
     assert "rapm_saldo_gols" in d_r["ranking"][0]
+
+    r_gk = client.get("/api/metricas-avancadas/econometria/goleiros?k_prior=450&limite=15")
+    assert r_gk.status_code == 200
+    d_g = r_gk.get_json()
+    assert d_g["sucesso"] is True
+    assert len(d_g["goleiros"]) > 0
+    assert "defesas_p90_eb" in d_g["goleiros"][0]

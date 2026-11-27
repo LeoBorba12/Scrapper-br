@@ -29,11 +29,12 @@ PESOS_POSICAO = {
         "npxg_p90": 0.08,
     },
     "Defensor": {
-        "passes_prog_p90": 0.45,
-        "sca_p90": 0.22,
-        "xa_p90": 0.15,
-        "npxg_p90": 0.10,
-        "gca_p90": 0.08,
+        "padj_def_p90": 0.45,
+        "passes_prog_p90": 0.30,
+        "sca_p90": 0.12,
+        "xa_p90": 0.08,
+        "npxg_p90": 0.05,
+        "gca_p90": 0.00,
     },
     "Goleiro": {
         "passes_prog_p90": 0.50,
@@ -84,15 +85,17 @@ def calcular_indice_atletas(
     k_prior: float = 450.0,
     min_minutos: int = 270,
     filtro_posicao: str = "",
+    apenas_sub23: bool = False,
     limite: int = 50,
 ) -> Dict[str, Any]:
     """
-    Calcula o Índice Econométrico FutStats (0-100) com Empirical Bayes p90 e Z-Score por posição.
+    Calcula o Índice Econométrico FutStats (0-100) com Empirical Bayes p90,
+    Defesa Ajustada por Posse (PAdj), Idade/Sub-23 e Z-Score por posição.
     """
     if not atletas_rows:
         return {"ranking": [], "resumo_posicoes": {}, "k_prior": k_prior}
 
-    # 1. Enriquecer macro-posição e taxas brutas p90 para estimar priors por posição
+    # 1. Enriquecer macro-posição, ações defensivas PAdj e taxas brutas p90
     enriquecidos = []
     por_posicao: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -102,13 +105,22 @@ def calcular_indice_atletas(
             continue
         macro = classificar_macro_posicao(r.get("posicao") or "")
         fator = 90.0 / mins
+        posse_clube = float(r.get("posse_pct") or 50.0)
+        fator_padj = 50.0 / max(100.0 - posse_clube, 25.0)
+        acoes_def_brutas = (
+            float(r.get("desarmes_ganhos") or 0.0)
+            + float(r.get("interceptacoes") or 0.0)
+            + float(r.get("cortes") or 0.0)
+        )
         item = dict(r)
         item["macro_posicao"] = macro
+        item["acoes_def_padj"] = acoes_def_brutas * fator_padj
         item["npxg_p90_bruto"] = float(r.get("npxg") or 0.0) * fator
         item["xa_p90_bruto"] = float(r.get("xa") or 0.0) * fator
         item["sca_p90_bruto"] = float(r.get("sca") or 0.0) * fator
         item["gca_p90_bruto"] = float(r.get("gca") or 0.0) * fator
         item["passes_prog_p90_bruto"] = float(r.get("passes_progressivos") or 0.0) * fator
+        item["padj_def_p90_bruto"] = item["acoes_def_padj"] * fator
         enriquecidos.append(item)
         por_posicao.setdefault(macro, []).append(item)
 
@@ -119,6 +131,7 @@ def calcular_indice_atletas(
         ("sca", "sca_p90"),
         ("gca", "gca_p90"),
         ("passes_progressivos", "passes_prog_p90"),
+        ("acoes_def_padj", "padj_def_p90"),
     ]
     priors_pos: Dict[str, Dict[str, float]] = {}
     for macro, grupo in por_posicao.items():
@@ -184,6 +197,9 @@ def calcular_indice_atletas(
                 "sca_p90_eb": g["sca_p90_eb"],
                 "gca_p90_eb": g["gca_p90_eb"],
                 "passes_prog_p90_eb": g["passes_prog_p90_eb"],
+                "padj_def_p90_eb": g["padj_def_p90_eb"],
+                "idade": int(g["idade"]) if g.get("idade") else None,
+                "gols_decisivos_80mais": int(g.get("gols_decisivos_80mais") or 0),
                 "z_composto": g["z_composto"],
                 "score_econometrico": round(score_log, 1),
                 "percentil_posicao": round(percentil, 1),
@@ -197,6 +213,8 @@ def calcular_indice_atletas(
             r for r in resultados
             if r["macro_posicao"].lower() == fp or fp in (r["posicao"] or "").lower()
         ]
+    if apenas_sub23:
+        resultados = [r for r in resultados if r.get("idade") is not None and r["idade"] <= 23]
 
     resultados.sort(key=lambda x: (x["score_econometrico"], x["minutos"]), reverse=True)
     for idx, item in enumerate(resultados[:limite], start=1):
@@ -284,3 +302,58 @@ def calcular_ranking_clubes_econometrico(clubes_rows: List[Dict[str, Any]]) -> L
     for idx, row in enumerate(saida, start=1):
         row["rank_econometrico"] = idx
     return saida
+
+
+def calcular_ranking_goleiros_econometrico(
+    goleiros_rows: List[Dict[str, Any]],
+    k_prior: float = 450.0,
+    min_minutos: int = 270,
+    limite: int = 20,
+) -> List[Dict[str, Any]]:
+    """
+    Ranking econométrico de goleiros com Empirical Bayes sobre Defesas/90 e Defesas na Área/90.
+    """
+    validos = [
+        g for g in goleiros_rows
+        if float(g.get("minutos") or 0.0) >= min_minutos and float(g.get("defesas_goleiro") or 0.0) > 0
+    ]
+    if not validos:
+        return []
+
+    tot_min = sum(float(g["minutos"]) for g in validos) or 1.0
+    prior_def = (sum(float(g.get("defesas_goleiro") or 0.0) for g in validos) * 90.0) / tot_min
+    prior_area = (sum(float(g.get("defesas_na_area") or 0.0) for g in validos) * 90.0) / tot_min
+
+    for g in validos:
+        g["defesas_p90_eb"] = calcular_eb_p90(g.get("defesas_goleiro") or 0.0, g["minutos"], prior_def, k_prior)
+        g["defesas_area_p90_eb"] = calcular_eb_p90(g.get("defesas_na_area") or 0.0, g["minutos"], prior_area, k_prior)
+
+    arr_def = [g["defesas_p90_eb"] for g in validos]
+    arr_area = [g["defesas_area_p90_eb"] for g in validos]
+    m_def, dp_def = statistics.mean(arr_def), (statistics.pstdev(arr_def) if len(arr_def) > 1 else 1.0) or 1.0
+    m_area, dp_area = statistics.mean(arr_area), (statistics.pstdev(arr_area) if len(arr_area) > 1 else 1.0) or 1.0
+
+    saida = []
+    for g in validos:
+        z = 0.55 * ((g["defesas_p90_eb"] - m_def) / dp_def) + 0.45 * ((g["defesas_area_p90_eb"] - m_area) / dp_area)
+        score = round(100.0 / (1.0 + math.exp(-1.15 * z)), 1)
+        tot_d = float(g.get("defesas_goleiro") or 0.0)
+        area_d = float(g.get("defesas_na_area") or 0.0)
+        saida.append({
+            "atleta_id_canonico": g["atleta_id_canonico"],
+            "nome": g.get("nome"),
+            "clube_nome": g.get("clube_nome"),
+            "minutos": int(g["minutos"]),
+            "defesas_totais": int(tot_d),
+            "defesas_na_area": int(area_d),
+            "pct_defesas_area": round((area_d / max(tot_d, 1.0)) * 100.0, 1),
+            "defesas_p90_eb": g["defesas_p90_eb"],
+            "defesas_area_p90_eb": g["defesas_area_p90_eb"],
+            "score_goleiro": score,
+            "confianca_amostral": _nivel_confianca_amostral(g["minutos"]),
+        })
+
+    saida.sort(key=lambda x: (x["score_goleiro"], x["minutos"]), reverse=True)
+    for idx, row in enumerate(saida[:limite], start=1):
+        row["rank_goleiro"] = idx
+    return saida[:limite]

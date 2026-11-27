@@ -30,12 +30,14 @@ export default function MetricasAvancadasView({ darkMode }) {
   const [atletaDetalhe, setAtletaDetalhe] = useState(null);
   const [loadingAtleta, setLoadingAtleta] = useState(false);
 
-  // Motor Econométrico state (Fase 1 & Fase 2 RAPM)
+  // Motor Econométrico state (Fase 1, Fase 2 RAPM & Fase 3 PAdj/Sub-23/Goleiros)
   const [econAtletas, setEconAtletas] = useState([]);
   const [econClubes, setEconClubes] = useState([]);
   const [econRapm, setEconRapm] = useState([]);
+  const [econGoleiros, setEconGoleiros] = useState([]);
   const [econPosicao, setEconPosicao] = useState('');
   const [econKPrior, setEconKPrior] = useState(450);
+  const [econSub23, setEconSub23] = useState(false);
   const [loadingEcon, setLoadingEcon] = useState(false);
 
   // 1. Carregar metadados
@@ -78,24 +80,26 @@ export default function MetricasAvancadasView({ darkMode }) {
       .catch(() => setLoadingClubes(false));
   }, [activeSubTab]);
 
-  // 4. Carregar Motor Econométrico (Atletas EB p90 + Power Ranking de Clubes)
+  // 4. Carregar Motor Econométrico (Atletas EB+PAdj, Clubes, RAPM e Goleiros)
   useEffect(() => {
     if (activeSubTab !== 'econometria') return;
     setLoadingEcon(true);
-    const urlAtletas = `/api/metricas-avancadas/econometria/atletas?min_minutos=270&k_prior=${econKPrior}&limite=30${econPosicao ? `&posicao=${encodeURIComponent(econPosicao)}` : ''}`;
+    const urlAtletas = `/api/metricas-avancadas/econometria/atletas?min_minutos=270&k_prior=${econKPrior}&limite=30${econPosicao ? `&posicao=${encodeURIComponent(econPosicao)}` : ''}${econSub23 ? '&sub23=1' : ''}`;
     Promise.all([
       fetch(urlAtletas).then(r => r.json()),
       fetch('/api/metricas-avancadas/econometria/clubes').then(r => r.json()),
-      fetch('/api/metricas-avancadas/econometria/rapm?min_jogos=15&limite=25').then(r => r.json())
+      fetch('/api/metricas-avancadas/econometria/rapm?min_jogos=15&limite=25').then(r => r.json()),
+      fetch(`/api/metricas-avancadas/econometria/goleiros?k_prior=${econKPrior}&limite=20`).then(r => r.json())
     ])
-      .then(([da, dc, dr]) => {
+      .then(([da, dc, dr, dg]) => {
         if (da.sucesso) setEconAtletas(da.ranking || []);
         if (dc.sucesso) setEconClubes(dc.clubes || []);
         if (dr.sucesso) setEconRapm(dr.ranking || []);
+        if (dg.sucesso) setEconGoleiros(dg.goleiros || []);
         setLoadingEcon(false);
       })
       .catch(() => setLoadingEcon(false));
-  }, [activeSubTab, econPosicao, econKPrior]);
+  }, [activeSubTab, econPosicao, econKPrior, econSub23]);
 
   // 4. Carregar detalhe de clube
   useEffect(() => {
@@ -1050,6 +1054,22 @@ export default function MetricasAvancadasView({ darkMode }) {
                   <option value={450}>Prior k = 450 min (5 jogos)</option>
                   <option value={900}>Prior k = 900 min (10 jogos)</option>
                 </select>
+                <button
+                  onClick={() => setEconSub23((v) => !v)}
+                  className="font-mono"
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: econSub23 ? 'var(--accent)' : 'var(--surface-raised)',
+                    border: `1px solid ${econSub23 ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                    color: econSub23 ? 'var(--accent-foreground)' : 'var(--text-primary)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {econSub23 ? '✓ Sub-23' : 'Sub-23'}
+                </button>
               </div>
             </div>
 
@@ -1079,6 +1099,13 @@ export default function MetricasAvancadasView({ darkMode }) {
                       <th style={{ textAlign: 'right' }}>
                         <MetricTooltip align="right" label="Passes Prog./90" what="Passes progressivos por 90 min ajustados por Empirical Bayes." how="Passes que avançam a bola significativamente em direção ao gol." refText="> 4.5 = Forte progressão" />
                       </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="PAdj Def/90" what="Ações defensivas (desarmes + interceptações + cortes) ajustadas pela posse do clube." how="Compensa times que ficam mais tempo com a bola (defendem menos minutos)." refText="> 5.0 = Forte volume defensivo" />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="Clutch 80+'" what="Gols decisivos marcados após os 80 minutos (Game State final)." how="Mede poder de decisão em reta final de jogo no acervo canônico." />
+                      </th>
+                      <th style={{ textAlign: 'center' }}>Idade</th>
                       <th style={{ textAlign: 'right' }}>Min</th>
                       <th style={{ textAlign: 'center' }}>Confiança</th>
                     </tr>
@@ -1095,6 +1122,9 @@ export default function MetricasAvancadasView({ darkMode }) {
                         <td className="font-mono" style={{ textAlign: 'right' }}>{a.xa_p90_eb.toFixed(2)}</td>
                         <td className="font-mono" style={{ textAlign: 'right' }}>{a.sca_p90_eb.toFixed(2)}</td>
                         <td className="font-mono" style={{ textAlign: 'right' }}>{a.passes_prog_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{(a.padj_def_p90_eb ?? 0).toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right', color: (a.gols_decisivos_80mais || 0) > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>{a.gols_decisivos_80mais || 0}</td>
+                        <td className="font-mono" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>{a.idade ? `${a.idade}a` : '—'}</td>
                         <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{a.minutos}</td>
                         <td style={{ textAlign: 'center' }}>
                           <span
@@ -1210,6 +1240,59 @@ export default function MetricasAvancadasView({ darkMode }) {
                         <td className="font-mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>{r.rapm_score_0_100}</td>
                         <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{r.jogos_titular}</td>
                         <td className="font-mono" style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.temporadas}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {econGoleiros.length > 0 && (
+            <div className="soft-card" style={{ padding: '18px 20px' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
+                Ranking Econométrico de Goleiros (Defesas/90 EB &amp; Área)
+              </h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 14px 0' }}>
+                Empirical Bayes p90 sobre Defesas Totais (55%) e Defesas na Área (45%). Nota: PSxG será incorporado assim que populado na fonte oficial.
+              </p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="editorial-table" style={{ width: '100%', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Goleiro</th>
+                      <th>Clube</th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="Score GK (0–100)" what="Índice econométrico de goleiros (Empirical Bayes + Z-Score)." how="Combina Defesas/90 EB (55%) e Defesas na Área/90 EB (45%)." />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="Defesas/90 EB" what="Defesas por 90 min ajustadas por Empirical Bayes." how="Encolhido para a média dos goleiros contra amostras pequenas." />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>
+                        <MetricTooltip align="right" label="Na Área/90 EB" what="Defesas de finalizações de dentro da área por 90 min." how="Mede intervenções de alta dificuldade (chutes próximos ao gol)." />
+                      </th>
+                      <th style={{ textAlign: 'right' }}>% Área</th>
+                      <th style={{ textAlign: 'right' }}>Min</th>
+                      <th style={{ textAlign: 'center' }}>Confiança</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {econGoleiros.map((g) => (
+                      <tr key={g.atleta_id_canonico}>
+                        <td className="font-mono" style={{ fontWeight: 700 }}>{g.rank_goleiro}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{g.nome}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{g.clube_nome}</td>
+                        <td style={{ textAlign: 'right' }}><ScoreBar value={g.score_goleiro} /></td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{g.defesas_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{g.defesas_area_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{g.pct_defesas_area.toFixed(1)}%</td>
+                        <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{g.minutos}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="font-mono" style={{ fontSize: '0.7rem', padding: '2px 7px', borderRadius: '4px', backgroundColor: g.confianca_amostral === 'Alta' ? 'var(--positive-bg)' : 'var(--surface-raised)', color: g.confianca_amostral === 'Alta' ? 'var(--positive)' : 'var(--text-secondary)', fontWeight: 700 }}>
+                            {g.confianca_amostral}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

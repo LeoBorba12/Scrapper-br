@@ -644,6 +644,7 @@ def get_econometria_atletas():
     posicao = request.args.get('posicao', default='', type=str).strip()
     min_minutos = max(90, request.args.get('min_minutos', default=270, type=int))
     k_prior = max(90.0, min(1800.0, request.args.get('k_prior', default=450.0, type=float)))
+    apenas_sub23 = request.args.get('sub23', default='0', type=str).strip() in ('1', 'true', 'True')
     limite = min(request.args.get('limite', default=50, type=int), 100)
 
     try:
@@ -662,6 +663,9 @@ def get_econometria_atletas():
                 m.clube_id_canonico,
                 COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
                 COALESCE(c.sigla, '') as clube_sigla,
+                COALESCE(mc.posse_pct, 50.0) as posse_pct,
+                je.idade as idade,
+                COALESCE(je.gols_decisivos_80mais, 0) as gols_decisivos_80mais,
                 m.minutos,
                 m.jogos,
                 m.gols,
@@ -673,24 +677,36 @@ def get_econometria_atletas():
                 m.passes_progressivos
             FROM metrica_atleta_avancada_2026 m
             LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
+            LEFT JOIN jogadores_estatisticas je ON m.atleta_id_canonico = je.id_jogador
             LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
+            LEFT JOIN metrica_clube_avancada_2026 mc ON m.clube_id_canonico = mc.clube_id_canonico
             WHERE m.minutos > 0;
         """)
-        rows = [dict(r) for r in c.fetchall()]
+        rows = []
+        for r in c.fetchall():
+            d = dict(r)
+            extra = _get_detalhe_atleta_extra(d["atleta_id_canonico"])
+            d["desarmes_ganhos"] = extra.get("desarmes_ganhos") or 0
+            d["interceptacoes"] = extra.get("interceptacoes") or 0
+            d["cortes"] = extra.get("cortes") or 0
+            rows.append(d)
+
         res = calcular_indice_atletas(
             rows,
             k_prior=k_prior,
             min_minutos=min_minutos,
             filtro_posicao=posicao,
+            apenas_sub23=apenas_sub23,
             limite=limite,
         )
         return jsonify({
             "sucesso": True,
             "metadados": build_metadata({
-                "metodo": "Empirical Bayes Shrinkage p90 + Z-Score por Posição",
+                "metodo": "Empirical Bayes Shrinkage p90 + Defesa PAdj + Z-Score por Posição",
                 "k_prior": k_prior,
                 "min_minutos": min_minutos,
                 "filtro_posicao": posicao or "Todas",
+                "apenas_sub23": apenas_sub23,
                 "total_elegiveis": res["total_elegiveis"],
             }),
             **res
@@ -786,6 +802,58 @@ def get_econometria_rapm():
                 "total_retornado": len(rows),
             }),
             "ranking": rows,
+        })
+    finally:
+        conn.close()
+
+
+# -------------------------------------------------------------
+# 10. MOTOR ECONOMÉTRICO (FASE 3): RANKING DE GOLEIROS (DEFESAS EB)
+# -------------------------------------------------------------
+@metricas_avancadas_bp.route('/api/metricas-avancadas/econometria/goleiros', methods=['GET'])
+def get_econometria_goleiros():
+    k_prior = max(90.0, min(1800.0, request.args.get('k_prior', default=450.0, type=float)))
+    min_minutos = max(90, request.args.get('min_minutos', default=270, type=int))
+    limite = min(request.args.get('limite', default=20, type=int), 50)
+
+    try:
+        from backend.motor_econometrico import calcular_ranking_goleiros_econometrico
+    except ImportError:
+        from motor_econometrico import calcular_ranking_goleiros_econometrico
+
+    conn = get_readonly_db()
+    c = conn.cursor()
+    try:
+        c.execute("""
+            SELECT
+                m.atleta_id_canonico,
+                COALESCE(j.nome_exibicao, j.apelido, j.nome_completo, 'Goleiro #' || m.atleta_id_canonico) as nome,
+                COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
+                m.minutos
+            FROM metrica_atleta_avancada_2026 m
+            LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
+            LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
+            WHERE m.minutos >= ?;
+        """, (min_minutos,))
+        rows = []
+        for r in c.fetchall():
+            d = dict(r)
+            extra = _get_detalhe_atleta_extra(d["atleta_id_canonico"])
+            if (extra.get("defesas_goleiro") or 0) > 0:
+                d["defesas_goleiro"] = extra.get("defesas_goleiro") or 0
+                d["defesas_na_area"] = extra.get("defesas_na_area") or 0
+                rows.append(d)
+
+        ranking = calcular_ranking_goleiros_econometrico(rows, k_prior=k_prior, min_minutos=min_minutos, limite=limite)
+        return jsonify({
+            "sucesso": True,
+            "metadados": build_metadata({
+                "metodo": "Empirical Bayes p90 para Defesas Totais (55%) e Defesas na Área (45%)",
+                "k_prior": k_prior,
+                "nota_psxg": "PSxG será incorporado automaticamente quando populado na fonte oficial.",
+                "total_goleiros": len(ranking),
+            }),
+            "goleiros": ranking,
         })
     finally:
         conn.close()
