@@ -381,6 +381,13 @@ export default function OraculoPreditivoView() {
                       )}
                     </div>
                   ))}
+                  {simulacao.contexto_dinamico.clima_prejogo && (
+                    <div className="font-mono" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '4px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                      <span>{simulacao.contexto_dinamico.clima_prejogo.chuva_mm >= 1 ? '🌧️' : '☀️'}</span>
+                      <strong style={{ color: 'var(--text-primary)' }}>{simulacao.contexto_dinamico.clima_prejogo.cidade}:</strong>
+                      <span>{simulacao.contexto_dinamico.clima_prejogo.temperatura_c}°C • {simulacao.contexto_dinamico.clima_prejogo.chuva_mm}mm • {simulacao.contexto_dinamico.clima_prejogo.vento_kmh} km/h</span>
+                    </div>
+                  )}
                 </div>
               )}
 

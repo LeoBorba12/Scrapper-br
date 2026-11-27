@@ -4,14 +4,69 @@ Rotas REST do Oráculo Preditivo Interativo — FutStats 2026
 Endpoints somente-leitura / simulação stateless em Python puro.
 """
 import datetime
+import json
 import os
 import sqlite3
+import time
+import urllib.request
 from flask import Blueprint, jsonify, request
 
 oraculo_preditivo_bp = Blueprint("oraculo_preditivo", __name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(BASE_DIR, "data", "futebol.db")
+
+_COORDS_CIDADES = {
+    "Rio de Janeiro": (-22.9068, -43.1729),
+    "São Paulo": (-23.5505, -46.6333),
+    "Belo Horizonte": (-19.9167, -43.9345),
+    "Porto Alegre": (-30.0346, -51.2177),
+    "Salvador": (-12.9714, -38.5014),
+    "Curitiba": (-25.4284, -49.2733),
+    "Santos": (-23.9608, -46.3336),
+    "Bragança Paulista": (-22.9527, -46.5419),
+    "Mirassol": (-20.8197, -49.5206),
+    "Chapecó": (-27.1004, -52.6152),
+    "Belém": (-1.4558, -48.5044),
+}
+_CLIMA_CACHE = {}
+
+
+def _obter_clima_open_meteo(cidade: str):
+    """Busca clima atual/previsão na Open-Meteo (gratuito, sem API key) com cache de 30 min."""
+    coords = _COORDS_CIDADES.get(cidade)
+    if not coords:
+        return None
+    now = time.time()
+    cached = _CLIMA_CACHE.get(cidade)
+    if cached and (now - cached[0]) < 1800:
+        return cached[1]
+    lat, lon = coords
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+        "&current=temperature_2m,precipitation,wind_speed_10m&timezone=America%2FSao_Paulo"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "FutStats/2026"})
+        with urllib.request.urlopen(req, timeout=2.5) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        cur_w = payload.get("current") or {}
+        temp = round(float(cur_w.get("temperature_2m") or 0.0), 1)
+        chuva = round(float(cur_w.get("precipitation") or 0.0), 1)
+        vento = round(float(cur_w.get("wind_speed_10m") or 0.0), 1)
+        cond = "Chuva Forte" if chuva >= 10.0 else ("Chuva Fraca" if chuva >= 1.0 else "Tempo Seco")
+        res = {
+            "cidade": cidade,
+            "temperatura_c": temp,
+            "chuva_mm": chuva,
+            "vento_kmh": vento,
+            "condicao": cond,
+            "fonte": "Open-Meteo",
+        }
+        _CLIMA_CACHE[cidade] = (now, res)
+        return res
+    except Exception:
+        return None
 
 
 def _get_ro_db():
@@ -166,6 +221,20 @@ def _detectar_suspensos_clube(cur, clube: str):
             if tot_am > 0 and tot_am % 3 == 0:
                 vistos.add(jid)
                 suspensos.append({"id_jogador": jid, "nome": c_row["atleta"], "motivo": f"{tot_am}º Amarelo (Suspenso)"})
+
+    # Mescla desfalques médicos coletados (se houver)
+    try:
+        med_rows = cur.execute(
+            "SELECT id_jogador, atleta, motivo, status FROM desfalques_prejogo_atual WHERE LOWER(clube) = LOWER(?)",
+            (clube,),
+        ).fetchall()
+        for m in med_rows:
+            jid = int(m["id_jogador"]) if m["id_jogador"] else None
+            if jid and jid not in vistos:
+                vistos.add(jid)
+                suspensos.append({"id_jogador": jid, "nome": m["atleta"], "motivo": f"{m['status']}: {m['motivo']}"})
+    except sqlite3.OperationalError:
+        pass
     return suspensos
 
 
@@ -312,6 +381,9 @@ def simular_partida_api():
         dias_m = int(dias_m) if dias_m is not None else _ultimo_descanso_clube(c, mandante)
         dias_v = int(dias_v) if dias_v is not None else _ultimo_descanso_clube(c, visitante)
 
+        econ_m = _get_econ(mandante)
+        clima_prejogo = _obter_clima_open_meteo((econ_m or {}).get("cidade") or "")
+
         resultado = simular_partida_hibrida(
             mandante=mandante,
             visitante=visitante,
@@ -319,7 +391,7 @@ def simular_partida_api():
             pi_v=_get_pi(visitante),
             proc_m=_get_proc(mandante),
             proc_v=_get_proc(visitante),
-            econ_m=_get_econ(mandante),
+            econ_m=econ_m,
             econ_v=_get_econ(visitante),
             desfalques_m=_get_desfalques(desf_m_ids),
             desfalques_v=_get_desfalques(desf_v_ids),
@@ -329,6 +401,7 @@ def simular_partida_api():
             forma_v=_calcular_forma_recente_5(c, visitante),
             tecnico_m=_detectar_mudanca_tecnico(c, mandante),
             tecnico_v=_detectar_mudanca_tecnico(c, visitante),
+            clima_prejogo=clima_prejogo,
         )
         resultado["suspensos_auto"] = {
             "mandante": _detectar_suspensos_clube(c, mandante),

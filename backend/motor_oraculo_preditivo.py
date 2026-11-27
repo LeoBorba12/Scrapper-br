@@ -147,6 +147,7 @@ def simular_partida_hibrida(
     forma_v: Optional[Dict[str, Any]] = None,
     tecnico_m: Optional[Dict[str, Any]] = None,
     tecnico_v: Optional[Dict[str, Any]] = None,
+    clima_prejogo: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Combina todas as camadas matemáticas para projetar o confronto com decomposição explicável.
@@ -208,6 +209,17 @@ def simular_partida_hibrida(
 
     lh = max(0.40, min(3.40, base_mando_h + comp_pi_h + comp_xg_h + comp_econ_h + comp_rest_h + comp_desf_h + comp_forma_h + comp_tec_h))
     la = max(0.35, min(3.10, base_visitante_a + comp_pi_a + comp_xg_a + comp_econ_a + comp_rest_a + comp_desf_a + comp_forma_a + comp_tec_a))
+
+    # 6b. Ajuste de Clima Pré-Jogo (Open-Meteo): chuva forte reduz ritmo/expectativa de gols
+    chuva_mm = float((clima_prejogo or {}).get("chuva_mm") or 0.0)
+    fator_clima = 1.0
+    if chuva_mm >= 15.0:
+        fator_clima = 0.90
+    elif chuva_mm >= 6.0:
+        fator_clima = 0.95
+    if fator_clima < 1.0:
+        lh = max(0.38, lh * fator_clima)
+        la = max(0.32, la * fator_clima)
 
     probs = _dixon_coles_matriz(lh, la)
 
@@ -276,6 +288,16 @@ def simular_partida_hibrida(
                 else "Comandos técnicos estáveis nos últimos jogos."
             ),
         },
+        {
+            "fator": "Clima Pré-Jogo (Open-Meteo)",
+            "impacto_saldo": 0.0,
+            "explicacao": (
+                f"{clima_prejogo.get('cidade', 'Sede')}: {clima_prejogo.get('temperatura_c')}°C, chuva {chuva_mm:.1f}mm ({clima_prejogo.get('condicao', 'Estável')})"
+                + (" — redução aplicada no ritmo de gols." if fator_clima < 1.0 else " — sem penalidade climática.")
+                if clima_prejogo
+                else "Condições climáticas padrão (previsão em tempo real indisponível)."
+            ),
+        },
     ]
 
     veredito = _gerar_veredito_humano(mandante, visitante, probs, desfalques_m, desfalques_v, nivel_conf)
@@ -302,6 +324,7 @@ def simular_partida_hibrida(
             "forma_visitante": forma_v or {},
             "tecnico_mandante": tecnico_m or {},
             "tecnico_visitante": tecnico_v or {},
+            "clima_prejogo": clima_prejogo,
         },
     }
 
