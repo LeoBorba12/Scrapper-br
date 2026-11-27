@@ -3483,8 +3483,33 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
     shotmap_atleta = []
     heatmap_atleta = []
     telemetria_espacial = {}
+    nome_busca_spatial = (stats_meta.get('nome_exibicao') or stats_meta.get('apelido') or nome_canonico or nome or '').strip()
+
+    # 1. Busca dados espaciais reais no serviço da VM Oracle (FotMob 2026)
     try:
-        if target_id:
+        cache_sp_key = f"spatial_player_{target_id or 0}_{nome_busca_spatial.lower()}"
+        cached_sp = api_cache.get(cache_sp_key)
+        if cached_sp is None:
+            sc_code, sc_data = vm_auth_request(
+                "GET",
+                "/internal/spatial/player",
+                SECRET_KEY,
+                params={"id": target_id or "", "nome": nome_busca_spatial},
+                timeout=4.0,
+            )
+            if sc_code == 200 and isinstance(sc_data, dict):
+                cached_sp = sc_data
+                api_cache.set(cache_sp_key, cached_sp, ttl=21600)
+        if isinstance(cached_sp, dict) and cached_sp.get("found"):
+            shotmap_atleta = cached_sp.get("shotmap") or []
+            heatmap_atleta = cached_sp.get("heatmap") or []
+            telemetria_espacial = cached_sp.get("telemetria_espacial") or {}
+    except Exception:
+        pass
+
+    # 2. Fallback para tabelas locais espaciais, caso existam no SQLite
+    if not shotmap_atleta and not heatmap_atleta and target_id:
+        try:
             c.execute("""
                 SELECT id_evento, id_partida, minuto, resultado, parte_corpo, situacao, 
                        xg, xgot, x_origem, y_origem, x_metros, y_metros, gol_mouth_y, gol_mouth_z
@@ -3504,23 +3529,23 @@ def _construir_perfil_jogador(conn, player_id=None, nome=None, clube_filtro=None
                     heatmap_atleta.extend(pts)
                 except Exception:
                     pass
-    except Exception:
-        pass
+        except Exception:
+            pass
 
     pos_atleta = stats_meta.get('posicao') or 'Atacante'
-    if not shotmap_atleta and not heatmap_atleta and (gols or target_id):
-        shotmap_atleta, heatmap_atleta, telemetria_espacial = gerar_dados_espaciais_atleta(target_id or 1, pos_atleta, gols)
-    elif heatmap_atleta:
+    # Sem simulação sintética: se não houver rastreamento real, mantém [] / {} com honestidade de dados
+    if heatmap_atleta and not telemetria_espacial:
         tot_pts = max(len(heatmap_atleta), 1)
         cx = sum(p['x'] for p in heatmap_atleta) / tot_pts
         cy = sum(p['y'] for p in heatmap_atleta) / tot_pts
         telemetria_espacial = {
+            "is_real": True,
             "papel_tatico": pos_atleta,
             "centroide_x_pct": round(cx, 1),
             "centroide_y_pct": round(cy, 1),
             "centroide_x_metros": round((cx / 100) * 105, 1),
             "centroide_y_metros": round((cy / 100) * 68, 1),
-            "altura_bloco": "Avançado" if cx >= 68.0 else ("Médio" if cx >= 38.0 else "Baixo"),
+            "altura_bloco": "Avançado" if cx >= 62.0 else ("Médio" if cx >= 38.0 else "Baixo"),
             "ocupacao_tercos": {
                 "defensivo_pct": round(len([p for p in heatmap_atleta if p['x'] < 35.0]) / tot_pts * 100, 1),
                 "central_pct": round(len([p for p in heatmap_atleta if 35.0 <= p['x'] < 70.0]) / tot_pts * 100, 1),
@@ -3909,6 +3934,97 @@ def get_jogador_perfil():
         return jsonify({"error": "Atleta não encontrado no acervo"}), 404
 
     return jsonify(dados)
+
+
+@app.route('/api/spatial/atleta/<int:atleta_id>', methods=['GET'])
+def api_spatial_atleta(atleta_id):
+    """Retorna heatmap, shotmap e telemetria real (FotMob 2026) de um atleta pelo ID canônico."""
+    nome = request.args.get('nome', '').strip()
+    cache_key = f"spatial_atleta_ep_{atleta_id}_{nome.lower()}"
+    cached = api_cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached), 200
+
+    sc_code, sc_data = vm_auth_request(
+        "GET",
+        "/internal/spatial/player",
+        SECRET_KEY,
+        params={"id": atleta_id, "nome": nome},
+        timeout=5.0,
+    )
+    if sc_code == 200 and isinstance(sc_data, dict):
+        api_cache.set(cache_key, sc_data, ttl=21600)
+        return jsonify(sc_data), 200
+    return jsonify({"found": False}), 200
+
+
+@app.route('/api/spatial/tendencias-taticas', methods=['GET'])
+def api_spatial_tendencias_taticas():
+    """
+    Combina métricas táticas da Série A 2026 (PPDA, Altura Defensiva, Field Tilt, Posse, xPTS)
+    com formações reais, XI médio e zonas de ataque (FotMob 2026 via VM).
+    """
+    cached = api_cache.get("spatial_tendencias_taticas_v1")
+    if cached is not None:
+        return jsonify(cached), 200
+
+    conn = get_db()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("""
+        SELECT
+            m.clube_id_canonico,
+            COALESCE(dc.nome_exibicao, dc.nome, 'Clube #' || m.clube_id_canonico) AS clube_nome,
+            COALESCE(dc.sigla, '') AS clube_sigla,
+            m.jogos, m.vitorias, m.empates, m.derrotas, m.pontos,
+            m.gols_pro, m.gols_contra,
+            ROUND(m.xg, 2) AS xg, ROUND(m.xg_contra, 2) AS xg_contra,
+            ROUND(m.xpts, 2) AS xpts,
+            ROUND(m.posse_pct, 1) AS posse_pct,
+            ROUND(m.field_tilt_pct, 1) AS field_tilt_pct,
+            ROUND(m.ppda, 2) AS ppda,
+            ROUND(m.altura_defensiva, 1) AS altura_defensiva
+        FROM metrica_clube_avancada_2026 m
+        LEFT JOIN dim_clube dc ON m.clube_id_canonico = dc.clube_id
+        ORDER BY m.pontos DESC, m.xpts DESC;
+    """)
+    base_clubes = [dict(r) for r in c.fetchall()]
+    conn.close()
+
+    # Enriquecer com dados táticos reais jogo a jogo da VM
+    vm_map = {}
+    sc_code, sc_data = vm_auth_request(
+        "GET", "/internal/spatial/clubs/tactical", SECRET_KEY, timeout=6.0
+    )
+    if sc_code == 200 and isinstance(sc_data, dict):
+        for item in sc_data.get("clubes") or []:
+            vm_map[int(item["clube_id_canonico"])] = item
+
+    combinados = []
+    for cl in base_clubes:
+        cid = int(cl["clube_id_canonico"])
+        extra = vm_map.get(cid) or {}
+        combinados.append({
+            **cl,
+            "jogos_taticos": extra.get("jogos_analisados", 0),
+            "esquema_principal": extra.get("esquema_principal", "—"),
+            "esquema_recente_5": extra.get("esquema_recente_5", "—"),
+            "esquemas": extra.get("esquemas", []),
+            "tendencia_esquemas": extra.get("tendencia_esquemas", []),
+            "xi_medio": extra.get("xi_medio", []),
+            "attacking_zones": extra.get("attacking_zones", {}),
+            "shot_profile": extra.get("shot_profile", {}),
+        })
+
+    payload = {
+        "sucesso": True,
+        "total": len(combinados),
+        "tem_dados_espaciais_vm": len(vm_map) > 0,
+        "clubes": combinados,
+        "fontes": "Brasileirão em Dados (xG, Field Tilt, PPDA, Linha) & FotMob 2026 (Formações, XI e Zonas de Ataque)",
+    }
+    api_cache.set("spatial_tendencias_taticas_v1", payload, ttl=10800)
+    return jsonify(payload), 200
 
 
 def _detectar_categoria_posicao(pos_raw):

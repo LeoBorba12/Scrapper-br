@@ -4,6 +4,9 @@ import {
   Check, Info, ChevronRight, Filter, Database, Sparkles, Activity, Download
 } from 'lucide-react';
 import { MetricTooltip, ScoreBar, RapmDivergingBar, ClubXptsScatterChart, EvolucaoTabelaChart } from './EconometriaVisuals';
+import TendenciasTaticasView from './TendenciasTaticasView';
+import SpatialPitchMap from './SpatialPitchMap';
+import GoalMouthMap from './GoalMouthMap';
 
 export default function MetricasAvancadasView({ darkMode }) {
   const [activeSubTab, setActiveSubTab] = useState('rankings'); // 'rankings' | 'clubes' | 'atleta' | 'governanca'
@@ -31,6 +34,7 @@ export default function MetricasAvancadasView({ darkMode }) {
   // Atleta busca e detalhe
   const [atletaBuscaId, setAtletaBuscaId] = useState(null);
   const [atletaDetalhe, setAtletaDetalhe] = useState(null);
+  const [atletaSpatial, setAtletaSpatial] = useState(null);
   const [loadingAtleta, setLoadingAtleta] = useState(false);
 
   // Motor Econométrico state (Fase 1, Fase 2 RAPM & Fase 3 PAdj/Sub-23/Goleiros)
@@ -151,15 +155,19 @@ export default function MetricasAvancadasView({ darkMode }) {
       .catch(() => setLoadingClubeDetalhe(false));
   }, [clubeSelecionado]);
 
-  // 5. Carregar detalhe de atleta
+  // 5. Carregar detalhe de atleta (+ heatmap/shotmap real da VM)
   const carregarAtleta = (id) => {
     setAtletaBuscaId(id);
     setActiveSubTab('atleta');
     setLoadingAtleta(true);
-    fetch(`/api/metricas-avancadas/atletas/${id}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.sucesso) setAtletaDetalhe(data.atleta);
+    setAtletaSpatial(null);
+    Promise.all([
+      fetch(`/api/metricas-avancadas/atletas/${id}`).then(r => r.json()),
+      fetch(`/api/spatial/atleta/${id}`).then(r => r.json()).catch(() => null),
+    ])
+      .then(([data, spData]) => {
+        if (data?.sucesso) setAtletaDetalhe(data.atleta);
+        if (spData?.found) setAtletaSpatial(spData);
         setLoadingAtleta(false);
       })
       .catch(() => setLoadingAtleta(false));
@@ -427,6 +435,26 @@ export default function MetricasAvancadasView({ darkMode }) {
           }}
         >
           <BarChart3 size={16} /> Performance dos 20 Clubes
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('tatica')}
+          style={{
+            padding: '10px 18px',
+            border: 'none',
+            borderBottom: activeSubTab === 'tatica' ? '2px solid #22C55E' : '2px solid transparent',
+            backgroundColor: 'transparent',
+            color: activeSubTab === 'tatica' ? (darkMode ? '#FFFFFF' : '#1C1917') : '#78716C',
+            fontWeight: activeSubTab === 'tatica' ? 700 : 500,
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Activity size={16} /> Tendência Tática
         </button>
 
         {atletaDetalhe && (
@@ -1088,7 +1116,31 @@ export default function MetricasAvancadasView({ darkMode }) {
               </div>
             )}
           </div>
+
+          {atletaSpatial && ((atletaSpatial.heatmap?.length > 0) || (atletaSpatial.shotmap?.length > 0)) && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '16px', marginTop: '8px' }}>
+              <div style={{ padding: '16px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: darkMode ? '#181613' : '#FAF7F2' }}>
+                <SpatialPitchMap
+                  shotmap={atletaSpatial.shotmap || []}
+                  heatmap={atletaSpatial.heatmap || []}
+                  posicao={atletaDetalhe.posicao || atletaSpatial.posicao_primaria || 'Atacante'}
+                  telemetria={atletaSpatial.telemetria_espacial || {}}
+                />
+              </div>
+              <div style={{ padding: '16px', borderRadius: '10px', border: '1px solid var(--border-subtle)', backgroundColor: darkMode ? '#181613' : '#FAF7F2' }}>
+                <GoalMouthMap
+                  shotmap={atletaSpatial.shotmap || []}
+                  posicao={atletaDetalhe.posicao || atletaSpatial.posicao_primaria || 'Atacante'}
+                />
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* ================= ABA TÁTICA: QUADRANTES & TENDÊNCIAS (20 CLUBES) ================= */}
+      {activeSubTab === 'tatica' && (
+        <TendenciasTaticasView darkMode={darkMode} />
       )}
 
       {/* ================= ABA 4: LINHAGEM E GOVERNANÇA ================= */}

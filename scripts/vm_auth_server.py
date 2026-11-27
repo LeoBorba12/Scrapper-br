@@ -769,6 +769,108 @@ def create_auth_app(db_path=None, shared_secret=None, enable_telegram=True):
             conn.commit()
         return jsonify({"ferramentas_bloqueadas_global": clean}), 200
 
+    # =========================================================================
+    # DADOS ESPACIAIS E TÁTICOS REAIS (FOTMOB 2026 -> /opt/futstats/spatial.db)
+    # =========================================================================
+    spatial_db_file = os.environ.get("FUTSTATS_SPATIAL_DB", "/opt/futstats/spatial.db")
+
+    def _get_spatial_conn():
+        if not os.path.exists(spatial_db_file):
+            return None
+        c = sqlite3.connect(f"file:{spatial_db_file}?mode=ro", uri=True, timeout=8)
+        c.row_factory = sqlite3.Row
+        return c
+
+    def _norm_txt(t):
+        import unicodedata
+
+        s = unicodedata.normalize("NFKD", (t or "").strip().lower())
+        return "".join(ch for ch in s if not unicodedata.combining(ch))
+
+    @app.route("/internal/spatial/player", methods=["GET"])
+    @require_secret
+    def internal_spatial_player():
+        aid = request.args.get("id", type=int)
+        nome = (request.args.get("nome") or "").strip()
+        sc = _get_spatial_conn()
+        if not sc:
+            return jsonify({"found": False}), 200
+        try:
+            row = None
+            if aid:
+                row = sc.execute(
+                    "SELECT * FROM player_spatial WHERE atleta_id_canonico = ?", (aid,)
+                ).fetchone()
+            if not row and nome:
+                norm = _norm_txt(nome)
+                row = sc.execute(
+                    "SELECT * FROM player_spatial WHERE nome_norm = ? ORDER BY amostras_brutas DESC LIMIT 1",
+                    (norm,),
+                ).fetchone()
+                if not row:
+                    row = sc.execute(
+                        "SELECT * FROM player_spatial WHERE nome_norm LIKE ? ORDER BY amostras_brutas DESC LIMIT 1",
+                        (f"%{norm}%",),
+                    ).fetchone()
+            if not row:
+                return jsonify({"found": False}), 200
+
+            return (
+                jsonify(
+                    {
+                        "found": True,
+                        "atleta_id_canonico": row["atleta_id_canonico"],
+                        "fotmob_id": row["fotmob_id"],
+                        "nome": row["nome"],
+                        "clube_nome": row["clube_nome"],
+                        "posicao_primaria": row["posicao_primaria"],
+                        "heatmap": json.loads(row["heatmap_json"] or "[]"),
+                        "shotmap": json.loads(row["shotmap_json"] or "[]"),
+                        "telemetria_espacial": json.loads(row["telemetria_json"] or "{}"),
+                        "traits": json.loads(row["traits_json"] or "{}"),
+                        "amostras_brutas": row["amostras_brutas"],
+                        "total_chutes": row["total_chutes"],
+                        "atualizado_em": row["atualizado_em"],
+                    }
+                ),
+                200,
+            )
+        finally:
+            sc.close()
+
+    @app.route("/internal/spatial/clubs/tactical", methods=["GET"])
+    @require_secret
+    def internal_spatial_clubs_tactical():
+        sc = _get_spatial_conn()
+        if not sc:
+            return jsonify({"clubes": []}), 200
+        try:
+            rows = sc.execute(
+                "SELECT * FROM club_tactical_trends ORDER BY clube_nome ASC"
+            ).fetchall()
+            out = []
+            for r in rows:
+                out.append(
+                    {
+                        "clube_id_canonico": r["clube_id_canonico"],
+                        "fotmob_id": r["fotmob_id"],
+                        "clube_nome": r["clube_nome"],
+                        "clube_sigla": r["clube_sigla"],
+                        "jogos_analisados": r["jogos_analisados"],
+                        "esquema_principal": r["esquema_principal"],
+                        "esquema_recente_5": r["esquema_recente_5"],
+                        "esquemas": json.loads(r["esquemas_json"] or "[]"),
+                        "tendencia_esquemas": json.loads(r["tendencia_esquemas_json"] or "[]"),
+                        "xi_medio": json.loads(r["xi_medio_json"] or "[]"),
+                        "attacking_zones": json.loads(r["attacking_zones_json"] or "{}"),
+                        "shot_profile": json.loads(r["shot_profile_json"] or "{}"),
+                        "atualizado_em": r["atualizado_em"],
+                    }
+                )
+            return jsonify({"clubes": out}), 200
+        finally:
+            sc.close()
+
     return app
 
 
