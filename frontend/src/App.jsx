@@ -30,6 +30,7 @@ const CoachProfileView = lazy(() => import('./components/CoachProfileView'));
 const CompetitionDetailView = lazy(() => import('./components/CompetitionDetailView'));
 const HeadToHeadView = lazy(() => import('./components/HeadToHeadView'));
 const ValorEsperadoView = lazy(() => import('./components/ValorEsperadoView'));
+const OraculoPreditivoView = lazy(() => import('./components/OraculoPreditivoView'));
 
 function ViewSuspenseFallback({ darkMode }) {
   return (
@@ -1349,6 +1350,10 @@ export default function App() {
               apiFetch={apiFetch}
             />
           </div>
+        )}
+
+        {activeTab === 'oraculo-preditivo' && (
+          <OraculoPreditivoView />
         )}
 
         {/* ABA: PROBABILIDADES MATEMÁTICAS & LEITURA ANALÍTICA */}

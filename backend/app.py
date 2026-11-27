@@ -334,6 +334,16 @@ except ImportError:
         print(f"[AVISO] Falha ao registrar Blueprint metricas_avancadas: {e_bp}")
 
 try:
+    from backend.rotas_oraculo_preditivo import oraculo_preditivo_bp
+    app.register_blueprint(oraculo_preditivo_bp)
+except ImportError:
+    try:
+        from rotas_oraculo_preditivo import oraculo_preditivo_bp
+        app.register_blueprint(oraculo_preditivo_bp)
+    except Exception as e_bp:
+        print(f"[AVISO] Falha ao registrar Blueprint oraculo_preditivo: {e_bp}")
+
+try:
     from backend.rotas_fase6_paginas import fase6_paginas_bp
     app.register_blueprint(fase6_paginas_bp)
 except ImportError:

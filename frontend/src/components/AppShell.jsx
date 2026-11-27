@@ -27,6 +27,7 @@ export default function AppShell({
       titulo: 'Núcleo Analítico',
       items: [
         { id: 'overview', label: 'Início', icon: Trophy, badge: 'Cockpit' },
+        { id: 'oraculo-preditivo', label: 'Oráculo Preditivo', icon: Sparkles, badge: 'Novo' },
         { id: 'probabilidades', label: 'Probabilidades', icon: TrendingUp, badge: '+EV' },
         { id: 'metricas-avancadas', label: 'Métricas Avançadas', icon: Sparkles, badge: 'BED' },
         { id: 'campeonato', label: 'Campeonato', icon: Award, badge: 'Scouts' }
