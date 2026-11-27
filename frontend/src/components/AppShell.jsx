@@ -699,7 +699,10 @@ export default function AppShell({
           }}
         >
           <div>
-            <strong className="font-editorial" style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>FutStats</strong> • Arquitetura Editorial & Protagonista 2026
+            <strong className="font-editorial" style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>FutStats</strong> • Estatísticas e Análise do Futebol Brasileiro
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Fontes: acervos oficiais CBF/CONMEBOL, OGol, Sofascore, ESPN, Cartola/GE, IBGE e Open-Meteo.
+            </div>
           </div>
           <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <span>Base histórica oficial • Cobertura 1902–2026</span>

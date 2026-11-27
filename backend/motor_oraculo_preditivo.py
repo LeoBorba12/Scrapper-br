@@ -289,7 +289,7 @@ def simular_partida_hibrida(
             ),
         },
         {
-            "fator": "Clima Pré-Jogo (Open-Meteo)",
+            "fator": "Clima Pré-Jogo",
             "impacto_saldo": 0.0,
             "explicacao": (
                 f"{clima_prejogo.get('cidade', 'Sede')}: {clima_prejogo.get('temperatura_c')}°C, chuva {chuva_mm:.1f}mm ({clima_prejogo.get('condicao', 'Estável')})"

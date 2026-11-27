@@ -75,6 +75,7 @@ Consulte o mapa modular completo em [`.memory/context-map.md`](file:///f:/Antigr
 12. `brainstorming`: Transforma ideias brutas em designs validados antes de qualquer implementação (Socratic dialogue, YAGNI, understanding lock).
 13. `multi-agent-brainstorming`: Revisão sequencial por papéis (Challenger, Constraint Guardian, User Advocate) para blindar designs complexos.
 14. `triade` (alias: `triad-ai-orchestration`): Orquestração estrita em 5 estágios entre Perplexity (planejamento), Gemini Argon/Hydrogen (código/TDD) e Antigravity (execução/deploy/governança). Acionável via slash commands `/triade` ou `/tri`. **Hard Gate:** É proibido usar APIs; o acesso ao Perplexity e Gemini no modo Full deve ser 100% via subagente `browser` no primeiro turno.
+15. `humanizer`: Revisão editorial baseada em `blader/humanizer` (Wikipedia *Signs of AI Writing*) para remover linguagem robótica de IA, eliminar referências a jogos/fontes externas em cabeçalhos e manter créditos de fontes em legenda discreta no rodapé.
 
 ---
 

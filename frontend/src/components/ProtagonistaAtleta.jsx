@@ -69,7 +69,7 @@ export default function ProtagonistaAtleta({
               Atletas & Estatísticas Oficiais de Carreira
             </h1>
             <p style={{ fontSize: '0.92rem', color: 'var(--text-secondary)', maxWidth: '780px', lineHeight: 1.55 }}>
-              Pesquise qualquer jogador histórico ou em atividade para visualizar sua ficha na composição Protagonista, 
+              Pesquise qualquer jogador histórico ou em atividade para explorar seus números de carreira, mapa de desempenho e linha do tempo, 
               ou explore os rankings oficiais catalogados.
             </p>
           </div>
@@ -575,8 +575,7 @@ export default function ProtagonistaAtleta({
             </button>
           )}
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            Atleta ID: <strong className="font-mono">{atleta.id_jogador || '—'}</strong>
-            {atleta.ogol_id && ` • OGol ID: ${atleta.ogol_id}`}
+            Registro <strong className="font-mono">#{atleta.id_jogador || '—'}</strong>
           </div>
         </div>
       </div>
@@ -625,14 +624,11 @@ export default function ProtagonistaAtleta({
                           border: '1px solid var(--positive)',
                           boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
                         }}
-                        title={resumo.sofascore.fonte === 'futstats_scouting'
-                          ? `Rating FutStats Scouting: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`
-                          : `Rating Sofascore: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`
-                        }
+                        title={`Nota média: ${resumo.sofascore.rating_medio}/10 (${resumo.sofascore.jogos_avaliados} jogos) • Últimas notas: ${resumo.sofascore.ultimas_notas?.join(', ') || 'N/D'}`}
                       >
                         <div style={{ textAlign: 'right', lineHeight: 1.15 }}>
                           <div style={{ fontSize: '0.60rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--positive)', letterSpacing: '0.04em' }}>
-                            {resumo.sofascore.fonte === 'futstats_scouting' ? 'Scouting' : 'Sofascore'}
+                            Nota Média
                           </div>
                           <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                             {resumo.sofascore.jogos_avaliados}j avaliados
@@ -967,9 +963,9 @@ export default function ProtagonistaAtleta({
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
-                    ⭐ Perfil Pentagonal de Atributos
+                    Perfil Técnico
                   </span>
-                  <span className="pill-neutral" style={{ fontSize: '0.66rem' }}>Estilo PES / WE</span>
+                  <span className="pill-neutral" style={{ fontSize: '0.66rem' }}>Escala 40–99</span>
                 </div>
                 <RadarPentagonPES
                   atleta={atleta}
@@ -978,7 +974,7 @@ export default function ProtagonistaAtleta({
                   size={290}
                 />
                 <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
-                  Índice ponderado (40–99) calculado a partir de scouts atômicos reais (gols/jogo, pontaria %, assistências e disciplina).
+                  Índice ponderado (40–99) baseado em gols por jogo, pontaria, assistências e disciplina.
                 </span>
               </div>
 
@@ -1468,7 +1464,7 @@ export default function ProtagonistaAtleta({
             <div role="tablist" aria-label="Estatísticas detalhadas do atleta" style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--surface-raised)', overflowX: 'auto' }}>
               {[
                 { id: 'partidas', label: `Partidas Catalogadas (${(atleta.partidas || []).length})` },
-                { id: 'carreira_ogol', label: `Carreira Oficial OGol (${carreiraClubesLimpos.length})` },
+                { id: 'carreira_ogol', label: `Carreira Oficial (${carreiraClubesLimpos.length})` },
                 { id: 'titulos', label: `Títulos & Prêmios (${(atleta.titulos || []).length + (atleta.premios || []).length})` },
                 { id: 'valor_mercado', label: 'Valor de Mercado (€/R$)' },
                 { id: 'temporadas', label: `Por Temporada (${(atleta.historico_temporadas || []).length})` },
@@ -1779,7 +1775,7 @@ export default function ProtagonistaAtleta({
                   >
                     <span style={{ fontSize: '0.9rem', marginTop: '-1px' }}>ℹ️</span>
                     <div>
-                      <strong>Nota sobre temporadas com asterisco (*):</strong> Em temporadas anteriores a 2014, o catálogo nacional preserva 100% dos gols, cartões e jogos decisivos, mas as fichas de escalação com os 22 atletas em jogos sem gol não foram disponibilizadas pelos arquivos históricos da CBF/FGF. Nessas temporadas, a coluna 'Jogos' contabiliza partidas onde o atleta pontuou em súmula. Para a carreira total homologada, consulte a aba <em>Carreira Oficial OGol</em> acima.
+                      <strong>Nota sobre temporadas com asterisco (*):</strong> Em temporadas anteriores a 2014, o acervo preserva gols, cartões e jogos decisivos, mas muitas súmulas completas de escalação em partidas sem gol não constam nos arquivos históricos. Nessas temporadas, a coluna 'Jogos' conta as partidas em que o atleta pontuou em súmula. Para o total consolidado de carreira, consulte a aba <em>Carreira Oficial</em> acima.
                     </div>
                   </div>
                 </div>

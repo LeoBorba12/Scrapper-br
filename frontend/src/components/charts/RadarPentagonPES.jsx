@@ -240,7 +240,7 @@ export default function RadarPentagonPES({
               maxWidth: '220px'
             }}
           >
-            O atleta ainda não possui scouts atômicos suficientes no catálogo para calibração dos 5 eixos táticos (PES / WE).
+            Ainda não há dados suficientes no histórico para montar o radar de atributos deste jogador.
           </p>
         </div>
       </div>
@@ -330,10 +330,10 @@ export default function RadarPentagonPES({
           textAlign: 'center',
           boxShadow: 'var(--shadow-editorial)'
         }}
-        title="Overall Rating Geral calculado"
+        title="Índice geral de atributos (40–99)"
       >
         <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          PES OVR
+          ÍNDICE
         </span>
         <div className="font-mono" style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--accent)', lineHeight: 1 }}>
           {ovr}

@@ -38,7 +38,7 @@ function ViewSuspenseFallback({ darkMode }) {
     <div className={`w-full min-h-[420px] flex flex-col items-center justify-center p-8 transition-colors ${darkMode ? 'text-[#C9BAA9]' : 'text-[#5C5549]'}`}>
       <div className="w-10 h-10 border-4 border-t-transparent border-[#85573B] rounded-full animate-spin mb-4" />
       <span className="text-sm font-medium font-inter tracking-wide animate-pulse">
-        Carregando módulo editorial...
+        Carregando dados...
       </span>
     </div>
   );
@@ -1198,7 +1198,7 @@ export default function App() {
                   cursor: 'pointer'
                 }}
               >
-                📊 Scouts Coletivos Avançados (OGol)
+                📊 Scouts Coletivos Avançados
               </button>
             </div>
 
@@ -1635,7 +1635,7 @@ export default function App() {
           {oraculoLoading && (
             <div className="soft-card" style={{ padding: '48px 20px', textAlign: 'center', marginBottom: '24px' }}>
               <RefreshCw size={36} className="animate-spin" color="var(--accent)" style={{ margin: '0 auto 16px' }} />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>O Oráculo está pesquisando no banco...</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>Consultando o histórico de partidas...</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', marginTop: '6px' }}>
                 Traduzindo sua pergunta para SQL, consultando {overview?.total_partidas?.toLocaleString('pt-BR') || '115.257'} partidas e gerando o insight.
               </p>
@@ -2445,7 +2445,7 @@ export default function App() {
       {/* FOOTER */}
       <footer style={{ marginTop: '48px', paddingTop: '20px', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', color: 'var(--text-secondary)', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          FutStats & Clima • Feito com <strong style={{ color: 'var(--text-primary)' }}>Arquitetura Editorial 2026</strong>
+          FutStats • <strong style={{ color: 'var(--text-primary)' }}>Base Histórica do Futebol Brasileiro (1902–2026)</strong>
         </div>
         <div className="font-mono">
           {overview?.total_partidas?.toLocaleString('pt-BR') || '115.257'} jogos oficiais • {overview?.total_gols?.toLocaleString('pt-BR') || '117.529'} gols catalogados • 12 capitais climáticas

@@ -453,7 +453,7 @@ export default function AthleteCompareView({
               ⚔️ Comparador de Atletas Lado a Lado
             </h1>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-              Confronto estatístico direto, Radar Dual PES sobreposto e histórico de jogos em comum.
+              Compare números de carreira, perfil técnico lado a lado e histórico de jogos em comum.
             </p>
           </div>
         </div>
@@ -841,7 +841,7 @@ export default function AthleteCompareView({
       {/* Estados de Loading e Erro */}
       {loading && (
         <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-          <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>⏳ Computando matriz estatística e sobreposição PES...</div>
+          <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Carregando comparativo técnico...</div>
           <span style={{ fontSize: '0.82rem' }}>Cruzando acervos de partidas, gols e scouts atômicos.</span>
         </div>
       )}
@@ -1027,7 +1027,7 @@ export default function AthleteCompareView({
               >
                 <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                   <span style={{ fontSize: '0.76rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                    Sobreposição de Perfil PES • Winning Eleven
+                    Comparativo de Perfil Técnico
                   </span>
                 </div>
                 <RadarDualPES
@@ -1185,7 +1185,7 @@ export default function AthleteCompareView({
                   )}
                   {(atleta1.sofascore_rating || atleta1.resumo?.sofascore_rating) && (
                     <span className="pill-neutral font-mono" style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                      ⭐ Sofascore {Number(atleta1.sofascore_rating || atleta1.resumo?.sofascore_rating).toFixed(2)}
+                      ⭐ Nota {Number(atleta1.sofascore_rating || atleta1.resumo?.sofascore_rating).toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -1405,7 +1405,7 @@ export default function AthleteCompareView({
                   )}
                   {(atleta2.sofascore_rating || atleta2.resumo?.sofascore_rating) && (
                     <span className="pill-neutral font-mono" style={{ fontSize: '0.7rem', fontWeight: 800, backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
-                      ⭐ Sofascore {Number(atleta2.sofascore_rating || atleta2.resumo?.sofascore_rating).toFixed(2)}
+                      ⭐ Nota {Number(atleta2.sofascore_rating || atleta2.resumo?.sofascore_rating).toFixed(2)}
                     </span>
                   )}
                 </div>

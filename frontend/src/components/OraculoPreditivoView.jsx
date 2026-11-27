@@ -24,13 +24,13 @@ const METODOLOGIAS_GUIA = [
     fraco: 'Em poucas rodadas, não captura sozinho finalizadores muito acima da média nem a fase individual do goleiro.'
   },
   {
-    titulo: '4. Desfalques via RAPM & WAR (NBA / Beisebol)',
+    titulo: '4. Impacto de Desfalques (RAPM & WAR)',
     didatica: 'O RAPM usa Regressão Ridge para medir quantos gols de saldo um titular agrega ao time (descontando companheiros e adversários). O WAR traduz isso em pontos na tabela.',
     motivo: 'Permite simular em 1 clique o impacto real de um craque suspenso ou lesionado.',
     fraco: 'Quando dois titulares jogam quase sempre juntos, há colinearidade para separar o mérito exato de cada um; mede apenas titulares.'
   },
   {
-    titulo: '5. Fadiga de Calendário — Rest Advantage (NBA)',
+    titulo: '5. Cansaço de Calendário (Rest Advantage)',
     didatica: 'Compara quantos dias cada clube descansou desde o último jogo (ex.: quem jogou Libertadores na quarta contra quem teve a semana livre).',
     motivo: 'Variável contextual comprovada em esportes de calendário intenso como o Brasileirão.',
     fraco: 'Não detecta automaticamente se o técnico poupou titulares escalando reservas na partida anterior.'
@@ -42,8 +42,8 @@ const METODOLOGIAS_GUIA = [
     fraco: 'A cobertura estatística vale para o conjunto de muitos jogos, nunca como garantia em uma partida isolada.'
   },
   {
-    titulo: '7. Prior Estrutural Econômico (Orçamento, SAF & IBGE)',
-    didatica: 'Usa porte financeiro do clube, modelo SAF e mercado da cidade-sede (PIB/população IBGE) como ponto de partida estrutural para simular a temporada.',
+    titulo: '7. Peso Financeiro e Estrutural',
+    didatica: 'Usa porte financeiro do clube, modelo SAF e mercado da cidade-sede (PIB e população) como ponto de partida estrutural para simular a temporada.',
     motivo: 'Na Economia do Esporte, folha salarial e receita explicam 60%–80% da tabela no longo prazo.',
     fraco: 'Não impede crises internas em elencos caros nem campanhas surpreendentes de clubes de orçamento enxuto.'
   },
@@ -157,13 +157,13 @@ export default function OraculoPreditivoView() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
           <div>
             <div className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
-              ● Motor Preditivo Multi-Fator • Pi-Ratings + Dixon-Coles + xG + RAPM + Economia
+              ● Simulador Estatístico • Série A 2026
             </div>
             <h1 className="font-editorial" style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0' }}>
-              Oráculo Preditivo Interativo
+              Oráculo Preditivo
             </h1>
             <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: 0, maxWidth: '720px' }}>
-              Simule qualquer confronto, teste o impacto de desfalques ou cansaço em 1 clique e entenda em linguagem simples o porquê de cada probabilidade.
+              Escolha um confronto, teste o impacto de desfalques ou cansaço e veja de forma clara o que pesa nas chances de cada equipe.
             </p>
           </div>
 

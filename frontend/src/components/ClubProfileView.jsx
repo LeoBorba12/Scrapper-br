@@ -500,7 +500,7 @@ export default function ClubProfileView({ clube, onVoltar, onSelectJogador }) {
                   <span className="font-mono" style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {lideres.melhor_nota?.nota_media ? Number(lideres.melhor_nota.nota_media).toFixed(2) : '—'}
                   </span>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>avaliação SofaScore</span>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>nota média</span>
                 </div>
               </div>
 
