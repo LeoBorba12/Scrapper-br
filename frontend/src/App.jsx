@@ -43,7 +43,15 @@ function ViewSuspenseFallback({ darkMode }) {
 }
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('futstats_theme');
+      if (saved === 'light') return false;
+      return true; // Tema 2: Terminal Quant Dark como padrão
+    } catch {
+      return true;
+    }
+  });
   const [activeTab, setActiveTab] = useState(() => {
     try {
       if (typeof window !== 'undefined' && window.location.pathname.startsWith('/confrontos/')) {
@@ -1121,7 +1129,11 @@ export default function App() {
           handleLogin={handleLogin}
           handleRegistro={handleRegistro}
           darkMode={darkMode}
-          onToggleTheme={() => setDarkMode(!darkMode)}
+          onToggleTheme={() => {
+        const next = !darkMode;
+        setDarkMode(next);
+        try { localStorage.setItem('futstats_theme', next ? 'dark' : 'light'); } catch {}
+      }}
         />
       </Suspense>
     );
@@ -1133,7 +1145,11 @@ export default function App() {
       activeTab={activeTab}
       onNavigateTab={setActiveTab}
       darkMode={darkMode}
-      onToggleTheme={() => setDarkMode(!darkMode)}
+      onToggleTheme={() => {
+        const next = !darkMode;
+        setDarkMode(next);
+        try { localStorage.setItem('futstats_theme', next ? 'dark' : 'light'); } catch {}
+      }}
       currentUser={currentUser}
       onOpenTrocarSenha={() => {
         setShowTrocarSenhaModal(true);

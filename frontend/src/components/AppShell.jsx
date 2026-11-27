@@ -344,6 +344,38 @@ export default function AppShell({
         </nav>
       </header>
 
+      {/* ================= TICKER QUANT (TEMA 2: TERMINAL QUANT DARK) ================= */}
+      {darkMode && (
+        <div
+          className="font-mono"
+          style={{
+            borderBottom: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--surface-sidebar)',
+            fontSize: '0.72rem',
+            color: 'var(--text-muted)',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 'var(--content-max)',
+              margin: '0 auto',
+              padding: '7px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '20px'
+            }}
+          >
+            <span style={{ color: 'var(--accent)', fontWeight: 700 }}>● TERMINAL QUANT LIVE</span>
+            <span>BASE: <strong style={{ color: 'var(--text-primary)' }}>115.257</strong> JOGOS</span>
+            <span>GOLS: <strong style={{ color: 'var(--text-primary)' }}>117.529</strong></span>
+            <span>INTEGRIDADE: <strong style={{ color: 'var(--accent)' }}>12/12 OK</strong></span>
+            <span>MODELO: <strong style={{ color: 'var(--text-primary)' }}>DIXON-COLES &amp; FAIR ODDS</strong></span>
+          </div>
+        </div>
+      )}
+
       {/* ================= CONTEÚDO DA PÁGINA ================= */}
       <main
         className="app-main-content"

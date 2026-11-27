@@ -48,26 +48,29 @@
 
 [data-theme="dark"], .dark, .theme-carvao {
   color-scheme: dark;
-  --surface-page: #1B1A17;
-  --surface-panel: #22211D;
-  --surface-card: #22211D;
-  --surface-card-hover: #2B2923;
-  --surface-raised: #2B2923;
-  --surface-sidebar: #201F1A;
-  --text-primary: #F0ECE3;
-  --text-secondary: #C2BBB0;
-  --text-muted: #968F82;
-  --border-subtle: #413D34;
-  --border-strong: #5A5447;
-  --accent: #B5BE93;
-  --accent-hover: #C5CDA7;
-  --accent-foreground: #202419;
-  --accent-soft: #353B2A;
-  --positive: #B7C59C;
-  --positive-bg: #333D2A;
-  --negative: #D5AB93;
-  --negative-bg: #433128;
-  --focus-ring: #B5BE93;
+  /* Tema 2: Terminal Quant Dark (Opta / Bloomberg) — WCAG 2.2 AA+ */
+  --surface-page: #0B0E11;
+  --surface-panel: #13181F;
+  --surface-card: #13181F;
+  --surface-card-hover: #1A212B;
+  --surface-raised: #1A212B;
+  --surface-sidebar: #0F141A;
+  --text-primary: #F1F5F9;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --border-subtle: #252F3D;
+  --border-strong: #364559;
+  --accent: #22C55E;
+  --accent-hover: #16A34A;
+  --accent-foreground: #052E16;
+  --accent-soft: rgba(34, 197, 94, 0.14);
+  --positive: #22C55E;
+  --positive-bg: rgba(34, 197, 94, 0.14);
+  --negative: #F59E0B;
+  --negative-bg: rgba(245, 158, 11, 0.14);
+  --focus-ring: #22C55E;
 
-  --shadow-editorial: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --radius-control: 4px;
+  --radius-panel: 6px;
+  --shadow-editorial: none;
 }
