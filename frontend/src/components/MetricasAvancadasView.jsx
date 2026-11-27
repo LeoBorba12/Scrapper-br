@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Award, TrendingUp, BarChart3, ShieldCheck, Search, Users,
-  Check, Info, ChevronRight, Filter, Database, Sparkles, Activity
+  Check, Info, ChevronRight, Filter, Database, Sparkles, Activity, Download
 } from 'lucide-react';
-import { MetricTooltip, ScoreBar, RapmDivergingBar, ClubXptsScatterChart } from './EconometriaVisuals';
+import { MetricTooltip, ScoreBar, RapmDivergingBar, ClubXptsScatterChart, EvolucaoTabelaChart } from './EconometriaVisuals';
 
 export default function MetricasAvancadasView({ darkMode }) {
   const [activeSubTab, setActiveSubTab] = useState('rankings'); // 'rankings' | 'clubes' | 'atleta' | 'governanca'
@@ -16,10 +16,13 @@ export default function MetricasAvancadasView({ darkMode }) {
   const [rankings, setRankings] = useState([]);
   const [loadingRankings, setLoadingRankings] = useState(false);
   const [filtroPosicao, setFiltroPosicao] = useState('');
+  const [filtroClubeId, setFiltroClubeId] = useState('');
+  const [filtroSub23, setFiltroSub23] = useState(false);
   const [filtroBusca, setFiltroBusca] = useState('');
 
   // Clubes state
   const [clubes, setClubes] = useState([]);
+  const [evolucaoClubes, setEvolucaoClubes] = useState([]);
   const [loadingClubes, setLoadingClubes] = useState(false);
   const [clubeSelecionado, setClubeSelecionado] = useState(null);
   const [clubeDetalhe, setClubeDetalhe] = useState(null);
@@ -40,7 +43,13 @@ export default function MetricasAvancadasView({ darkMode }) {
   const [econSub23, setEconSub23] = useState(false);
   const [loadingEcon, setLoadingEcon] = useState(false);
 
-  // 1. Carregar metadados
+  // Buscador de Jogadores Similares
+  const [simAlvoId, setSimAlvoId] = useState('');
+  const [simMesmaPos, setSimMesmaPos] = useState(true);
+  const [simDados, setSimDados] = useState(null);
+  const [loadingSim, setLoadingSim] = useState(false);
+
+  // 1. Carregar metadados + lista dos 20 clubes para filtros
   useEffect(() => {
     fetch('/api/metricas-avancadas/meta')
       .then(r => r.json())
@@ -49,14 +58,23 @@ export default function MetricasAvancadasView({ darkMode }) {
         setLoadingMeta(false);
       })
       .catch(() => setLoadingMeta(false));
+
+    fetch('/api/metricas-avancadas/clubes')
+      .then(r => r.json())
+      .then(data => {
+        if (data.sucesso) setClubes(data.clubes || []);
+      })
+      .catch(() => {});
   }, []);
 
-  // 2. Carregar rankings
+  // 2. Carregar rankings (com filtros de recrutamento)
   useEffect(() => {
     if (activeSubTab !== 'rankings') return;
     setLoadingRankings(true);
     let url = `/api/metricas-avancadas/rankings?metrica=${metricaSelecionada}&min_minutos=${minMinutos}&limite=50`;
     if (filtroPosicao) url += `&posicao=${encodeURIComponent(filtroPosicao)}`;
+    if (filtroClubeId) url += `&clube_id=${encodeURIComponent(filtroClubeId)}`;
+    if (filtroSub23) url += `&sub23=1`;
 
     fetch(url)
       .then(r => r.json())
@@ -65,16 +83,19 @@ export default function MetricasAvancadasView({ darkMode }) {
         setLoadingRankings(false);
       })
       .catch(() => setLoadingRankings(false));
-  }, [activeSubTab, metricaSelecionada, minMinutos, filtroPosicao]);
+  }, [activeSubTab, metricaSelecionada, minMinutos, filtroPosicao, filtroClubeId, filtroSub23]);
 
-  // 3. Carregar clubes
+  // 3. Carregar clubes + evolução jogo a jogo
   useEffect(() => {
     if (activeSubTab !== 'clubes') return;
     setLoadingClubes(true);
-    fetch('/api/metricas-avancadas/clubes')
-      .then(r => r.json())
-      .then(data => {
-        if (data.sucesso) setClubes(data.clubes);
+    Promise.all([
+      fetch('/api/metricas-avancadas/clubes').then(r => r.json()),
+      fetch('/api/metricas-avancadas/evolucao-rodadas').then(r => r.json())
+    ])
+      .then(([dc, de]) => {
+        if (dc.sucesso) setClubes(dc.clubes || []);
+        if (de.sucesso) setEvolucaoClubes(de.clubes || []);
         setLoadingClubes(false);
       })
       .catch(() => setLoadingClubes(false));
@@ -92,7 +113,11 @@ export default function MetricasAvancadasView({ darkMode }) {
       fetch(`/api/metricas-avancadas/econometria/goleiros?k_prior=${econKPrior}&limite=20`).then(r => r.json())
     ])
       .then(([da, dc, dr, dg]) => {
-        if (da.sucesso) setEconAtletas(da.ranking || []);
+        if (da.sucesso) {
+          const lista = da.ranking || [];
+          setEconAtletas(lista);
+          if (!simAlvoId && lista.length > 0) setSimAlvoId(String(lista[0].atleta_id_canonico));
+        }
         if (dc.sucesso) setEconClubes(dc.clubes || []);
         if (dr.sucesso) setEconRapm(dr.ranking || []);
         if (dg.sucesso) setEconGoleiros(dg.goleiros || []);
@@ -100,6 +125,18 @@ export default function MetricasAvancadasView({ darkMode }) {
       })
       .catch(() => setLoadingEcon(false));
   }, [activeSubTab, econPosicao, econKPrior, econSub23]);
+
+  useEffect(() => {
+    if (activeSubTab !== 'econometria' || !simAlvoId) return;
+    setLoadingSim(true);
+    fetch(`/api/metricas-avancadas/econometria/similares?atleta_id=${simAlvoId}&limite=8&mesma_posicao=${simMesmaPos ? 1 : 0}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.sucesso) setSimDados(d);
+        setLoadingSim(false);
+      })
+      .catch(() => setLoadingSim(false));
+  }, [activeSubTab, simAlvoId, simMesmaPos]);
 
   // 4. Carregar detalhe de clube
   useEffect(() => {
@@ -139,12 +176,50 @@ export default function MetricasAvancadasView({ darkMode }) {
   }, [rankings, filtroBusca]);
 
   const metricasLabels = {
-    xg: { label: 'Gols Esperados (xG)', unidade: 'xG', desc: 'Qualidade acumulada das finalizações' },
-    npxg: { label: 'xG sem Pênaltis', unidade: 'npxG', desc: 'Produção esperada com bola rolando' },
-    xa: { label: 'Assistências Esperadas (xA)', unidade: 'xA', desc: 'Potencial de criação para finalização' },
-    passes_progressivos: { label: 'Passes Progressivos', unidade: 'passes', desc: 'Passes que avançam verticalmente >= 10m' },
-    sca: { label: 'Ações de Finalização (SCA)', unidade: 'SCA', desc: 'Ações que geraram chute a gol' },
-    gca: { label: 'Ações de Gol (GCA)', unidade: 'GCA', desc: 'Ações diretas que converteram em gol' }
+    xg: { label: 'xG', unidade: 'xG', desc: 'Qualidade acumulada das finalizações' },
+    npxg: { label: 'npxG', unidade: 'npxG', desc: 'Produção esperada com bola rolando' },
+    xa: { label: 'xA', unidade: 'xA', desc: 'Potencial de criação para finalização' },
+    passes_progressivos: { label: 'Passes Prog.', unidade: 'passes', desc: 'Passes que avançam em direção ao gol' },
+    conducoes_progressivas: { label: 'Conduções Prog.', unidade: 'conduções', desc: 'Avanços com bola dominada para o ataque' },
+    passes_decisivos: { label: 'Passes Decisivos', unidade: 'passes', desc: 'Passes que geram finalização imediata' },
+    grandes_chances_criadas: { label: 'Grandes Chances', unidade: 'chances', desc: 'Oportunidades claras criadas para o time' },
+    dribles_certos: { label: 'Dribles Certos', unidade: 'dribles', desc: 'Fintas bem-sucedidas no 1x1' },
+    recuperacoes: { label: 'Recuperações', unidade: 'rec.', desc: 'Bolas recuperadas para a equipe' },
+    sca: { label: 'SCA', unidade: 'SCA', desc: 'Ações que geraram chute a gol' },
+    gca: { label: 'GCA', unidade: 'GCA', desc: 'Ações diretas que converteram em gol' }
+  };
+
+  const exportarRankingsCSV = () => {
+    if (!rankingsFiltrados.length) return;
+    const headers = ['Rank', 'Atleta', 'Clube', 'Posicao', 'Idade', 'Minutos', metricaSelecionada, 'Por_90', 'Gols', 'xG', 'xA', 'Passes_Prog', 'Conducoes_Prog', 'Passes_Decisivos', 'Dribles_Certos', 'Recuperacoes', 'SCA', 'GCA'];
+    const linhas = rankingsFiltrados.map((item, idx) => [
+      idx + 1,
+      `"${(item.nome || '').replace(/"/g, '""')}"`,
+      `"${(item.clube_nome || '').replace(/"/g, '""')}"`,
+      `"${(item.posicao || '').replace(/"/g, '""')}"`,
+      item.idade ?? '',
+      item.minutos ?? 0,
+      item.valor ?? 0,
+      item.valor_por_90 ?? 0,
+      item.gols ?? 0,
+      item.xg ?? 0,
+      item.xa ?? 0,
+      item.passes_progressivos ?? 0,
+      item.conducoes_progressivas ?? 0,
+      item.passes_decisivos ?? 0,
+      item.dribles_certos ?? 0,
+      item.recuperacoes ?? 0,
+      item.sca ?? 0,
+      item.gca ?? 0
+    ].join(';'));
+    const csv = '\uFEFF' + [headers.join(';'), ...linhas].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `futstats-scouting-${metricaSelecionada}-2026.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -440,10 +515,68 @@ export default function MetricasAvancadasView({ darkMode }) {
               ))}
             </div>
 
-            {/* Filtros de Minutos e Busca */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Filtros de Recrutamento, Busca e CSV */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <select
+                value={filtroClubeId}
+                onChange={(e) => setFiltroClubeId(e.target.value)}
+                aria-label="Filtrar por clube"
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-subtle, #D1D5DB)',
+                  backgroundColor: darkMode ? '#292524' : '#FFFFFF',
+                  color: darkMode ? '#F5F5F4' : '#1C1917',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Todos os Clubes</option>
+                {clubes.map((cl) => (
+                  <option key={cl.clube_id_canonico} value={cl.clube_id_canonico}>{cl.clube_nome}</option>
+                ))}
+              </select>
+
+              <select
+                value={filtroPosicao}
+                onChange={(e) => setFiltroPosicao(e.target.value)}
+                aria-label="Filtrar por posição"
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-subtle, #D1D5DB)',
+                  backgroundColor: darkMode ? '#292524' : '#FFFFFF',
+                  color: darkMode ? '#F5F5F4' : '#1C1917',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Todas Posições</option>
+                <option value="Atacante">Atacantes</option>
+                <option value="Meia">Meias</option>
+                <option value="Zagueiro">Zagueiros</option>
+                <option value="Lateral">Laterais</option>
+                <option value="Goleiro">Goleiros</option>
+              </select>
+
+              <button
+                onClick={() => setFiltroSub23((v) => !v)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: `1px solid ${filtroSub23 ? '#5A673E' : 'var(--border-subtle, #D1D5DB)'}`,
+                  backgroundColor: filtroSub23 ? '#5A673E' : (darkMode ? '#292524' : '#FFFFFF'),
+                  color: filtroSub23 ? '#FFFFFF' : (darkMode ? '#F5F5F4' : '#1C1917'),
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                {filtroSub23 ? '✓ Sub-23' : 'Sub-23'}
+              </button>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: '#78716C' }}>Mín. Minutos:</span>
+                <span style={{ fontSize: '12px', color: '#78716C' }}>Mín.:</span>
                 <select
                   value={minMinutos}
                   onChange={(e) => setMinMinutos(Number(e.target.value))}
@@ -457,10 +590,10 @@ export default function MetricasAvancadasView({ darkMode }) {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value={90}>≥ 90 min (1 jogo)</option>
-                  <option value={450}>≥ 450 min (5 jogos)</option>
-                  <option value={900}>≥ 900 min (10 jogos)</option>
-                  <option value={1500}>≥ 1500 min (Regular)</option>
+                  <option value={90}>≥ 90 min</option>
+                  <option value={450}>≥ 450 min</option>
+                  <option value={900}>≥ 900 min</option>
+                  <option value={1500}>≥ 1500 min</option>
                 </select>
               </div>
 
@@ -478,10 +611,31 @@ export default function MetricasAvancadasView({ darkMode }) {
                     backgroundColor: darkMode ? '#292524' : '#FFFFFF',
                     color: darkMode ? '#F5F5F4' : '#1C1917',
                     fontSize: '12px',
-                    width: '180px'
+                    width: '165px'
                   }}
                 />
               </div>
+
+              <button
+                onClick={exportarRankingsCSV}
+                disabled={rankingsFiltrados.length === 0}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: '#5A673E',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: rankingsFiltrados.length === 0 ? 'not-allowed' : 'pointer',
+                  opacity: rankingsFiltrados.length === 0 ? 0.5 : 1
+                }}
+              >
+                <Download size={13} /> Exportar CSV
+              </button>
             </div>
           </div>
 
@@ -625,6 +779,7 @@ export default function MetricasAvancadasView({ darkMode }) {
       {/* ================= ABA 2: PERFORMANCE DOS 20 CLUBES ================= */}
       {activeSubTab === 'clubes' && (
         <div>
+          <EvolucaoTabelaChart clubes={evolucaoClubes} />
           <div 
             style={{
               overflowX: 'auto',
@@ -1145,6 +1300,98 @@ export default function MetricasAvancadasView({ darkMode }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+
+          {/* BUSCADOR DE JOGADORES SIMILARES (COSSENO 9D) */}
+          <div className="soft-card" style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Jogadores Similares (Perfil de Campo em 9 Dimensões)
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Compara taxas por 90 min em finalização, criação, progressão, dribles, defesa e jogo aéreo para achar substitutos e perfis parecidos.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <select
+                  value={simAlvoId}
+                  onChange={(e) => setSimAlvoId(e.target.value)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: 'var(--surface-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {econAtletas.map((a) => (
+                    <option key={a.atleta_id_canonico} value={a.atleta_id_canonico}>
+                      {a.nome} ({a.clube_sigla || a.clube_nome})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setSimMesmaPos((v) => !v)}
+                  className="font-mono"
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: simMesmaPos ? 'var(--accent)' : 'var(--surface-raised)',
+                    border: `1px solid ${simMesmaPos ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                    color: simMesmaPos ? 'var(--accent-foreground)' : 'var(--text-primary)',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {simMesmaPos ? '✓ Mesma Posição' : 'Todas Posições'}
+                </button>
+              </div>
+            </div>
+
+            {loadingSim ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>Calculando similaridade de perfil...</div>
+            ) : simDados?.similares?.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '10px' }}>
+                {simDados.similares.map((s) => (
+                  <button
+                    key={s.atleta_id_canonico}
+                    onClick={() => carregarAtleta(s.atleta_id_canonico)}
+                    style={{
+                      textAlign: 'left',
+                      padding: '12px 14px',
+                      borderRadius: 'var(--radius-control)',
+                      backgroundColor: 'var(--surface-raised)',
+                      border: '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                      <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>{s.nome}</strong>
+                      <span className="font-mono" style={{ fontSize: '0.76rem', fontWeight: 800, color: 'var(--positive)' }}>
+                        {s.similaridade_pct}%
+                      </span>
+                    </div>
+                    <div className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      {s.clube_nome} • {s.posicao} {s.idade ? `• ${s.idade}a` : ''}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+                      Traços: {(s.tracos_comuns || []).join(' • ')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                Selecione um atleta elegível acima para ver os perfis mais parecidos.
               </div>
             )}
           </div>

@@ -37,12 +37,25 @@ export default function ProtagonistaAtleta({
   const [partidasPage, setPartidasPage] = useState(1);
   const [anoFiltroTimeline, setAnoFiltroTimeline] = useState(null);
   const [mostrarCardHolografico, setMostrarCardHolografico] = useState(false);
+  const [atletasSimilares, setAtletasSimilares] = useState([]);
 
-  // Reset de página ao alternar atleta
+  // Reset de página ao alternar atleta e consulta de jogadores similares (Série A 2026)
   useEffect(() => {
     setPartidasPage(1);
     setAnoFiltroTimeline(null);
     setMostrarCardHolografico(false);
+    setAtletasSimilares([]);
+
+    const aid = playerProfile?.id_jogador;
+    if (!aid) return;
+    fetch(`/api/metricas-avancadas/econometria/similares?atleta_id=${aid}&limite=5&mesma_posicao=1`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.sucesso && Array.isArray(d.similares)) {
+          setAtletasSimilares(d.similares);
+        }
+      })
+      .catch(() => {});
   }, [playerProfile?.id_jogador, selectedPlayer]);
 
 
@@ -1455,6 +1468,50 @@ export default function ProtagonistaAtleta({
                 <span className="badge" style={{ fontSize: '0.68rem', backgroundColor: 'var(--surface-card)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
                   {resumo.jogos_registrados || 0} Partidas Catalogadas
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* ================= JOGADORES COM PERFIL SEMELHANTE (SÉRIE A 2026) ================= */}
+          {atletasSimilares.length > 0 && (
+            <div className="editorial-panel" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--accent)' }}>
+                  Jogadores com Perfil Semelhante (Série A 2026)
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Clique em um atleta para abrir a ficha comparada
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))', gap: '8px' }}>
+                {atletasSimilares.map((s) => (
+                  <button
+                    key={s.atleta_id_canonico}
+                    type="button"
+                    onClick={() => onCarregarPerfilPorId && onCarregarPerfilPorId(s.atleta_id_canonico)}
+                    style={{
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      borderRadius: 'var(--radius-control)',
+                      backgroundColor: 'var(--surface-raised)',
+                      border: '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                      <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>{s.nome}</strong>
+                      <span className="font-mono" style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--positive)' }}>
+                        {s.similaridade_pct}%
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      {s.clube_nome} {s.idade ? `• ${s.idade}a` : ''}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
           )}

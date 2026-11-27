@@ -220,3 +220,142 @@ export function ClubXptsScatterChart({ clubes = [] }) {
     </div>
   );
 }
+
+const _CORES_LINHAS = ['#22C55E', '#38BDF8', '#F59E0B', '#F472B6'];
+
+export function EvolucaoTabelaChart({ clubes = [] }) {
+  const [selecionados, setSelecionados] = useState([]);
+  const [modo, setModo] = useState('pontos'); // 'pontos' | 'posicao'
+
+  const ativos = selecionados.length > 0
+    ? clubes.filter((c) => selecionados.includes(c.clube_id_canonico))
+    : clubes.slice(0, 4);
+
+  if (!clubes || clubes.length === 0) return null;
+
+  const toggleClube = (cid) => {
+    setSelecionados((prev) => {
+      const base = prev.length > 0 ? prev : clubes.slice(0, 4).map((x) => x.clube_id_canonico);
+      if (base.includes(cid)) {
+        return base.length > 1 ? base.filter((id) => id !== cid) : base;
+      }
+      return base.length >= 4 ? [...base.slice(1), cid] : [...base, cid];
+    });
+  };
+
+  const maxJogos = Math.max(...ativos.map((c) => (c.serie || []).length), 1);
+  const maxPts = Math.max(...ativos.flatMap((c) => (c.serie || []).map((s) => s.pontos)), 10);
+
+  const width = 680;
+  const height = 240;
+  const pad = { top: 20, right: 24, bottom: 32, left: 42 };
+  const plotW = width - pad.left - pad.right;
+  const plotH = height - pad.top - pad.bottom;
+
+  const sx = (j) => pad.left + ((j - 1) / Math.max(maxJogos - 1, 1)) * plotW;
+  const sy = (val) => {
+    if (modo === 'posicao') {
+      return pad.top + ((val - 1) / 19) * plotH;
+    }
+    return pad.top + plotH - (val / Math.max(maxPts, 1)) * plotH;
+  };
+
+  const yTicks = modo === 'posicao'
+    ? [1, 5, 10, 15, 20]
+    : [0, Math.round(maxPts * 0.33), Math.round(maxPts * 0.66), maxPts];
+
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
+        <div>
+          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            Evolução na Série A 2026 (Jogo a Jogo)
+          </div>
+          <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            Selecione até 4 clubes para comparar a trajetória de pontuação ou colocação.
+          </div>
+        </div>
+        <div style={{ display: 'inline-flex', gap: '4px', padding: '3px', borderRadius: '6px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}>
+          {[
+            { id: 'pontos', label: 'Pontos Acumulados' },
+            { id: 'posicao', label: 'Colocação (1º–20º)' }
+          ].map((m) => (
+            <button
+              key={m.id}
+              onClick={() => setModo(m.id)}
+              style={{
+                padding: '5px 10px',
+                borderRadius: '4px',
+                border: 'none',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                backgroundColor: modo === m.id ? 'var(--accent)' : 'transparent',
+                color: modo === m.id ? 'var(--accent-foreground)' : 'var(--text-secondary)'
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+        {clubes.map((c) => {
+          const idxAtivo = ativos.findIndex((a) => a.clube_id_canonico === c.clube_id_canonico);
+          const cor = idxAtivo >= 0 ? _CORES_LINHAS[idxAtivo % _CORES_LINHAS.length] : null;
+          return (
+            <button
+              key={c.clube_id_canonico}
+              onClick={() => toggleClube(c.clube_id_canonico)}
+              className="font-mono"
+              style={{
+                padding: '4px 9px',
+                borderRadius: '4px',
+                border: `1px solid ${cor || 'var(--border-subtle)'}`,
+                backgroundColor: cor ? `${cor}22` : 'var(--surface-raised)',
+                color: cor || 'var(--text-secondary)',
+                fontSize: '0.7rem',
+                fontWeight: cor ? 800 : 600,
+                cursor: 'pointer'
+              }}
+            >
+              {c.sigla || c.nome.slice(0, 3).toUpperCase()}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ width: '100%', overflowX: 'auto', backgroundColor: 'var(--surface-sidebar)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-control)', padding: '8px' }}>
+        <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', maxHeight: '250px', display: 'block' }}>
+          {yTicks.map((t) => (
+            <g key={t}>
+              <line x1={pad.left} y1={sy(t)} x2={width - pad.right} y2={sy(t)} stroke="var(--border-subtle)" strokeDasharray="3 3" />
+              <text x={pad.left - 8} y={sy(t) + 3} textAnchor="end" fill="var(--text-muted)" fontSize="10" fontFamily="JetBrains Mono, monospace">
+                {modo === 'posicao' ? `${t}º` : t}
+              </text>
+            </g>
+          ))}
+          <text x={pad.left + plotW / 2} y={height - 4} textAnchor="middle" fill="var(--text-secondary)" fontSize="10" fontWeight="700">
+            Jogos Catalogados na Série A 2026 (1 a {maxJogos})
+          </text>
+          {ativos.map((clube, idx) => {
+            const cor = _CORES_LINHAS[idx % _CORES_LINHAS.length];
+            const serie = clube.serie || [];
+            if (serie.length === 0) return null;
+            const d = serie
+              .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${sx(pt.jogo).toFixed(1)} ${sy(modo === 'posicao' ? (pt.posicao || 10) : pt.pontos).toFixed(1)}`)
+              .join(' ');
+            const ult = serie[serie.length - 1];
+            return (
+              <g key={clube.clube_id_canonico}>
+                <path d={d} fill="none" stroke={cor} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx={sx(ult.jogo)} cy={sy(modo === 'posicao' ? (ult.posicao || 10) : ult.pontos)} r="4" fill={cor} />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}

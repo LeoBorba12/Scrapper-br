@@ -326,8 +326,23 @@ def get_atleta_detalhe(atleta_id):
                 ROUND(CAST(m.xa AS REAL) / MAX(CAST(m.minutos AS REAL) / 90.0, 0.1), 2) as xa_por_90,
                 ROUND(CAST(m.passes_progressivos AS REAL) / MAX(CAST(m.minutos AS REAL) / 90.0, 0.1), 2) as passes_prog_por_90,
                 ROUND(CAST(m.sca AS REAL) / MAX(CAST(m.minutos AS REAL) / 90.0, 0.1), 2) as sca_por_90,
-                ROUND(CAST(m.gca AS REAL) / MAX(CAST(m.minutos AS REAL) / 90.0, 0.1), 2) as gca_por_90
+                ROUND(CAST(m.gca AS REAL) / MAX(CAST(m.minutos AS REAL) / 90.0, 0.1), 2) as gca_por_90,
+                COALESCE(pg.conducoes_progressivas, 0) as conducoes_progressivas,
+                COALESCE(pg.passes_decisivos, 0) as passes_decisivos,
+                COALESCE(pg.passes_terco_final, 0) as passes_terco_final,
+                COALESCE(pg.passes_para_area, 0) as passes_para_area,
+                COALESCE(pg.grandes_chances_criadas, 0) as grandes_chances_criadas,
+                COALESCE(pg.dribles_certos, 0) as dribles_certos,
+                COALESCE(pg.dribles_tentados, 0) as dribles_tentados,
+                COALESCE(pg.recuperacoes, 0) as recuperacoes,
+                COALESCE(pg.duelos_aereos_ganhos, 0) as duelos_aereos_ganhos,
+                COALESCE(pg.duelos_chao_ganhos, 0) as duelos_chao_ganhos,
+                COALESCE(dg.desarmes_ganhos, 0) as desarmes_totais,
+                COALESCE(dg.interceptacoes, 0) as interceptacoes,
+                COALESCE(dg.cortes, 0) as cortes
             FROM metrica_atleta_avancada_2026 m
+            LEFT JOIN metrica_atleta_progressao_2026 pg ON m.atleta_id_canonico = pg.atleta_id_canonico
+            LEFT JOIN metrica_atleta_defesa_gk_2026 dg ON m.atleta_id_canonico = dg.atleta_id_canonico
             LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
             LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
             LEFT JOIN metrica_brasileirao_em_dados_proveniencia p 
@@ -551,6 +566,7 @@ def get_rankings():
         clube_id = request.args.get('clube_id', type=int)
 
     posicao = request.args.get('posicao', type=str)
+    apenas_sub23 = request.args.get('sub23', default='0', type=str).strip() in ('1', 'true', 'True')
     limite = min(request.args.get('limite', default=20, type=int), 100)
     pagina = max(1, request.args.get('pagina', default=1, type=int))
     offset = (pagina - 1) * limite
@@ -560,6 +576,12 @@ def get_rankings():
         'npxg': ('m.npxg', 'xG sem Pênaltis (npxG)'),
         'xa': ('m.xa', 'Assistências Esperadas (xA)'),
         'passes_progressivos': ('m.passes_progressivos', 'Passes Progressivos'),
+        'conducoes_progressivas': ('COALESCE(pg.conducoes_progressivas, 0)', 'Conduções Progressivas'),
+        'passes_decisivos': ('COALESCE(pg.passes_decisivos, 0)', 'Passes Decisivos'),
+        'passes_terco_final': ('COALESCE(pg.passes_terco_final, 0)', 'Passes Terço Final'),
+        'grandes_chances_criadas': ('COALESCE(pg.grandes_chances_criadas, 0)', 'Grandes Chances Criadas'),
+        'dribles_certos': ('COALESCE(pg.dribles_certos, 0)', 'Dribles Certos'),
+        'recuperacoes': ('COALESCE(pg.recuperacoes, 0)', 'Recuperações'),
         'sca': ('m.sca', 'Criação de Finalizações (SCA)'),
         'gca': ('m.gca', 'Criação de Gols (GCA)'),
         'gols': ('m.gols', 'Gols Marcados'),
@@ -584,6 +606,9 @@ def get_rankings():
             where_clauses.append("m.clube_id_canonico = ?")
             params.append(clube_id)
 
+        if apenas_sub23:
+            where_clauses.append("(je.idade IS NOT NULL AND je.idade <= 23)")
+
         if posicao:
             where_clauses.append("(LOWER(j.posicao) LIKE ? OR LOWER(COALESCE(j.apelido, '')) LIKE ?)")
             params.append(f"%{posicao.lower()}%")
@@ -596,6 +621,7 @@ def get_rankings():
                 m.atleta_id_canonico,
                 COALESCE(j.nome_exibicao, j.apelido, j.nome_completo, 'Atleta #' || m.atleta_id_canonico) as nome,
                 j.posicao,
+                je.idade,
                 m.clube_id_canonico,
                 COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
                 COALESCE(c.sigla, '') as clube_sigla,
@@ -607,10 +633,16 @@ def get_rankings():
                 m.xg,
                 m.xa,
                 m.passes_progressivos,
+                COALESCE(pg.conducoes_progressivas, 0) as conducoes_progressivas,
+                COALESCE(pg.passes_decisivos, 0) as passes_decisivos,
+                COALESCE(pg.dribles_certos, 0) as dribles_certos,
+                COALESCE(pg.recuperacoes, 0) as recuperacoes,
                 m.sca,
                 m.gca
             FROM metrica_atleta_avancada_2026 m
+            LEFT JOIN metrica_atleta_progressao_2026 pg ON m.atleta_id_canonico = pg.atleta_id_canonico
             LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
+            LEFT JOIN jogadores_estatisticas je ON m.atleta_id_canonico = je.id_jogador
             LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
             WHERE {where_sql}
             ORDER BY {col_nome} DESC, m.minutos ASC
@@ -828,9 +860,11 @@ def get_econometria_goleiros():
                 COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
                 m.minutos,
                 COALESCE(dg.defesas_goleiro, 0) as defesas_goleiro,
-                COALESCE(dg.defesas_na_area, 0) as defesas_na_area
+                COALESCE(dg.defesas_na_area, 0) as defesas_na_area,
+                COALESCE(pg.xg_sofrido_goleiro, 0) as xg_sofrido_goleiro
             FROM metrica_atleta_avancada_2026 m
             JOIN metrica_atleta_defesa_gk_2026 dg ON m.atleta_id_canonico = dg.atleta_id_canonico
+            LEFT JOIN metrica_atleta_progressao_2026 pg ON m.atleta_id_canonico = pg.atleta_id_canonico
             LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
             LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
             WHERE m.minutos >= ? AND dg.defesas_goleiro > 0;
@@ -843,10 +877,178 @@ def get_econometria_goleiros():
             "metadados": build_metadata({
                 "metodo": "Empirical Bayes p90 para Defesas Totais (55%) e Defesas na Área (45%)",
                 "k_prior": k_prior,
-                "nota_psxg": "PSxG será incorporado automaticamente quando populado na fonte oficial.",
                 "total_goleiros": len(ranking),
             }),
             "goleiros": ranking,
+        })
+    finally:
+        conn.close()
+
+
+# -------------------------------------------------------------
+# 11. BUSCADOR DE JOGADORES SIMILARES (COSSENO 9D)
+# -------------------------------------------------------------
+@metricas_avancadas_bp.route('/api/metricas-avancadas/econometria/similares', methods=['GET'])
+def get_econometria_similares():
+    atleta_id = request.args.get('atleta_id', type=int)
+    if not atleta_id:
+        return jsonify({"sucesso": False, "erro": "Informe atleta_id."}), 400
+
+    limite = min(max(1, request.args.get('limite', default=8, type=int)), 15)
+    min_minutos = max(90, request.args.get('min_minutos', default=270, type=int))
+    mesma_posicao = request.args.get('mesma_posicao', default='0', type=str).strip() in ('1', 'true', 'True')
+
+    try:
+        from backend.motor_econometrico import calcular_jogadores_similares
+    except ImportError:
+        from motor_econometrico import calcular_jogadores_similares
+
+    conn = get_readonly_db()
+    c = conn.cursor()
+    try:
+        c.execute("""
+            SELECT
+                m.atleta_id_canonico,
+                COALESCE(j.nome_exibicao, j.apelido, j.nome_completo, 'Atleta #' || m.atleta_id_canonico) as nome,
+                COALESCE(j.posicao, 'Atacante') as posicao,
+                m.clube_id_canonico,
+                COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
+                COALESCE(c.sigla, '') as clube_sigla,
+                je.idade as idade,
+                m.minutos,
+                m.npxg,
+                m.xa,
+                m.sca,
+                m.passes_progressivos,
+                COALESCE(pg.conducoes_progressivas, 0) as conducoes_progressivas,
+                COALESCE(pg.dribles_certos, 0) as dribles_certos,
+                COALESCE(pg.passes_terco_final, 0) as passes_terco_final,
+                COALESCE(pg.duelos_aereos_ganhos, 0) as duelos_aereos_ganhos,
+                COALESCE(dg.desarmes_ganhos, 0) as desarmes_ganhos,
+                COALESCE(dg.interceptacoes, 0) as interceptacoes,
+                COALESCE(dg.cortes, 0) as cortes
+            FROM metrica_atleta_avancada_2026 m
+            LEFT JOIN metrica_atleta_progressao_2026 pg ON m.atleta_id_canonico = pg.atleta_id_canonico
+            LEFT JOIN metrica_atleta_defesa_gk_2026 dg ON m.atleta_id_canonico = dg.atleta_id_canonico
+            LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
+            LEFT JOIN jogadores_estatisticas je ON m.atleta_id_canonico = je.id_jogador
+            LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
+            WHERE m.minutos > 0;
+        """)
+        rows = [dict(r) for r in c.fetchall()]
+        res = calcular_jogadores_similares(
+            atleta_alvo_id=atleta_id,
+            registros=rows,
+            limite=limite,
+            min_minutos=min_minutos,
+            mesma_posicao=mesma_posicao,
+        )
+        return jsonify({
+            "sucesso": True,
+            "metadados": build_metadata({
+                "metodo": "Distância de Cosseno sobre 9 taxas p90 padronizadas (Z-Score)",
+                "min_minutos": min_minutos,
+                "mesma_posicao": mesma_posicao,
+            }),
+            **res
+        })
+    finally:
+        conn.close()
+
+
+# -------------------------------------------------------------
+# 12. EVOLUÇÃO DA TABELA POR JOGO (SÉRIE A 2026)
+# -------------------------------------------------------------
+@metricas_avancadas_bp.route('/api/metricas-avancadas/evolucao-rodadas', methods=['GET'])
+def get_evolucao_rodadas():
+    conn = get_readonly_db()
+    c = conn.cursor()
+    try:
+        clubes_rows = c.execute("""
+            SELECT m.clube_id_canonico, COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as nome,
+                   COALESCE(c.sigla, '') as sigla, m.pontos as pontos_oficiais, m.jogos as jogos_oficiais
+            FROM metrica_clube_avancada_2026 m
+            LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
+            ORDER BY m.pontos DESC;
+        """).fetchall()
+
+        def _canon(n):
+            low = (n or '').strip().lower()
+            if low in ('rc bragantino', 'red bull bragantino', 'rb bragantino', 'bragantino'):
+                return 'red bull bragantino'
+            if 'athletico' in low:
+                return 'athletico-pr'
+            if 'atlético-mg' in low or 'atletico-mg' in low or 'atlético mg' in low:
+                return 'atlético-mg'
+            return low
+
+        mapa_info = {}
+        series = {}
+        for cr in clubes_rows:
+            cnome = cr["nome"]
+            key = _canon(cnome)
+            mapa_info[key] = {
+                "clube_id_canonico": cr["clube_id_canonico"],
+                "nome": cnome,
+                "sigla": cr["sigla"] or cnome[:3].upper(),
+                "pontos_oficiais": int(cr["pontos_oficiais"] or 0),
+                "jogos_oficiais": int(cr["jogos_oficiais"] or 0),
+            }
+            series[key] = []
+
+        partidas = c.execute("""
+            SELECT data, mandante, visitante, gols_mandante, gols_visitante
+            FROM partidas
+            WHERE campeonato LIKE '%Série A%' AND ano = 2026
+              AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
+            ORDER BY data ASC, id_partida ASC;
+        """).fetchall()
+
+        acum = {k: {"pts": 0, "sg": 0, "gp": 0} for k in series}
+        for p in partidas:
+            km = _canon(p["mandante"])
+            kv = _canon(p["visitante"])
+            gm = int(p["gols_mandante"])
+            gv = int(p["gols_visitante"])
+            if km in series:
+                acum[km]["pts"] += 3 if gm > gv else (1 if gm == gv else 0)
+                acum[km]["sg"] += (gm - gv)
+                acum[km]["gp"] += gm
+                series[km].append({"jogo": len(series[km]) + 1, "pontos": acum[km]["pts"], "sg": acum[km]["sg"], "data": p["data"]})
+            if kv in series:
+                acum[kv]["pts"] += 3 if gv > gm else (1 if gv == gm else 0)
+                acum[kv]["sg"] += (gv - gm)
+                acum[kv]["gp"] += gv
+                series[kv].append({"jogo": len(series[kv]) + 1, "pontos": acum[kv]["pts"], "sg": acum[kv]["sg"], "data": p["data"]})
+
+        # Calcula colocação em cada índice de jogo
+        max_j = max((len(v) for v in series.values()), default=0)
+        for j_idx in range(max_j):
+            snap = []
+            for k, arr in series.items():
+                if j_idx < len(arr):
+                    snap.append((arr[j_idx]["pontos"], arr[j_idx]["sg"], k))
+            snap.sort(reverse=True)
+            for pos, (_, _, k) in enumerate(snap, start=1):
+                series[k][j_idx]["posicao"] = pos
+
+        saida = []
+        for k, info in mapa_info.items():
+            pts_seq = series[k]
+            saida.append({
+                **info,
+                "jogos_serie": len(pts_seq),
+                "serie": pts_seq,
+            })
+        saida.sort(key=lambda x: (x["pontos_oficiais"], x["serie"][-1]["pontos"] if x["serie"] else 0), reverse=True)
+
+        return jsonify({
+            "sucesso": True,
+            "metadados": build_metadata({
+                "metodo": "Pontuação acumulada jogo a jogo na Série A 2026",
+                "max_jogos_catalogados": max_j,
+            }),
+            "clubes": saida,
         })
     finally:
         conn.close()

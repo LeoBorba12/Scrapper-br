@@ -356,4 +356,129 @@ def calcular_ranking_goleiros_econometrico(
     saida.sort(key=lambda x: (x["score_goleiro"], x["minutos"]), reverse=True)
     for idx, row in enumerate(saida[:limite], start=1):
         row["rank_goleiro"] = idx
+        row["xg_sofrido_goleiro"] = round(float(g.get("xg_sofrido_goleiro") or 0.0), 2) if idx <= len(validos) else 0.0
+    # Garante xg_sofrido_goleiro correto por atleta
+    mapa_gk = {int(v["atleta_id_canonico"]): round(float(v.get("xg_sofrido_goleiro") or 0.0), 2) for v in validos}
+    for row in saida[:limite]:
+        row["xg_sofrido_goleiro"] = mapa_gk.get(int(row["atleta_id_canonico"]), 0.0)
     return saida[:limite]
+
+
+_SIMILARIDADE_DIMS = [
+    ("npxg", "Ameaça de Gol (npxG/90)"),
+    ("xa", "Assistências Esperadas (xA/90)"),
+    ("sca", "Criação de Chutes (SCA/90)"),
+    ("passes_progressivos", "Passes Progressivos/90"),
+    ("conducoes_progressivas", "Conduções Progressivas/90"),
+    ("dribles_certos", "Dribles Certos/90"),
+    ("passes_terco_final", "Passes no Terço Final/90"),
+    ("def_acoes", "Ações Defensivas/90"),
+    ("duelos_aereos_ganhos", "Duelos Aéreos/90"),
+]
+
+
+def calcular_jogadores_similares(
+    atleta_alvo_id: int,
+    registros: List[Dict[str, Any]],
+    limite: int = 8,
+    min_minutos: int = 270,
+    mesma_posicao: bool = False,
+) -> Dict[str, Any]:
+    """
+    Motor de Jogadores Similares via distância de cosseno em 9 dimensões p90 padronizadas (Z-Score).
+    """
+    validos = []
+    alvo_row = None
+    for r in registros:
+        mins = float(r.get("minutos") or 0.0)
+        aid = int(r.get("atleta_id_canonico") or 0)
+        if aid == int(atleta_alvo_id):
+            alvo_row = r
+        if mins >= min_minutos or aid == int(atleta_alvo_id):
+            if mins > 0:
+                item = dict(r)
+                item["macro_posicao"] = classificar_macro_posicao(item.get("posicao") or "")
+                fator = max(mins / 90.0, 0.1)
+                def_tot = float(item.get("desarmes_ganhos") or 0.0) + float(item.get("interceptacoes") or 0.0) + float(item.get("cortes") or 0.0)
+                item["_vec_raw"] = [
+                    float(item.get("npxg") or 0.0) / fator,
+                    float(item.get("xa") or 0.0) / fator,
+                    float(item.get("sca") or 0.0) / fator,
+                    float(item.get("passes_progressivos") or 0.0) / fator,
+                    float(item.get("conducoes_progressivas") or 0.0) / fator,
+                    float(item.get("dribles_certos") or 0.0) / fator,
+                    float(item.get("passes_terco_final") or 0.0) / fator,
+                    def_tot / fator,
+                    float(item.get("duelos_aereos_ganhos") or 0.0) / fator,
+                ]
+                validos.append(item)
+
+    if not alvo_row or len(validos) < 2:
+        return {"alvo": None, "similares": [], "total_comparados": 0}
+
+    n_dims = len(_SIMILARIDADE_DIMS)
+    medias = []
+    dps = []
+    for i in range(n_dims):
+        vals = [v["_vec_raw"][i] for v in validos]
+        medias.append(statistics.mean(vals))
+        dp = statistics.pstdev(vals) if len(vals) > 1 else 1.0
+        dps.append(dp if dp > 1e-6 else 1.0)
+
+    for v in validos:
+        v["_vec_z"] = [(v["_vec_raw"][i] - medias[i]) / dps[i] for i in range(n_dims)]
+
+    alvo_item = next((v for v in validos if int(v["atleta_id_canonico"]) == int(atleta_alvo_id)), None)
+    if not alvo_item:
+        return {"alvo": None, "similares": [], "total_comparados": 0}
+
+    v_alvo = alvo_item["_vec_z"]
+    norm_a = math.sqrt(sum(x * x for x in v_alvo)) or 1.0
+
+    similares = []
+    for cand in validos:
+        if int(cand["atleta_id_canonico"]) == int(atleta_alvo_id):
+            continue
+        if mesma_posicao and cand["macro_posicao"] != alvo_item["macro_posicao"]:
+            continue
+        v_c = cand["_vec_z"]
+        norm_c = math.sqrt(sum(x * x for x in v_c)) or 1.0
+        cos = sum(a * b for a, b in zip(v_alvo, v_c)) / (norm_a * norm_c)
+        cos = max(-1.0, min(1.0, cos))
+        sim_pct = round(((cos + 1.0) / 2.0) * 100.0, 1)
+
+        # 3 traços mais próximos (priorizando dimensões onde o atleta se destaca)
+        pares = []
+        for idx, (_, label_dim) in enumerate(_SIMILARIDADE_DIMS):
+            diff = abs(v_alvo[idx] - v_c[idx])
+            peso_destaque = -max(v_alvo[idx], 0.0) * 0.35
+            pares.append((diff + peso_destaque, label_dim))
+        pares.sort(key=lambda t: t[0])
+
+        similares.append({
+            "atleta_id_canonico": int(cand["atleta_id_canonico"]),
+            "nome": cand.get("nome"),
+            "clube_nome": cand.get("clube_nome"),
+            "clube_sigla": cand.get("clube_sigla"),
+            "posicao": cand.get("posicao") or cand["macro_posicao"],
+            "macro_posicao": cand["macro_posicao"],
+            "idade": int(cand["idade"]) if cand.get("idade") else None,
+            "minutos": int(cand.get("minutos") or 0),
+            "similaridade_pct": sim_pct,
+            "tracos_comuns": [p[1] for p in pares[:3]],
+        })
+
+    similares.sort(key=lambda x: (x["similaridade_pct"], x["minutos"]), reverse=True)
+    return {
+        "alvo": {
+            "atleta_id_canonico": int(alvo_item["atleta_id_canonico"]),
+            "nome": alvo_item.get("nome"),
+            "clube_nome": alvo_item.get("clube_nome"),
+            "posicao": alvo_item.get("posicao") or alvo_item["macro_posicao"],
+            "macro_posicao": alvo_item["macro_posicao"],
+            "idade": int(alvo_item["idade"]) if alvo_item.get("idade") else None,
+            "minutos": int(alvo_item.get("minutos") or 0),
+        },
+        "similares": similares[:limite],
+        "total_comparados": len(validos) - 1,
+    }
