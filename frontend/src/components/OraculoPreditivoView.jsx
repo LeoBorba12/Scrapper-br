@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, ShieldAlert, Trophy, HelpCircle, Sliders, RotateCcw, BookOpen, CheckCircle2 } from 'lucide-react';
+import { Sparkles, ShieldAlert, Trophy, HelpCircle, Sliders, RotateCcw, BookOpen, CheckCircle2, Share2 } from 'lucide-react';
 import ClubBadge from './ClubBadge';
 import { MetricTooltip } from './EconometriaVisuals';
+import OraculoShareModal from './OraculoShareModal';
 
 const METODOLOGIAS_GUIA = [
   {
@@ -75,6 +76,7 @@ export default function OraculoPreditivoView() {
   const [projecaoCamp, setProjecaoCamp] = useState([]);
   const [backtest, setBacktest] = useState([]);
   const [loadingCamp, setLoadingCamp] = useState(false);
+  const [shareAberto, setShareAberto] = useState(false);
 
   useEffect(() => {
     fetch('/api/oraculo-preditivo/clubes')
@@ -328,19 +330,40 @@ export default function OraculoPreditivoView() {
                     {simulacao.veredito.resumo_leigo}
                   </p>
                 </div>
-                <span
-                  className="font-mono"
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    fontSize: '0.74rem',
-                    fontWeight: 700,
-                    backgroundColor: simulacao.incerteza.nivel_confianca === 'Alta Confiança' ? 'var(--positive-bg)' : 'var(--negative-bg)',
-                    color: simulacao.incerteza.nivel_confianca === 'Alta Confiança' ? 'var(--positive)' : 'var(--negative)'
-                  }}
-                >
-                  {simulacao.incerteza.nivel_confianca} (±{simulacao.incerteza.margem_conformal_pct}%)
-                </span>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span
+                    className="font-mono"
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      backgroundColor: simulacao.incerteza.nivel_confianca === 'Alta Confiança' ? 'var(--positive-bg)' : 'var(--negative-bg)',
+                      color: simulacao.incerteza.nivel_confianca === 'Alta Confiança' ? 'var(--positive)' : 'var(--negative)'
+                    }}
+                  >
+                    {simulacao.incerteza.nivel_confianca} (±{simulacao.incerteza.margem_conformal_pct}%)
+                  </span>
+                  <button
+                    onClick={() => setShareAberto(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-subtle)',
+                      backgroundColor: 'var(--surface-raised)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Share2 size={13} />
+                    <span>Card X</span>
+                  </button>
+                </div>
               </div>
 
               {/* Sinais Dinâmicos Ao Vivo (Forma 5J + Troca de Técnico + Suspensos Auto) */}
@@ -680,6 +703,16 @@ export default function OraculoPreditivoView() {
           </div>
         </div>
       )}
+
+      <OraculoShareModal
+        aberto={shareAberto}
+        onClose={() => setShareAberto(false)}
+        mandante={mandante}
+        visitante={visitante}
+        simulacao={simulacao}
+        desfalquesMCount={desfalquesM.length}
+        desfalquesVCount={desfalquesV.length}
+      />
     </div>
   );
 }

@@ -222,10 +222,14 @@ def _detectar_suspensos_clube(cur, clube: str):
                 vistos.add(jid)
                 suspensos.append({"id_jogador": jid, "nome": c_row["atleta"], "motivo": f"{tot_am}º Amarelo (Suspenso)"})
 
-    # Mescla desfalques médicos coletados (se houver)
+    # Mescla desfalques médicos/suspensos confirmados coletados (exclui 'Dúvida' do auto-check)
     try:
         med_rows = cur.execute(
-            "SELECT id_jogador, atleta, motivo, status FROM desfalques_prejogo_atual WHERE LOWER(clube) = LOWER(?)",
+            """
+            SELECT id_jogador, atleta, motivo, status
+            FROM desfalques_prejogo_atual
+            WHERE LOWER(clube) = LOWER(?) AND status IN ('Contundido', 'Suspenso')
+            """,
             (clube,),
         ).fetchall()
         for m in med_rows:
