@@ -11,6 +11,7 @@ import { baixarCardSocialPNG, baixarCardDueloH2HPNG, baixarCardApostaEVPNG } fro
 import { extrairClubesDoSlug } from './utils/confrontoSlug';
 import { registrarEvento, registrarEventoTelemetria, verificarRetencao7d, registrarConfrontoExplorado } from './utils/telemetria';
 import AppShell from './components/AppShell';
+import TabErrorBoundary from './components/TabErrorBoundary';
 import HomeMatchdayView from './components/HomeMatchdayView';
 import { H2HCompetitionDualBarChart, ClubEvolutionChart } from './components/charts';
 
@@ -1161,6 +1162,7 @@ export default function App() {
       onCopiarConvite={copiarConviteEquipe}
       conviteCopiado={conviteCopiado}
     >
+      <TabErrorBoundary key={activeTab} onResetHome={() => setActiveTab('home')}>
       <Suspense fallback={<ViewSuspenseFallback darkMode={darkMode} />}>
         {/* ================= ABA CAMPEONATO: CLASSIFICAÇÃO CANÔNICA & SCOUTS ================= */}
         {activeTab === 'campeonato' && (
@@ -2625,6 +2627,7 @@ export default function App() {
       )}
 
       </Suspense>
+      </TabErrorBoundary>
     </AppShell>
   );
 }

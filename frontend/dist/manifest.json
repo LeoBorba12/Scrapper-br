@@ -1,0 +1,18 @@
+{
+  "name": "FutStats — Inteligência & Estatísticas do Futebol Brasileiro",
+  "short_name": "FutStats",
+  "description": "Acervo histórico secular desde 1902, econometria esportiva (RAPM, WAR, Empirical Bayes) e Oráculo Preditivo Híbrido do Brasileirão.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D1117",
+  "theme_color": "#0D1117",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/og-futstats.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
