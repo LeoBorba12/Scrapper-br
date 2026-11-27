@@ -261,7 +261,12 @@ export default function OraculoPreditivoView() {
                 {jogosSugeridos.map((j) => (
                   <button
                     key={j.id_partida}
-                    onClick={() => { setMandante(j.mandante); setVisitante(j.visitante); setDesfalquesM([]); setDesfalquesV([]); }}
+                    onClick={() => {
+                      setMandante(j.mandante);
+                      setVisitante(j.visitante);
+                      setDesfalquesM((suspensosAutoMap[j.mandante] || []).map((s) => s.id_jogador));
+                      setDesfalquesV((suspensosAutoMap[j.visitante] || []).map((s) => s.id_jogador));
+                    }}
                     style={{
                       padding: '5px 10px',
                       borderRadius: '4px',

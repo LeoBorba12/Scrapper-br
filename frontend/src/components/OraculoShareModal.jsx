@@ -137,8 +137,8 @@ function _desenharCardCanvas(canvas, { mandante, visitante, simulacao, desfalque
     ctx.fillText(c.label, cx + 22, cy + 38);
 
     ctx.fillStyle = '#F8FAFC';
-    ctx.font = '800 32px "JetBrains Mono", monospace';
-    ctx.fillText(c.valor, cx + 22, cy + 92);
+    ctx.font = '800 26px "JetBrains Mono", monospace';
+    ctx.fillText(c.valor, cx + 20, cy + 92);
 
     ctx.fillStyle = '#94A3B8';
     ctx.font = '500 14px "Inter", system-ui, sans-serif';
