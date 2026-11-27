@@ -20,6 +20,7 @@ export default function AppShell({
   const [printMode, setPrintMode] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState('');
+  const [methodologyOpen, setMethodologyOpen] = useState(false);
 
   const navGroups = [
     {
@@ -699,11 +700,100 @@ export default function AppShell({
           <div>
             <strong className="font-editorial" style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>FutStats</strong> • Arquitetura Editorial & Protagonista 2026
           </div>
-          <div className="tabular-nums">
-            Base histórica oficial • Cobertura 1902–2026
+          <div className="tabular-nums" style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <span>Base histórica oficial • Cobertura 1902–2026</span>
+            <button
+              onClick={() => setMethodologyOpen(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: 'var(--accent)',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Metodologia Estatística &amp; Econométrica
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* ================= MODAL DIDÁTICO DE METODOLOGIA ================= */}
+      {methodologyOpen && (
+        <div
+          onClick={() => setMethodologyOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 210,
+            backgroundColor: 'rgba(0, 0, 0, 0.72)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '720px',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              backgroundColor: 'var(--surface-panel)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--radius-panel)',
+              padding: '24px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+              <div>
+                <div className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase' }}>Transparência Científica • FutStats</div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0 0 0' }}>
+                  Metodologia Estatística &amp; Econométrica
+                </h2>
+              </div>
+              <button
+                onClick={() => setMethodologyOpen(false)}
+                aria-label="Fechar metodologia"
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>1. Empirical Bayes Shrinkage (Taxas por 90 minutos)</h3>
+                <p style={{ margin: 0 }}>
+                  Para evitar que atletas com poucos minutos liderem rankings por acaso, todas as métricas (<code>npxG</code>, <code>xA</code>, <code>SCA</code>, <code>GCA</code> e <code>Passes Progressivos</code>) são normalizadas por 90 minutos e encolhidas em direção à média da posição com peso <strong>k = 450 min</strong> (5 jogos) ou <strong>900 min</strong> (modo conservador).
+                </p>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>2. Índice Composto por Posição (Z-Score 0–100)</h3>
+                <p style={{ margin: 0 }}>
+                  Cada jogador é avaliado exclusivamente dentro da sua macro-função (<em>Atacante, Meia, Defensor, Goleiro</em>) via Z-Score ponderado e convertido para escala 0–100 com selo explícito de confiança amostral (<em>Inicial, Média, Alta</em>).
+                </p>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>3. Power Ranking &amp; Eficiência de Clubes</h3>
+                <p style={{ margin: 0 }}>
+                  Combina <strong>xPTS (45%)</strong>, <strong>Saldo de xG (30%)</strong>, <strong>Field Tilt (15%)</strong> e <strong>PPDA invertido (10%)</strong>. O <strong>Delta xPTS</strong> (Pontos Reais − xPTS) evidencia times que pontuam acima ou abaixo do volume de chances criado.
+                </p>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>4. Dixon-Coles, Fair Odds e Quarentena Técnica</h3>
+                <p style={{ margin: 0 }}>
+                  As probabilidades de partida usam <strong>Poisson Bivariada com correção de Dixon-Coles (1997)</strong> unificada entre Hub e Raio-X. Mercados com margem fora de 0%–15% ou padrões sintéticos (como empate 3.25 ou template 2.10/3.20/3.50) entram automaticamente em <strong>Quarentena Técnica</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

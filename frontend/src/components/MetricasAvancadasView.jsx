@@ -29,6 +29,13 @@ export default function MetricasAvancadasView({ darkMode }) {
   const [atletaDetalhe, setAtletaDetalhe] = useState(null);
   const [loadingAtleta, setLoadingAtleta] = useState(false);
 
+  // Motor Econométrico state (Fase 1)
+  const [econAtletas, setEconAtletas] = useState([]);
+  const [econClubes, setEconClubes] = useState([]);
+  const [econPosicao, setEconPosicao] = useState('');
+  const [econKPrior, setEconKPrior] = useState(450);
+  const [loadingEcon, setLoadingEcon] = useState(false);
+
   // 1. Carregar metadados
   useEffect(() => {
     fetch('/api/metricas-avancadas/meta')
@@ -68,6 +75,23 @@ export default function MetricasAvancadasView({ darkMode }) {
       })
       .catch(() => setLoadingClubes(false));
   }, [activeSubTab]);
+
+  // 4. Carregar Motor Econométrico (Atletas EB p90 + Power Ranking de Clubes)
+  useEffect(() => {
+    if (activeSubTab !== 'econometria') return;
+    setLoadingEcon(true);
+    const urlAtletas = `/api/metricas-avancadas/econometria/atletas?min_minutos=270&k_prior=${econKPrior}&limite=30${econPosicao ? `&posicao=${encodeURIComponent(econPosicao)}` : ''}`;
+    Promise.all([
+      fetch(urlAtletas).then(r => r.json()),
+      fetch('/api/metricas-avancadas/econometria/clubes').then(r => r.json())
+    ])
+      .then(([da, dc]) => {
+        if (da.sucesso) setEconAtletas(da.ranking || []);
+        if (dc.sucesso) setEconClubes(dc.clubes || []);
+        setLoadingEcon(false);
+      })
+      .catch(() => setLoadingEcon(false));
+  }, [activeSubTab, econPosicao, econKPrior]);
 
   // 4. Carregar detalhe de clube
   useEffect(() => {
@@ -262,6 +286,26 @@ export default function MetricasAvancadasView({ darkMode }) {
           overflowX: 'auto'
         }}
       >
+        <button
+          onClick={() => setActiveSubTab('econometria')}
+          style={{
+            padding: '10px 18px',
+            border: 'none',
+            borderBottom: activeSubTab === 'econometria' ? '2px solid var(--accent)' : '2px solid transparent',
+            backgroundColor: 'transparent',
+            color: activeSubTab === 'econometria' ? (darkMode ? '#FFFFFF' : '#1C1917') : '#78716C',
+            fontWeight: activeSubTab === 'econometria' ? 700 : 500,
+            fontSize: '14px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <TrendingUp size={16} /> Índice Econométrico
+        </button>
+
         <button
           onClick={() => setActiveSubTab('rankings')}
           style={{
@@ -951,6 +995,158 @@ export default function MetricasAvancadasView({ darkMode }) {
                 • 737 registros com hash SHA-256 do payload, timestamp e fonte rastreáveis.<br/>
                 • 100% idempotente (zero duplicidades).
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= SUB-ABA: ÍNDICE ECONOMÉTRICO (FASE 1) ================= */}
+      {activeSubTab === 'econometria' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="soft-card" style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+              <div>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  Índice Econométrico de Atletas (Empirical Bayes p90 + Z-Score por Posição)
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
+                  Taxas por 90 min ajustadas contra viés de amostra pequena com prior k = {econKPrior} min e padronização intra-posição.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <select
+                  value={econPosicao}
+                  onChange={(e) => setEconPosicao(e.target.value)}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: 'var(--surface-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <option value="">Todas as Posições</option>
+                  <option value="Atacante">Atacantes</option>
+                  <option value="Meia">Meias</option>
+                  <option value="Defensor">Defensores</option>
+                </select>
+                <select
+                  value={econKPrior}
+                  onChange={(e) => setEconKPrior(Number(e.target.value))}
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-control)',
+                    backgroundColor: 'var(--surface-raised)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  <option value={450}>Prior k = 450 min (5 jogos)</option>
+                  <option value={900}>Prior k = 900 min (10 jogos)</option>
+                </select>
+              </div>
+            </div>
+
+            {loadingEcon ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Calculando estimadores Empirical Bayes...</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="editorial-table" style={{ width: '100%', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Atleta</th>
+                      <th>Clube</th>
+                      <th>Posição</th>
+                      <th style={{ textAlign: 'right' }}>Score (0–100)</th>
+                      <th style={{ textAlign: 'right' }}>npxG/90 EB</th>
+                      <th style={{ textAlign: 'right' }}>xA/90 EB</th>
+                      <th style={{ textAlign: 'right' }}>SCA/90 EB</th>
+                      <th style={{ textAlign: 'right' }}>Passes Prog./90</th>
+                      <th style={{ textAlign: 'right' }}>Min</th>
+                      <th style={{ textAlign: 'center' }}>Confiança</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {econAtletas.map((a) => (
+                      <tr key={a.atleta_id_canonico}>
+                        <td className="font-mono" style={{ fontWeight: 700 }}>{a.rank}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{a.nome}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{a.clube_nome}</td>
+                        <td><span className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{a.macro_posicao}</span></td>
+                        <td className="font-mono" style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>{a.score_econometrico}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{a.npxg_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{a.xa_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{a.sca_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right' }}>{a.passes_prog_p90_eb.toFixed(2)}</td>
+                        <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{a.minutos}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="font-mono"
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              backgroundColor: a.confianca_amostral === 'Alta' ? 'var(--positive-bg)' : 'var(--surface-raised)',
+                              color: a.confianca_amostral === 'Alta' ? 'var(--positive)' : 'var(--text-secondary)',
+                              fontWeight: 700
+                            }}
+                          >
+                            {a.confianca_amostral}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="soft-card" style={{ padding: '18px 20px' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
+              Power Ranking &amp; Eficiência dos 20 Clubes (xPTS, Saldo xG, Field Tilt &amp; PPDA)
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 14px 0' }}>
+              Compara pontuação real vs. esperada (Delta xPTS) para separar desempenho sustentável de variância de curto prazo.
+            </p>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="editorial-table" style={{ width: '100%', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Clube</th>
+                    <th style={{ textAlign: 'right' }}>Power Score</th>
+                    <th style={{ textAlign: 'right' }}>Pts</th>
+                    <th style={{ textAlign: 'right' }}>xPTS</th>
+                    <th style={{ textAlign: 'right' }}>Delta xPTS</th>
+                    <th style={{ textAlign: 'right' }}>Saldo xG</th>
+                    <th style={{ textAlign: 'right' }}>Field Tilt</th>
+                    <th style={{ textAlign: 'right' }}>PPDA</th>
+                    <th>Leitura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {econClubes.map((c) => (
+                    <tr key={c.clube_id_canonico}>
+                      <td className="font-mono" style={{ fontWeight: 700 }}>{c.rank_econometrico}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.nome}</td>
+                      <td className="font-mono" style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>{c.power_score}</td>
+                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.pontos}</td>
+                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.xpts.toFixed(1)}</td>
+                      <td className="font-mono" style={{ textAlign: 'right', fontWeight: 700, color: c.delta_xpts >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
+                        {c.delta_xpts >= 0 ? `+${c.delta_xpts.toFixed(1)}` : c.delta_xpts.toFixed(1)}
+                      </td>
+                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.saldo_xg >= 0 ? `+${c.saldo_xg.toFixed(1)}` : c.saldo_xg.toFixed(1)}</td>
+                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.field_tilt_pct.toFixed(1)}%</td>
+                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.ppda.toFixed(2)}</td>
+                      <td style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>{c.leitura_eficiencia}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

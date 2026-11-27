@@ -634,3 +634,112 @@ def get_rankings():
         })
     finally:
         conn.close()
+
+
+# -------------------------------------------------------------
+# 7. MOTOR ECONOMÉTRICO: ÍNDICE DE ATLETAS (EMPIRICAL BAYES P90)
+# -------------------------------------------------------------
+@metricas_avancadas_bp.route('/api/metricas-avancadas/econometria/atletas', methods=['GET'])
+def get_econometria_atletas():
+    posicao = request.args.get('posicao', default='', type=str).strip()
+    min_minutos = max(90, request.args.get('min_minutos', default=270, type=int))
+    k_prior = max(90.0, min(1800.0, request.args.get('k_prior', default=450.0, type=float)))
+    limite = min(request.args.get('limite', default=50, type=int), 100)
+
+    try:
+        from backend.motor_econometrico import calcular_indice_atletas
+    except ImportError:
+        from motor_econometrico import calcular_indice_atletas
+
+    conn = get_readonly_db()
+    c = conn.cursor()
+    try:
+        c.execute("""
+            SELECT
+                m.atleta_id_canonico,
+                COALESCE(j.nome_exibicao, j.apelido, j.nome_completo, 'Atleta #' || m.atleta_id_canonico) as nome,
+                COALESCE(j.posicao, 'Atacante') as posicao,
+                m.clube_id_canonico,
+                COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
+                COALESCE(c.sigla, '') as clube_sigla,
+                m.minutos,
+                m.jogos,
+                m.gols,
+                m.assistencias,
+                m.npxg,
+                m.xa,
+                m.sca,
+                m.gca,
+                m.passes_progressivos
+            FROM metrica_atleta_avancada_2026 m
+            LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
+            LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
+            WHERE m.minutos > 0;
+        """)
+        rows = [dict(r) for r in c.fetchall()]
+        res = calcular_indice_atletas(
+            rows,
+            k_prior=k_prior,
+            min_minutos=min_minutos,
+            filtro_posicao=posicao,
+            limite=limite,
+        )
+        return jsonify({
+            "sucesso": True,
+            "metadados": build_metadata({
+                "metodo": "Empirical Bayes Shrinkage p90 + Z-Score por Posição",
+                "k_prior": k_prior,
+                "min_minutos": min_minutos,
+                "filtro_posicao": posicao or "Todas",
+                "total_elegiveis": res["total_elegiveis"],
+            }),
+            **res
+        })
+    finally:
+        conn.close()
+
+
+# -------------------------------------------------------------
+# 8. MOTOR ECONOMÉTRICO: POWER RANKING & EFICIÊNCIA DE CLUBES
+# -------------------------------------------------------------
+@metricas_avancadas_bp.route('/api/metricas-avancadas/econometria/clubes', methods=['GET'])
+def get_econometria_clubes():
+    try:
+        from backend.motor_econometrico import calcular_ranking_clubes_econometrico
+    except ImportError:
+        from motor_econometrico import calcular_ranking_clubes_econometrico
+
+    conn = get_readonly_db()
+    c = conn.cursor()
+    try:
+        c.execute("""
+            SELECT
+                m.clube_id_canonico,
+                COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as nome,
+                COALESCE(c.sigla, '') as sigla,
+                m.jogos,
+                m.pontos,
+                m.gols_pro,
+                m.gols_contra,
+                m.xg,
+                m.xg_contra,
+                m.xpts,
+                m.posse_pct,
+                m.field_tilt_pct,
+                m.ppda,
+                m.altura_defensiva
+            FROM metrica_clube_avancada_2026 m
+            LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id;
+        """)
+        rows = [dict(r) for r in c.fetchall()]
+        ranking = calcular_ranking_clubes_econometrico(rows)
+        return jsonify({
+            "sucesso": True,
+            "metadados": build_metadata({
+                "metodo": "Power Ranking Composto (xPTS 45%, Saldo xG 30%, Field Tilt 15%, PPDA 10%)",
+                "total_clubes": len(ranking),
+            }),
+            "clubes": ranking,
+        })
+    finally:
+        conn.close()
