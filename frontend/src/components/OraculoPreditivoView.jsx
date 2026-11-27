@@ -60,6 +60,7 @@ export default function OraculoPreditivoView() {
 
   const [clubes, setClubes] = useState([]);
   const [elencosRapm, setElencosRapm] = useState({});
+  const [suspensosAutoMap, setSuspensosAutoMap] = useState({});
   const [jogosSugeridos, setJogosSugeridos] = useState([]);
   const [mandante, setMandante] = useState('Flamengo');
   const [visitante, setVisitante] = useState('Palmeiras');
@@ -82,7 +83,12 @@ export default function OraculoPreditivoView() {
         if (d.sucesso) {
           setClubes(d.clubes || []);
           setElencosRapm(d.elencos_rapm || {});
+          setSuspensosAutoMap(d.suspensos_auto || {});
           setJogosSugeridos(d.jogos_sugeridos || []);
+          const autoM = (d.suspensos_auto?.Flamengo || []).map((s) => s.id_jogador);
+          const autoV = (d.suspensos_auto?.Palmeiras || []).map((s) => s.id_jogador);
+          if (autoM.length) setDesfalquesM(autoM);
+          if (autoV.length) setDesfalquesV(autoV);
         }
       })
       .catch(() => {});
@@ -278,7 +284,11 @@ export default function OraculoPreditivoView() {
                   <ClubBadge nome={mandante} size={26} />
                   <select
                     value={mandante}
-                    onChange={(e) => { setMandante(e.target.value); setDesfalquesM([]); }}
+                    onChange={(e) => {
+                      const clb = e.target.value;
+                      setMandante(clb);
+                      setDesfalquesM((suspensosAutoMap[clb] || []).map((s) => s.id_jogador));
+                    }}
                     style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontWeight: 700 }}
                   >
                     {clubes.map((c) => <option key={c.clube} value={c.clube}>{c.clube}</option>)}
@@ -292,7 +302,11 @@ export default function OraculoPreditivoView() {
                   <ClubBadge nome={visitante} size={26} />
                   <select
                     value={visitante}
-                    onChange={(e) => { setVisitante(e.target.value); setDesfalquesV([]); }}
+                    onChange={(e) => {
+                      const clb = e.target.value;
+                      setVisitante(clb);
+                      setDesfalquesV((suspensosAutoMap[clb] || []).map((s) => s.id_jogador));
+                    }}
                     style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-control)', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', fontWeight: 700 }}
                   >
                     {clubes.map((c) => <option key={c.clube} value={c.clube}>{c.clube}</option>)}
@@ -328,6 +342,47 @@ export default function OraculoPreditivoView() {
                   {simulacao.incerteza.nivel_confianca} (±{simulacao.incerteza.margem_conformal_pct}%)
                 </span>
               </div>
+
+              {/* Sinais Dinâmicos Ao Vivo (Forma 5J + Troca de Técnico + Suspensos Auto) */}
+              {simulacao.contexto_dinamico && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '12px', fontSize: '0.75rem' }}>
+                  {[
+                    { nome: mandante, forma: simulacao.contexto_dinamico.forma_mandante, tec: simulacao.contexto_dinamico.tecnico_mandante },
+                    { nome: visitante, forma: simulacao.contexto_dinamico.forma_visitante, tec: simulacao.contexto_dinamico.tecnico_visitante }
+                  ].map((lado) => (
+                    <div key={lado.nome} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '5px 10px', borderRadius: '4px', backgroundColor: 'var(--surface-raised)', border: '1px solid var(--border-subtle)' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>{lado.nome}:</strong>
+                      <span style={{ display: 'inline-flex', gap: '3px' }}>
+                        {(lado.forma?.forma_string || []).map((res, idx) => (
+                          <span
+                            key={idx}
+                            className="font-mono"
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '3px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              backgroundColor: res === 'V' ? 'var(--positive-bg)' : res === 'D' ? 'var(--negative-bg)' : 'var(--surface-panel)',
+                              color: res === 'V' ? 'var(--positive)' : res === 'D' ? 'var(--negative)' : 'var(--text-muted)'
+                            }}
+                          >
+                            {res}
+                          </span>
+                        ))}
+                      </span>
+                      {lado.tec?.troca_recente && (
+                        <span className="font-mono" style={{ color: 'var(--negative)', fontWeight: 700 }}>
+                          🔄 Novo Técnico ({lado.tec.jogos_sequencia}j)
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Barra Tricolor de Probabilidades */}
               <div style={{ display: 'flex', height: '32px', borderRadius: 'var(--radius-control)', overflow: 'hidden', border: '1px solid var(--border-subtle)', marginBottom: '14px' }}>

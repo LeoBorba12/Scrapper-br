@@ -31,6 +31,9 @@ def test_oraculo_simular_partida_monotonicidade():
     d1 = r1.get_json()
     p1 = d1["probabilidades"]
     assert abs((p1["prob_mandante"] + p1["prob_empate"] + p1["prob_visitante"]) - 100.0) <= 0.3
+    assert "contexto_dinamico" in d1
+    assert "forma_mandante" in d1["contexto_dinamico"]
+    assert "suspensos_auto" in d1
 
     # 2. Com desfalque de alto RAPM no mandante (Arrascaeta ID 8)
     r2 = client.post(

@@ -45,6 +45,130 @@ def _ultimo_descanso_clube(cur, clube: str) -> int:
         return 4
 
 
+def _calcular_forma_recente_5(cur, clube: str):
+    rows = cur.execute(
+        """
+        SELECT mandante, visitante, gols_mandante, gols_visitante
+        FROM partidas
+        WHERE (LOWER(mandante) = LOWER(?) OR LOWER(visitante) = LOWER(?))
+          AND gols_mandante IS NOT NULL AND gols_visitante IS NOT NULL
+        ORDER BY data DESC, id_partida DESC
+        LIMIT 5;
+        """,
+        (clube, clube),
+    ).fetchall()
+    pesos = [0.34, 0.25, 0.18, 0.13, 0.10]
+    forma = []
+    saldo_pond = 0.0
+    pts = 0
+    for idx, r in enumerate(rows):
+        eh_m = (r["mandante"] or "").strip().lower() == clube.strip().lower()
+        gp = int(r["gols_mandante"] if eh_m else r["gols_visitante"])
+        gc = int(r["gols_visitante"] if eh_m else r["gols_mandante"])
+        if gp > gc:
+            forma.append("V")
+            pts += 3
+        elif gp == gc:
+            forma.append("E")
+            pts += 1
+        else:
+            forma.append("D")
+        saldo_pond += (gp - gc) * pesos[idx]
+    aprov = round((pts / max(len(rows) * 3, 1)) * 100.0, 1) if rows else 0.0
+    return {
+        "forma_string": forma,
+        "saldo_ponderado": round(saldo_pond, 3),
+        "aproveitamento_5j_pct": aprov,
+        "jogos": len(rows),
+    }
+
+
+def _detectar_mudanca_tecnico(cur, clube: str):
+    rows = cur.execute(
+        """
+        SELECT mandante, tecnico_mandante, tecnico_visitante
+        FROM partidas
+        WHERE (LOWER(mandante) = LOWER(?) OR LOWER(visitante) = LOWER(?))
+          AND gols_mandante IS NOT NULL
+          AND (tecnico_mandante IS NOT NULL OR tecnico_visitante IS NOT NULL)
+        ORDER BY data DESC, id_partida DESC
+        LIMIT 10;
+        """,
+        (clube, clube),
+    ).fetchall()
+    tecnicos = []
+    for r in rows:
+        eh_m = (r["mandante"] or "").strip().lower() == clube.strip().lower()
+        t = (r["tecnico_mandante"] if eh_m else r["tecnico_visitante"]) or ""
+        t = t.strip()
+        if t:
+            tecnicos.append(t)
+    if not tecnicos:
+        return {"tecnico_atual": None, "jogos_sequencia": 0, "troca_recente": False}
+    atual = tecnicos[0]
+    seq = 0
+    for t in tecnicos:
+        if t.lower() == atual.lower():
+            seq += 1
+        else:
+            break
+    houve_outro = any(t.lower() != atual.lower() for t in tecnicos)
+    return {
+        "tecnico_atual": atual,
+        "jogos_sequencia": seq,
+        "troca_recente": bool(houve_outro and seq <= 4),
+    }
+
+
+def _detectar_suspensos_clube(cur, clube: str):
+    """Detecta suspensões automáticas na última partida da Série A 2026 (Vermelho ou 3º Amarelo)."""
+    ult = cur.execute(
+        """
+        SELECT id_partida, data FROM partidas
+        WHERE (LOWER(mandante) = LOWER(?) OR LOWER(visitante) = LOWER(?))
+          AND campeonato LIKE '%Série A%' AND ano = 2026
+          AND gols_mandante IS NOT NULL
+        ORDER BY data DESC, id_partida DESC LIMIT 1;
+        """,
+        (clube, clube),
+    ).fetchone()
+    if not ult:
+        return []
+    pid = ult["id_partida"]
+    cartoes_ult = cur.execute(
+        """
+        SELECT id_jogador, atleta, cartao FROM cartoes
+        WHERE id_partida = ? AND LOWER(clube) = LOWER(?) AND id_jogador IS NOT NULL;
+        """,
+        (pid, clube),
+    ).fetchall()
+    suspensos = []
+    vistos = set()
+    for c_row in cartoes_ult:
+        jid = int(c_row["id_jogador"])
+        if jid in vistos:
+            continue
+        tipo = (c_row["cartao"] or "").lower()
+        if "vermelho" in tipo:
+            vistos.add(jid)
+            suspensos.append({"id_jogador": jid, "nome": c_row["atleta"], "motivo": "Vermelho (último jogo)"})
+        elif "amarelo" in tipo:
+            tot_am = cur.execute(
+                """
+                SELECT COUNT(*) FROM cartoes c
+                JOIN partidas p ON p.id_partida = c.id_partida
+                WHERE c.id_jogador = ? AND LOWER(c.clube) = LOWER(?)
+                  AND p.campeonato LIKE '%Série A%' AND p.ano = 2026
+                  AND LOWER(c.cartao) LIKE '%amarelo%';
+                """,
+                (jid, clube),
+            ).fetchone()[0]
+            if tot_am > 0 and tot_am % 3 == 0:
+                vistos.add(jid)
+                suspensos.append({"id_jogador": jid, "nome": c_row["atleta"], "motivo": f"{tot_am}º Amarelo (Suspenso)"})
+    return suspensos
+
+
 @oraculo_preditivo_bp.route("/api/oraculo-preditivo/clubes", methods=["GET"])
 def listar_clubes_oraculo():
     conn = _get_ro_db()
@@ -110,10 +234,19 @@ def listar_clubes_oraculo():
             ).fetchall()
         ]
 
+        # Suspensões automáticas detectadas por cartões (Série A 2026)
+        suspensos_por_clube = {}
+        for clb_row in clubes:
+            cnome = clb_row["clube"]
+            s_list = _detectar_suspensos_clube(c, cnome)
+            if s_list:
+                suspensos_por_clube[cnome] = s_list
+
         return jsonify({
             "sucesso": True,
             "clubes": clubes,
             "elencos_rapm": elencos,
+            "suspensos_auto": suspensos_por_clube,
             "jogos_sugeridos": jogos_sugeridos,
         })
     finally:
@@ -192,7 +325,15 @@ def simular_partida_api():
             desfalques_v=_get_desfalques(desf_v_ids),
             dias_descanso_m=dias_m,
             dias_descanso_v=dias_v,
+            forma_m=_calcular_forma_recente_5(c, mandante),
+            forma_v=_calcular_forma_recente_5(c, visitante),
+            tecnico_m=_detectar_mudanca_tecnico(c, mandante),
+            tecnico_v=_detectar_mudanca_tecnico(c, visitante),
         )
+        resultado["suspensos_auto"] = {
+            "mandante": _detectar_suspensos_clube(c, mandante),
+            "visitante": _detectar_suspensos_clube(c, visitante),
+        }
         return jsonify({"sucesso": True, **resultado})
     finally:
         conn.close()

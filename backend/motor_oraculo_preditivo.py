@@ -143,6 +143,10 @@ def simular_partida_hibrida(
     desfalques_v: Optional[List[Dict[str, Any]]] = None,
     dias_descanso_m: int = 4,
     dias_descanso_v: int = 4,
+    forma_m: Optional[Dict[str, Any]] = None,
+    forma_v: Optional[Dict[str, Any]] = None,
+    tecnico_m: Optional[Dict[str, Any]] = None,
+    tecnico_v: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Combina todas as camadas matemáticas para projetar o confronto com decomposição explicável.
@@ -186,17 +190,31 @@ def simular_partida_hibrida(
     comp_desf_h = -0.60 * impacto_desf_m + 0.40 * impacto_desf_v
     comp_desf_a = -0.60 * impacto_desf_v + 0.40 * impacto_desf_m
 
+    # 5b. Forma Recente Ponderada (Últimos 5 jogos com decaimento exponencial)
+    saldo_5j_m = float((forma_m or {}).get("saldo_ponderado") or 0.0)
+    saldo_5j_v = float((forma_v or {}).get("saldo_ponderado") or 0.0)
+    comp_forma_h = max(-0.22, min(0.22, 0.10 * (saldo_5j_m - saldo_5j_v)))
+    comp_forma_a = max(-0.22, min(0.22, -0.08 * (saldo_5j_m - saldo_5j_v)))
+
+    # 5c. Mudança de Treinador (New Manager Bounce + acréscimo de incerteza RD)
+    troca_m = bool((tecnico_m or {}).get("troca_recente"))
+    troca_v = bool((tecnico_v or {}).get("troca_recente"))
+    comp_tec_h = 0.07 if troca_m else 0.0
+    comp_tec_a = 0.07 if troca_v else 0.0
+
     # 6. Mando de Campo Base (calibrado no Brasileirão: ~+0.396 gols líquidos)
     base_mando_h = 1.38
     base_visitante_a = 1.00
 
-    lh = max(0.40, min(3.40, base_mando_h + comp_pi_h + comp_xg_h + comp_econ_h + comp_rest_h + comp_desf_h))
-    la = max(0.35, min(3.10, base_visitante_a + comp_pi_a + comp_xg_a + comp_econ_a + comp_rest_a + comp_desf_a))
+    lh = max(0.40, min(3.40, base_mando_h + comp_pi_h + comp_xg_h + comp_econ_h + comp_rest_h + comp_desf_h + comp_forma_h + comp_tec_h))
+    la = max(0.35, min(3.10, base_visitante_a + comp_pi_a + comp_xg_a + comp_econ_a + comp_rest_a + comp_desf_a + comp_forma_a + comp_tec_a))
 
     probs = _dixon_coles_matriz(lh, la)
 
-    # 7. Incerteza (estilo Glicko-2 + Conformal)
+    # 7. Incerteza (estilo Glicko-2 + Conformal + penalidade por troca recente de técnico)
     rd_medio = (float(pi_m.get("incerteza_rd") or 0.9) + float(pi_v.get("incerteza_rd") or 0.9)) / 2.0
+    if troca_m or troca_v:
+        rd_medio += 0.18
     margem_conf_pct = round(min(14.0, max(4.5, rd_medio * 7.5)), 1)
     if rd_medio <= 0.72 and abs(probs["prob_mandante"] - probs["prob_visitante"]) >= 16:
         nivel_conf = "Alta Confiança"
@@ -244,6 +262,20 @@ def simular_partida_hibrida(
                 else "Nenhum desfalque relevante marcado na simulação."
             ),
         },
+        {
+            "fator": "Forma Recente (Últimos 5 Jogos)",
+            "impacto_saldo": round(comp_forma_h - comp_forma_a, 3),
+            "explicacao": f"Momento ponderado: {mandante} ({''.join((forma_m or {}).get('forma_string', [])) or 'N/D'}) vs {visitante} ({''.join((forma_v or {}).get('forma_string', [])) or 'N/D'}).",
+        },
+        {
+            "fator": "Mudança de Treinador",
+            "impacto_saldo": round(comp_tec_h - comp_tec_a, 3),
+            "explicacao": (
+                f"Troca recente detectada ({mandante if troca_m else ''}{' e ' if (troca_m and troca_v) else ''}{visitante if troca_v else ''}) — eleva incerteza e aplica efeito de estreia."
+                if (troca_m or troca_v)
+                else "Comandos técnicos estáveis nos últimos jogos."
+            ),
+        },
     ]
 
     veredito = _gerar_veredito_humano(mandante, visitante, probs, desfalques_m, desfalques_v, nivel_conf)
@@ -264,6 +296,12 @@ def simular_partida_hibrida(
         "war_desfalques": {
             "mandante_pts_temporada": war_perdido_m,
             "visitante_pts_temporada": war_perdido_v,
+        },
+        "contexto_dinamico": {
+            "forma_mandante": forma_m or {},
+            "forma_visitante": forma_v or {},
+            "tecnico_mandante": tecnico_m or {},
+            "tecnico_visitante": tecnico_v or {},
         },
     }
 
