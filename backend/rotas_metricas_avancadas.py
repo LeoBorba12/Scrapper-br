@@ -666,6 +666,9 @@ def get_econometria_atletas():
                 COALESCE(mc.posse_pct, 50.0) as posse_pct,
                 je.idade as idade,
                 COALESCE(je.gols_decisivos_80mais, 0) as gols_decisivos_80mais,
+                COALESCE(dg.desarmes_ganhos, 0) as desarmes_ganhos,
+                COALESCE(dg.interceptacoes, 0) as interceptacoes,
+                COALESCE(dg.cortes, 0) as cortes,
                 m.minutos,
                 m.jogos,
                 m.gols,
@@ -680,16 +683,10 @@ def get_econometria_atletas():
             LEFT JOIN jogadores_estatisticas je ON m.atleta_id_canonico = je.id_jogador
             LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
             LEFT JOIN metrica_clube_avancada_2026 mc ON m.clube_id_canonico = mc.clube_id_canonico
+            LEFT JOIN metrica_atleta_defesa_gk_2026 dg ON m.atleta_id_canonico = dg.atleta_id_canonico
             WHERE m.minutos > 0;
         """)
-        rows = []
-        for r in c.fetchall():
-            d = dict(r)
-            extra = _get_detalhe_atleta_extra(d["atleta_id_canonico"])
-            d["desarmes_ganhos"] = extra.get("desarmes_ganhos") or 0
-            d["interceptacoes"] = extra.get("interceptacoes") or 0
-            d["cortes"] = extra.get("cortes") or 0
-            rows.append(d)
+        rows = [dict(r) for r in c.fetchall()]
 
         res = calcular_indice_atletas(
             rows,
@@ -829,20 +826,16 @@ def get_econometria_goleiros():
                 m.atleta_id_canonico,
                 COALESCE(j.nome_exibicao, j.apelido, j.nome_completo, 'Goleiro #' || m.atleta_id_canonico) as nome,
                 COALESCE(c.nome, 'Clube #' || m.clube_id_canonico) as clube_nome,
-                m.minutos
+                m.minutos,
+                COALESCE(dg.defesas_goleiro, 0) as defesas_goleiro,
+                COALESCE(dg.defesas_na_area, 0) as defesas_na_area
             FROM metrica_atleta_avancada_2026 m
+            JOIN metrica_atleta_defesa_gk_2026 dg ON m.atleta_id_canonico = dg.atleta_id_canonico
             LEFT JOIN jogadores j ON m.atleta_id_canonico = j.id_jogador
             LEFT JOIN dim_clube c ON m.clube_id_canonico = c.clube_id
-            WHERE m.minutos >= ?;
+            WHERE m.minutos >= ? AND dg.defesas_goleiro > 0;
         """, (min_minutos,))
-        rows = []
-        for r in c.fetchall():
-            d = dict(r)
-            extra = _get_detalhe_atleta_extra(d["atleta_id_canonico"])
-            if (extra.get("defesas_goleiro") or 0) > 0:
-                d["defesas_goleiro"] = extra.get("defesas_goleiro") or 0
-                d["defesas_na_area"] = extra.get("defesas_na_area") or 0
-                rows.append(d)
+        rows = [dict(r) for r in c.fetchall()]
 
         ranking = calcular_ranking_goleiros_econometrico(rows, k_prior=k_prior, min_minutos=min_minutos, limite=limite)
         return jsonify({
