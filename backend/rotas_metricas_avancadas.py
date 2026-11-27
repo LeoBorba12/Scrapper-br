@@ -743,3 +743,49 @@ def get_econometria_clubes():
         })
     finally:
         conn.close()
+
+
+# -------------------------------------------------------------
+# 9. MOTOR ECONOMÉTRICO (FASE 2): RAPM VIA REGRESSÃO RIDGE
+# -------------------------------------------------------------
+@metricas_avancadas_bp.route('/api/metricas-avancadas/econometria/rapm', methods=['GET'])
+def get_econometria_rapm():
+    min_jogos = max(5, request.args.get('min_jogos', default=15, type=int))
+    limite = min(request.args.get('limite', default=30, type=int), 100)
+
+    conn = get_readonly_db()
+    c = conn.cursor()
+    try:
+        try:
+            c.execute(
+                """
+                SELECT id_jogador, nome, clube_recente, jogos_titular,
+                       rapm_saldo_gols, rapm_score_0_100, alpha_ridge,
+                       mando_efeito, temporadas, atualizado_em
+                FROM atleta_rapm_scores
+                WHERE jogos_titular >= ?
+                ORDER BY rapm_saldo_gols DESC, jogos_titular DESC
+                LIMIT ?;
+                """,
+                (min_jogos, limite),
+            )
+            rows = [dict(r) for r in c.fetchall()]
+        except sqlite3.OperationalError:
+            rows = []
+
+        for idx, r in enumerate(rows, start=1):
+            r["rank_rapm"] = idx
+
+        mando_ref = rows[0]["mando_efeito"] if rows else 0.0
+        return jsonify({
+            "sucesso": True,
+            "metadados": build_metadata({
+                "metodo": "RAPM (Regularized Adjusted Plus-Minus via Regressão Ridge L2)",
+                "min_jogos": min_jogos,
+                "mando_efeito_gols": mando_ref,
+                "total_retornado": len(rows),
+            }),
+            "ranking": rows,
+        })
+    finally:
+        conn.close()

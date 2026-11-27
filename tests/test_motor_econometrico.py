@@ -41,3 +41,10 @@ def test_endpoints_econometria_http_200():
     assert len(d_c["clubes"]) == 20
     assert "power_score" in d_c["clubes"][0]
     assert "delta_xpts" in d_c["clubes"][0]
+
+    r_rapm = client.get("/api/metricas-avancadas/econometria/rapm?min_jogos=15&limite=20")
+    assert r_rapm.status_code == 200
+    d_r = r_rapm.get_json()
+    assert d_r["sucesso"] is True
+    assert len(d_r["ranking"]) > 0
+    assert "rapm_saldo_gols" in d_r["ranking"][0]

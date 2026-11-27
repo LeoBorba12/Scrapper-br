@@ -790,6 +790,12 @@ export default function AppShell({
                   As probabilidades de partida usam <strong>Poisson Bivariada com correção de Dixon-Coles (1997)</strong> unificada entre Hub e Raio-X. Mercados com margem fora de 0%–15% ou padrões sintéticos (como empate 3.25 ou template 2.10/3.20/3.50) entram automaticamente em <strong>Quarentena Técnica</strong>.
                 </p>
               </div>
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>5. RAPM (Regularized Adjusted Plus-Minus via Regressão Ridge)</h3>
+                <p style={{ margin: 0 }}>
+                  Estima o impacto líquido marginal de cada atleta no saldo de gols da equipe (Brasileirão 2024–2026) via <strong>Regressão Ridge L2</strong>, isolando o efeito do jogador dos 10 companheiros em campo, dos 11 adversários e do efeito de mando de campo.
+                </p>
+              </div>
             </div>
           </div>
         </div>

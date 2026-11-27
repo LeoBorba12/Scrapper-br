@@ -29,9 +29,10 @@ export default function MetricasAvancadasView({ darkMode }) {
   const [atletaDetalhe, setAtletaDetalhe] = useState(null);
   const [loadingAtleta, setLoadingAtleta] = useState(false);
 
-  // Motor Econométrico state (Fase 1)
+  // Motor Econométrico state (Fase 1 & Fase 2 RAPM)
   const [econAtletas, setEconAtletas] = useState([]);
   const [econClubes, setEconClubes] = useState([]);
+  const [econRapm, setEconRapm] = useState([]);
   const [econPosicao, setEconPosicao] = useState('');
   const [econKPrior, setEconKPrior] = useState(450);
   const [loadingEcon, setLoadingEcon] = useState(false);
@@ -83,11 +84,13 @@ export default function MetricasAvancadasView({ darkMode }) {
     const urlAtletas = `/api/metricas-avancadas/econometria/atletas?min_minutos=270&k_prior=${econKPrior}&limite=30${econPosicao ? `&posicao=${encodeURIComponent(econPosicao)}` : ''}`;
     Promise.all([
       fetch(urlAtletas).then(r => r.json()),
-      fetch('/api/metricas-avancadas/econometria/clubes').then(r => r.json())
+      fetch('/api/metricas-avancadas/econometria/clubes').then(r => r.json()),
+      fetch('/api/metricas-avancadas/econometria/rapm?min_jogos=15&limite=25').then(r => r.json())
     ])
-      .then(([da, dc]) => {
+      .then(([da, dc, dr]) => {
         if (da.sucesso) setEconAtletas(da.ranking || []);
         if (dc.sucesso) setEconClubes(dc.clubes || []);
+        if (dr.sucesso) setEconRapm(dr.ranking || []);
         setLoadingEcon(false);
       })
       .catch(() => setLoadingEcon(false));
@@ -1149,6 +1152,47 @@ export default function MetricasAvancadasView({ darkMode }) {
               </table>
             </div>
           </div>
+
+          {econRapm.length > 0 && (
+            <div className="soft-card" style={{ padding: '18px 20px' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
+                RAPM — Impacto Líquido em Campo (Regressão Ridge 2024–2026)
+              </h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 14px 0' }}>
+                Estimativa econométrica do impacto marginal do atleta no saldo de gols por jogo, controlando por companheiros, adversários e vantagem de mando (+{econRapm[0]?.mando_efeito ?? 0.40} gols).
+              </p>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="editorial-table" style={{ width: '100%', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Atleta</th>
+                      <th>Clube Recente</th>
+                      <th style={{ textAlign: 'right' }}>RAPM (Gols/Jogo)</th>
+                      <th style={{ textAlign: 'right' }}>Score RAPM (0–100)</th>
+                      <th style={{ textAlign: 'right' }}>Jogos Titular</th>
+                      <th style={{ textAlign: 'center' }}>Janela</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {econRapm.map((r) => (
+                      <tr key={r.id_jogador}>
+                        <td className="font-mono" style={{ fontWeight: 700 }}>{r.rank_rapm}</td>
+                        <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.nome}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{r.clube_recente || '—'}</td>
+                        <td className="font-mono" style={{ textAlign: 'right', fontWeight: 800, color: r.rapm_saldo_gols >= 0 ? 'var(--positive)' : 'var(--negative)' }}>
+                          {r.rapm_saldo_gols >= 0 ? `+${r.rapm_saldo_gols.toFixed(3)}` : r.rapm_saldo_gols.toFixed(3)}
+                        </td>
+                        <td className="font-mono" style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>{r.rapm_score_0_100}</td>
+                        <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{r.jogos_titular}</td>
+                        <td className="font-mono" style={{ textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>{r.temporadas}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

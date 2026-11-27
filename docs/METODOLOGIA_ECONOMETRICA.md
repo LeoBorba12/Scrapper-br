@@ -47,3 +47,12 @@ Para clubes da Série A 2026, avaliamos tanto o resultado quanto o processo em c
 - **Modelo de Gols:** Distribuição **Poisson Bivariada com correção de Dixon-Coles (1997)** para placares baixos (`0–0`, `1–0`, `0–1`, `1–1`), unificada entre o **Hub** e o **Raio-X** com a mesma ponderação de mando.
 - **Gate de Qualidade de Odds:** Só recebem selo **Consenso Aprovado** mercados 1X2 com margem implícita entre `0%` e `15%` e sem padrões sintéticos/placeholder (como empate cravado em `3.25` ou template padrão `2.10 / 3.20 / 3.50`), que entram automaticamente em **Quarentena Técnica**.
 - **Gestão de Banca:** Critério de **1/4 Kelly** calibrado sobre a probabilidade justa do modelo.
+
+---
+
+## 6. RAPM (Regularized Adjusted Plus-Minus via Regressão Ridge)
+Para isolar o impacto individual de um atleta independentemente de jogar em um elenco dominante ou em um clube de menor investimento:
+- Montamos a matriz de presença de titulares ($+1$ mandante, $-1$ visitante + intercepto de mando de campo) sobre as partidas do Brasileirão 2024–2026.
+- Resolvemos a **Regressão Ridge (L2)** $\hat{\beta} = (X^T X + \alpha P)^{-1} X^T y$ sobre o saldo de gols da partida, penalizando apenas os coeficientes individuais (sem penalizar o efeito de mando).
+- O resultado (`RAPM Gols/Jogo`) mede quantos gols de saldo líquidos o atleta agrega à equipe controlando por companheiros, adversários e mando.
+
