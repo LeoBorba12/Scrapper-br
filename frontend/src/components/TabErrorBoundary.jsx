@@ -22,6 +22,8 @@ export default class TabErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const msg = this.state.errorMessage || '';
+      const isChunkError = /dynamically imported module|Loading chunk|Importing a module script/i.test(msg);
       return (
         <div
           className="soft-card"
@@ -38,11 +40,13 @@ export default class TabErrorBoundary extends React.Component {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--negative)' }}>
             <ShieldAlert size={22} />
             <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>
-              Falha isolada neste módulo
+              {isChunkError ? 'Nova versão da plataforma disponível' : 'Falha isolada neste módulo'}
             </h3>
           </div>
           <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-            Esta aba encontrou um erro ao exibir os dados, mas o restante da dashboard continua funcionando normalmente.
+            {isChunkError
+              ? 'Publicamos uma atualização enquanto esta página estava aberta. Recarregue a página uma vez para carregar os arquivos novos.'
+              : 'Esta aba encontrou um erro ao exibir os dados, mas o restante da dashboard continua funcionando normalmente.'}
           </p>
           <div
             className="font-mono"
@@ -60,7 +64,13 @@ export default class TabErrorBoundary extends React.Component {
           </div>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
             <button
-              onClick={() => this.setState({ hasError: false, errorMessage: '' })}
+              onClick={() => {
+                if (isChunkError && typeof window !== 'undefined') {
+                  window.location.reload();
+                  return;
+                }
+                this.setState({ hasError: false, errorMessage: '' });
+              }}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -76,7 +86,7 @@ export default class TabErrorBoundary extends React.Component {
               }}
             >
               <RotateCcw size={14} />
-              <span>Recarregar Aba</span>
+              <span>{isChunkError ? 'Atualizar Página' : 'Recarregar Aba'}</span>
             </button>
             {this.props.onResetHome && (
               <button
