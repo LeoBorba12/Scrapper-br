@@ -55,7 +55,33 @@ export default function AppShell({
     }
   ];
 
-  const navItems = navGroups.flatMap((g) => g.items);
+  const isAdmin = currentUser?.role === 'admin';
+  const allowedTools = !isAdmin && Array.isArray(currentUser?.ferramentas_permitidas)
+    ? new Set(currentUser.ferramentas_permitidas)
+    : null;
+
+  const baseGroups = allowedTools
+    ? navGroups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((item) => allowedTools.has(item.id)),
+        }))
+        .filter((g) => g.items.length > 0)
+    : navGroups;
+
+  const visibleNavGroups = isAdmin
+    ? [
+        ...baseGroups,
+        {
+          titulo: 'Administração',
+          items: [
+            { id: 'admin-equipe', label: 'Painel Admin & Convites', icon: ShieldCheck, badge: 'ADMIN' },
+          ],
+        },
+      ]
+    : baseGroups;
+
+  const navItems = visibleNavGroups.flatMap((g) => g.items);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -235,10 +261,10 @@ export default function AppShell({
               <span className="app-header-btn-text">{darkMode ? 'Quant Dark' : 'Areia'}</span>
             </button>
 
-            {/* Botão de Convite (Apenas Admin) */}
+            {/* Botão Painel Admin (Apenas Admin) */}
             {currentUser?.role === 'admin' && (
               <button
-                onClick={onCopiarConvite}
+                onClick={() => onNavigateTab('admin-equipe')}
                 className="app-header-btn"
                 style={{
                   display: 'flex',
@@ -247,18 +273,18 @@ export default function AppShell({
                   padding: '8px 14px',
                   minHeight: '38px',
                   borderRadius: 'var(--radius-control)',
-                  backgroundColor: 'var(--surface-raised)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-primary)',
+                  backgroundColor: activeTab === 'admin-equipe' ? 'var(--accent)' : 'var(--surface-raised)',
+                  border: `1px solid ${activeTab === 'admin-equipe' ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                  color: activeTab === 'admin-equipe' ? 'var(--accent-foreground)' : 'var(--text-primary)',
                   fontSize: '0.8rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: 'pointer'
                 }}
-                aria-label="Copiar link ou código de convite para equipe"
-                title="Copiar código ou link de convite"
+                aria-label="Abrir Painel de Administração e Convites"
+                title="Gerenciar usuários, convites 24h e ferramentas"
               >
-                {conviteCopiado ? <Check size={15} color="var(--positive)" /> : <UserPlus size={15} />}
-                <span className="app-header-btn-text">{conviteCopiado ? 'Copiado!' : 'Convidar'}</span>
+                <ShieldCheck size={15} />
+                <span className="app-header-btn-text">Painel Admin</span>
               </button>
             )}
 
@@ -479,7 +505,7 @@ export default function AppShell({
       >
         {darkMode && !printMode && (
           <aside className="quant-sidebar-desktop" aria-label="Menu Lateral Terminal Quant">
-            {navGroups.map((group) => (
+            {visibleNavGroups.map((group) => (
               <div key={group.titulo} style={{ marginBottom: '14px' }}>
                 <div
                   className="font-mono"

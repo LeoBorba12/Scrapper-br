@@ -32,6 +32,7 @@ const CompetitionDetailView = lazy(() => import('./components/CompetitionDetailV
 const HeadToHeadView = lazy(() => import('./components/HeadToHeadView'));
 const ValorEsperadoView = lazy(() => import('./components/ValorEsperadoView'));
 const OraculoPreditivoView = lazy(() => import('./components/OraculoPreditivoView'));
+const AdminEquipePanel = lazy(() => import('./components/AdminEquipePanel'));
 
 function ViewSuspenseFallback({ darkMode }) {
   return (
@@ -117,7 +118,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
       const sp = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-      if (sp && (sp.get('preview') === '1' || sp.get('tab') === 'clubes' || sp.get('tab') === 'clube')) {
+      const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      if (isLocalHost && sp && sp.get('preview') === '1') {
         return { id: 1, username: 'editorial', nome: 'Acesso Editorial Preview', role: 'admin' };
       }
       const saved = localStorage.getItem('futstats_auth_user');
@@ -130,6 +132,8 @@ export default function App() {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'registro'
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
+  const [authSuccess, setAuthSuccess] = useState(null);
+  const [inviteStatus, setInviteStatus] = useState(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [regNome, setRegNome] = useState('');
@@ -316,14 +320,14 @@ export default function App() {
       headers['Authorization'] = `Bearer ${token}`;
     }
     const res = await fetch(url, { ...options, headers });
-    if (res.status === 401) {
-      // Apenas desloga o usuário se o endpoint de validação de sessão falhar
+    if (res.status === 401 || (res.status === 403 && url.includes('/api/auth/me'))) {
+      // Apenas desloga o usuário se a sessão expirou ou conta foi bloqueada
       if (url.includes('/api/auth/me')) {
         localStorage.removeItem('futstats_auth_token');
         localStorage.removeItem('futstats_auth_user');
         setCurrentUser(null);
       }
-      throw new Error('Sessão expirada. Faça login novamente.');
+      throw new Error('Sessão expirada ou acesso revogado. Faça login novamente.');
     }
     return res;
   };
@@ -337,16 +341,20 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Verificar sessão ativa ao iniciar
+  // Verificar sessão ativa e status do link de convite (?convite=...) ao iniciar
   useEffect(() => {
     const token = localStorage.getItem('futstats_auth_token');
-    
-    // Auto-preencher convite se vier na URL (?convite=...)
+
     const params = new URLSearchParams(window.location.search);
-    const conviteParam = params.get('convite');
+    const conviteParam = (params.get('convite') || params.get('invite') || '').trim();
     if (conviteParam) {
       setRegCodigoConvite(conviteParam);
       setAuthMode('registro');
+      setInviteStatus({ checking: true });
+      fetch(`/api/auth/convite/status?token=${encodeURIComponent(conviteParam)}`)
+        .then((r) => r.json())
+        .then((d) => setInviteStatus({ checking: false, ...d }))
+        .catch(() => setInviteStatus({ checking: false, valido: false, motivo: 'erro' }));
     }
 
     if (!token) {
@@ -372,11 +380,29 @@ export default function App() {
       });
   }, []);
 
+  // Garantir que usuários não-admin acessem apenas ferramentas autorizadas pelo admin
+  useEffect(() => {
+    if (!currentUser || currentUser.role === 'admin') return;
+    if (activeTab === 'admin-equipe') {
+      const fallback = currentUser.ferramentas_permitidas?.[0] || 'overview';
+      setActiveTab(fallback);
+      return;
+    }
+    if (Array.isArray(currentUser.ferramentas_permitidas)) {
+      const normalizedTab = activeTab === 'apostas' ? 'probabilidades' : activeTab === 'clube' ? 'times' : activeTab;
+      if (!currentUser.ferramentas_permitidas.includes(normalizedTab)) {
+        const fallback = currentUser.ferramentas_permitidas[0] || 'overview';
+        if (fallback !== normalizedTab) setActiveTab(fallback);
+      }
+    }
+  }, [currentUser, activeTab]);
+
   // Login handler
   const handleLogin = (e) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError(null);
+    setAuthSuccess(null);
 
     fetch('/api/auth/login', {
       method: 'POST',
@@ -410,11 +436,12 @@ export default function App() {
       });
   };
 
-  // Registro com convite handler
+  // Registro com convite 24h ou solicitação manual para aprovação do admin
   const handleRegistro = (e) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthError(null);
+    setAuthSuccess(null);
 
     fetch('/api/auth/registro', {
       method: 'POST',
@@ -439,6 +466,12 @@ export default function App() {
         return d;
       })
       .then(d => {
+        if (d.pending || !d.token) {
+          setAuthSuccess(d.mensagem || 'Solicitação enviada! Seu acesso aguarda autorização do administrador.');
+          setRegPassword('');
+          setAuthLoading(false);
+          return;
+        }
         localStorage.setItem('futstats_auth_token', d.token);
         localStorage.setItem('futstats_auth_user', JSON.stringify(d.user));
         setCurrentUser(d.user);
@@ -1128,6 +1161,9 @@ export default function App() {
           authLoading={authLoading}
           authError={authError}
           setAuthError={setAuthError}
+          authSuccess={authSuccess}
+          setAuthSuccess={setAuthSuccess}
+          inviteStatus={inviteStatus}
           handleLogin={handleLogin}
           handleRegistro={handleRegistro}
           darkMode={darkMode}
@@ -1162,8 +1198,11 @@ export default function App() {
       onCopiarConvite={copiarConviteEquipe}
       conviteCopiado={conviteCopiado}
     >
-      <TabErrorBoundary key={activeTab} onResetHome={() => setActiveTab('home')}>
+      <TabErrorBoundary key={activeTab} onResetHome={() => setActiveTab('overview')}>
       <Suspense fallback={<ViewSuspenseFallback darkMode={darkMode} />}>
+        {activeTab === 'admin-equipe' && currentUser?.role === 'admin' && (
+          <AdminEquipePanel apiFetch={apiFetch} currentUser={currentUser} />
+        )}
         {/* ================= ABA CAMPEONATO: CLASSIFICAÇÃO CANÔNICA & SCOUTS ================= */}
         {activeTab === 'campeonato' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>

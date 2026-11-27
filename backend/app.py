@@ -34,6 +34,7 @@ try:
         calcular_fair_odds_editorial,
         obter_incerteza_calibrada
     )
+    from backend.auth_bridge import ALL_TOOL_IDS, vm_auth_request
 except ImportError:
     from calculo_player_rating import (
         calcular_nota_partida_sofascore,
@@ -50,6 +51,7 @@ except ImportError:
         calcular_fair_odds_editorial,
         obter_incerteza_calibrada
     )
+    from auth_bridge import ALL_TOOL_IDS, vm_auth_request
 
 try:
     from backend.gateway import (
@@ -193,47 +195,86 @@ def verificar_senha(senha, hash_armazenado):
     except Exception:
         return False
 
-def login_usuario(username, password):
+def _usuario_com_ferramentas(user_dict):
+    u = dict(user_dict or {})
+    if "ferramentas_permitidas" not in u or not isinstance(u["ferramentas_permitidas"], list):
+        u["ferramentas_permitidas"] = list(ALL_TOOL_IDS)
+    return u
+
+
+def _resolver_usuario_ao_vivo(token_user):
+    """Consulta o serviço da VM para garantir status ativo, role e ferramentas atualizadas."""
+    if not token_user or not token_user.get("username"):
+        return None, "Sessão inválida.", 401
+    username = token_user["username"]
+    status_code, data = vm_auth_request(
+        "GET", f"/internal/auth/user/{username}", SECRET_KEY, timeout=4.0
+    )
+    if status_code == 200 and isinstance(data, dict) and data.get("user"):
+        live = data["user"]
+        st = live.get("status", "ativo")
+        if st == "pendente":
+            return None, "Sua conta aguarda autorização do administrador.", 403
+        if st == "bloqueado":
+            return None, "Seu acesso foi suspenso pelo administrador.", 403
+        return _usuario_com_ferramentas(live), None, 200
+    if status_code == 404:
+        # Se foi removido do banco oficial da VM (exceto override ADMIN_PASSWORD_HASH), invalida sessão
+        if not (ADMIN_PASSWORD_HASH and username.lower() == ADMIN_USERNAME.lower()):
+            return None, "Conta não encontrada ou removida.", 401
+    # Fallback resiliente se a VM estiver momentaneamente inacessível
+    return _usuario_com_ferramentas(token_user), None, 200
+
+
+def login_usuario(username, password, client_ip="unknown"):
     username = (username or "").strip()
     password = (password or "").strip()
     if not username or not password:
-        return None, "Informe utilizador e palavra-passe."
+        return None, "Informe usuário e senha.", 400
 
-    # 1. Validação do Admin via variável de ambiente segura (Zero I/O e sem senha exposta no código)
+    # 1. Validação prioritária via serviço seguro da VM (Oracle Cloud)
+    status_code, data = vm_auth_request(
+        "POST",
+        "/internal/auth/login",
+        SECRET_KEY,
+        json_body={"username": username, "password": password, "ip": client_ip},
+        timeout=6.0,
+    )
+    if status_code == 200 and isinstance(data, dict) and data.get("user"):
+        u = _usuario_com_ferramentas(data["user"])
+        token_payload = {"username": u["username"], "nome": u["nome"], "role": u["role"]}
+        return {"user": u, "token": gerar_token(token_payload)}, None, 200
+    if status_code in (400, 401, 403, 429) and isinstance(data, dict):
+        return None, data.get("error") or "Usuário ou senha incorretos.", status_code
+
+    # 2. Validação do Admin via variável de ambiente segura (fallback offline)
     if ADMIN_PASSWORD_HASH and username.lower() == ADMIN_USERNAME.lower():
         if verificar_senha(password, ADMIN_PASSWORD_HASH):
-            user_info = {"username": ADMIN_USERNAME, "nome": "Administrador", "role": "admin"}
-            return {"user": user_info, "token": gerar_token(user_info)}, None
+            user_info = _usuario_com_ferramentas(
+                {"username": ADMIN_USERNAME, "nome": "Administrador", "role": "admin"}
+            )
+            return {"user": user_info, "token": gerar_token(user_info)}, None, 200
 
-    # 2. Validação na tabela usuarios do banco
+    # 3. Fallback local no SQLite embutido (apenas se VM inacessível)
     try:
         conn = get_db()
         c = conn.cursor()
         c.execute(
             "SELECT id_usuario, username, nome, senha_hash, role FROM usuarios WHERE LOWER(username) = LOWER(?);",
-            (username,)
+            (username,),
         )
         row = c.fetchone()
         conn.close()
-        if row:
-            if verificar_senha(password, row["senha_hash"]):
-                user_info = {"username": row["username"], "nome": row["nome"], "role": row["role"]}
-                return {"user": user_info, "token": gerar_token(user_info)}, None
-            # Fallback rápido no micro-cache da VM caso a senha tenha sido alterada recentemente
-            try:
-                vm_cache_url = f"http://163.176.87.218:3000/cache/user_pass_{username.lower()}"
-                r_cache = requests.get(vm_cache_url, timeout=1.5)
-                if r_cache.status_code == 200:
-                    cached_data = r_cache.json().get('value', {})
-                    if cached_data and verificar_senha(password, cached_data.get('hash', '')):
-                        user_info = {"username": row["username"], "nome": row["nome"], "role": row["role"]}
-                        return {"user": user_info, "token": gerar_token(user_info)}, None
-            except Exception:
-                pass
+        if row and verificar_senha(password, row["senha_hash"]):
+            user_info = _usuario_com_ferramentas(
+                {"username": row["username"], "nome": row["nome"], "role": row["role"]}
+            )
+            return {"user": user_info, "token": gerar_token(user_info)}, None, 200
     except Exception:
         pass
 
-    return None, "Utilizador ou palavra-passe incorretos."
+    return None, "Usuário ou senha incorretos.", 401
+
 
 def obter_ip_real():
     """
@@ -248,10 +289,12 @@ def obter_ip_real():
         return xff.split(',')[-1].strip()
     return request.remote_addr or 'unknown'
 
+
 get_client_ip = obter_ip_real
 
+
 def require_auth(f):
-    """Decorator para proteger rotas da API exigindo JWT válido."""
+    """Decorator para proteger rotas da API exigindo JWT válido e conta ativa."""
     @wraps(f)
     def decorated(*args, **kwargs):
         auth_header = request.headers.get('Authorization', '')
@@ -261,13 +304,17 @@ def require_auth(f):
         user = validar_token(token)
         if not user:
             return jsonify({"error": "Não autorizado. Faça login novamente."}), 401
-        g.current_user = user
-        request.user = user
+        live_user, err, status_code = _resolver_usuario_ao_vivo(user)
+        if err:
+            return jsonify({"error": err}), status_code
+        g.current_user = live_user
+        request.user = live_user
         return f(*args, **kwargs)
     return decorated
 
+
 def require_admin(f):
-    """Decorator para rotas exclusivas de administradores."""
+    """Decorator para rotas exclusivas de administradores ativos."""
     @wraps(f)
     def decorated(*args, **kwargs):
         auth_header = request.headers.get('Authorization', '')
@@ -275,41 +322,52 @@ def require_admin(f):
         if not token and 'token' in request.args:
             token = request.args.get('token')
         user = validar_token(token)
-        if not user or user.get('role') != 'admin':
+        if not user:
             return jsonify({"error": "Acesso restrito a administradores."}), 403
-        g.current_user = user
-        request.user = user
+        live_user, err, _ = _resolver_usuario_ao_vivo(user)
+        if err or not live_user or live_user.get('role') != 'admin':
+            return jsonify({"error": "Acesso restrito a administradores."}), 403
+        g.current_user = live_user
+        request.user = live_user
         return f(*args, **kwargs)
     return decorated
 
-def cadastrar_com_convite(nome, username, password, codigo_convite):
+
+def cadastrar_com_convite(nome, username, password, codigo_convite, client_ip="unknown"):
     nome = (nome or "").strip()
     username = (username or "").strip()
     password = (password or "").strip()
-    codigo = (codigo_convite or "").strip().upper()
-    if not nome or len(nome) < 2:
-        return None, "Informe seu nome completo ou apelido."
-    if not username or len(username) < 2:
-        return None, "O nome de usuário deve ter pelo menos 2 caracteres."
-    if not password or len(password) < 4:
-        return None, "A senha deve ter pelo menos 4 caracteres."
-    if codigo != INVITE_CODE.upper():
-        return None, "Código de convite inválido ou expirado."
+    codigo = (codigo_convite or "").strip()
 
-    try:
-        conn = sqlite3.connect(DB_FUTEBOL)
-        c = conn.cursor()
-        c.execute("INSERT INTO usuarios (username, nome, senha_hash, role) VALUES (?, ?, ?, 'moderador');",
-                  (username, nome, hash_senha(password)))
-        conn.commit()
-        conn.close()
-    except sqlite3.IntegrityError:
-        return None, "Este nome de usuário já está em uso."
-    except Exception:
-        pass
+    status_code, data = vm_auth_request(
+        "POST",
+        "/internal/auth/register",
+        SECRET_KEY,
+        json_body={
+            "nome": nome,
+            "username": username,
+            "password": password,
+            "codigo_convite": codigo,
+            "ip": client_ip,
+        },
+        timeout=8.0,
+    )
+    if status_code is None:
+        return None, "Serviço de cadastro temporariamente indisponível. Tente novamente em instantes.", 503
 
-    user_info = {"username": username, "nome": nome, "role": "moderador"}
-    return {"user": user_info, "token": gerar_token(user_info)}, None
+    if status_code == 201 and isinstance(data, dict) and data.get("approved") and data.get("user"):
+        u = _usuario_com_ferramentas(data["user"])
+        token_payload = {"username": u["username"], "nome": u["nome"], "role": u["role"]}
+        return {"user": u, "token": gerar_token(token_payload)}, None, 201
+
+    if status_code == 202 and isinstance(data, dict) and data.get("pending"):
+        return {
+            "pending": True,
+            "mensagem": data.get("mensagem") or "Solicitação registrada! Aguarde autorização do administrador.",
+        }, None, 202
+
+    err_msg = (data or {}).get("error") or "Não foi possível concluir o cadastro."
+    return None, err_msg, (status_code if 400 <= status_code < 500 else 400)
 
 app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path='')
 
@@ -464,36 +522,60 @@ def api_health():
 @app.route('/api/auth/login', methods=['POST'])
 def api_login():
     try:
-        ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
-        if not limiter.is_allowed(f"login_{ip}", max_requests=10, window_seconds=60):
+        ip = obter_ip_real()
+        if not limiter.is_allowed(f"login_{ip}", max_requests=15, window_seconds=60):
             return jsonify({"error": "Muitas tentativas consecutivas de login. Por segurança, aguarde 1 minuto."}), 429
 
         dados = request.get_json(force=True, silent=True) or {}
         username = dados.get('username', '')
         password = dados.get('password', '')
-        
-        res, err = login_usuario(username, password)
+
+        res, err, status_code = login_usuario(username, password, client_ip=ip)
         if err:
-            return jsonify({"error": err}), 401
-        return jsonify(res)
+            return jsonify({"error": err}), status_code
+        return jsonify(res), 200
     except Exception as e:
         return jsonify({"error": f"Falha ao autenticar: {str(e)}"}), 500
+
+
+@app.route('/api/auth/convite/status', methods=['GET'])
+def api_convite_status():
+    try:
+        token = (request.args.get('token') or request.args.get('codigo') or '').strip()
+        if not token:
+            return jsonify({"valido": False, "motivo": "ausente"}), 200
+        status_code, data = vm_auth_request(
+            "GET", f"/internal/auth/convite-status/{token}", SECRET_KEY, timeout=4.0
+        )
+        if status_code == 200 and isinstance(data, dict):
+            return jsonify(data), 200
+        return jsonify({"valido": False, "motivo": "indisponivel"}), 200
+    except Exception:
+        return jsonify({"valido": False, "motivo": "erro"}), 200
+
 
 @app.route('/api/auth/registro', methods=['POST'])
 def api_registro():
     try:
+        ip = obter_ip_real()
+        if not limiter.is_allowed(f"reg_{ip}", max_requests=12, window_seconds=300):
+            return jsonify({"error": "Limite temporário de solicitações atingido. Aguarde alguns minutos."}), 429
+
         dados = request.get_json(force=True, silent=True) or {}
         nome = dados.get('nome', '')
         username = dados.get('username', '')
         password = dados.get('password', '')
         codigo_convite = dados.get('codigo_convite', '')
-        
-        res, err = cadastrar_com_convite(nome, username, password, codigo_convite)
+
+        res, err, status_code = cadastrar_com_convite(
+            nome, username, password, codigo_convite, client_ip=ip
+        )
         if err:
-            return jsonify({"error": err}), 400
-        return jsonify(res)
+            return jsonify({"error": err}), status_code
+        return jsonify(res), status_code
     except Exception as e:
         return jsonify({"error": f"Falha ao cadastrar: {str(e)}"}), 500
+
 
 @app.route('/api/auth/me', methods=['GET'])
 def api_me():
@@ -503,7 +585,10 @@ def api_me():
         user = validar_token(token)
         if not user:
             return jsonify({"error": "Sessão inválida ou expirada."}), 401
-        return jsonify({"user": user})
+        live_user, err, status_code = _resolver_usuario_ao_vivo(user)
+        if err:
+            return jsonify({"error": err}), status_code
+        return jsonify({"user": live_user}), 200
     except Exception as e:
         return jsonify({"error": f"Falha ao validar sessão: {str(e)}"}), 500
 
@@ -520,64 +605,116 @@ def api_alterar_senha():
 
         if not senha_atual or not nova_senha:
             return jsonify({"error": "Informe a senha atual e a nova senha."}), 400
-        if len(nova_senha) < 4:
-            return jsonify({"error": "A nova senha deve ter no mínimo 4 caracteres."}), 400
+        if len(nova_senha) < 6:
+            return jsonify({"error": "A nova senha deve ter no mínimo 6 caracteres."}), 400
 
-        # 1. Validar senha atual
-        _, login_err = login_usuario(username, senha_atual)
-        if login_err:
-            return jsonify({"error": "Senha atual incorreta."}), 400
-
-        nova_hash = hash_senha(nova_senha)
-
-        # 2. Tentar atualizar banco SQLite local se for gravável
-        try:
-            conn = sqlite3.connect(DB_FUTEBOL, timeout=10.0)
-            c = conn.cursor()
-            c.execute("UPDATE usuarios SET senha_hash = ? WHERE LOWER(username) = LOWER(?);", (nova_hash, username))
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
-
-        # 3. Notificar o daemon da VM para persistir no banco oficial e no git
-        try:
-            vm_url = "http://163.176.87.218:3000/auth/update-password"
-            requests.post(
-                vm_url,
-                headers={"x-auth-secret": SECRET_KEY},
-                json={"username": username, "nova_senha": nova_senha},
-                timeout=5
-            )
-        except Exception:
-            pass
-
-        # 4. Salvar no micro-cache para login instantâneo
-        try:
-            vm_cache_url = f"http://163.176.87.218:3000/cache/user_pass_{username.lower()}"
-            requests.post(
-                vm_cache_url,
-                json={"value": {"hash": nova_hash}, "ttlSeconds": 86400 * 30},
-                timeout=3
-            )
-        except Exception:
-            pass
-
-        return jsonify({"success": True, "mensagem": "Senha alterada com sucesso!"})
+        status_code, data = vm_auth_request(
+            "POST",
+            "/internal/auth/change-password",
+            SECRET_KEY,
+            json_body={
+                "username": username,
+                "senha_atual": senha_atual,
+                "nova_senha": nova_senha,
+            },
+            timeout=6.0,
+        )
+        if status_code == 200:
+            return jsonify({"success": True, "mensagem": "Senha alterada com sucesso!"}), 200
+        if status_code is not None and isinstance(data, dict):
+            return jsonify({"error": data.get("error") or "Senha atual incorreta."}), status_code
+        return jsonify({"error": "Serviço de autenticação indisponível no momento."}), 503
     except Exception as e:
         return jsonify({"error": f"Falha ao alterar senha: {str(e)}"}), 500
 
+
 @app.route('/api/auth/convite-codigo', methods=['GET'])
+@require_admin
 def api_get_convite():
-    try:
-        auth_header = request.headers.get('Authorization', '')
-        token = auth_header.replace('Bearer ', '').strip() if 'Bearer ' in auth_header else auth_header.strip()
-        user = validar_token(token)
-        if not user or user.get('role') != 'admin':
-            return jsonify({"error": "Apenas administradores podem visualizar o código de convite."}), 403
-        return jsonify({"codigo_convite": INVITE_CODE})
-    except Exception as e:
-        return jsonify({"error": f"Falha ao obter convite: {str(e)}"}), 500
+    return jsonify({"codigo_convite": INVITE_CODE}), 200
+
+
+@app.route('/api/admin/equipe', methods=['GET'])
+@require_admin
+def api_admin_equipe():
+    status_code, data = vm_auth_request("GET", "/internal/admin/overview", SECRET_KEY, timeout=8.0)
+    if status_code is None:
+        return jsonify({"error": "Servidor de autenticação na VM indisponível."}), 503
+    return jsonify(data or {}), status_code
+
+
+@app.route('/api/admin/equipe/convites', methods=['POST'])
+@require_admin
+def api_admin_criar_convite():
+    dados = request.get_json(force=True, silent=True) or {}
+    payload = {
+        "criado_por": g.current_user.get("username", "admin"),
+        "titulo": dados.get("titulo") or "Convite Exclusivo 24h",
+        "role_padrao": dados.get("role_padrao") or "leitor",
+        "duracao_horas": dados.get("duracao_horas") or 24,
+        "max_usos": dados.get("max_usos") or 0,
+        "ferramentas": dados.get("ferramentas"),
+    }
+    status_code, data = vm_auth_request("POST", "/internal/admin/invites", SECRET_KEY, json_body=payload, timeout=8.0)
+    if status_code is None:
+        return jsonify({"error": "Servidor de autenticação na VM indisponível."}), 503
+    return jsonify(data or {}), status_code
+
+
+@app.route('/api/admin/equipe/convites/<token>', methods=['DELETE'])
+@require_admin
+def api_admin_revogar_convite(token):
+    status_code, data = vm_auth_request(
+        "DELETE",
+        f"/internal/admin/invites/{token}",
+        SECRET_KEY,
+        params={"ator": g.current_user.get("username", "admin")},
+        timeout=6.0,
+    )
+    if status_code is None:
+        return jsonify({"error": "Servidor de autenticação na VM indisponível."}), 503
+    return jsonify(data or {}), status_code
+
+
+@app.route('/api/admin/equipe/usuarios/<username>', methods=['PATCH'])
+@require_admin
+def api_admin_atualizar_usuario(username):
+    dados = request.get_json(force=True, silent=True) or {}
+    dados["ator"] = g.current_user.get("username", "admin")
+    status_code, data = vm_auth_request(
+        "PATCH", f"/internal/admin/users/{username}", SECRET_KEY, json_body=dados, timeout=6.0
+    )
+    if status_code is None:
+        return jsonify({"error": "Servidor de autenticação na VM indisponível."}), 503
+    return jsonify(data or {}), status_code
+
+
+@app.route('/api/admin/equipe/usuarios/<username>', methods=['DELETE'])
+@require_admin
+def api_admin_excluir_usuario(username):
+    status_code, data = vm_auth_request(
+        "DELETE",
+        f"/internal/admin/users/{username}",
+        SECRET_KEY,
+        params={"ator": g.current_user.get("username", "admin")},
+        timeout=6.0,
+    )
+    if status_code is None:
+        return jsonify({"error": "Servidor de autenticação na VM indisponível."}), 503
+    return jsonify(data or {}), status_code
+
+
+@app.route('/api/admin/equipe/ferramentas-globais', methods=['PUT'])
+@require_admin
+def api_admin_ferramentas_globais():
+    dados = request.get_json(force=True, silent=True) or {}
+    dados["ator"] = g.current_user.get("username", "admin")
+    status_code, data = vm_auth_request(
+        "PUT", "/internal/admin/settings/tools", SECRET_KEY, json_body=dados, timeout=6.0
+    )
+    if status_code is None:
+        return jsonify({"error": "Servidor de autenticação na VM indisponível."}), 503
+    return jsonify(data or {}), status_code
 
 def get_db():
     conn = None
