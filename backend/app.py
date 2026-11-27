@@ -4001,11 +4001,46 @@ def api_spatial_tendencias_taticas():
             vm_map[int(item["clube_id_canonico"])] = item
 
     combinados = []
+    seen_cids = set()
     for cl in base_clubes:
         cid = int(cl["clube_id_canonico"])
+        seen_cids.add(cid)
         extra = vm_map.get(cid) or {}
+        live_m = extra.get("live_metrics") or {}
+        merged = dict(cl)
+        for k in ("posse_pct", "field_tilt_pct", "ppda", "altura_defensiva", "xg", "xg_contra", "xpts", "pontos", "jogos"):
+            if live_m.get(k) is not None and live_m.get(k) != 0:
+                merged[k] = live_m[k]
         combinados.append({
-            **cl,
+            **merged,
+            "jogos_taticos": extra.get("jogos_analisados", 0),
+            "esquema_principal": extra.get("esquema_principal", "—"),
+            "esquema_recente_5": extra.get("esquema_recente_5", "—"),
+            "esquemas": extra.get("esquemas", []),
+            "tendencia_esquemas": extra.get("tendencia_esquemas", []),
+            "xi_medio": extra.get("xi_medio", []),
+            "attacking_zones": extra.get("attacking_zones", {}),
+            "shot_profile": extra.get("shot_profile", {}),
+        })
+
+    # Incluir clubes novos (ex.: promovidos em temporada seguinte) presentes na VM
+    for cid, extra in vm_map.items():
+        if cid in seen_cids:
+            continue
+        live_m = extra.get("live_metrics") or {}
+        combinados.append({
+            "clube_id_canonico": cid,
+            "clube_nome": extra.get("clube_nome", f"Clube #{cid}"),
+            "clube_sigla": extra.get("clube_sigla", ""),
+            "jogos": live_m.get("jogos", extra.get("jogos_analisados", 0)),
+            "pontos": live_m.get("pontos", 0),
+            "xg": live_m.get("xg", 0),
+            "xg_contra": live_m.get("xg_contra", 0),
+            "xpts": live_m.get("xpts", 0),
+            "posse_pct": live_m.get("posse_pct"),
+            "field_tilt_pct": live_m.get("field_tilt_pct"),
+            "ppda": live_m.get("ppda"),
+            "altura_defensiva": live_m.get("altura_defensiva"),
             "jogos_taticos": extra.get("jogos_analisados", 0),
             "esquema_principal": extra.get("esquema_principal", "—"),
             "esquema_recente_5": extra.get("esquema_recente_5", "—"),

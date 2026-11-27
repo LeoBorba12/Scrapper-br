@@ -102,7 +102,10 @@ TECLADO_INLINE_MENU = {
             {"text": "🛡️ Auditoria Universal", "callback_data": "/auditoria"}
         ],
         [
-            {"text": "💾 Baixar Banco SQLite", "callback_data": "/banco"},
+            {"text": "🔄 Atualizar Tático & Heatmaps", "callback_data": "/atualizar_tatico"},
+            {"text": "💾 Baixar Banco SQLite", "callback_data": "/banco"}
+        ],
+        [
             {"text": "🌐 Abrir FutStats Web", "url": DASHBOARD_URL}
         ]
     ]
@@ -506,6 +509,43 @@ def obter_status_orquestrador() -> str:
     return "ℹ️ Log do orquestrador não localizado no caminho padrão."
 
 
+_TATICO_LOCK = __import__("threading").Lock()
+
+
+def executar_acao_atualizar_tatico(chat_id: str):
+    if not _TATICO_LOCK.acquire(blocking=False):
+        notificar(chat_id, "⏳ *Já existe uma atualização tática/espacial em andamento.* Aguarde concluir.")
+        return
+
+    notificar(chat_id, "🔄 *Iniciando coleta automática de heatmaps, formações e quadrantes táticos...*\nIsso leva cerca de 1 minuto.")
+
+    def _run():
+        try:
+            script_vm = "/opt/futstats/scripts/coletar_espacial_tatico_fotmob.py"
+            script_local = os.path.join(BASE_DIR, "scripts", "coletar_espacial_tatico_fotmob.py")
+            script_use = script_vm if os.path.exists(script_vm) else script_local
+            spatial_db = "/opt/futstats/spatial.db" if os.path.exists("/opt/futstats") else os.path.join(BASE_DIR, "data", "spatial_test.db")
+            proc = subprocess.run(
+                [sys.executable, script_use, "--canon-db", DB_LOCAL, "--spatial-db", spatial_db],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            if proc.returncode == 0:
+                linhas = [ln for ln in (proc.stdout or "").splitlines() if ln.strip()]
+                resumo = "\n".join(linhas[-4:]) if linhas else "Concluído."
+                notificar(chat_id, f"✅ *Atualização Tática & Heatmaps Concluída!*\n\n```text\n{resumo[-1200:]}\n```")
+            else:
+                err = (proc.stderr or proc.stdout or "erro desconhecido")[-800:]
+                notificar(chat_id, f"❌ *Falha na atualização tática:*\n```text\n{err}\n```")
+        except Exception as e:
+            notificar(chat_id, f"❌ *Erro ao executar coletor tático:* {e}")
+        finally:
+            _TATICO_LOCK.release()
+
+    __import__("threading").Thread(target=_run, daemon=True).start()
+
+
 def tratar_comando(chat_id: str, texto: str):
     cmd = texto.strip().split()[0].lower() if texto.strip() else ""
 
@@ -567,6 +607,9 @@ def tratar_comando(chat_id: str, texto: str):
 
     elif cmd in ("/auditoria", "/auditar"):
         executar_acao_auditoria(chat_id)
+
+    elif cmd in ("/atualizar_tatico", "/spatial"):
+        executar_acao_atualizar_tatico(chat_id)
 
     elif cmd in ("/ev", "/ev_scanner", "/anomalias", "/ev_alertas", "/fichas_ev"):
         msg_suspensao = (

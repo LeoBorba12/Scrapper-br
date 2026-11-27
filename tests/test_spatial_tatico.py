@@ -112,7 +112,7 @@ def test_tendencias_taticas_combina_db_e_vm(spatial_stack):
     assert r.status_code == 200
     d = r.get_json()
     assert d["sucesso"] is True
-    assert d["total"] == 20
+    assert d["total"] >= 20
     assert d["tem_dados_espaciais_vm"] is True
     bah = [c for c in d["clubes"] if c["clube_id_canonico"] == 481][0]
     assert bah["esquema_principal"] == "4-3-3"
@@ -120,3 +120,40 @@ def test_tendencias_taticas_combina_db_e_vm(spatial_stack):
     assert bah["attacking_zones"]["total"]["left"] == 38.0
     assert bah["ppda"] is not None
     assert bah["altura_defensiva"] is not None
+
+
+def test_tendencias_taticas_inclui_live_metrics_e_clube_promovido(tmp_path, monkeypatch):
+    auth_db = str(tmp_path / "auth2.db")
+    spatial_db = str(tmp_path / "spatial2.db")
+    secret = "pytest-spatial-secret-2"
+    s_conn = init_spatial_db(spatial_db)
+    s_conn.execute(
+        """
+        INSERT INTO club_tactical_trends
+        (clube_id_canonico, fotmob_id, clube_nome, clube_sigla, jogos_analisados,
+         esquema_principal, esquema_recente_5, esquemas_json, tendencia_esquemas_json,
+         xi_medio_json, attacking_zones_json, shot_profile_json, live_metrics_json, atualizado_em)
+        VALUES (999901, 999901, 'Clube Promovido FC', 'CPF', 10, '3-5-2', '3-5-2', '[]', '[]', '[]', '{}', '{}', ?, '2026-11-27 00:00:00')
+        """,
+        (json.dumps({"posse_pct": 54.2, "field_tilt_pct": 58.1, "ppda": 9.8, "altura_defensiva": 44.0, "pontos": 21}),),
+    )
+    s_conn.commit()
+    s_conn.close()
+
+    monkeypatch.setenv("FUTSTATS_SPATIAL_DB", spatial_db)
+    auth_app = create_auth_app(db_path=auth_db, shared_secret=secret, enable_telegram=False)
+    server = make_server("127.0.0.1", 0, auth_app)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    monkeypatch.setenv("FUTSTATS_AUTH_URL", f"http://127.0.0.1:{server.server_port}")
+    monkeypatch.setenv("FUTSTATS_AUTH_SECRET", secret)
+    api_cache._cache.clear() if hasattr(api_cache, "_cache") else None
+    main_app.config["TESTING"] = True
+    try:
+        r = main_app.test_client().get("/api/spatial/tendencias-taticas")
+        d = r.get_json()
+        novo = [c for c in d["clubes"] if c["clube_id_canonico"] == 999901]
+        assert len(novo) == 1
+        assert novo[0]["ppda"] == 9.8
+        assert novo[0]["esquema_principal"] == "3-5-2"
+    finally:
+        server.shutdown()

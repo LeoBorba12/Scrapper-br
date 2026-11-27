@@ -850,21 +850,23 @@ def create_auth_app(db_path=None, shared_secret=None, enable_telegram=True):
             ).fetchall()
             out = []
             for r in rows:
+                r_dict = dict(r)
                 out.append(
                     {
-                        "clube_id_canonico": r["clube_id_canonico"],
-                        "fotmob_id": r["fotmob_id"],
-                        "clube_nome": r["clube_nome"],
-                        "clube_sigla": r["clube_sigla"],
-                        "jogos_analisados": r["jogos_analisados"],
-                        "esquema_principal": r["esquema_principal"],
-                        "esquema_recente_5": r["esquema_recente_5"],
-                        "esquemas": json.loads(r["esquemas_json"] or "[]"),
-                        "tendencia_esquemas": json.loads(r["tendencia_esquemas_json"] or "[]"),
-                        "xi_medio": json.loads(r["xi_medio_json"] or "[]"),
-                        "attacking_zones": json.loads(r["attacking_zones_json"] or "{}"),
-                        "shot_profile": json.loads(r["shot_profile_json"] or "{}"),
-                        "atualizado_em": r["atualizado_em"],
+                        "clube_id_canonico": r_dict["clube_id_canonico"],
+                        "fotmob_id": r_dict["fotmob_id"],
+                        "clube_nome": r_dict["clube_nome"],
+                        "clube_sigla": r_dict["clube_sigla"],
+                        "jogos_analisados": r_dict["jogos_analisados"],
+                        "esquema_principal": r_dict["esquema_principal"],
+                        "esquema_recente_5": r_dict["esquema_recente_5"],
+                        "esquemas": json.loads(r_dict["esquemas_json"] or "[]"),
+                        "tendencia_esquemas": json.loads(r_dict["tendencia_esquemas_json"] or "[]"),
+                        "xi_medio": json.loads(r_dict["xi_medio_json"] or "[]"),
+                        "attacking_zones": json.loads(r_dict["attacking_zones_json"] or "{}"),
+                        "shot_profile": json.loads(r_dict["shot_profile_json"] or "{}"),
+                        "live_metrics": json.loads(r_dict.get("live_metrics_json") or "{}"),
+                        "atualizado_em": r_dict["atualizado_em"],
                     }
                 )
             return jsonify({"clubes": out}), 200
