@@ -420,29 +420,76 @@ def simular_partida_api():
 def simular_campeonato_api():
     try:
         from backend.motor_oraculo_preditivo import simular_campeonato_monte_carlo
+        from backend.auth_bridge import vm_auth_request
+        from backend.app import SECRET_KEY
     except ImportError:
         from motor_oraculo_preditivo import simular_campeonato_monte_carlo
+        from auth_bridge import vm_auth_request
+        from app import SECRET_KEY
+
+    def _norm_clube(nome):
+        import unicodedata
+        s = unicodedata.normalize("NFKD", (nome or "").strip().lower())
+        s = "".join(ch for ch in s if not unicodedata.combining(ch))
+        aliases = {
+            "bragantino": "bragantino",
+            "rb bragantino": "bragantino",
+            "rc bragantino": "bragantino",
+            "red bull bragantino": "bragantino",
+            "athletico-pr": "athletico-pr",
+            "athletico paranaense": "athletico-pr",
+            "atletico-mg": "atletico-mg",
+            "atletico mineiro": "atletico-mg",
+            "vasco da gama": "vasco",
+        }
+        return aliases.get(s, s)
 
     conn = _get_ro_db()
     c = conn.cursor()
     try:
-        rows = [
-            dict(r)
-            for r in c.execute(
-                """
-                SELECT
-                    e.clube, e.cidade, e.uf, e.eh_saf, e.tier_label, e.prior_pontos_estrutural,
-                    COALESCE(p.pi_geral, 0.0) as pi_geral,
-                    COALESCE(mc.jogos, 0) as jogos,
-                    COALESCE(mc.pontos, 0) as pontos,
-                    COALESCE(mc.xpts, 0.0) as xpts
-                FROM clube_contexto_economico e
-                LEFT JOIN clube_pi_ratings p ON LOWER(p.clube) = LOWER(e.clube)
-                LEFT JOIN dim_clube dc ON LOWER(dc.nome) = LOWER(e.clube)
-                LEFT JOIN metrica_clube_avancada_2026 mc ON mc.clube_id_canonico = dc.clube_id;
-                """
-            ).fetchall()
-        ]
+        # Mapa base de metrica_clube_avancada_2026 com normalização de aliases (inclui RC/RB Bragantino)
+        mc_by_norm = {}
+        for mr in c.execute(
+            """
+            SELECT m.clube_id_canonico, COALESCE(dc.nome_exibicao, dc.nome, '') as nome,
+                   m.jogos, m.pontos, m.xpts
+            FROM metrica_clube_avancada_2026 m
+            LEFT JOIN dim_clube dc ON m.clube_id_canonico = dc.clube_id;
+            """
+        ).fetchall():
+            mc_by_norm[_norm_clube(mr["nome"])] = dict(mr)
+
+        # Buscar métricas vivas da VM (rodada mais recente) quando disponíveis
+        vm_by_norm = {}
+        try:
+            sc_code, sc_data = vm_auth_request("GET", "/internal/spatial/clubs/tactical", SECRET_KEY, timeout=4.0)
+            if sc_code == 200 and isinstance(sc_data, dict):
+                for item in sc_data.get("clubes") or []:
+                    lm = item.get("live_metrics") or {}
+                    if lm:
+                        vm_by_norm[_norm_clube(item.get("clube_nome"))] = lm
+        except Exception:
+            pass
+
+        rows = []
+        for r in c.execute(
+            """
+            SELECT
+                e.clube, e.cidade, e.uf, e.eh_saf, e.tier_label, e.prior_pontos_estrutural,
+                COALESCE(p.pi_geral, 0.0) as pi_geral
+            FROM clube_contexto_economico e
+            LEFT JOIN clube_pi_ratings p ON LOWER(p.clube) = LOWER(e.clube);
+            """
+        ).fetchall():
+            d = dict(r)
+            nk = _norm_clube(d["clube"])
+            mc = mc_by_norm.get(nk) or {}
+            vm = vm_by_norm.get(nk) or {}
+            d["jogos"] = int(vm.get("jogos") or mc.get("jogos") or 0)
+            d["pontos"] = int(vm.get("pontos") if vm.get("pontos") is not None else (mc.get("pontos") or 0))
+            d["xpts"] = float(vm.get("xpts") if vm.get("xpts") is not None else (mc.get("xpts") or 0.0))
+            rows.append(d)
+
         projecao = simular_campeonato_monte_carlo(rows, n_simulacoes=1200)
         return jsonify({
             "sucesso": True,

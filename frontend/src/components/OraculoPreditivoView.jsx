@@ -607,42 +607,47 @@ export default function OraculoPreditivoView() {
           {loadingCamp ? (
             <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Executando 1.200 simulações Monte Carlo...</div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="editorial-table" style={{ width: '100%', fontSize: '0.82rem' }}>
+            <div style={{ overflowX: 'auto', width: '100%' }}>
+              <table className="editorial-table" style={{ width: '100%', fontSize: '0.78rem', tableLayout: 'auto' }}>
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Clube</th>
-                    <th>Perfil Econômico</th>
-                    <th style={{ textAlign: 'right' }}>Pts Atuais</th>
-                    <th style={{ textAlign: 'right' }}>
-                      <MetricTooltip align="right" label="Pts Proj." what="Pontuação final média nas 1.200 simulações." how="Combina pontos já conquistados + força esperada nas rodadas restantes." />
+                    <th style={{ padding: '8px 6px', width: '32px' }}>#</th>
+                    <th style={{ padding: '8px 6px' }}>Clube</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>J</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>Pts</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="Proj." what="Pontuação final média nas 1.200 simulações." how="Combina pontos já conquistados + força esperada nas rodadas restantes." />
                     </th>
-                    <th style={{ textAlign: 'right' }}>
-                      <MetricTooltip align="right" label="Prior Econ." what="Pontuação esperada apenas por orçamento, SAF e mercado IBGE." how="Serve como régua para medir quem está superando ou decepcionando o orçamento." />
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>
+                      <MetricTooltip align="right" label="Prior" what="Pontuação esperada apenas por orçamento, SAF e mercado IBGE." how="Serve como régua para medir quem está superando ou decepcionando o orçamento." />
                     </th>
-                    <th style={{ textAlign: 'right' }}>Título %</th>
-                    <th style={{ textAlign: 'right' }}>G-4 %</th>
-                    <th style={{ textAlign: 'right' }}>Z-4 %</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>Título</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>G-4</th>
+                    <th style={{ padding: '8px 6px', textAlign: 'right' }}>Z-4</th>
                   </tr>
                 </thead>
                 <tbody>
                   {projecaoCamp.map((c) => (
                     <tr key={c.clube}>
-                      <td className="font-mono" style={{ fontWeight: 700 }}>{c.rank_projetado}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <td className="font-mono" style={{ padding: '8px 6px', fontWeight: 700 }}>{c.rank_projetado}</td>
+                      <td style={{ padding: '8px 6px', fontWeight: 700, color: 'var(--text-primary)' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
                           <ClubBadge nome={c.clube} size={18} />
-                          <span>{c.clube}</span>
+                          <span>
+                            <span style={{ display: 'block', lineHeight: 1.2 }}>{c.clube}</span>
+                            <span style={{ display: 'block', fontSize: '0.66rem', fontWeight: 500, color: 'var(--text-muted)' }}>
+                              {c.tier_economico}{c.eh_saf ? ' • SAF' : ''}
+                            </span>
+                          </span>
                         </span>
                       </td>
-                      <td style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{c.tier_economico} {c.eh_saf ? '• SAF' : ''}</td>
-                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.pontos_atuais}</td>
-                      <td className="font-mono" style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>{c.pontos_projetados.toFixed(1)}</td>
-                      <td className="font-mono" style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{c.prior_economico_pts.toFixed(1)}</td>
-                      <td className="font-mono" style={{ textAlign: 'right', fontWeight: 700, color: c.prob_titulo_pct >= 10 ? 'var(--positive)' : 'var(--text-muted)' }}>{c.prob_titulo_pct.toFixed(1)}%</td>
-                      <td className="font-mono" style={{ textAlign: 'right' }}>{c.prob_g4_pct.toFixed(1)}%</td>
-                      <td className="font-mono" style={{ textAlign: 'right', color: c.prob_z4_pct >= 25 ? 'var(--negative)' : 'var(--text-muted)' }}>{c.prob_z4_pct.toFixed(1)}%</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-muted)' }}>{c.jogos}</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right', fontWeight: 700 }}>{c.pontos_atuais}</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right', fontWeight: 800, color: 'var(--accent)' }}>{c.pontos_projetados.toFixed(1)}</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right', color: 'var(--text-secondary)' }}>{c.prior_economico_pts.toFixed(1)}</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right', fontWeight: 700, color: c.prob_titulo_pct >= 10 ? 'var(--positive)' : 'var(--text-muted)' }}>{c.prob_titulo_pct.toFixed(1)}%</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right' }}>{c.prob_g4_pct.toFixed(1)}%</td>
+                      <td className="font-mono" style={{ padding: '8px 6px', textAlign: 'right', fontWeight: c.prob_z4_pct >= 25 ? 800 : 500, color: c.prob_z4_pct >= 25 ? 'var(--negative)' : 'var(--text-muted)' }}>{c.prob_z4_pct.toFixed(1)}%</td>
                     </tr>
                   ))}
                 </tbody>

@@ -157,3 +157,15 @@ def test_tendencias_taticas_inclui_live_metrics_e_clube_promovido(tmp_path, monk
         assert novo[0]["esquema_principal"] == "3-5-2"
     finally:
         server.shutdown()
+
+
+def test_monte_carlo_sem_clubes_zerados_inclui_bragantino(spatial_stack):
+    client = spatial_stack
+    r = client.get("/api/oraculo-preditivo/simular-campeonato")
+    assert r.status_code == 200
+    d = r.get_json()
+    assert d["sucesso"] is True
+    proj = d["projecao"]
+    assert len(proj) == 20
+    zerados = [c["clube"] for c in proj if c["pontos_atuais"] <= 0 or c["jogos"] <= 0]
+    assert zerados == [], f"Clubes zerados no Monte Carlo: {zerados}"
