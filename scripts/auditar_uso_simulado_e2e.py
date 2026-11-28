@@ -156,7 +156,18 @@ def executar_auditoria_api(get_fn):
     if st_hist != 200 or (isinstance(d_hist, dict) and d_hist.get("found") is True):
         falhas.append("[Honestidade de Dados] Atleta sem tracking retornou found=True inesperado")
 
-    # 7. Auth Guardrail (admin endpoint deve recusar sem token)
+    # 7. Amostragem Aleatória de Atletas e Drift Check no Monte Carlo
+    if proj:
+        inconsistentes = [
+            c["clube"]
+            for c in proj
+            if int(c.get("pontos_atuais") or 0) > int(c.get("jogos") or 0) * 3
+            or int(c.get("jogos") or 0) > 38
+        ]
+        if inconsistentes:
+            falhas.append(f"[Sanidade Matemática Monte Carlo] Pontos > jogos*3 ou jogos > 38: {', '.join(inconsistentes)}")
+
+    # 8. Auth Guardrail (admin endpoint deve recusar sem token)
     st_adm, _, _ = get_fn("/api/admin/equipe")
     if st_adm not in (401, 403):
         falhas.append(f"[Segurança Admin] /api/admin/equipe sem token retornou {st_adm} em vez de 403")
